@@ -78,6 +78,10 @@ CREATE TABLE object_definitions (
     plural_label             VARCHAR(255)  NOT NULL,
     description              TEXT          NOT NULL DEFAULT '',
 
+    -- Физическое хранение (ADR-0007)
+    schema_name              VARCHAR(63)   NOT NULL DEFAULT 'public',
+    table_name               VARCHAR(63)   NOT NULL,
+
     -- Классификация
     object_type              VARCHAR(20)   NOT NULL CHECK (object_type IN ('standard', 'custom')),
 
