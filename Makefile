@@ -1,16 +1,20 @@
 .PHONY: build run test lint vet fmt clean \
        docker-up docker-down docker-build docker-reset \
        migrate-up migrate-down migrate-create \
-       sqlc-generate web-dev web-build \
+       sqlc-generate generate-api \
+       web-dev web-build \
        test-pgtap test-pgtap-setup
+
+-include .env
+export
 
 # ─── Variables ───────────────────────────────────────────────
 APP_NAME    := crm-api
 BIN_DIR     := bin
 GO_FILES    := $(shell find . -name '*.go' -not -path './vendor/*' -not -path './web/*')
 MIGRATE_DIR := migrations
-DB_DSN      ?= postgres://crm:crm_secret@localhost:5432/crm?sslmode=disable
-DB_TEST_DSN ?= postgres://crm:crm_secret@localhost:5432/crm_test?sslmode=disable
+DB_DSN      ?= postgres://crm:crm_secret@localhost:5433/crm?sslmode=disable
+DB_TEST_DSN ?= postgres://crm:crm_secret@localhost:5433/crm_test?sslmode=disable
 
 # ─── Go ──────────────────────────────────────────────────────
 build:
@@ -70,6 +74,10 @@ migrate-create:
 # ─── sqlc ────────────────────────────────────────────────────
 sqlc-generate:
 	sqlc generate -f sqlc/sqlc.yaml
+
+# ─── OpenAPI code generation ─────────────────────────────────
+generate-api:
+	oapi-codegen -generate gin,types,spec -package api -o internal/api/openapi_gen.go api/openapi.yaml
 
 # ─── Frontend ────────────────────────────────────────────────
 web-dev:

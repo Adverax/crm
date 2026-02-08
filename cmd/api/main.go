@@ -3,41 +3,55 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/adverax/crm/internal/api"
+	"github.com/adverax/crm/internal/handler"
+	"github.com/adverax/crm/internal/middleware"
+	"github.com/adverax/crm/internal/pkg/config"
+	"github.com/adverax/crm/internal/pkg/database"
+	"github.com/adverax/crm/internal/platform/metadata"
+	"github.com/adverax/crm/internal/platform/metadata/ddl"
 )
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
+		Level: parseLogLevel(config.Load().LogLevel),
 	}))
 	slog.SetDefault(logger)
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
+	cfg := config.Load()
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"status":"ok"}`))
-	})
+	ctx := context.Background()
+	pool, err := database.NewPool(ctx, cfg.DB.DSN())
+	if err != nil {
+		slog.Error("failed to connect to database", "error", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+	slog.Info("database connected", "host", cfg.DB.Host, "db", cfg.DB.Name)
+
+	router := setupRouter(pool)
 
 	srv := &http.Server{
-		Addr:         ":" + port,
-		Handler:      mux,
+		Addr:         fmt.Sprintf(":%d", cfg.Port),
+		Handler:      router,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 
 	go func() {
-		slog.Info("starting server", "port", port)
+		slog.Info("starting server", "port", cfg.Port)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("server failed", "error", err)
 			os.Exit(1)
@@ -49,13 +63,63 @@ func main() {
 	<-quit
 
 	slog.Info("shutting down server")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(shutdownCtx); err != nil {
 		slog.Error("server forced to shutdown", "error", err)
 		os.Exit(1)
 	}
 
 	slog.Info("server stopped")
+}
+
+func setupRouter(pool *pgxpool.Pool) *gin.Engine {
+	gin.SetMode(gin.ReleaseMode)
+	router := gin.New()
+
+	router.Use(middleware.RequestID())
+	router.Use(middleware.Logger())
+	router.Use(middleware.Recovery())
+
+	// Repository adapters (will be replaced with real sqlc adapters)
+	objectRepo := metadata.NewPgObjectRepository(pool)
+	fieldRepo := metadata.NewPgFieldRepository(pool)
+	polyRepo := metadata.NewPgPolymorphicTargetRepository(pool)
+	ddlExec := ddl.NewExecutor()
+
+	// Cache
+	cacheLoader := metadata.NewPgCacheLoader(pool)
+	metadataCache := metadata.NewMetadataCache(cacheLoader)
+
+	// Load cache on startup
+	ctx := context.Background()
+	if err := metadataCache.Load(ctx); err != nil {
+		slog.Warn("metadata cache initial load failed (empty database?)", "error", err)
+	}
+
+	// Services
+	objectService := metadata.NewObjectService(pool, objectRepo, fieldRepo, ddlExec, metadataCache)
+	fieldService := metadata.NewFieldService(pool, objectRepo, fieldRepo, polyRepo, ddlExec, metadataCache)
+
+	// Handler
+	metadataHandler := handler.NewMetadataHandler(objectService, fieldService)
+
+	// Register generated routes
+	api.RegisterHandlers(router, metadataHandler)
+
+	return router
+}
+
+func parseLogLevel(level string) slog.Level {
+	switch level {
+	case "debug":
+		return slog.LevelDebug
+	case "warn":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
 }

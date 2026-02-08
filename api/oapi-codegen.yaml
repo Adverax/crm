@@ -1,0 +1,8 @@
+package: api
+output: ../internal/api/openapi_gen.go
+generate:
+  gin-server: true
+  models: true
+  embedded-spec: true
+output-options:
+  skip-prune: true

@@ -27,7 +27,7 @@ services:
     build:
       context: ./docker/postgres
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       POSTGRES_USER: crm
       POSTGRES_PASSWORD: crm_secret

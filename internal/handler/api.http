@@ -1,0 +1,312 @@
+### ============================================================
+### CRM Metadata Admin API — HTTP Client
+### ============================================================
+### Переменные: GoLand / VS Code REST Client
+### Запуск: требуется работающий сервер (make run или docker compose up -d)
+
+@baseUrl = http://localhost:8080
+
+### ─── System ────────────────────────────────────────────────
+
+### Health check
+GET {{baseUrl}}/healthz
+
+### ─── Objects: CRUD ─────────────────────────────────────────
+
+### Создать custom-объект Invoice
+POST {{baseUrl}}/api/v1/admin/metadata/objects
+Content-Type: application/json
+
+{
+  "api_name": "Invoice2__c",
+  "label": "Счёт",
+  "plural_label": "Счета",
+  "object_type": "custom",
+  "description": "Выставленные счета клиентам",
+  "is_createable": true,
+  "is_updateable": true,
+  "is_deleteable": true,
+  "is_queryable": true,
+  "is_custom_fields_allowed": true,
+  "is_deleteable_object": true,
+  "is_visible_in_setup": true
+}
+
+> {%
+  client.global.set("objectId", response.body.data.id);
+%}
+
+### Создать второй объект для тестирования связей
+POST {{baseUrl}}/api/v1/admin/metadata/objects
+Content-Type: application/json
+
+{
+  "api_name": "LineItem__c",
+  "label": "Позиция",
+  "plural_label": "Позиции",
+  "object_type": "custom",
+  "description": "Строка счёта",
+  "is_createable": true,
+  "is_updateable": true,
+  "is_deleteable": true,
+  "is_queryable": true,
+  "is_custom_fields_allowed": true,
+  "is_deleteable_object": true
+}
+
+> {%
+  client.global.set("childObjectId", response.body.data.id);
+%}
+
+### Список объектов (с пагинацией)
+GET {{baseUrl}}/api/v1/admin/metadata/objects?page=1&per_page=10
+
+### Список объектов — фильтр по типу
+GET {{baseUrl}}/api/v1/admin/metadata/objects?object_type=custom
+
+### Получить объект по ID
+GET {{baseUrl}}/api/v1/admin/metadata/objects/{{objectId}}
+
+### Обновить объект
+PUT {{baseUrl}}/api/v1/admin/metadata/objects/{{objectId}}
+Content-Type: application/json
+
+{
+  "label": "Счёт (обновлённый)",
+  "plural_label": "Счета",
+  "description": "Выставленные счета клиентам — v2",
+  "is_searchable": true
+}
+
+### Получить объект по несуществующему ID → 404
+GET {{baseUrl}}/api/v1/admin/metadata/objects/00000000-0000-0000-0000-000000000000
+
+### ─── Fields: Text ──────────────────────────────────────────
+
+### Создать текстовое поле (plain)
+POST {{baseUrl}}/api/v1/admin/metadata/objects/{{objectId}}/fields
+Content-Type: application/json
+
+{
+  "api_name": "invoice_number__c",
+  "label": "Номер счёта",
+  "field_type": "text",
+  "field_subtype": "plain",
+  "is_required": true,
+  "is_unique": true,
+  "config": {
+    "max_length": 50
+  }
+}
+
+> {%
+  client.global.set("textFieldId", response.body.data.id);
+%}
+
+### Создать текстовое поле (email)
+POST {{baseUrl}}/api/v1/admin/metadata/objects/{{objectId}}/fields
+Content-Type: application/json
+
+{
+  "api_name": "contact_email__c",
+  "label": "Email контакта",
+  "field_type": "text",
+  "field_subtype": "email",
+  "is_required": false,
+  "config": {
+    "max_length": 255
+  }
+}
+
+### Создать textarea
+POST {{baseUrl}}/api/v1/admin/metadata/objects/{{objectId}}/fields
+Content-Type: application/json
+
+{
+  "api_name": "notes__c",
+  "label": "Примечания",
+  "field_type": "text",
+  "field_subtype": "area",
+  "config": {
+    "max_length": 5000
+  }
+}
+
+### ─── Fields: Number ────────────────────────────────────────
+
+### Целое число
+POST {{baseUrl}}/api/v1/admin/metadata/objects/{{objectId}}/fields
+Content-Type: application/json
+
+{
+  "api_name": "quantity__c",
+  "label": "Количество",
+  "field_type": "number",
+  "field_subtype": "integer",
+  "is_required": true
+}
+
+### Валюта (decimal)
+POST {{baseUrl}}/api/v1/admin/metadata/objects/{{objectId}}/fields
+Content-Type: application/json
+
+{
+  "api_name": "amount__c",
+  "label": "Сумма",
+  "field_type": "number",
+  "field_subtype": "currency",
+  "config": {
+    "precision": 18,
+    "scale": 2
+  }
+}
+
+### Процент
+POST {{baseUrl}}/api/v1/admin/metadata/objects/{{objectId}}/fields
+Content-Type: application/json
+
+{
+  "api_name": "discount__c",
+  "label": "Скидка (%)",
+  "field_type": "number",
+  "field_subtype": "percent",
+  "config": {
+    "precision": 5,
+    "scale": 2
+  }
+}
+
+### ─── Fields: Boolean ───────────────────────────────────────
+
+### Булево поле
+POST {{baseUrl}}/api/v1/admin/metadata/objects/{{objectId}}/fields
+Content-Type: application/json
+
+{
+  "api_name": "is_paid__c",
+  "label": "Оплачен",
+  "field_type": "boolean",
+  "config": {
+    "default_value": "false"
+  }
+}
+
+### ─── Fields: DateTime ──────────────────────────────────────
+
+### Дата
+POST {{baseUrl}}/api/v1/admin/metadata/objects/{{objectId}}/fields
+Content-Type: application/json
+
+{
+  "api_name": "invoice_date__c",
+  "label": "Дата счёта",
+  "field_type": "datetime",
+  "field_subtype": "date",
+  "is_required": true
+}
+
+### Дата и время
+POST {{baseUrl}}/api/v1/admin/metadata/objects/{{objectId}}/fields
+Content-Type: application/json
+
+{
+  "api_name": "due_at__c",
+  "label": "Срок оплаты",
+  "field_type": "datetime",
+  "field_subtype": "datetime"
+}
+
+### ─── Fields: Reference (association) ───────────────────────
+
+### Связь LineItem → Invoice (composition)
+POST {{baseUrl}}/api/v1/admin/metadata/objects/{{childObjectId}}/fields
+Content-Type: application/json
+
+{
+  "api_name": "invoice_id__c",
+  "label": "Счёт",
+  "field_type": "reference",
+  "field_subtype": "composition",
+  "referenced_object_id": "{{objectId}}",
+  "is_required": true,
+  "config": {
+    "relationship_name": "line_items",
+    "on_delete": "cascade"
+  }
+}
+
+> {%
+  client.global.set("refFieldId", response.body.data.id);
+%}
+
+### ─── Fields: Read / Update / Delete ────────────────────────
+
+### Список полей объекта
+GET {{baseUrl}}/api/v1/admin/metadata/objects/{{objectId}}/fields
+
+### Получить поле по ID
+GET {{baseUrl}}/api/v1/admin/metadata/objects/{{objectId}}/fields/{{textFieldId}}
+
+### Обновить поле
+PUT {{baseUrl}}/api/v1/admin/metadata/objects/{{objectId}}/fields/{{textFieldId}}
+Content-Type: application/json
+
+{
+  "label": "Номер счёта (обновлённый)",
+  "help_text": "Уникальный номер в формате INV-XXXXX"
+}
+
+### Получить несуществующее поле → 404
+GET {{baseUrl}}/api/v1/admin/metadata/objects/{{objectId}}/fields/00000000-0000-0000-0000-000000000000
+
+### ─── Ошибки валидации ──────────────────────────────────────
+
+### Пустой api_name → 400
+POST {{baseUrl}}/api/v1/admin/metadata/objects
+Content-Type: application/json
+
+{
+  "api_name": "",
+  "label": "Test",
+  "plural_label": "Tests",
+  "object_type": "custom"
+}
+
+### Невалидный object_type → 400
+POST {{baseUrl}}/api/v1/admin/metadata/objects
+Content-Type: application/json
+
+{
+  "api_name": "Bad__c",
+  "label": "Bad",
+  "plural_label": "Bads",
+  "object_type": "invalid"
+}
+
+### Дубликат api_name → 409
+POST {{baseUrl}}/api/v1/admin/metadata/objects
+Content-Type: application/json
+
+{
+  "api_name": "Invoice__c",
+  "label": "Дубликат",
+  "plural_label": "Дубликаты",
+  "object_type": "custom"
+}
+
+### Поле без field_type → 400
+POST {{baseUrl}}/api/v1/admin/metadata/objects/{{objectId}}/fields
+Content-Type: application/json
+
+{
+  "api_name": "bad_field__c",
+  "label": "Bad Field"
+}
+
+### ─── Cleanup ───────────────────────────────────────────────
+
+### Удалить дочерний объект (сначала!)
+# DELETE {{baseUrl}}/api/v1/admin/metadata/objects/{{childObjectId}}
+
+### Удалить основной объект
+# DELETE {{baseUrl}}/api/v1/admin/metadata/objects/{{objectId}}
