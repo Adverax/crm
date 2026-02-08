@@ -1,0 +1,28 @@
+openapi: "3.1.0"
+info:
+  title: CRM Platform API
+  version: 0.1.0
+  description: Enterprise CRM platform with metadata-driven objects and granular security.
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+paths:
+  /healthz:
+    get:
+      summary: Health check
+      operationId: healthCheck
+      tags:
+        - system
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
