@@ -1,7 +1,8 @@
 .PHONY: build run test lint vet fmt clean \
-       docker-up docker-down docker-build \
+       docker-up docker-down docker-build docker-reset \
        migrate-up migrate-down migrate-create \
-       sqlc-generate web-dev web-build
+       sqlc-generate web-dev web-build \
+       test-pgtap test-pgtap-setup
 
 # ─── Variables ───────────────────────────────────────────────
 APP_NAME    := crm-api
@@ -9,6 +10,7 @@ BIN_DIR     := bin
 GO_FILES    := $(shell find . -name '*.go' -not -path './vendor/*' -not -path './web/*')
 MIGRATE_DIR := migrations
 DB_DSN      ?= postgres://crm:crm_secret@localhost:5432/crm?sslmode=disable
+DB_TEST_DSN ?= postgres://crm:crm_secret@localhost:5432/crm_test?sslmode=disable
 
 # ─── Go ──────────────────────────────────────────────────────
 build:
@@ -42,6 +44,17 @@ docker-down:
 
 docker-build:
 	docker compose build
+
+docker-reset:
+	docker compose down -v && docker compose up -d
+
+# ─── pgTAP ──────────────────────────────────────────────────
+test-pgtap-setup:
+	migrate -path $(MIGRATE_DIR) -database "$(DB_TEST_DSN)" drop -f
+	migrate -path $(MIGRATE_DIR) -database "$(DB_TEST_DSN)" up
+
+test-pgtap: test-pgtap-setup
+	docker compose exec postgres pg_prove -U crm -d crm_test --recurse /tests/pgtap/
 
 # ─── Migrations ──────────────────────────────────────────────
 migrate-up:
