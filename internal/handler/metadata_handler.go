@@ -288,7 +288,6 @@ func toAPIObject(obj *metadata.ObjectDefinition) *api.ObjectDefinition {
 		Label:                 &obj.Label,
 		PluralLabel:           &obj.PluralLabel,
 		Description:           &obj.Description,
-		TableName:             &obj.TableName,
 		ObjectType:            &objType,
 		IsPlatformManaged:     &obj.IsPlatformManaged,
 		IsVisibleInSetup:      &obj.IsVisibleInSetup,

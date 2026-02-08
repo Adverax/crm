@@ -406,8 +406,6 @@ components:
           type: string
         description:
           type: string
-        table_name:
-          type: string
         object_type:
           type: string
           enum: [standard, custom]
