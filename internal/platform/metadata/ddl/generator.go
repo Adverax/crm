@@ -19,7 +19,7 @@ func CreateObjectTable(tableName string) string {
 
 // DropObjectTable generates DDL to drop a table.
 func DropObjectTable(tableName string) string {
-	return fmt.Sprintf("DROP TABLE IF EXISTS %s", quoteIdent(tableName))
+	return fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE", quoteIdent(tableName))
 }
 
 // AddColumn generates DDL to add a column to a table.
