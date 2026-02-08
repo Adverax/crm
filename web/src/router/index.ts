@@ -30,6 +30,74 @@ const router = createRouter({
           component: () => import('../views/admin/metadata/ObjectDetailView.vue'),
           props: true,
         },
+        // Security — Roles
+        {
+          path: 'security/roles',
+          name: 'admin-roles',
+          component: () => import('../views/admin/security/RoleListView.vue'),
+        },
+        {
+          path: 'security/roles/new',
+          name: 'admin-role-create',
+          component: () => import('../views/admin/security/RoleCreateView.vue'),
+        },
+        {
+          path: 'security/roles/:roleId',
+          name: 'admin-role-detail',
+          component: () => import('../views/admin/security/RoleDetailView.vue'),
+          props: true,
+        },
+        // Security — Permission Sets
+        {
+          path: 'security/permission-sets',
+          name: 'admin-permission-sets',
+          component: () => import('../views/admin/security/PermissionSetListView.vue'),
+        },
+        {
+          path: 'security/permission-sets/new',
+          name: 'admin-permission-set-create',
+          component: () => import('../views/admin/security/PermissionSetCreateView.vue'),
+        },
+        {
+          path: 'security/permission-sets/:permissionSetId',
+          name: 'admin-permission-set-detail',
+          component: () => import('../views/admin/security/PermissionSetDetailView.vue'),
+          props: true,
+        },
+        // Security — Profiles
+        {
+          path: 'security/profiles',
+          name: 'admin-profiles',
+          component: () => import('../views/admin/security/ProfileListView.vue'),
+        },
+        {
+          path: 'security/profiles/new',
+          name: 'admin-profile-create',
+          component: () => import('../views/admin/security/ProfileCreateView.vue'),
+        },
+        {
+          path: 'security/profiles/:profileId',
+          name: 'admin-profile-detail',
+          component: () => import('../views/admin/security/ProfileDetailView.vue'),
+          props: true,
+        },
+        // Security — Users
+        {
+          path: 'security/users',
+          name: 'admin-users',
+          component: () => import('../views/admin/security/UserListView.vue'),
+        },
+        {
+          path: 'security/users/new',
+          name: 'admin-user-create',
+          component: () => import('../views/admin/security/UserCreateView.vue'),
+        },
+        {
+          path: 'security/users/:userId',
+          name: 'admin-user-detail',
+          component: () => import('../views/admin/security/UserDetailView.vue'),
+          props: true,
+        },
       ],
     },
   ],

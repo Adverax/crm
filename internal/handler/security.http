@@ -1,0 +1,425 @@
+### ============================================================
+### CRM Security Admin API — HTTP Client
+### ============================================================
+### Переменные: GoLand / VS Code REST Client
+### Запуск: требуется работающий сервер (make run или docker compose up -d)
+### Порядок: Profile → Role → User → Permission Set → OLS/FLS → Assignment
+
+@baseUrl = http://localhost:8080
+
+### ─── Profiles ────────────────────────────────────────────────
+
+### Создать профиль «Стандартный»
+POST {{baseUrl}}/api/v1/admin/security/profiles
+Content-Type: application/json
+
+{
+  "api_name": "standard_user",
+  "label": "Стандартный пользователь",
+  "description": "Базовый профиль для обычных пользователей"
+}
+
+> {%
+  client.global.set("profileId", response.body.data.id);
+  client.global.set("basePermissionSetId", response.body.data.base_permission_set_id);
+%}
+
+### Создать профиль «Администратор»
+POST {{baseUrl}}/api/v1/admin/security/profiles
+Content-Type: application/json
+
+{
+  "api_name": "system_admin",
+  "label": "Администратор",
+  "description": "Полный доступ к системе"
+}
+
+> {%
+  client.global.set("adminProfileId", response.body.data.id);
+%}
+
+### Список профилей
+GET {{baseUrl}}/api/v1/admin/security/profiles?page=1&per_page=10
+
+### Получить профиль по ID
+GET {{baseUrl}}/api/v1/admin/security/profiles/{{profileId}}
+
+### Обновить профиль
+PUT {{baseUrl}}/api/v1/admin/security/profiles/{{profileId}}
+Content-Type: application/json
+
+{
+  "label": "Стандартный пользователь (обновлён)",
+  "description": "Базовый профиль — v2"
+}
+
+### ─── Roles (иерархия) ───────────────────────────────────────
+
+### Создать корневую роль «CEO»
+POST {{baseUrl}}/api/v1/admin/security/roles
+Content-Type: application/json
+
+{
+  "api_name": "ceo",
+  "label": "Генеральный директор",
+  "description": "Верхний уровень иерархии"
+}
+
+> {%
+  client.global.set("ceoRoleId", response.body.data.id);
+%}
+
+### Создать дочернюю роль «VP Sales»
+POST {{baseUrl}}/api/v1/admin/security/roles
+Content-Type: application/json
+
+{
+  "api_name": "vp_sales",
+  "label": "VP по продажам",
+  "description": "Руководитель отдела продаж",
+  "parent_id": "{{ceoRoleId}}"
+}
+
+> {%
+  client.global.set("vpSalesRoleId", response.body.data.id);
+%}
+
+### Создать дочернюю роль «Sales Rep»
+POST {{baseUrl}}/api/v1/admin/security/roles
+Content-Type: application/json
+
+{
+  "api_name": "sales_rep",
+  "label": "Менеджер по продажам",
+  "parent_id": "{{vpSalesRoleId}}"
+}
+
+> {%
+  client.global.set("salesRepRoleId", response.body.data.id);
+%}
+
+### Список ролей
+GET {{baseUrl}}/api/v1/admin/security/roles?page=1&per_page=10
+
+### Получить роль по ID
+GET {{baseUrl}}/api/v1/admin/security/roles/{{ceoRoleId}}
+
+### Обновить роль
+PUT {{baseUrl}}/api/v1/admin/security/roles/{{vpSalesRoleId}}
+Content-Type: application/json
+
+{
+  "label": "VP по продажам (обновлён)",
+  "description": "Обновлённое описание",
+  "parent_id": "{{ceoRoleId}}"
+}
+
+### ─── Users ──────────────────────────────────────────────────
+
+### Создать пользователя
+POST {{baseUrl}}/api/v1/admin/security/users
+Content-Type: application/json
+
+{
+  "username": "john.doe",
+  "email": "john@example.com",
+  "first_name": "Иван",
+  "last_name": "Петров",
+  "profile_id": "{{profileId}}",
+  "role_id": "{{salesRepRoleId}}"
+}
+
+> {%
+  client.global.set("userId", response.body.data.id);
+%}
+
+### Создать второго пользователя (без роли)
+POST {{baseUrl}}/api/v1/admin/security/users
+Content-Type: application/json
+
+{
+  "username": "jane.smith",
+  "email": "jane@example.com",
+  "first_name": "Анна",
+  "last_name": "Смирнова",
+  "profile_id": "{{adminProfileId}}"
+}
+
+> {%
+  client.global.set("userId2", response.body.data.id);
+%}
+
+### Список пользователей
+GET {{baseUrl}}/api/v1/admin/security/users?page=1&per_page=10
+
+### Получить пользователя по ID
+GET {{baseUrl}}/api/v1/admin/security/users/{{userId}}
+
+### Обновить пользователя
+PUT {{baseUrl}}/api/v1/admin/security/users/{{userId}}
+Content-Type: application/json
+
+{
+  "email": "john.updated@example.com",
+  "first_name": "Иван",
+  "last_name": "Петров-Водкин",
+  "profile_id": "{{profileId}}",
+  "role_id": "{{vpSalesRoleId}}",
+  "is_active": true
+}
+
+### Деактивировать пользователя
+PUT {{baseUrl}}/api/v1/admin/security/users/{{userId2}}
+Content-Type: application/json
+
+{
+  "email": "jane@example.com",
+  "first_name": "Анна",
+  "last_name": "Смирнова",
+  "profile_id": "{{adminProfileId}}",
+  "is_active": false
+}
+
+### ─── Permission Sets ────────────────────────────────────────
+
+### Создать grant-набор «Чтение продаж»
+POST {{baseUrl}}/api/v1/admin/security/permission-sets
+Content-Type: application/json
+
+{
+  "api_name": "sales_read",
+  "label": "Чтение продаж",
+  "description": "Доступ на чтение объектов продаж",
+  "ps_type": "grant"
+}
+
+> {%
+  client.global.set("grantPsId", response.body.data.id);
+%}
+
+### Создать grant-набор «Полный доступ к продажам»
+POST {{baseUrl}}/api/v1/admin/security/permission-sets
+Content-Type: application/json
+
+{
+  "api_name": "sales_full",
+  "label": "Полный доступ к продажам",
+  "description": "CRUD на все объекты продаж",
+  "ps_type": "grant"
+}
+
+> {%
+  client.global.set("fullPsId", response.body.data.id);
+%}
+
+### Создать deny-набор «Запрет удаления»
+POST {{baseUrl}}/api/v1/admin/security/permission-sets
+Content-Type: application/json
+
+{
+  "api_name": "deny_delete",
+  "label": "Запрет удаления",
+  "description": "Глобальный запрет на удаление записей",
+  "ps_type": "deny"
+}
+
+> {%
+  client.global.set("denyPsId", response.body.data.id);
+%}
+
+### Список наборов разрешений
+GET {{baseUrl}}/api/v1/admin/security/permission-sets?page=1&per_page=10
+
+### Получить набор по ID
+GET {{baseUrl}}/api/v1/admin/security/permission-sets/{{grantPsId}}
+
+### Обновить набор
+PUT {{baseUrl}}/api/v1/admin/security/permission-sets/{{grantPsId}}
+Content-Type: application/json
+
+{
+  "label": "Чтение продаж (обновлён)",
+  "description": "Доступ на чтение — v2"
+}
+
+### ─── Object Permissions (OLS) ───────────────────────────────
+### Bitmask: Read=1, Create=2, Update=4, Delete=8, All=15
+
+### Получить список объектов (нужен objectId из metadata API)
+GET {{baseUrl}}/api/v1/admin/metadata/objects?page=1&per_page=10
+
+### Установить OLS: Read only (1) на объект
+PUT {{baseUrl}}/api/v1/admin/security/permission-sets/{{grantPsId}}/object-permissions
+Content-Type: application/json
+
+{
+  "object_id": "{{objectId}}",
+  "permissions": 1
+}
+
+### Установить OLS: Full CRUD (15) на объект
+PUT {{baseUrl}}/api/v1/admin/security/permission-sets/{{fullPsId}}/object-permissions
+Content-Type: application/json
+
+{
+  "object_id": "{{objectId}}",
+  "permissions": 15
+}
+
+### Установить OLS deny: Delete (8) на объект
+PUT {{baseUrl}}/api/v1/admin/security/permission-sets/{{denyPsId}}/object-permissions
+Content-Type: application/json
+
+{
+  "object_id": "{{objectId}}",
+  "permissions": 8
+}
+
+### Обновить OLS: Read + Update (5) на объект
+PUT {{baseUrl}}/api/v1/admin/security/permission-sets/{{grantPsId}}/object-permissions
+Content-Type: application/json
+
+{
+  "object_id": "{{objectId}}",
+  "permissions": 5
+}
+
+### Список OLS для grant PS
+GET {{baseUrl}}/api/v1/admin/security/permission-sets/{{grantPsId}}/object-permissions
+
+### Список OLS для full PS
+GET {{baseUrl}}/api/v1/admin/security/permission-sets/{{fullPsId}}/object-permissions
+
+### Удалить OLS с deny PS
+DELETE {{baseUrl}}/api/v1/admin/security/permission-sets/{{denyPsId}}/object-permissions/{{objectId}}
+
+### ─── Field Permissions (FLS) ────────────────────────────────
+### Bitmask: Read=1, Write=2, All=3
+
+### Получить список полей объекта (нужен fieldId из metadata API)
+GET {{baseUrl}}/api/v1/admin/metadata/objects/{{objectId}}/fields
+
+### Установить FLS: Read only (1) на поле
+PUT {{baseUrl}}/api/v1/admin/security/permission-sets/{{grantPsId}}/field-permissions
+Content-Type: application/json
+
+{
+  "field_id": "{{textFieldId}}",
+  "permissions": 1
+}
+
+### Установить FLS: Read + Write (3) на поле
+PUT {{baseUrl}}/api/v1/admin/security/permission-sets/{{fullPsId}}/field-permissions
+Content-Type: application/json
+
+{
+  "field_id": "{{textFieldId}}",
+  "permissions": 3
+}
+
+### Список FLS для grant PS
+GET {{baseUrl}}/api/v1/admin/security/permission-sets/{{grantPsId}}/field-permissions
+
+### Удалить FLS
+DELETE {{baseUrl}}/api/v1/admin/security/permission-sets/{{grantPsId}}/field-permissions/{{textFieldId}}
+
+### ─── User Permission Set Assignments ────────────────────────
+
+### Назначить grant PS пользователю
+POST {{baseUrl}}/api/v1/admin/security/users/{{userId}}/permission-sets
+Content-Type: application/json
+
+{
+  "permission_set_id": "{{grantPsId}}"
+}
+
+### Назначить deny PS пользователю
+POST {{baseUrl}}/api/v1/admin/security/users/{{userId}}/permission-sets
+Content-Type: application/json
+
+{
+  "permission_set_id": "{{denyPsId}}"
+}
+
+### Список назначенных PS пользователя
+GET {{baseUrl}}/api/v1/admin/security/users/{{userId}}/permission-sets
+
+### Отозвать deny PS у пользователя (psId = ID самого permission set)
+DELETE {{baseUrl}}/api/v1/admin/security/users/{{userId}}/permission-sets/{{denyPsId}}
+
+### Список назначенных PS после отзыва
+GET {{baseUrl}}/api/v1/admin/security/users/{{userId}}/permission-sets
+
+### ─── OLS для базового PS профиля ────────────────────────────
+
+### Установить OLS на base PS профиля: Read + Create + Update (7)
+PUT {{baseUrl}}/api/v1/admin/security/permission-sets/{{basePermissionSetId}}/object-permissions
+Content-Type: application/json
+
+{
+  "object_id": "{{objectId}}",
+  "permissions": 7
+}
+
+### Список OLS базового PS
+GET {{baseUrl}}/api/v1/admin/security/permission-sets/{{basePermissionSetId}}/object-permissions
+
+### ─── Ошибки валидации ───────────────────────────────────────
+
+### Пустой api_name → 400
+POST {{baseUrl}}/api/v1/admin/security/roles
+Content-Type: application/json
+
+{
+  "api_name": "",
+  "label": "Test"
+}
+
+### Невалидный UUID → 400
+GET {{baseUrl}}/api/v1/admin/security/roles/not-a-uuid
+
+### Несуществующий ID → 404
+GET {{baseUrl}}/api/v1/admin/security/roles/00000000-0000-0000-0000-000000000000
+
+### Невалидный ps_type → 400
+POST {{baseUrl}}/api/v1/admin/security/permission-sets
+Content-Type: application/json
+
+{
+  "api_name": "bad_type",
+  "label": "Bad",
+  "ps_type": "invalid"
+}
+
+### Создание пользователя без profile_id → 400
+POST {{baseUrl}}/api/v1/admin/security/users
+Content-Type: application/json
+
+{
+  "username": "bad_user",
+  "email": "bad@example.com"
+}
+
+### ─── Cleanup ────────────────────────────────────────────────
+### Раскомментируйте и выполните в обратном порядке зависимостей
+
+### Удалить назначенные PS
+# DELETE {{baseUrl}}/api/v1/admin/security/users/{{userId}}/permission-sets/{{grantPsId}}
+
+### Удалить пользователей
+# DELETE {{baseUrl}}/api/v1/admin/security/users/{{userId}}
+# DELETE {{baseUrl}}/api/v1/admin/security/users/{{userId2}}
+
+### Удалить наборы разрешений
+# DELETE {{baseUrl}}/api/v1/admin/security/permission-sets/{{grantPsId}}
+# DELETE {{baseUrl}}/api/v1/admin/security/permission-sets/{{fullPsId}}
+# DELETE {{baseUrl}}/api/v1/admin/security/permission-sets/{{denyPsId}}
+
+### Удалить роли (снизу вверх по иерархии)
+# DELETE {{baseUrl}}/api/v1/admin/security/roles/{{salesRepRoleId}}
+# DELETE {{baseUrl}}/api/v1/admin/security/roles/{{vpSalesRoleId}}
+# DELETE {{baseUrl}}/api/v1/admin/security/roles/{{ceoRoleId}}
+
+### Удалить профили
+# DELETE {{baseUrl}}/api/v1/admin/security/profiles/{{profileId}}
+# DELETE {{baseUrl}}/api/v1/admin/security/profiles/{{adminProfileId}}
