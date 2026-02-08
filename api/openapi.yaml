@@ -15,6 +15,16 @@ tags:
     description: Object definition management
   - name: metadata-fields
     description: Field definition management
+  - name: security-roles
+    description: User role management
+  - name: security-permission-sets
+    description: Permission set management
+  - name: security-profiles
+    description: Profile management
+  - name: security-users
+    description: User management
+  - name: security-permissions
+    description: OLS/FLS permission management
 
 paths:
   /healthz:
@@ -270,6 +280,446 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  # --- Security: Roles ---
+
+  /api/v1/admin/security/roles:
+    post:
+      summary: Create user role
+      operationId: createRole
+      tags: [security-roles]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoleRequest"
+      responses:
+        "201":
+          description: Role created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+    get:
+      summary: List user roles
+      operationId: listRoles
+      tags: [security-roles]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: List of roles
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedDataResponse"
+
+  /api/v1/admin/security/roles/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      summary: Get user role
+      operationId: getRole
+      tags: [security-roles]
+      responses:
+        "200":
+          description: Role
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      summary: Update user role
+      operationId: updateRole
+      tags: [security-roles]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRoleRequest"
+      responses:
+        "200":
+          description: Role updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      summary: Delete user role
+      operationId: deleteRole
+      tags: [security-roles]
+      responses:
+        "204":
+          description: Role deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # --- Security: Permission Sets ---
+
+  /api/v1/admin/security/permission-sets:
+    post:
+      summary: Create permission set
+      operationId: createPermissionSet
+      tags: [security-permission-sets]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePermissionSetRequest"
+      responses:
+        "201":
+          description: Permission set created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+    get:
+      summary: List permission sets
+      operationId: listPermissionSets
+      tags: [security-permission-sets]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: List of permission sets
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedDataResponse"
+
+  /api/v1/admin/security/permission-sets/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      summary: Get permission set
+      operationId: getPermissionSet
+      tags: [security-permission-sets]
+      responses:
+        "200":
+          description: Permission set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      summary: Update permission set
+      operationId: updatePermissionSet
+      tags: [security-permission-sets]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePermissionSetRequest"
+      responses:
+        "200":
+          description: Permission set updated
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      summary: Delete permission set
+      operationId: deletePermissionSet
+      tags: [security-permission-sets]
+      responses:
+        "204":
+          description: Permission set deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # --- Security: Profiles ---
+
+  /api/v1/admin/security/profiles:
+    post:
+      summary: Create profile
+      operationId: createProfile
+      tags: [security-profiles]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProfileRequest"
+      responses:
+        "201":
+          description: Profile created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    get:
+      summary: List profiles
+      operationId: listProfiles
+      tags: [security-profiles]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: List of profiles
+
+  /api/v1/admin/security/profiles/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      summary: Get profile
+      operationId: getProfile
+      tags: [security-profiles]
+      responses:
+        "200":
+          description: Profile
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      summary: Update profile
+      operationId: updateProfile
+      tags: [security-profiles]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: Profile updated
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      summary: Delete profile
+      operationId: deleteProfile
+      tags: [security-profiles]
+      responses:
+        "204":
+          description: Profile deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # --- Security: Users ---
+
+  /api/v1/admin/security/users:
+    post:
+      summary: Create user
+      operationId: createUser
+      tags: [security-users]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    get:
+      summary: List users
+      operationId: listUsers
+      tags: [security-users]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: List of users
+
+  /api/v1/admin/security/users/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      summary: Get user
+      operationId: getUser
+      tags: [security-users]
+      responses:
+        "200":
+          description: User
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      summary: Update user
+      operationId: updateUser
+      tags: [security-users]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: User updated
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      summary: Delete user
+      operationId: deleteUser
+      tags: [security-users]
+      responses:
+        "204":
+          description: User deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/admin/security/users/{id}/permission-sets:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    post:
+      summary: Assign permission set to user
+      operationId: assignPermissionSet
+      tags: [security-users]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [permission_set_id]
+              properties:
+                permission_set_id:
+                  type: string
+                  format: uuid
+      responses:
+        "204":
+          description: Permission set assigned
+        "400":
+          $ref: "#/components/responses/BadRequest"
+    get:
+      summary: List permission sets assigned to user
+      operationId: listUserPermissionSets
+      tags: [security-users]
+      responses:
+        "200":
+          description: List of assignments
+
+  /api/v1/admin/security/users/{id}/permission-sets/{psId}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+      - name: psId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      summary: Revoke permission set from user
+      operationId: revokePermissionSet
+      tags: [security-users]
+      responses:
+        "204":
+          description: Permission set revoked
+
+  # --- Security: Object/Field Permissions ---
+
+  /api/v1/admin/security/permission-sets/{id}/object-permissions:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    put:
+      summary: Set object permission on permission set
+      operationId: setObjectPermission
+      tags: [security-permissions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetObjectPermissionRequest"
+      responses:
+        "200":
+          description: Object permission set
+        "400":
+          $ref: "#/components/responses/BadRequest"
+    get:
+      summary: List object permissions for permission set
+      operationId: listObjectPermissions
+      tags: [security-permissions]
+      responses:
+        "200":
+          description: List of object permissions
+
+  /api/v1/admin/security/permission-sets/{id}/object-permissions/{objectId}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+      - $ref: "#/components/parameters/ObjectId"
+    delete:
+      summary: Remove object permission
+      operationId: removeObjectPermission
+      tags: [security-permissions]
+      responses:
+        "204":
+          description: Object permission removed
+
+  /api/v1/admin/security/permission-sets/{id}/field-permissions:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    put:
+      summary: Set field permission on permission set
+      operationId: setFieldPermission
+      tags: [security-permissions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetFieldPermissionRequest"
+      responses:
+        "200":
+          description: Field permission set
+        "400":
+          $ref: "#/components/responses/BadRequest"
+    get:
+      summary: List field permissions for permission set
+      operationId: listFieldPermissions
+      tags: [security-permissions]
+      responses:
+        "200":
+          description: List of field permissions
+
+  /api/v1/admin/security/permission-sets/{id}/field-permissions/{fieldId}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+      - $ref: "#/components/parameters/FieldId"
+    delete:
+      summary: Remove field permission
+      operationId: removeFieldPermission
+      tags: [security-permissions]
+      responses:
+        "204":
+          description: Field permission removed
+
 components:
   parameters:
     ObjectId:
@@ -287,6 +737,31 @@ components:
       schema:
         type: string
         format: uuid
+
+    ResourceId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+        minimum: 1
+
+    PerPage:
+      name: per_page
+      in: query
+      schema:
+        type: integer
+        default: 20
+        minimum: 1
+        maximum: 100
 
   schemas:
     CreateObjectRequest:
@@ -618,6 +1093,172 @@ components:
         total_pages:
           type: integer
           format: int64
+
+    # --- Security schemas ---
+
+    CreateRoleRequest:
+      type: object
+      required: [api_name, label]
+      properties:
+        api_name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        label:
+          type: string
+        description:
+          type: string
+          default: ""
+        parent_id:
+          type: string
+          format: uuid
+
+    UpdateRoleRequest:
+      type: object
+      required: [label]
+      properties:
+        label:
+          type: string
+        description:
+          type: string
+        parent_id:
+          type: string
+          format: uuid
+
+    CreatePermissionSetRequest:
+      type: object
+      required: [api_name, label, ps_type]
+      properties:
+        api_name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        label:
+          type: string
+        description:
+          type: string
+          default: ""
+        ps_type:
+          type: string
+          enum: [grant, deny]
+
+    UpdatePermissionSetRequest:
+      type: object
+      required: [label]
+      properties:
+        label:
+          type: string
+        description:
+          type: string
+
+    CreateProfileRequest:
+      type: object
+      required: [api_name, label]
+      properties:
+        api_name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        label:
+          type: string
+        description:
+          type: string
+          default: ""
+
+    UpdateProfileRequest:
+      type: object
+      required: [label]
+      properties:
+        label:
+          type: string
+        description:
+          type: string
+
+    CreateUserRequest:
+      type: object
+      required: [username, email, profile_id]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 100
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+          default: ""
+        last_name:
+          type: string
+          default: ""
+        profile_id:
+          type: string
+          format: uuid
+        role_id:
+          type: string
+          format: uuid
+
+    UpdateUserRequest:
+      type: object
+      required: [email, profile_id]
+      properties:
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+        last_name:
+          type: string
+        profile_id:
+          type: string
+          format: uuid
+        role_id:
+          type: string
+          format: uuid
+        is_active:
+          type: boolean
+
+    SetObjectPermissionRequest:
+      type: object
+      required: [object_id, permissions]
+      properties:
+        object_id:
+          type: string
+          format: uuid
+        permissions:
+          type: integer
+          minimum: 0
+          maximum: 15
+          description: "Bitmask: Read=1, Create=2, Update=4, Delete=8"
+
+    SetFieldPermissionRequest:
+      type: object
+      required: [field_id, permissions]
+      properties:
+        field_id:
+          type: string
+          format: uuid
+        permissions:
+          type: integer
+          minimum: 0
+          maximum: 3
+          description: "Bitmask: Read=1, Write=2"
+
+    DataResponse:
+      type: object
+      properties:
+        data:
+          type: object
+
+    PaginatedDataResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+        pagination:
+          $ref: "#/components/schemas/PaginationMeta"
 
     ErrorBody:
       type: object

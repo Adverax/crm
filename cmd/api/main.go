@@ -21,6 +21,7 @@ import (
 	"github.com/adverax/crm/internal/pkg/database"
 	"github.com/adverax/crm/internal/platform/metadata"
 	"github.com/adverax/crm/internal/platform/metadata/ddl"
+	"github.com/adverax/crm/internal/platform/security"
 )
 
 func main() {
@@ -41,6 +42,11 @@ func main() {
 	slog.Info("database connected", "host", cfg.DB.Host, "db", cfg.DB.Name)
 
 	router := setupRouter(pool)
+
+	// Start outbox worker
+	workerCtx, workerCancel := context.WithCancel(ctx)
+	defer workerCancel()
+	startOutboxWorker(workerCtx, pool, cfg.DB.DSN(), logger)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Port),
@@ -63,6 +69,8 @@ func main() {
 	<-quit
 
 	slog.Info("shutting down server")
+	workerCancel()
+
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -82,33 +90,87 @@ func setupRouter(pool *pgxpool.Pool) *gin.Engine {
 	router.Use(middleware.Logger())
 	router.Use(middleware.Recovery())
 
-	// Repository adapters (will be replaced with real sqlc adapters)
+	// --- Metadata layer ---
 	objectRepo := metadata.NewPgObjectRepository(pool)
 	fieldRepo := metadata.NewPgFieldRepository(pool)
 	polyRepo := metadata.NewPgPolymorphicTargetRepository(pool)
 	ddlExec := ddl.NewExecutor()
 
-	// Cache
 	cacheLoader := metadata.NewPgCacheLoader(pool)
 	metadataCache := metadata.NewMetadataCache(cacheLoader)
 
-	// Load cache on startup
 	ctx := context.Background()
 	if err := metadataCache.Load(ctx); err != nil {
 		slog.Warn("metadata cache initial load failed (empty database?)", "error", err)
 	}
 
-	// Services
 	objectService := metadata.NewObjectService(pool, objectRepo, fieldRepo, ddlExec, metadataCache)
 	fieldService := metadata.NewFieldService(pool, objectRepo, fieldRepo, polyRepo, ddlExec, metadataCache)
 
-	// Handler
 	metadataHandler := handler.NewMetadataHandler(objectService, fieldService)
-
-	// Register generated routes
 	api.RegisterHandlers(router, metadataHandler)
 
+	// --- Security layer ---
+	userRoleRepo := security.NewPgUserRoleRepository(pool)
+	psRepo := security.NewPgPermissionSetRepository(pool)
+	profileRepo := security.NewPgProfileRepository(pool)
+	userRepo := security.NewPgUserRepository(pool)
+	psToUserRepo := security.NewPgPermissionSetToUserRepository(pool)
+	objPermRepo := security.NewPgObjectPermissionRepository(pool)
+	fieldPermRepo := security.NewPgFieldPermissionRepository(pool)
+	effectiveRepo := security.NewPgEffectivePermissionRepository(pool)
+	outboxRepo := security.NewPgOutboxRepository(pool)
+
+	roleService := security.NewUserRoleService(pool, userRoleRepo)
+	psService := security.NewPermissionSetService(pool, psRepo)
+	profileService := security.NewProfileService(pool, profileRepo, psRepo)
+	userService := security.NewUserService(pool, userRepo, profileRepo, userRoleRepo, psToUserRepo, outboxRepo)
+	permissionService := security.NewPermissionService(pool, objPermRepo, fieldPermRepo, outboxRepo)
+
+	// Dev auth middleware (replaces JWT in Phase 5)
+	router.Use(middleware.DevAuth(userRepo, security.SystemAdminUserID))
+
+	// Security admin routes
+	adminGroup := router.Group("/api/v1/admin")
+	secHandler := handler.NewSecurityHandler(roleService, psService, profileService, userService, permissionService)
+	secHandler.RegisterRoutes(adminGroup)
+
+	// Effective permission computer (used by outbox worker)
+	_ = effectiveRepo
+
 	return router
+}
+
+func startOutboxWorker(ctx context.Context, pool *pgxpool.Pool, dsn string, logger *slog.Logger) {
+	connConfig, err := security.ParseConnConfig(dsn)
+	if err != nil {
+		slog.Error("failed to parse conn config for outbox worker", "error", err)
+		return
+	}
+
+	outboxRepo := security.NewPgOutboxRepository(pool)
+	userRepo := security.NewPgUserRepository(pool)
+	profileRepo := security.NewPgProfileRepository(pool)
+	psToUserRepo := security.NewPgPermissionSetToUserRepository(pool)
+	psRepo := security.NewPgPermissionSetRepository(pool)
+	objPermRepo := security.NewPgObjectPermissionRepository(pool)
+	fieldPermRepo := security.NewPgFieldPermissionRepository(pool)
+	effectiveRepo := security.NewPgEffectivePermissionRepository(pool)
+	metadataLister := security.NewPgMetadataFieldLister(pool)
+
+	computer := security.NewEffectiveComputer(
+		pool, userRepo, profileRepo, psToUserRepo, psRepo,
+		objPermRepo, fieldPermRepo, effectiveRepo, metadataLister,
+	)
+
+	worker := security.NewOutboxWorker(*connConfig, outboxRepo, computer, logger)
+	go func() {
+		if err := worker.Run(ctx); err != nil && ctx.Err() == nil {
+			slog.Error("outbox worker stopped with error", "error", err)
+		}
+	}()
+
+	slog.Info("outbox worker started")
 }
 
 func parseLogLevel(level string) slog.Level {
