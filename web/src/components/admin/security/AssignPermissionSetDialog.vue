@@ -35,7 +35,7 @@ const emit = defineEmits<{
 
 const store = useSecurityAdminStore()
 const toast = useToast()
-const { permissionSets, isLoading } = storeToRefs(store)
+const { permissionSets, permissionSetsLoading } = storeToRefs(store)
 
 const selectedPsId = ref<string>('')
 
@@ -105,10 +105,10 @@ function onSelect(value: any) {
       </div>
 
       <DialogFooter>
-        <Button variant="outline" :disabled="isLoading" @click="onCancel">
+        <Button variant="outline" :disabled="permissionSetsLoading" @click="onCancel">
           Отмена
         </Button>
-        <Button :disabled="!selectedPsId || isLoading" @click="onAssign">
+        <Button :disabled="!selectedPsId || permissionSetsLoading" @click="onAssign">
           Назначить
         </Button>
       </DialogFooter>

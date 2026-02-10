@@ -84,8 +84,8 @@ describe('useMetadataStore', () => {
           expect(store.objects).toHaveLength(1)
           expect(store.objects[0].apiName).toBe('Invoice__c')
           expect(store.pagination?.total).toBe(1)
-          expect(store.isLoading).toBe(false)
-          expect(store.error).toBeNull()
+          expect(store.objectsLoading).toBe(false)
+          expect(store.objectsError).toBeNull()
         },
       },
       {
@@ -94,8 +94,8 @@ describe('useMetadataStore', () => {
           mockedApi.listObjects.mockRejectedValue(new Error('Network error'))
         },
         assert: (store: ReturnType<typeof useMetadataStore>) => {
-          expect(store.error).toBe('Network error')
-          expect(store.isLoading).toBe(false)
+          expect(store.objectsError).toBe('Network error')
+          expect(store.objectsLoading).toBe(false)
         },
       },
     ]
@@ -153,7 +153,7 @@ describe('useMetadataStore', () => {
       })
 
       expect(result.id).toBe('obj-1')
-      expect(store.isLoading).toBe(false)
+      expect(store.objectsLoading).toBe(false)
     })
   })
 
@@ -165,7 +165,7 @@ describe('useMetadataStore', () => {
       await store.deleteObject('obj-1')
 
       expect(mockedApi.deleteObject).toHaveBeenCalledWith('obj-1')
-      expect(store.isLoading).toBe(false)
+      expect(store.objectsLoading).toBe(false)
     })
   })
 
@@ -217,12 +217,12 @@ describe('useMetadataStore', () => {
       await store.deleteField('obj-1', 'field-1')
 
       expect(mockedApi.deleteField).toHaveBeenCalledWith('obj-1', 'field-1')
-      expect(store.isLoading).toBe(false)
+      expect(store.fieldsLoading).toBe(false)
     })
   })
 
   describe('loading state', () => {
-    it('sets isLoading to true during fetch and false after', async () => {
+    it('sets objectsLoading to true during fetch and false after', async () => {
       let resolveFn: (value: unknown) => void
       mockedApi.listObjects.mockReturnValue(
         new Promise((resolve) => { resolveFn = resolve }),
@@ -230,7 +230,7 @@ describe('useMetadataStore', () => {
       const store = useMetadataStore()
 
       const promise = store.fetchObjects()
-      expect(store.isLoading).toBe(true)
+      expect(store.objectsLoading).toBe(true)
 
       resolveFn!({
         data: [],
@@ -238,7 +238,7 @@ describe('useMetadataStore', () => {
       })
       await promise
 
-      expect(store.isLoading).toBe(false)
+      expect(store.objectsLoading).toBe(false)
     })
   })
 })

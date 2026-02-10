@@ -30,7 +30,7 @@ import { storeToRefs } from 'pinia'
 const router = useRouter()
 const store = useSecurityAdminStore()
 const toast = useToast()
-const { users, usersPagination, profiles, roles, isLoading } = storeToRefs(store)
+const { users, usersPagination, profiles, roles, usersLoading } = storeToRefs(store)
 
 const deleteTarget = ref<User | null>(null)
 const showDeleteDialog = ref(false)
@@ -111,12 +111,12 @@ const breadcrumbs = [
       </template>
     </PageHeader>
 
-    <div v-if="isLoading && users.length === 0" class="space-y-3">
+    <div v-if="usersLoading && users.length === 0" class="space-y-3">
       <Skeleton v-for="i in 5" :key="i" class="h-12 w-full" />
     </div>
 
     <EmptyState
-      v-else-if="!isLoading && users.length === 0"
+      v-else-if="!usersLoading && users.length === 0"
       title="Нет пользователей"
       description="Создайте первого пользователя"
     >

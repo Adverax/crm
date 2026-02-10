@@ -23,7 +23,7 @@ const props = defineProps<{
 const router = useRouter()
 const store = useSecurityAdminStore()
 const toast = useToast()
-const { currentProfile, isLoading, error } = storeToRefs(store)
+const { currentProfile, profilesLoading, profilesError } = storeToRefs(store)
 const { state, errors, validate, toUpdateRequest, initFrom } = useProfileForm()
 
 const showDeleteDialog = ref(false)
@@ -71,7 +71,7 @@ const breadcrumbs = computed(() => [
 
 <template>
   <div>
-    <div v-if="isLoading && !currentProfile" class="space-y-4">
+    <div v-if="profilesLoading && !currentProfile" class="space-y-4">
       <Skeleton class="h-8 w-64" />
       <Skeleton class="h-64 w-full" />
     </div>
@@ -89,7 +89,7 @@ const breadcrumbs = computed(() => [
         </template>
       </PageHeader>
 
-      <ErrorAlert v-if="error" :message="error" class="mb-4" />
+      <ErrorAlert v-if="profilesError" :message="profilesError" class="mb-4" />
 
       <form class="max-w-2xl space-y-6" @submit.prevent="onSave">
         <Card>
@@ -127,7 +127,7 @@ const breadcrumbs = computed(() => [
         <Separator />
 
         <div class="flex gap-2">
-          <Button type="submit" :disabled="isLoading">
+          <Button type="submit" :disabled="profilesLoading">
             Сохранить
           </Button>
           <Button variant="outline" type="button" @click="router.back()">

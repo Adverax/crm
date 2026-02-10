@@ -37,7 +37,7 @@ import { storeToRefs } from 'pinia'
 const router = useRouter()
 const store = useSecurityAdminStore()
 const toast = useToast()
-const { permissionSets, permissionSetsPagination, isLoading } = storeToRefs(store)
+const { permissionSets, permissionSetsPagination, permissionSetsLoading } = storeToRefs(store)
 
 const filterType = ref<string>('all')
 const deleteTarget = ref<PermissionSet | null>(null)
@@ -115,12 +115,12 @@ const breadcrumbs = [
       </Select>
     </div>
 
-    <div v-if="isLoading && permissionSets.length === 0" class="space-y-3">
+    <div v-if="permissionSetsLoading && permissionSets.length === 0" class="space-y-3">
       <Skeleton v-for="i in 5" :key="i" class="h-12 w-full" />
     </div>
 
     <EmptyState
-      v-else-if="!isLoading && permissionSets.length === 0"
+      v-else-if="!permissionSetsLoading && permissionSets.length === 0"
       title="Нет наборов разрешений"
       description="Создайте первый набор разрешений"
     >

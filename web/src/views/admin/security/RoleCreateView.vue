@@ -24,7 +24,7 @@ import { storeToRefs } from 'pinia'
 const router = useRouter()
 const store = useSecurityAdminStore()
 const toast = useToast()
-const { isLoading, error, roles } = storeToRefs(store)
+const { rolesLoading, rolesError, roles } = storeToRefs(store)
 const { state, errors, validate, toCreateRequest } = useRoleForm()
 
 onMounted(() => {
@@ -58,7 +58,7 @@ const breadcrumbs = [
   <div>
     <PageHeader title="Создать роль" :breadcrumbs="breadcrumbs" />
 
-    <ErrorAlert v-if="error" :message="error" class="mb-4" />
+    <ErrorAlert v-if="rolesError" :message="rolesError" class="mb-4" />
 
     <form class="max-w-2xl space-y-6" @submit.prevent="onSubmit">
       <Card>
@@ -106,7 +106,7 @@ const breadcrumbs = [
       <Separator />
 
       <div class="flex gap-2">
-        <Button type="submit" :disabled="isLoading">
+        <Button type="submit" :disabled="rolesLoading">
           Создать
         </Button>
         <Button variant="outline" type="button" @click="router.back()">

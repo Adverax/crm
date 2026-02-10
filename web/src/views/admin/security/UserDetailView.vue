@@ -33,7 +33,7 @@ const props = defineProps<{
 const router = useRouter()
 const store = useSecurityAdminStore()
 const toast = useToast()
-const { currentUser, profiles, roles, isLoading, error } = storeToRefs(store)
+const { currentUser, profiles, roles, usersLoading, usersError } = storeToRefs(store)
 const { state, errors, validate, toUpdateRequest, initFrom } = useUserForm()
 
 const showDeleteDialog = ref(false)
@@ -95,7 +95,7 @@ const breadcrumbs = computed(() => [
 
 <template>
   <div>
-    <div v-if="isLoading && !currentUser" class="space-y-4">
+    <div v-if="usersLoading && !currentUser" class="space-y-4">
       <Skeleton class="h-8 w-64" />
       <Skeleton class="h-64 w-full" />
     </div>
@@ -114,7 +114,7 @@ const breadcrumbs = computed(() => [
         </template>
       </PageHeader>
 
-      <ErrorAlert v-if="error" :message="error" class="mb-4" />
+      <ErrorAlert v-if="usersError" :message="usersError" class="mb-4" />
 
       <Tabs default-value="info">
         <TabsList>
@@ -205,7 +205,7 @@ const breadcrumbs = computed(() => [
             <Separator />
 
             <div class="flex gap-2">
-              <Button type="submit" :disabled="isLoading">
+              <Button type="submit" :disabled="usersLoading">
                 Сохранить
               </Button>
               <Button variant="outline" type="button" @click="router.back()">

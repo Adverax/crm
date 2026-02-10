@@ -2,6 +2,7 @@
 import { usePermissionEditorStore } from '@/stores/permissionEditor'
 import { useToast } from '@/composables/useToast'
 import BitmaskCheckboxGroup from '@/components/admin/security/BitmaskCheckboxGroup.vue'
+import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import { FLS_FLAGS } from '@/types/security'
 import {
   Select,
@@ -24,7 +25,7 @@ import { storeToRefs } from 'pinia'
 
 const store = usePermissionEditorStore()
 const toast = useToast()
-const { objectDefinitions, selectedObjectId, fieldsForObject, isLoading } = storeToRefs(store)
+const { objectDefinitions, selectedObjectId, fieldsForObject, flsLoading, flsError } = storeToRefs(store)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function onObjectSelect(value: any) {
@@ -46,6 +47,8 @@ async function onPermissionChange(fieldId: string, value: number) {
 
 <template>
   <div class="space-y-4">
+    <ErrorAlert v-if="flsError" :message="flsError" class="mb-4" />
+
     <div class="max-w-sm space-y-2">
       <Label>Объект</Label>
       <Select :model-value="selectedObjectId ?? undefined" @update:model-value="onObjectSelect">
@@ -60,7 +63,7 @@ async function onPermissionChange(fieldId: string, value: number) {
       </Select>
     </div>
 
-    <div v-if="isLoading && selectedObjectId" class="space-y-3">
+    <div v-if="flsLoading && selectedObjectId" class="space-y-3">
       <Skeleton v-for="i in 5" :key="i" class="h-12 w-full" />
     </div>
 

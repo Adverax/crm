@@ -2,6 +2,7 @@
 import { usePermissionEditorStore } from '@/stores/permissionEditor'
 import { useToast } from '@/composables/useToast'
 import BitmaskCheckboxGroup from '@/components/admin/security/BitmaskCheckboxGroup.vue'
+import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import { OLS_FLAGS } from '@/types/security'
 import {
   Table,
@@ -16,7 +17,7 @@ import { storeToRefs } from 'pinia'
 
 const store = usePermissionEditorStore()
 const toast = useToast()
-const { objectDefinitions, isLoading } = storeToRefs(store)
+const { objectDefinitions, olsLoading, olsError } = storeToRefs(store)
 
 function getPermissionValue(objectId: string): number {
   return store.getObjectPermission(objectId)?.permissions ?? 0
@@ -33,11 +34,13 @@ async function onPermissionChange(objectId: string, value: number) {
 
 <template>
   <div>
-    <div v-if="isLoading" class="space-y-3">
+    <ErrorAlert v-if="olsError" :message="olsError" class="mb-4" />
+
+    <div v-if="olsLoading" class="space-y-3">
       <Skeleton v-for="i in 5" :key="i" class="h-12 w-full" />
     </div>
 
-    <Table v-else>
+    <Table v-else-if="objectDefinitions.length > 0">
       <TableHeader>
         <TableRow>
           <TableHead>Объект</TableHead>

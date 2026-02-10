@@ -26,7 +26,7 @@ import type { ObjectType } from '@/types/metadata'
 const router = useRouter()
 const store = useMetadataStore()
 const toast = useToast()
-const { isLoading, error } = storeToRefs(store)
+const { objectsLoading, objectsError } = storeToRefs(store)
 const { state, errors, validate, toCreateRequest } = useObjectForm()
 
 const flagGroups = [
@@ -107,7 +107,7 @@ const breadcrumbs = [
   <div>
     <PageHeader title="Создать объект" :breadcrumbs="breadcrumbs" />
 
-    <ErrorAlert v-if="error" :message="error" class="mb-4" />
+    <ErrorAlert v-if="objectsError" :message="objectsError" class="mb-4" />
 
     <form class="max-w-2xl space-y-6" @submit.prevent="onSubmit">
       <Card>
@@ -169,7 +169,7 @@ const breadcrumbs = [
       <Separator />
 
       <div class="flex gap-2">
-        <Button type="submit" :disabled="isLoading">
+        <Button type="submit" :disabled="objectsLoading">
           Создать
         </Button>
         <Button variant="outline" type="button" @click="router.back()">

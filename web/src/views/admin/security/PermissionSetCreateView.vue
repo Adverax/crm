@@ -24,7 +24,7 @@ import type { PsType } from '@/types/security'
 const router = useRouter()
 const store = useSecurityAdminStore()
 const toast = useToast()
-const { isLoading, error } = storeToRefs(store)
+const { permissionSetsLoading, permissionSetsError } = storeToRefs(store)
 const { state, errors, validate, toCreateRequest } = usePermissionSetForm()
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -54,7 +54,7 @@ const breadcrumbs = [
   <div>
     <PageHeader title="Создать набор разрешений" :breadcrumbs="breadcrumbs" />
 
-    <ErrorAlert v-if="error" :message="error" class="mb-4" />
+    <ErrorAlert v-if="permissionSetsError" :message="permissionSetsError" class="mb-4" />
 
     <form class="max-w-2xl space-y-6" @submit.prevent="onSubmit">
       <Card>
@@ -101,7 +101,7 @@ const breadcrumbs = [
       <Separator />
 
       <div class="flex gap-2">
-        <Button type="submit" :disabled="isLoading">
+        <Button type="submit" :disabled="permissionSetsLoading">
           Создать
         </Button>
         <Button variant="outline" type="button" @click="router.back()">

@@ -29,7 +29,7 @@ import { storeToRefs } from 'pinia'
 const router = useRouter()
 const store = useSecurityAdminStore()
 const toast = useToast()
-const { roles, rolesPagination, isLoading } = storeToRefs(store)
+const { roles, rolesPagination, rolesLoading } = storeToRefs(store)
 
 const deleteTarget = ref<UserRole | null>(null)
 const showDeleteDialog = ref(false)
@@ -94,12 +94,12 @@ const breadcrumbs = [
       </template>
     </PageHeader>
 
-    <div v-if="isLoading && roles.length === 0" class="space-y-3">
+    <div v-if="rolesLoading && roles.length === 0" class="space-y-3">
       <Skeleton v-for="i in 5" :key="i" class="h-12 w-full" />
     </div>
 
     <EmptyState
-      v-else-if="!isLoading && roles.length === 0"
+      v-else-if="!rolesLoading && roles.length === 0"
       title="Нет ролей"
       description="Создайте первую роль в иерархии"
     >

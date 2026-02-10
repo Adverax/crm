@@ -23,7 +23,7 @@ import { storeToRefs } from 'pinia'
 const router = useRouter()
 const store = useSecurityAdminStore()
 const toast = useToast()
-const { isLoading, error, profiles, roles } = storeToRefs(store)
+const { usersLoading, usersError, profiles, roles } = storeToRefs(store)
 const { state, errors, validate, toCreateRequest } = useUserForm()
 
 onMounted(async () => {
@@ -69,7 +69,7 @@ const breadcrumbs = [
   <div>
     <PageHeader title="Создать пользователя" :breadcrumbs="breadcrumbs" />
 
-    <ErrorAlert v-if="error" :message="error" class="mb-4" />
+    <ErrorAlert v-if="usersError" :message="usersError" class="mb-4" />
 
     <form class="max-w-2xl space-y-6" @submit.prevent="onSubmit">
       <Card>
@@ -155,7 +155,7 @@ const breadcrumbs = [
       <Separator />
 
       <div class="flex gap-2">
-        <Button type="submit" :disabled="isLoading">
+        <Button type="submit" :disabled="usersLoading">
           Создать
         </Button>
         <Button variant="outline" type="button" @click="router.back()">

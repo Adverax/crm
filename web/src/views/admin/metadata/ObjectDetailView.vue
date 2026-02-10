@@ -30,7 +30,7 @@ const props = defineProps<{
 const router = useRouter()
 const store = useMetadataStore()
 const toast = useToast()
-const { currentObject, fields, isLoading, error } = storeToRefs(store)
+const { currentObject, fields, objectsLoading, objectsError, fieldsLoading, fieldsError } = storeToRefs(store)
 
 const { state, errors, validate, toUpdateRequest, initFrom } = useObjectForm()
 
@@ -154,7 +154,7 @@ const breadcrumbs = computed(() => [
 
 <template>
   <div>
-    <div v-if="isLoading && !currentObject" class="space-y-4">
+    <div v-if="objectsLoading && !currentObject" class="space-y-4">
       <Skeleton class="h-8 w-64" />
       <Skeleton class="h-64 w-full" />
     </div>
@@ -174,7 +174,8 @@ const breadcrumbs = computed(() => [
         </template>
       </PageHeader>
 
-      <ErrorAlert v-if="error" :message="error" class="mb-4" />
+      <ErrorAlert v-if="objectsError" :message="objectsError" class="mb-4" />
+      <ErrorAlert v-if="fieldsError" :message="fieldsError" class="mb-4" />
 
       <Tabs default-value="info">
         <TabsList>
@@ -232,7 +233,7 @@ const breadcrumbs = computed(() => [
             <Separator />
 
             <div class="flex gap-2">
-              <Button type="submit" :disabled="isLoading">
+              <Button type="submit" :disabled="objectsLoading">
                 Сохранить
               </Button>
               <Button variant="outline" type="button" @click="router.back()">
@@ -246,7 +247,7 @@ const breadcrumbs = computed(() => [
           <div class="mt-4">
             <FieldsTable
               :fields="fields"
-              :loading="isLoading"
+              :loading="fieldsLoading"
               @create="showFieldCreate = true"
               @edit="editingField = $event"
               @delete="onFieldDelete"

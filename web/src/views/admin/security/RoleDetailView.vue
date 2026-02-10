@@ -31,7 +31,7 @@ const props = defineProps<{
 const router = useRouter()
 const store = useSecurityAdminStore()
 const toast = useToast()
-const { currentRole, roles, isLoading, error } = storeToRefs(store)
+const { currentRole, roles, rolesLoading, rolesError } = storeToRefs(store)
 const { state, errors, validate, toUpdateRequest, initFrom } = useRoleForm()
 
 const showDeleteDialog = ref(false)
@@ -89,7 +89,7 @@ const breadcrumbs = computed(() => [
 
 <template>
   <div>
-    <div v-if="isLoading && !currentRole" class="space-y-4">
+    <div v-if="rolesLoading && !currentRole" class="space-y-4">
       <Skeleton class="h-8 w-64" />
       <Skeleton class="h-64 w-full" />
     </div>
@@ -107,7 +107,7 @@ const breadcrumbs = computed(() => [
         </template>
       </PageHeader>
 
-      <ErrorAlert v-if="error" :message="error" class="mb-4" />
+      <ErrorAlert v-if="rolesError" :message="rolesError" class="mb-4" />
 
       <form class="max-w-2xl space-y-6" @submit.prevent="onSave">
         <Card>
@@ -150,7 +150,7 @@ const breadcrumbs = computed(() => [
         <Separator />
 
         <div class="flex gap-2">
-          <Button type="submit" :disabled="isLoading">
+          <Button type="submit" :disabled="rolesLoading">
             Сохранить
           </Button>
           <Button variant="outline" type="button" @click="router.back()">

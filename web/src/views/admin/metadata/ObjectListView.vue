@@ -37,7 +37,7 @@ import { storeToRefs } from 'pinia'
 const router = useRouter()
 const store = useMetadataStore()
 const toast = useToast()
-const { objects, pagination, isLoading } = storeToRefs(store)
+const { objects, pagination, objectsLoading } = storeToRefs(store)
 
 const filterType = ref<string>('all')
 const deleteTarget = ref<ObjectDefinition | null>(null)
@@ -115,12 +115,12 @@ const breadcrumbs = [
       </Select>
     </div>
 
-    <div v-if="isLoading && objects.length === 0" class="space-y-3">
+    <div v-if="objectsLoading && objects.length === 0" class="space-y-3">
       <Skeleton v-for="i in 5" :key="i" class="h-12 w-full" />
     </div>
 
     <EmptyState
-      v-else-if="!isLoading && objects.length === 0"
+      v-else-if="!objectsLoading && objects.length === 0"
       title="Нет объектов"
       description="Создайте первый объект метаданных"
     >

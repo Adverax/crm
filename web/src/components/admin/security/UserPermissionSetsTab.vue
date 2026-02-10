@@ -24,7 +24,7 @@ const props = defineProps<{
 
 const store = useSecurityAdminStore()
 const toast = useToast()
-const { userPermissionSets, permissionSets, isLoading } = storeToRefs(store)
+const { userPermissionSets, permissionSets, usersLoading } = storeToRefs(store)
 
 const showAssignDialog = ref(false)
 const revokeTarget = ref<PermissionSetAssignment | null>(null)
@@ -92,7 +92,7 @@ function getRevokeLabel(): string {
       </Button>
     </div>
 
-    <div v-if="isLoading && userPermissionSets.length === 0" class="space-y-3">
+    <div v-if="usersLoading && userPermissionSets.length === 0" class="space-y-3">
       <Skeleton v-for="i in 3" :key="i" class="h-12 w-full" />
     </div>
 

@@ -16,7 +16,7 @@ import { storeToRefs } from 'pinia'
 const router = useRouter()
 const store = useSecurityAdminStore()
 const toast = useToast()
-const { isLoading, error } = storeToRefs(store)
+const { profilesLoading, profilesError } = storeToRefs(store)
 const { state, errors, validate, toCreateRequest } = useProfileForm()
 
 async function onSubmit() {
@@ -41,7 +41,7 @@ const breadcrumbs = [
   <div>
     <PageHeader title="Создать профиль" :breadcrumbs="breadcrumbs" />
 
-    <ErrorAlert v-if="error" :message="error" class="mb-4" />
+    <ErrorAlert v-if="profilesError" :message="profilesError" class="mb-4" />
 
     <form class="max-w-2xl space-y-6" @submit.prevent="onSubmit">
       <Card>
@@ -74,7 +74,7 @@ const breadcrumbs = [
       <Separator />
 
       <div class="flex gap-2">
-        <Button type="submit" :disabled="isLoading">
+        <Button type="submit" :disabled="profilesLoading">
           Создать
         </Button>
         <Button variant="outline" type="button" @click="router.back()">

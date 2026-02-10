@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, computed, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSecurityAdminStore } from '@/stores/securityAdmin'
 import { usePermissionEditorStore } from '@/stores/permissionEditor'
@@ -29,11 +29,10 @@ const router = useRouter()
 const store = useSecurityAdminStore()
 const permEditor = usePermissionEditorStore()
 const toast = useToast()
-const { currentPermissionSet, isLoading, error } = storeToRefs(store)
+const { currentPermissionSet, permissionSetsLoading, permissionSetsError } = storeToRefs(store)
 const { state, errors, validate, toUpdateRequest, initFrom } = usePermissionSetForm()
 
 const showDeleteDialog = ref(false)
-const activeTab = ref('info')
 
 async function loadData() {
   try {
@@ -50,17 +49,13 @@ function loadPermissions() {
 
 onMounted(() => {
   loadData()
+  loadPermissions()
 })
 
 watch(() => props.permissionSetId, () => {
-  loadData()
   permEditor.reset()
-})
-
-watch(activeTab, (tab) => {
-  if ((tab === 'ols' || tab === 'fls') && permEditor.permissionSetId !== props.permissionSetId) {
-    loadPermissions()
-  }
+  loadData()
+  loadPermissions()
 })
 
 onUnmounted(() => {
@@ -98,7 +93,7 @@ const breadcrumbs = computed(() => [
 
 <template>
   <div>
-    <div v-if="isLoading && !currentPermissionSet" class="space-y-4">
+    <div v-if="permissionSetsLoading && !currentPermissionSet" class="space-y-4">
       <Skeleton class="h-8 w-64" />
       <Skeleton class="h-64 w-full" />
     </div>
@@ -117,9 +112,9 @@ const breadcrumbs = computed(() => [
         </template>
       </PageHeader>
 
-      <ErrorAlert v-if="error" :message="error" class="mb-4" />
+      <ErrorAlert v-if="permissionSetsError" :message="permissionSetsError" class="mb-4" />
 
-      <Tabs v-model="activeTab">
+      <Tabs default-value="info">
         <TabsList>
           <TabsTrigger value="info">Основное</TabsTrigger>
           <TabsTrigger value="ols">Права на объекты</TabsTrigger>
@@ -158,7 +153,7 @@ const breadcrumbs = computed(() => [
             <Separator />
 
             <div class="flex gap-2">
-              <Button type="submit" :disabled="isLoading">
+              <Button type="submit" :disabled="permissionSetsLoading">
                 Сохранить
               </Button>
               <Button variant="outline" type="button" @click="router.back()">

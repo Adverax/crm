@@ -17,8 +17,10 @@ export const usePermissionEditorStore = defineStore('permissionEditor', () => {
   const selectedObjectId = ref<string | null>(null)
   const fieldsForObject = ref<FieldDefinition[]>([])
 
-  const isLoading = ref(false)
-  const error = ref<string | null>(null)
+  const olsLoading = ref(false)
+  const olsError = ref<string | null>(null)
+  const flsLoading = ref(false)
+  const flsError = ref<string | null>(null)
 
   const getObjectPermission = computed(() => {
     return (objectId: string): ObjectPermission | undefined =>
@@ -30,48 +32,61 @@ export const usePermissionEditorStore = defineStore('permissionEditor', () => {
       fieldPermissions.value.find((fp) => fp.fieldId === fieldId)
   })
 
+  let olsRequestId = 0
+  let flsRequestId = 0
+
   async function loadForPermissionSet(psId: string) {
+    const requestId = ++olsRequestId
     permissionSetId.value = psId
-    isLoading.value = true
-    error.value = null
+    olsLoading.value = true
+    olsError.value = null
     try {
       const [olsResponse, objectsResponse] = await Promise.all([
         securityApi.listObjectPermissions(psId),
         metadataApi.listObjects({ perPage: 1000 }),
       ])
-      objectPermissions.value = olsResponse.data
-      objectDefinitions.value = objectsResponse.data
+      if (requestId !== olsRequestId) return
+      objectPermissions.value = olsResponse.data ?? []
+      objectDefinitions.value = objectsResponse.data ?? []
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Ошибка загрузки разрешений'
+      if (requestId !== olsRequestId) return
+      olsError.value = err instanceof Error ? err.message : 'Ошибка загрузки разрешений'
       throw err
     } finally {
-      isLoading.value = false
+      if (requestId === olsRequestId) {
+        olsLoading.value = false
+      }
     }
   }
 
   async function selectObjectForFls(objectId: string) {
     if (!permissionSetId.value) return
+    const requestId = ++flsRequestId
     selectedObjectId.value = objectId
-    isLoading.value = true
-    error.value = null
+    flsLoading.value = true
+    flsError.value = null
     try {
       const [flsResponse, fieldsResponse] = await Promise.all([
         securityApi.listFieldPermissions(permissionSetId.value, objectId),
         metadataApi.listFields(objectId),
       ])
-      fieldPermissions.value = flsResponse.data
-      fieldsForObject.value = fieldsResponse.data
+      if (requestId !== flsRequestId) return
+      fieldPermissions.value = flsResponse.data ?? []
+      fieldsForObject.value = fieldsResponse.data ?? []
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Ошибка загрузки разрешений на поля'
+      if (requestId !== flsRequestId) return
+      flsError.value = err instanceof Error ? err.message : 'Ошибка загрузки разрешений на поля'
       throw err
     } finally {
-      isLoading.value = false
+      if (requestId === flsRequestId) {
+        flsLoading.value = false
+      }
     }
   }
 
   async function setObjectPermission(objectId: string, permissions: number) {
     if (!permissionSetId.value) return
-    error.value = null
+    olsError.value = null
     try {
       const response = await securityApi.setObjectPermission(permissionSetId.value, {
         objectId,
@@ -84,14 +99,14 @@ export const usePermissionEditorStore = defineStore('permissionEditor', () => {
         objectPermissions.value.push(response.data)
       }
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Ошибка сохранения разрешения'
+      olsError.value = err instanceof Error ? err.message : 'Ошибка сохранения разрешения'
       throw err
     }
   }
 
   async function setFieldPermission(fieldId: string, permissions: number) {
     if (!permissionSetId.value) return
-    error.value = null
+    flsError.value = null
     try {
       const response = await securityApi.setFieldPermission(permissionSetId.value, {
         fieldId,
@@ -104,19 +119,24 @@ export const usePermissionEditorStore = defineStore('permissionEditor', () => {
         fieldPermissions.value.push(response.data)
       }
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Ошибка сохранения разрешения на поле'
+      flsError.value = err instanceof Error ? err.message : 'Ошибка сохранения разрешения на поле'
       throw err
     }
   }
 
   function reset() {
+    olsRequestId++
+    flsRequestId++
     permissionSetId.value = null
     objectPermissions.value = []
     objectDefinitions.value = []
     fieldPermissions.value = []
     selectedObjectId.value = null
     fieldsForObject.value = []
-    error.value = null
+    olsLoading.value = false
+    olsError.value = null
+    flsLoading.value = false
+    flsError.value = null
   }
 
   return {
@@ -126,8 +146,10 @@ export const usePermissionEditorStore = defineStore('permissionEditor', () => {
     fieldPermissions,
     selectedObjectId,
     fieldsForObject,
-    isLoading,
-    error,
+    olsLoading,
+    olsError,
+    flsLoading,
+    flsError,
     getObjectPermission,
     getFieldPermission,
     loadForPermissionSet,

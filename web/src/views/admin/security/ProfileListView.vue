@@ -29,7 +29,7 @@ import { storeToRefs } from 'pinia'
 const router = useRouter()
 const store = useSecurityAdminStore()
 const toast = useToast()
-const { profiles, profilesPagination, isLoading } = storeToRefs(store)
+const { profiles, profilesPagination, profilesLoading } = storeToRefs(store)
 
 const deleteTarget = ref<Profile | null>(null)
 const showDeleteDialog = ref(false)
@@ -88,12 +88,12 @@ const breadcrumbs = [
       </template>
     </PageHeader>
 
-    <div v-if="isLoading && profiles.length === 0" class="space-y-3">
+    <div v-if="profilesLoading && profiles.length === 0" class="space-y-3">
       <Skeleton v-for="i in 5" :key="i" class="h-12 w-full" />
     </div>
 
     <EmptyState
-      v-else-if="!isLoading && profiles.length === 0"
+      v-else-if="!profilesLoading && profiles.length === 0"
       title="Нет профилей"
       description="Создайте первый профиль безопасности"
     >
