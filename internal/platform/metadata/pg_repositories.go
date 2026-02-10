@@ -118,7 +118,7 @@ func (r *PgObjectRepository) List(ctx context.Context, limit, offset int32) ([]O
 	}
 	defer rows.Close()
 
-	var objects []ObjectDefinition
+	objects := make([]ObjectDefinition, 0)
 	for rows.Next() {
 		var obj ObjectDefinition
 		if err := rows.Scan(
@@ -315,7 +315,7 @@ func (r *PgFieldRepository) ListByObjectID(ctx context.Context, objectID uuid.UU
 	}
 	defer rows.Close()
 
-	var fields []FieldDefinition
+	fields := make([]FieldDefinition, 0)
 	for rows.Next() {
 		var f FieldDefinition
 		var subtype *string
@@ -351,7 +351,7 @@ func (r *PgFieldRepository) ListAll(ctx context.Context) ([]FieldDefinition, err
 	}
 	defer rows.Close()
 
-	var fields []FieldDefinition
+	fields := make([]FieldDefinition, 0)
 	for rows.Next() {
 		var f FieldDefinition
 		var subtype *string
@@ -387,7 +387,7 @@ func (r *PgFieldRepository) ListReferenceFields(ctx context.Context) ([]FieldDef
 	}
 	defer rows.Close()
 
-	var fields []FieldDefinition
+	fields := make([]FieldDefinition, 0)
 	for rows.Next() {
 		var f FieldDefinition
 		var subtype *string

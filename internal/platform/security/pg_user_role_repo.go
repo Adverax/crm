@@ -83,7 +83,7 @@ func (r *PgUserRoleRepository) List(ctx context.Context, limit, offset int32) ([
 	}
 	defer rows.Close()
 
-	var roles []UserRole
+	roles := make([]UserRole, 0)
 	for rows.Next() {
 		var role UserRole
 		if err := rows.Scan(

@@ -62,32 +62,75 @@
 
 **AGPL v3 (бесплатно, self-hosted):**
 
-- Metadata engine (custom objects, field registry)
+Platform:
+- Metadata engine (custom objects ≤ 20, custom fields per object ≤ 50)
 - SOQL parser и executor
 - DML engine
-- Security engine полностью: OLS, FLS, RLS (OWD, share tables, role hierarchy, sharing rules, manual sharing)
+- Standard objects (contacts, accounts, deals, tasks)
+- REST API (≤ 1000 req/min)
+- Vue.js frontend
+- Self-hosted deployment (Docker)
+- Webhooks (outbound, все события, retry 3x)
+- Data export (CSV)
+
+Security:
+- OLS + FLS полностью
+- RLS полностью (OWD, share tables, role hierarchy, sharing rules, manual sharing)
 - Groups (все 4 типа: personal, role, role_and_subordinates, public)
 - Security caching (closure tables, effective caches)
-- Standard objects (contacts, accounts, deals, tasks)
-- Auth (JWT, login, register, refresh)
-- Vue.js frontend
-- REST API
-- Self-hosted deployment (Docker)
+
+Auth:
+- JWT (access + refresh tokens)
+- Login, register, password reset
+- MFA (TOTP, WebAuthn)
+- Basic login history (лог входов, дата, IP, user-agent)
 
 **Adverax Commercial License (платно):**
 
+Security & Access Control:
 - Territory management (территориальная иерархия, territory-based groups)
 - PermissionSetGroups (группировка permission sets)
-- Audit Trail (полный аудит изменений)
-- SSO / SAML / LDAP интеграция
-- Advanced analytics и дашборды
-- Workflow automation (правила автоматизации)
-- Увеличенные лимиты (API rate limits, custom objects > 20)
+- Delegated administration (делегирование admin-прав по подразделениям)
+- IP whitelist / login restrictions
+- Advanced session management (force logout, session policies)
+
+Auth & Identity:
+- SSO / SAML 2.0
+- LDAP / Active Directory sync
+- OAuth2 provider (CRM как IdP)
+
+Compliance & Audit:
+- Audit Trail (полный лог всех изменений записей)
+- Field History Tracking (история изменений отдельных полей)
+- Data retention policies (автоочистка, GDPR compliance)
+- Security analytics (geo-аналитика входов, anomaly detection)
+
+Automation:
+- Workflow rules (field update, email alert, создание записей)
+- Approval processes (цепочки согласования)
+- Scheduled jobs / batch processing (фоновая обработка)
+
+Analytics & Reporting:
+- Custom reports builder (визуальный конструктор отчётов)
+- Dashboards (настраиваемые дашборды, drag-and-drop)
+- Scheduled report delivery (отправка отчётов по email)
+
+Platform:
 - Multi-org / multi-tenant режим
+- Sandbox environments (dev/staging копия организации)
+- Увеличенные лимиты: custom objects > 20, custom fields > 50, API > 1000 req/min
+
+Services:
 - Managed cloud hosting (SaaS)
 - Priority support + SLA
+- Professional services / onboarding
 
-**Обоснование границы:** Security engine глубоко интегрирован в SOQL/DML — разделение RLS на бесплатную/платную часть потребовало бы сложной plugin-архитектуры. Полнофункциональный бесплатный CRM привлечёт больше пользователей. Монетизация — на advanced enterprise фичах и операционных услугах.
+**Обоснование границы:**
+
+- Security engine (OLS/FLS/RLS) глубоко интегрирован в SOQL/DML — разделение потребовало бы сложной plugin-архитектуры. Полный security в core.
+- MFA, webhooks, CSV export, basic login history — в core для доверия и привлечения пользователей. Security by default, no vendor lock-in.
+- Enterprise фичи — то, что нужно крупным компаниям: compliance (audit), advanced auth (SSO/LDAP), автоматизация, аналитика, территории.
+- Лимиты в free tier (20 objects, 50 fields, 1000 req/min) достаточны для малого/среднего бизнеса. Enterprise снимает ограничения.
 
 ### Структура репозитория
 

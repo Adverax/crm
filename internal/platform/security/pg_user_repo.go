@@ -88,7 +88,7 @@ func (r *PgUserRepository) List(ctx context.Context, limit, offset int32) ([]Use
 	}
 	defer rows.Close()
 
-	var users []User
+	users := make([]User, 0)
 	for rows.Next() {
 		var u User
 		if err := rows.Scan(

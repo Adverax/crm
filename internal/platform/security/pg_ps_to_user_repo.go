@@ -61,7 +61,7 @@ func (r *PgPermissionSetToUserRepository) ListByUserID(ctx context.Context, user
 	}
 	defer rows.Close()
 
-	var assignments []PermissionSetToUser
+	assignments := make([]PermissionSetToUser, 0)
 	for rows.Next() {
 		var psu PermissionSetToUser
 		if err := rows.Scan(&psu.ID, &psu.PermissionSetID, &psu.UserID, &psu.CreatedAt); err != nil {
@@ -84,7 +84,7 @@ func (r *PgPermissionSetToUserRepository) ListByPermissionSetID(ctx context.Cont
 	}
 	defer rows.Close()
 
-	var assignments []PermissionSetToUser
+	assignments := make([]PermissionSetToUser, 0)
 	for rows.Next() {
 		var psu PermissionSetToUser
 		if err := rows.Scan(&psu.ID, &psu.PermissionSetID, &psu.UserID, &psu.CreatedAt); err != nil {

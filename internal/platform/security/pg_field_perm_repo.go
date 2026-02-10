@@ -68,7 +68,7 @@ func (r *PgFieldPermissionRepository) ListByPermissionSetID(ctx context.Context,
 	}
 	defer rows.Close()
 
-	var perms []FieldPermission
+	perms := make([]FieldPermission, 0)
 	for rows.Next() {
 		var fp FieldPermission
 		if err := rows.Scan(
@@ -93,7 +93,7 @@ func (r *PgFieldPermissionRepository) ListByPermissionSetIDs(ctx context.Context
 	}
 	defer rows.Close()
 
-	var perms []FieldPermission
+	perms := make([]FieldPermission, 0)
 	for rows.Next() {
 		var fp FieldPermission
 		if err := rows.Scan(

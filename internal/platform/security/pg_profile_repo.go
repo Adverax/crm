@@ -83,7 +83,7 @@ func (r *PgProfileRepository) List(ctx context.Context, limit, offset int32) ([]
 	}
 	defer rows.Close()
 
-	var profiles []Profile
+	profiles := make([]Profile, 0)
 	for rows.Next() {
 		var p Profile
 		if err := rows.Scan(

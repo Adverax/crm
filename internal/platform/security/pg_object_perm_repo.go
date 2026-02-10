@@ -68,7 +68,7 @@ func (r *PgObjectPermissionRepository) ListByPermissionSetID(ctx context.Context
 	}
 	defer rows.Close()
 
-	var perms []ObjectPermission
+	perms := make([]ObjectPermission, 0)
 	for rows.Next() {
 		var op ObjectPermission
 		if err := rows.Scan(
@@ -93,7 +93,7 @@ func (r *PgObjectPermissionRepository) ListByPermissionSetIDs(ctx context.Contex
 	}
 	defer rows.Close()
 
-	var perms []ObjectPermission
+	perms := make([]ObjectPermission, 0)
 	for rows.Next() {
 		var op ObjectPermission
 		if err := rows.Scan(

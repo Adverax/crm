@@ -83,7 +83,7 @@ func (r *PgPermissionSetRepository) List(ctx context.Context, limit, offset int3
 	}
 	defer rows.Close()
 
-	var sets []PermissionSet
+	sets := make([]PermissionSet, 0)
 	for rows.Next() {
 		var ps PermissionSet
 		if err := rows.Scan(
