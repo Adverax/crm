@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -11,7 +12,7 @@ import (
 	"github.com/adverax/crm/internal/platform/metadata"
 )
 
-// MetadataHandler implements api.ServerInterface for metadata admin endpoints.
+// MetadataHandler handles admin CRUD for metadata resources.
 type MetadataHandler struct {
 	objectService metadata.ObjectService
 	fieldService  metadata.FieldService
@@ -25,8 +26,21 @@ func NewMetadataHandler(objectService metadata.ObjectService, fieldService metad
 	}
 }
 
-func (h *MetadataHandler) HealthCheck(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+// RegisterRoutes registers metadata admin routes on the given router group.
+func (h *MetadataHandler) RegisterRoutes(rg *gin.RouterGroup) {
+	meta := rg.Group("/metadata")
+
+	meta.POST("/objects", h.CreateObject)
+	meta.GET("/objects", h.ListObjects)
+	meta.GET("/objects/:objectId", h.GetObject)
+	meta.PUT("/objects/:objectId", h.UpdateObject)
+	meta.DELETE("/objects/:objectId", h.DeleteObject)
+
+	meta.POST("/objects/:objectId/fields", h.CreateField)
+	meta.GET("/objects/:objectId/fields", h.ListFields)
+	meta.GET("/objects/:objectId/fields/:fieldId", h.GetField)
+	meta.PUT("/objects/:objectId/fields/:fieldId", h.UpdateField)
+	meta.DELETE("/objects/:objectId/fields/:fieldId", h.DeleteField)
 }
 
 func (h *MetadataHandler) CreateObject(c *gin.Context) {
@@ -54,6 +68,7 @@ func (h *MetadataHandler) CreateObject(c *gin.Context) {
 		HasNotes:              derefBool(req.HasNotes),
 		HasHistoryTracking:    derefBool(req.HasHistoryTracking),
 		HasSharingRules:       derefBool(req.HasSharingRules),
+		Visibility:            metadata.Visibility(derefVisibility(req.Visibility)),
 	}
 
 	obj, err := h.objectService.Create(c.Request.Context(), input)
@@ -65,14 +80,16 @@ func (h *MetadataHandler) CreateObject(c *gin.Context) {
 	c.JSON(http.StatusCreated, api.ObjectResponse{Data: toAPIObject(obj)})
 }
 
-func (h *MetadataHandler) ListObjects(c *gin.Context, params api.ListObjectsParams) {
+func (h *MetadataHandler) ListObjects(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "0"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "0"))
 	filter := metadata.ObjectFilter{
-		Page:    int32(derefInt(params.Page)),
-		PerPage: int32(derefInt(params.PerPage)),
+		Page:    int32(page),
+		PerPage: int32(perPage),
 	}
-	if params.ObjectType != nil {
-		ot := metadata.ObjectType(*params.ObjectType)
-		filter.ObjectType = &ot
+	if ot := c.Query("object_type"); ot != "" {
+		objectType := metadata.ObjectType(ot)
+		filter.ObjectType = &objectType
 	}
 
 	objects, total, err := h.objectService.List(c.Request.Context(), filter)
@@ -86,8 +103,8 @@ func (h *MetadataHandler) ListObjects(c *gin.Context, params api.ListObjectsPara
 		data = append(data, *toAPIObject(&objects[i]))
 	}
 
-	page := int(filter.Page)
-	perPage := int(filter.PerPage)
+	page = int(filter.Page)
+	perPage = int(filter.PerPage)
 	if perPage == 0 {
 		perPage = 20
 	}
@@ -104,7 +121,13 @@ func (h *MetadataHandler) ListObjects(c *gin.Context, params api.ListObjectsPara
 	})
 }
 
-func (h *MetadataHandler) GetObject(c *gin.Context, objectId api.ObjectId) {
+func (h *MetadataHandler) GetObject(c *gin.Context) {
+	objectId, err := uuid.Parse(c.Param("objectId"))
+	if err != nil {
+		apperror.Respond(c, apperror.BadRequest("invalid object ID"))
+		return
+	}
+
 	obj, err := h.objectService.GetByID(c.Request.Context(), objectId)
 	if err != nil {
 		apperror.Respond(c, err)
@@ -114,7 +137,13 @@ func (h *MetadataHandler) GetObject(c *gin.Context, objectId api.ObjectId) {
 	c.JSON(http.StatusOK, api.ObjectResponse{Data: toAPIObject(obj)})
 }
 
-func (h *MetadataHandler) UpdateObject(c *gin.Context, objectId api.ObjectId) {
+func (h *MetadataHandler) UpdateObject(c *gin.Context) {
+	objectId, err := uuid.Parse(c.Param("objectId"))
+	if err != nil {
+		apperror.Respond(c, apperror.BadRequest("invalid object ID"))
+		return
+	}
+
 	var req api.UpdateObjectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		apperror.Respond(c, apperror.BadRequest("invalid request body"))
@@ -137,6 +166,7 @@ func (h *MetadataHandler) UpdateObject(c *gin.Context, objectId api.ObjectId) {
 		HasNotes:              derefBool(req.HasNotes),
 		HasHistoryTracking:    derefBool(req.HasHistoryTracking),
 		HasSharingRules:       derefBool(req.HasSharingRules),
+		Visibility:            metadata.Visibility(derefVisibility(req.Visibility)),
 	}
 
 	obj, err := h.objectService.Update(c.Request.Context(), objectId, input)
@@ -148,7 +178,13 @@ func (h *MetadataHandler) UpdateObject(c *gin.Context, objectId api.ObjectId) {
 	c.JSON(http.StatusOK, api.ObjectResponse{Data: toAPIObject(obj)})
 }
 
-func (h *MetadataHandler) DeleteObject(c *gin.Context, objectId api.ObjectId) {
+func (h *MetadataHandler) DeleteObject(c *gin.Context) {
+	objectId, err := uuid.Parse(c.Param("objectId"))
+	if err != nil {
+		apperror.Respond(c, apperror.BadRequest("invalid object ID"))
+		return
+	}
+
 	if err := h.objectService.Delete(c.Request.Context(), objectId); err != nil {
 		apperror.Respond(c, err)
 		return
@@ -156,7 +192,13 @@ func (h *MetadataHandler) DeleteObject(c *gin.Context, objectId api.ObjectId) {
 	c.Status(http.StatusNoContent)
 }
 
-func (h *MetadataHandler) CreateField(c *gin.Context, objectId api.ObjectId) {
+func (h *MetadataHandler) CreateField(c *gin.Context) {
+	objectId, err := uuid.Parse(c.Param("objectId"))
+	if err != nil {
+		apperror.Respond(c, apperror.BadRequest("invalid object ID"))
+		return
+	}
+
 	var req api.CreateFieldRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		apperror.Respond(c, apperror.BadRequest("invalid request body"))
@@ -207,7 +249,13 @@ func (h *MetadataHandler) CreateField(c *gin.Context, objectId api.ObjectId) {
 	c.JSON(http.StatusCreated, api.FieldResponse{Data: toAPIField(field)})
 }
 
-func (h *MetadataHandler) ListFields(c *gin.Context, objectId api.ObjectId) {
+func (h *MetadataHandler) ListFields(c *gin.Context) {
+	objectId, err := uuid.Parse(c.Param("objectId"))
+	if err != nil {
+		apperror.Respond(c, apperror.BadRequest("invalid object ID"))
+		return
+	}
+
 	fields, err := h.fieldService.ListByObjectID(c.Request.Context(), objectId)
 	if err != nil {
 		apperror.Respond(c, err)
@@ -222,7 +270,13 @@ func (h *MetadataHandler) ListFields(c *gin.Context, objectId api.ObjectId) {
 	c.JSON(http.StatusOK, api.FieldListResponse{Data: &data})
 }
 
-func (h *MetadataHandler) GetField(c *gin.Context, _ api.ObjectId, fieldId api.FieldId) {
+func (h *MetadataHandler) GetField(c *gin.Context) {
+	fieldId, err := uuid.Parse(c.Param("fieldId"))
+	if err != nil {
+		apperror.Respond(c, apperror.BadRequest("invalid field ID"))
+		return
+	}
+
 	field, err := h.fieldService.GetByID(c.Request.Context(), fieldId)
 	if err != nil {
 		apperror.Respond(c, err)
@@ -232,7 +286,13 @@ func (h *MetadataHandler) GetField(c *gin.Context, _ api.ObjectId, fieldId api.F
 	c.JSON(http.StatusOK, api.FieldResponse{Data: toAPIField(field)})
 }
 
-func (h *MetadataHandler) UpdateField(c *gin.Context, _ api.ObjectId, fieldId api.FieldId) {
+func (h *MetadataHandler) UpdateField(c *gin.Context) {
+	fieldId, err := uuid.Parse(c.Param("fieldId"))
+	if err != nil {
+		apperror.Respond(c, apperror.BadRequest("invalid field ID"))
+		return
+	}
+
 	var req api.UpdateFieldRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		apperror.Respond(c, apperror.BadRequest("invalid request body"))
@@ -270,7 +330,13 @@ func (h *MetadataHandler) UpdateField(c *gin.Context, _ api.ObjectId, fieldId ap
 	c.JSON(http.StatusOK, api.FieldResponse{Data: toAPIField(field)})
 }
 
-func (h *MetadataHandler) DeleteField(c *gin.Context, _ api.ObjectId, fieldId api.FieldId) {
+func (h *MetadataHandler) DeleteField(c *gin.Context) {
+	fieldId, err := uuid.Parse(c.Param("fieldId"))
+	if err != nil {
+		apperror.Respond(c, apperror.BadRequest("invalid field ID"))
+		return
+	}
+
 	if err := h.fieldService.Delete(c.Request.Context(), fieldId); err != nil {
 		apperror.Respond(c, err)
 		return
@@ -302,6 +368,7 @@ func toAPIObject(obj *metadata.ObjectDefinition) *api.ObjectDefinition {
 		HasNotes:              &obj.HasNotes,
 		HasHistoryTracking:    &obj.HasHistoryTracking,
 		HasSharingRules:       &obj.HasSharingRules,
+		Visibility:            (*api.ObjectDefinitionVisibility)(&obj.Visibility),
 		CreatedAt:             &obj.CreatedAt,
 		UpdatedAt:             &obj.UpdatedAt,
 	}
@@ -393,4 +460,11 @@ func derefInt(i *int) int {
 		return 0
 	}
 	return *i
+}
+
+func derefVisibility[T ~string](v *T) string {
+	if v == nil {
+		return "private"
+	}
+	return string(*v)
 }

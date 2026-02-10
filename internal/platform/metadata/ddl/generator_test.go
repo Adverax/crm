@@ -147,6 +147,49 @@ func TestAddColumn(t *testing.T) {
 	}
 }
 
+func TestShareTableName(t *testing.T) {
+	t.Parallel()
+	got := ShareTableName("obj_contact")
+	if got != "obj_contact__share" {
+		t.Errorf("ShareTableName() = %q, want %q", got, "obj_contact__share")
+	}
+}
+
+func TestCreateShareTable(t *testing.T) {
+	t.Parallel()
+	sql := CreateShareTable("obj_contact")
+	tests := []struct {
+		name     string
+		contains string
+	}{
+		{"has CREATE TABLE", "CREATE TABLE"},
+		{"has share table name", `"obj_contact__share"`},
+		{"has record_id", "record_id"},
+		{"has group_id", "group_id"},
+		{"has access_level", "access_level"},
+		{"has reason", "reason"},
+		{"has FK to object table", `"obj_contact"`},
+		{"has manual reason", "'manual'"},
+		{"has sharing_rule reason", "'sharing_rule'"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if !strings.Contains(sql, tt.contains) {
+				t.Errorf("CreateShareTable() missing %q in:\n%s", tt.contains, sql)
+			}
+		})
+	}
+}
+
+func TestDropShareTable(t *testing.T) {
+	t.Parallel()
+	sql := DropShareTable("obj_contact")
+	if !strings.Contains(sql, "DROP TABLE") || !strings.Contains(sql, `"obj_contact__share"`) {
+		t.Errorf("DropShareTable() = %q, want DROP TABLE with share table name", sql)
+	}
+}
+
 func TestDropColumn(t *testing.T) {
 	t.Parallel()
 

@@ -24,6 +24,8 @@ type CreateObjectInput struct {
 	HasNotes           bool `json:"has_notes"`
 	HasHistoryTracking bool `json:"has_history_tracking"`
 	HasSharingRules    bool `json:"has_sharing_rules"`
+
+	Visibility Visibility `json:"visibility"`
 }
 
 // UpdateObjectInput contains the input data for updating an object definition.
@@ -46,6 +48,8 @@ type UpdateObjectInput struct {
 	HasNotes           bool `json:"has_notes"`
 	HasHistoryTracking bool `json:"has_history_tracking"`
 	HasSharingRules    bool `json:"has_sharing_rules"`
+
+	Visibility Visibility `json:"visibility"`
 }
 
 // CreateFieldInput contains the input data for creating a field definition.

@@ -12,10 +12,11 @@ import (
 
 // OutboxWorker processes security outbox events via LISTEN/NOTIFY.
 type OutboxWorker struct {
-	connConfig pgx.ConnConfig
-	outboxRepo OutboxRepository
-	computer   EffectiveComputer
-	logger     *slog.Logger
+	connConfig  pgx.ConnConfig
+	outboxRepo  OutboxRepository
+	computer    EffectiveComputer
+	rlsComputer RLSEffectiveComputer
+	logger      *slog.Logger
 }
 
 // NewOutboxWorker creates a new OutboxWorker.
@@ -23,13 +24,15 @@ func NewOutboxWorker(
 	connConfig pgx.ConnConfig,
 	outboxRepo OutboxRepository,
 	computer EffectiveComputer,
+	rlsComputer RLSEffectiveComputer,
 	logger *slog.Logger,
 ) *OutboxWorker {
 	return &OutboxWorker{
-		connConfig: connConfig,
-		outboxRepo: outboxRepo,
-		computer:   computer,
-		logger:     logger,
+		connConfig:  connConfig,
+		outboxRepo:  outboxRepo,
+		computer:    computer,
+		rlsComputer: rlsComputer,
+		logger:      logger,
 	}
 }
 
@@ -134,9 +137,33 @@ func (w *OutboxWorker) processUnprocessed(ctx context.Context) error {
 func (w *OutboxWorker) dispatch(ctx context.Context, event OutboxEvent) error {
 	switch event.EventType {
 	case "user_changed":
-		return w.computer.RecomputeForUser(ctx, event.EntityID)
+		if err := w.computer.RecomputeForUser(ctx, event.EntityID); err != nil {
+			return err
+		}
+		if w.rlsComputer != nil {
+			return w.rlsComputer.RecomputeVisibleOwnersForUser(ctx, event.EntityID)
+		}
+		return nil
 	case "permission_set_changed":
 		return w.computer.RecomputeForPermissionSet(ctx, event.EntityID)
+	case "role_changed":
+		if w.rlsComputer != nil {
+			if err := w.rlsComputer.RecomputeRoleHierarchy(ctx); err != nil {
+				return err
+			}
+			return w.rlsComputer.RecomputeVisibleOwnersAll(ctx)
+		}
+		return nil
+	case "group_changed":
+		if w.rlsComputer != nil {
+			return w.rlsComputer.RecomputeGroupMembersForGroup(ctx, event.EntityID)
+		}
+		return nil
+	case "object_changed":
+		if w.rlsComputer != nil {
+			return w.rlsComputer.RecomputeObjectHierarchy(ctx)
+		}
+		return nil
 	default:
 		w.logger.Warn("outbox worker: unknown event type",
 			"event_type", event.EventType,

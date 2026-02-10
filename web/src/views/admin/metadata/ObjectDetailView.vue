@@ -20,8 +20,15 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { storeToRefs } from 'pinia'
-import type { FieldDefinition } from '@/types/metadata'
+import type { FieldDefinition, Visibility } from '@/types/metadata'
 
 const props = defineProps<{
   objectId: string
@@ -87,6 +94,11 @@ const flagsModel = computed({
     Object.assign(state, val)
   },
 })
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function onVisibilityChange(value: any) {
+  state.visibility = String(value) as Visibility
+}
 
 async function loadData() {
   try {
@@ -212,6 +224,21 @@ const breadcrumbs = computed(() => [
                 <div class="space-y-2">
                   <Label>Тип объекта</Label>
                   <Input :model-value="state.objectType" disabled />
+                </div>
+
+                <div class="space-y-2">
+                  <Label for="visibility">Видимость (OWD)</Label>
+                  <Select :model-value="state.visibility" @update:model-value="onVisibilityChange">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="private">Приватный</SelectItem>
+                      <SelectItem value="public_read">Публичный (чтение)</SelectItem>
+                      <SelectItem value="public_read_write">Публичный (чтение/запись)</SelectItem>
+                      <SelectItem value="controlled_by_parent">Управляется родителем</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div class="space-y-2">

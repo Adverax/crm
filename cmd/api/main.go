@@ -14,7 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/adverax/crm/internal/api"
 	"github.com/adverax/crm/internal/handler"
 	"github.com/adverax/crm/internal/middleware"
 	"github.com/adverax/crm/internal/pkg/config"
@@ -108,7 +107,11 @@ func setupRouter(pool *pgxpool.Pool) *gin.Engine {
 	fieldService := metadata.NewFieldService(pool, objectRepo, fieldRepo, polyRepo, ddlExec, metadataCache)
 
 	metadataHandler := handler.NewMetadataHandler(objectService, fieldService)
-	api.RegisterHandlers(router, metadataHandler)
+
+	// Health check
+	router.GET("/healthz", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
 
 	// --- Security layer ---
 	userRoleRepo := security.NewPgUserRoleRepository(pool)
@@ -120,19 +123,26 @@ func setupRouter(pool *pgxpool.Pool) *gin.Engine {
 	fieldPermRepo := security.NewPgFieldPermissionRepository(pool)
 	effectiveRepo := security.NewPgEffectivePermissionRepository(pool)
 	outboxRepo := security.NewPgOutboxRepository(pool)
+	groupRepo := security.NewPgGroupRepository(pool)
+	memberRepo := security.NewPgGroupMemberRepository(pool)
 
-	roleService := security.NewUserRoleService(pool, userRoleRepo)
+	sharingRuleRepo := security.NewPgSharingRuleRepository(pool)
+
+	roleService := security.NewUserRoleService(pool, userRoleRepo, groupRepo, outboxRepo)
 	psService := security.NewPermissionSetService(pool, psRepo)
 	profileService := security.NewProfileService(pool, profileRepo, psRepo)
-	userService := security.NewUserService(pool, userRepo, profileRepo, userRoleRepo, psToUserRepo, outboxRepo)
+	userService := security.NewUserService(pool, userRepo, profileRepo, userRoleRepo, psToUserRepo, outboxRepo, groupRepo, memberRepo)
 	permissionService := security.NewPermissionService(pool, objPermRepo, fieldPermRepo, outboxRepo)
+	groupService := security.NewGroupService(pool, groupRepo, memberRepo, outboxRepo)
+	sharingRuleService := security.NewSharingRuleService(pool, sharingRuleRepo, groupRepo, outboxRepo)
 
 	// Dev auth middleware (replaces JWT in Phase 5)
 	router.Use(middleware.DevAuth(userRepo, security.SystemAdminUserID))
 
-	// Security admin routes
+	// Admin routes
 	adminGroup := router.Group("/api/v1/admin")
-	secHandler := handler.NewSecurityHandler(roleService, psService, profileService, userService, permissionService)
+	metadataHandler.RegisterRoutes(adminGroup)
+	secHandler := handler.NewSecurityHandler(roleService, psService, profileService, userService, permissionService, groupService, sharingRuleService)
 	secHandler.RegisterRoutes(adminGroup)
 
 	// Effective permission computer (used by outbox worker)
@@ -163,7 +173,18 @@ func startOutboxWorker(ctx context.Context, pool *pgxpool.Pool, dsn string, logg
 		objPermRepo, fieldPermRepo, effectiveRepo, metadataLister,
 	)
 
-	worker := security.NewOutboxWorker(*connConfig, outboxRepo, computer, logger)
+	// RLS effective computer
+	userRoleRepo := security.NewPgUserRoleRepository(pool)
+	groupRepo := security.NewPgGroupRepository(pool)
+	memberRepo := security.NewPgGroupMemberRepository(pool)
+	rlsCacheRepo := security.NewPgRLSEffectiveCacheRepository(pool)
+
+	rlsComputer := security.NewRLSEffectiveComputer(
+		pool, userRoleRepo, userRepo, groupRepo, memberRepo,
+		rlsCacheRepo, metadataLister,
+	)
+
+	worker := security.NewOutboxWorker(*connConfig, outboxRepo, computer, rlsComputer, logger)
 	go func() {
 		if err := worker.Run(ctx); err != nil && ctx.Err() == nil {
 			slog.Error("outbox worker stopped with error", "error", err)

@@ -21,7 +21,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
-import type { ObjectType } from '@/types/metadata'
+import type { ObjectType, Visibility } from '@/types/metadata'
 
 const router = useRouter()
 const store = useMetadataStore()
@@ -82,6 +82,11 @@ const flagsModel = computed({
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function onObjectTypeChange(value: any) {
   state.objectType = String(value) as ObjectType
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function onVisibilityChange(value: any) {
+  state.visibility = String(value) as Visibility
 }
 
 async function onSubmit() {
@@ -146,6 +151,21 @@ const breadcrumbs = [
               <SelectContent>
                 <SelectItem value="standard">Standard</SelectItem>
                 <SelectItem value="custom">Custom</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div class="space-y-2">
+            <Label for="visibility">Видимость (OWD)</Label>
+            <Select :model-value="state.visibility" @update:model-value="onVisibilityChange">
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="private">Приватный</SelectItem>
+                <SelectItem value="public_read">Публичный (чтение)</SelectItem>
+                <SelectItem value="public_read_write">Публичный (чтение/запись)</SelectItem>
+                <SelectItem value="controlled_by_parent">Управляется родителем</SelectItem>
               </SelectContent>
             </Select>
           </div>

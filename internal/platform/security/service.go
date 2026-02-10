@@ -55,6 +55,43 @@ type PermissionService interface {
 	RemoveFieldPermission(ctx context.Context, psID, fieldID uuid.UUID) error
 }
 
+// GroupService defines business logic for security groups.
+type GroupService interface {
+	Create(ctx context.Context, input CreateGroupInput) (*Group, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*Group, error)
+	List(ctx context.Context, page, perPage int32) ([]Group, int64, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+	AddMember(ctx context.Context, input AddGroupMemberInput) (*GroupMember, error)
+	RemoveMember(ctx context.Context, groupID uuid.UUID, memberUserID *uuid.UUID, memberGroupID *uuid.UUID) error
+	ListMembers(ctx context.Context, groupID uuid.UUID) ([]GroupMember, error)
+}
+
+// SharingRuleService defines business logic for sharing rules.
+type SharingRuleService interface {
+	Create(ctx context.Context, input CreateSharingRuleInput) (*SharingRule, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*SharingRule, error)
+	ListByObjectID(ctx context.Context, objectID uuid.UUID) ([]SharingRule, error)
+	Update(ctx context.Context, id uuid.UUID, input UpdateSharingRuleInput) (*SharingRule, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+
+// ManualShareService defines business logic for manual record sharing.
+type ManualShareService interface {
+	ShareRecord(ctx context.Context, tableName string, input ShareRecordInput) (*RecordShare, error)
+	RevokeShare(ctx context.Context, tableName string, input RevokeShareInput) error
+	ListShares(ctx context.Context, tableName string, recordID uuid.UUID) ([]RecordShare, error)
+}
+
+// RLSEffectiveComputer computes and stores RLS effective caches.
+type RLSEffectiveComputer interface {
+	RecomputeRoleHierarchy(ctx context.Context) error
+	RecomputeVisibleOwnersForUser(ctx context.Context, userID uuid.UUID) error
+	RecomputeVisibleOwnersAll(ctx context.Context) error
+	RecomputeGroupMembersForGroup(ctx context.Context, groupID uuid.UUID) error
+	RecomputeGroupMembersAll(ctx context.Context) error
+	RecomputeObjectHierarchy(ctx context.Context) error
+}
+
 // EffectiveComputer recomputes effective permission caches.
 type EffectiveComputer interface {
 	RecomputeForUser(ctx context.Context, userID uuid.UUID) error

@@ -58,3 +58,49 @@ func (l *PgMetadataFieldLister) ListAllObjectIDs(ctx context.Context) ([]uuid.UU
 	}
 	return ids, rows.Err()
 }
+
+func (l *PgMetadataFieldLister) GetObjectVisibility(ctx context.Context, objectID uuid.UUID) (string, error) {
+	var visibility string
+	err := l.pool.QueryRow(ctx, `
+		SELECT visibility FROM metadata.object_definitions WHERE id = $1
+	`, objectID).Scan(&visibility)
+	if err != nil {
+		return "", err
+	}
+	return visibility, nil
+}
+
+func (l *PgMetadataFieldLister) GetObjectTableName(ctx context.Context, objectID uuid.UUID) (string, error) {
+	var tableName string
+	err := l.pool.QueryRow(ctx, `
+		SELECT table_name FROM metadata.object_definitions WHERE id = $1
+	`, objectID).Scan(&tableName)
+	if err != nil {
+		return "", err
+	}
+	return tableName, nil
+}
+
+func (l *PgMetadataFieldLister) ListCompositionFields(ctx context.Context) ([]CompositionFieldInfo, error) {
+	rows, err := l.pool.Query(ctx, `
+		SELECT fd.object_id, fd.referenced_object_id
+		FROM metadata.field_definitions fd
+		WHERE fd.field_type = 'reference'
+		  AND fd.field_subtype = 'composition'
+		  AND fd.referenced_object_id IS NOT NULL
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var fields []CompositionFieldInfo
+	for rows.Next() {
+		var f CompositionFieldInfo
+		if err := rows.Scan(&f.ChildObjectID, &f.ParentObjectID); err != nil {
+			return nil, err
+		}
+		fields = append(fields, f)
+	}
+	return fields, rows.Err()
+}

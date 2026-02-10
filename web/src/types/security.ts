@@ -154,6 +154,90 @@ export interface UserFilter {
   isActive?: boolean
 }
 
+// --- Groups ---
+
+export type GroupType = 'personal' | 'role' | 'role_and_subordinates' | 'public'
+
+export interface Group {
+  id: string
+  apiName: string
+  label: string
+  groupType: GroupType
+  relatedRoleId: string | null
+  relatedUserId: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface GroupMember {
+  id: string
+  groupId: string
+  memberUserId: string | null
+  memberGroupId: string | null
+  createdAt: string
+}
+
+export interface CreateGroupRequest {
+  apiName: string
+  label: string
+  groupType: GroupType
+  relatedRoleId?: string | null
+  relatedUserId?: string | null
+}
+
+export interface AddGroupMemberRequest {
+  memberUserId?: string | null
+  memberGroupId?: string | null
+}
+
+export interface GroupFilter {
+  page?: number
+  perPage?: number
+  groupType?: GroupType
+}
+
+// --- Sharing Rules ---
+
+export type RuleType = 'owner_based' | 'criteria_based'
+export type AccessLevel = 'read' | 'read_write'
+
+export interface SharingRule {
+  id: string
+  objectId: string
+  ruleType: RuleType
+  sourceGroupId: string
+  targetGroupId: string
+  accessLevel: AccessLevel
+  criteriaField: string | null
+  criteriaOp: string | null
+  criteriaValue: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateSharingRuleRequest {
+  objectId: string
+  ruleType: RuleType
+  sourceGroupId: string
+  targetGroupId: string
+  accessLevel: AccessLevel
+  criteriaField?: string | null
+  criteriaOp?: string | null
+  criteriaValue?: string | null
+}
+
+export interface UpdateSharingRuleRequest {
+  targetGroupId: string
+  accessLevel: AccessLevel
+  criteriaField?: string | null
+  criteriaOp?: string | null
+  criteriaValue?: string | null
+}
+
+export interface SharingRuleFilter {
+  objectId: string
+}
+
 export const OLS_READ = 1
 export const OLS_CREATE = 2
 export const OLS_UPDATE = 4

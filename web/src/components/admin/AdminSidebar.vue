@@ -25,6 +25,8 @@ const securityGroup: NavGroup = {
     { label: 'Роли', to: '/admin/security/roles' },
     { label: 'Наборы разрешений', to: '/admin/security/permission-sets' },
     { label: 'Профили', to: '/admin/security/profiles' },
+    { label: 'Группы', to: '/admin/security/groups' },
+    { label: 'Правила доступа', to: '/admin/security/sharing-rules' },
   ],
 }
 

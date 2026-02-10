@@ -21,6 +21,15 @@ import type {
   SetObjectPermissionRequest,
   FieldPermission,
   SetFieldPermissionRequest,
+  Group,
+  CreateGroupRequest,
+  GroupFilter,
+  GroupMember,
+  AddGroupMemberRequest,
+  SharingRule,
+  CreateSharingRuleRequest,
+  UpdateSharingRuleRequest,
+  SharingRuleFilter,
 } from '@/types/security'
 import type { ApiResponse, ApiListResponse } from '@/types/metadata'
 
@@ -130,11 +139,8 @@ export const securityApi = {
     return http.get<ApiListResponse<PermissionSetAssignment>>(`${BASE}/users/${userId}/permission-sets`)
   },
 
-  assignPermissionSet(userId: string, permissionSetId: string): Promise<ApiResponse<PermissionSetAssignment>> {
-    return http.post<ApiResponse<PermissionSetAssignment>>(
-      `${BASE}/users/${userId}/permission-sets`,
-      { permissionSetId },
-    )
+  assignPermissionSet(userId: string, permissionSetId: string): Promise<void> {
+    return http.post(`${BASE}/users/${userId}/permission-sets`, { permissionSetId })
   },
 
   revokePermissionSet(userId: string, assignmentId: string): Promise<void> {
@@ -174,5 +180,60 @@ export const securityApi = {
 
   deleteFieldPermission(psId: string, fieldPermissionId: string): Promise<void> {
     return http.delete(`${BASE}/permission-sets/${psId}/field-permissions/${fieldPermissionId}`)
+  },
+
+  // Groups
+  listGroups(filter?: GroupFilter): Promise<ApiListResponse<Group>> {
+    const params: Record<string, string | number | undefined> = {}
+    if (filter?.page) params['page'] = filter.page
+    if (filter?.perPage) params['per_page'] = filter.perPage
+    return http.get<ApiListResponse<Group>>(`${BASE}/groups`, params)
+  },
+
+  getGroup(groupId: string): Promise<ApiResponse<Group>> {
+    return http.get<ApiResponse<Group>>(`${BASE}/groups/${groupId}`)
+  },
+
+  createGroup(data: CreateGroupRequest): Promise<ApiResponse<Group>> {
+    return http.post<ApiResponse<Group>>(`${BASE}/groups`, data)
+  },
+
+  deleteGroup(groupId: string): Promise<void> {
+    return http.delete(`${BASE}/groups/${groupId}`)
+  },
+
+  listGroupMembers(groupId: string): Promise<ApiResponse<GroupMember[]>> {
+    return http.get<ApiResponse<GroupMember[]>>(`${BASE}/groups/${groupId}/members`)
+  },
+
+  addGroupMember(groupId: string, data: AddGroupMemberRequest): Promise<ApiResponse<GroupMember>> {
+    return http.post<ApiResponse<GroupMember>>(`${BASE}/groups/${groupId}/members`, data)
+  },
+
+  removeGroupMember(groupId: string, memberId: string): Promise<void> {
+    return http.delete(`${BASE}/groups/${groupId}/members/${memberId}`)
+  },
+
+  // Sharing Rules
+  listSharingRules(filter: SharingRuleFilter): Promise<ApiResponse<SharingRule[]>> {
+    return http.get<ApiResponse<SharingRule[]>>(`${BASE}/sharing-rules`, {
+      object_id: filter.objectId,
+    })
+  },
+
+  getSharingRule(ruleId: string): Promise<ApiResponse<SharingRule>> {
+    return http.get<ApiResponse<SharingRule>>(`${BASE}/sharing-rules/${ruleId}`)
+  },
+
+  createSharingRule(data: CreateSharingRuleRequest): Promise<ApiResponse<SharingRule>> {
+    return http.post<ApiResponse<SharingRule>>(`${BASE}/sharing-rules`, data)
+  },
+
+  updateSharingRule(ruleId: string, data: UpdateSharingRuleRequest): Promise<ApiResponse<SharingRule>> {
+    return http.put<ApiResponse<SharingRule>>(`${BASE}/sharing-rules/${ruleId}`, data)
+  },
+
+  deleteSharingRule(ruleId: string): Promise<void> {
+    return http.delete(`${BASE}/sharing-rules/${ruleId}`)
   },
 }

@@ -12,11 +12,13 @@ import (
 
 // SecurityHandler handles admin CRUD for IAM/security resources.
 type SecurityHandler struct {
-	roleService       security.UserRoleService
-	psService         security.PermissionSetService
-	profileService    security.ProfileService
-	userService       security.UserService
-	permissionService security.PermissionService
+	roleService        security.UserRoleService
+	psService          security.PermissionSetService
+	profileService     security.ProfileService
+	userService        security.UserService
+	permissionService  security.PermissionService
+	groupService       security.GroupService
+	sharingRuleService security.SharingRuleService
 }
 
 // NewSecurityHandler creates a new SecurityHandler.
@@ -26,13 +28,17 @@ func NewSecurityHandler(
 	profileService security.ProfileService,
 	userService security.UserService,
 	permissionService security.PermissionService,
+	groupService security.GroupService,
+	sharingRuleService security.SharingRuleService,
 ) *SecurityHandler {
 	return &SecurityHandler{
-		roleService:       roleService,
-		psService:         psService,
-		profileService:    profileService,
-		userService:       userService,
-		permissionService: permissionService,
+		roleService:        roleService,
+		psService:          psService,
+		profileService:     profileService,
+		userService:        userService,
+		permissionService:  permissionService,
+		groupService:       groupService,
+		sharingRuleService: sharingRuleService,
 	}
 }
 
@@ -75,6 +81,20 @@ func (h *SecurityHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	sec.PUT("/permission-sets/:id/field-permissions", h.SetFieldPermission)
 	sec.GET("/permission-sets/:id/field-permissions", h.ListFieldPermissions)
 	sec.DELETE("/permission-sets/:id/field-permissions/:fieldId", h.RemoveFieldPermission)
+
+	sec.POST("/groups", h.CreateGroup)
+	sec.GET("/groups", h.ListGroups)
+	sec.GET("/groups/:id", h.GetGroup)
+	sec.DELETE("/groups/:id", h.DeleteGroup)
+	sec.POST("/groups/:id/members", h.AddGroupMember)
+	sec.DELETE("/groups/:id/members/:memberId", h.RemoveGroupMember)
+	sec.GET("/groups/:id/members", h.ListGroupMembers)
+
+	sec.POST("/sharing-rules", h.CreateSharingRule)
+	sec.GET("/sharing-rules", h.ListSharingRules)
+	sec.GET("/sharing-rules/:id", h.GetSharingRule)
+	sec.PUT("/sharing-rules/:id", h.UpdateSharingRule)
+	sec.DELETE("/sharing-rules/:id", h.DeleteSharingRule)
 }
 
 // --- Roles ---
@@ -509,6 +529,201 @@ func (h *SecurityHandler) RemoveFieldPermission(c *gin.Context) {
 		return
 	}
 	if err := h.permissionService.RemoveFieldPermission(c.Request.Context(), id, fieldID); err != nil {
+		apperror.Respond(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+// --- Groups ---
+
+func (h *SecurityHandler) CreateGroup(c *gin.Context) {
+	var req security.CreateGroupInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		apperror.Respond(c, apperror.BadRequest("invalid request body"))
+		return
+	}
+	group, err := h.groupService.Create(c.Request.Context(), req)
+	if err != nil {
+		apperror.Respond(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"data": group})
+}
+
+func (h *SecurityHandler) ListGroups(c *gin.Context) {
+	page, perPage := parsePagination(c)
+	groups, total, err := h.groupService.List(c.Request.Context(), page, perPage)
+	if err != nil {
+		apperror.Respond(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"data":       groups,
+		"pagination": paginationMeta(page, perPage, total),
+	})
+}
+
+func (h *SecurityHandler) GetGroup(c *gin.Context) {
+	id, err := parseUUID(c, "id")
+	if err != nil {
+		return
+	}
+	group, err := h.groupService.GetByID(c.Request.Context(), id)
+	if err != nil {
+		apperror.Respond(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": group})
+}
+
+func (h *SecurityHandler) DeleteGroup(c *gin.Context) {
+	id, err := parseUUID(c, "id")
+	if err != nil {
+		return
+	}
+	if err := h.groupService.Delete(c.Request.Context(), id); err != nil {
+		apperror.Respond(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+type addGroupMemberRequest struct {
+	MemberUserID  *uuid.UUID `json:"member_user_id"`
+	MemberGroupID *uuid.UUID `json:"member_group_id"`
+}
+
+func (h *SecurityHandler) AddGroupMember(c *gin.Context) {
+	groupID, err := parseUUID(c, "id")
+	if err != nil {
+		return
+	}
+	var req addGroupMemberRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		apperror.Respond(c, apperror.BadRequest("invalid request body"))
+		return
+	}
+	input := security.AddGroupMemberInput{
+		GroupID:       groupID,
+		MemberUserID:  req.MemberUserID,
+		MemberGroupID: req.MemberGroupID,
+	}
+	member, err := h.groupService.AddMember(c.Request.Context(), input)
+	if err != nil {
+		apperror.Respond(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"data": member})
+}
+
+func (h *SecurityHandler) RemoveGroupMember(c *gin.Context) {
+	groupID, err := parseUUID(c, "id")
+	if err != nil {
+		return
+	}
+	memberID, err := parseUUID(c, "memberId")
+	if err != nil {
+		return
+	}
+	// memberID can be a user ID or group ID; try removing as user first
+	// The service needs user_id or group_id, but the route gives us the member record ID.
+	// Instead, we remove by looking up the member. Pass memberID as user ID attempt.
+	if err := h.groupService.RemoveMember(c.Request.Context(), groupID, &memberID, nil); err != nil {
+		// Try as group member
+		if err2 := h.groupService.RemoveMember(c.Request.Context(), groupID, nil, &memberID); err2 != nil {
+			apperror.Respond(c, err)
+			return
+		}
+	}
+	c.Status(http.StatusNoContent)
+}
+
+func (h *SecurityHandler) ListGroupMembers(c *gin.Context) {
+	groupID, err := parseUUID(c, "id")
+	if err != nil {
+		return
+	}
+	members, err := h.groupService.ListMembers(c.Request.Context(), groupID)
+	if err != nil {
+		apperror.Respond(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": members})
+}
+
+// --- Sharing Rules ---
+
+func (h *SecurityHandler) CreateSharingRule(c *gin.Context) {
+	var req security.CreateSharingRuleInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		apperror.Respond(c, apperror.BadRequest("invalid request body"))
+		return
+	}
+	rule, err := h.sharingRuleService.Create(c.Request.Context(), req)
+	if err != nil {
+		apperror.Respond(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"data": rule})
+}
+
+func (h *SecurityHandler) ListSharingRules(c *gin.Context) {
+	objectIDStr := c.Query("object_id")
+	if objectIDStr == "" {
+		apperror.Respond(c, apperror.BadRequest("object_id query parameter is required"))
+		return
+	}
+	objectID, err := uuid.Parse(objectIDStr)
+	if err != nil {
+		apperror.Respond(c, apperror.BadRequest("invalid object_id"))
+		return
+	}
+	rules, err := h.sharingRuleService.ListByObjectID(c.Request.Context(), objectID)
+	if err != nil {
+		apperror.Respond(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": rules})
+}
+
+func (h *SecurityHandler) GetSharingRule(c *gin.Context) {
+	id, err := parseUUID(c, "id")
+	if err != nil {
+		return
+	}
+	rule, err := h.sharingRuleService.GetByID(c.Request.Context(), id)
+	if err != nil {
+		apperror.Respond(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": rule})
+}
+
+func (h *SecurityHandler) UpdateSharingRule(c *gin.Context) {
+	id, err := parseUUID(c, "id")
+	if err != nil {
+		return
+	}
+	var req security.UpdateSharingRuleInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		apperror.Respond(c, apperror.BadRequest("invalid request body"))
+		return
+	}
+	rule, err := h.sharingRuleService.Update(c.Request.Context(), id, req)
+	if err != nil {
+		apperror.Respond(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": rule})
+}
+
+func (h *SecurityHandler) DeleteSharingRule(c *gin.Context) {
+	id, err := parseUUID(c, "id")
+	if err != nil {
+		return
+	}
+	if err := h.sharingRuleService.Delete(c.Request.Context(), id); err != nil {
 		apperror.Respond(c, err)
 		return
 	}

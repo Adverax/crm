@@ -13,11 +13,23 @@ import (
 type userRoleServiceImpl struct {
 	txBeginner TxBeginner
 	repo       UserRoleRepository
+	groupRepo  GroupRepository
+	outboxRepo OutboxRepository
 }
 
 // NewUserRoleService creates a new UserRoleService.
-func NewUserRoleService(txBeginner TxBeginner, repo UserRoleRepository) UserRoleService {
-	return &userRoleServiceImpl{txBeginner: txBeginner, repo: repo}
+func NewUserRoleService(
+	txBeginner TxBeginner,
+	repo UserRoleRepository,
+	groupRepo GroupRepository,
+	outboxRepo OutboxRepository,
+) UserRoleService {
+	return &userRoleServiceImpl{
+		txBeginner: txBeginner,
+		repo:       repo,
+		groupRepo:  groupRepo,
+		outboxRepo: outboxRepo,
+	}
 }
 
 func (s *userRoleServiceImpl) Create(ctx context.Context, input CreateUserRoleInput) (*UserRole, error) {
@@ -48,6 +60,39 @@ func (s *userRoleServiceImpl) Create(ctx context.Context, input CreateUserRoleIn
 		if err != nil {
 			return fmt.Errorf("userRoleService.Create: %w", err)
 		}
+
+		// Auto-create "role" group
+		_, err = s.groupRepo.Create(ctx, tx, CreateGroupInput{
+			APIName:       "role_" + input.APIName,
+			Label:         input.Label + " (Role)",
+			GroupType:     GroupTypeRole,
+			RelatedRoleID: &created.ID,
+		})
+		if err != nil {
+			return fmt.Errorf("userRoleService.Create: create role group: %w", err)
+		}
+
+		// Auto-create "role_and_subordinates" group
+		_, err = s.groupRepo.Create(ctx, tx, CreateGroupInput{
+			APIName:       "role_and_sub_" + input.APIName,
+			Label:         input.Label + " (Role & Subordinates)",
+			GroupType:     GroupTypeRoleAndSubordinates,
+			RelatedRoleID: &created.ID,
+		})
+		if err != nil {
+			return fmt.Errorf("userRoleService.Create: create role_and_sub group: %w", err)
+		}
+
+		// Emit outbox event for role hierarchy recompute
+		if err := s.outboxRepo.Insert(ctx, tx, OutboxEvent{
+			EventType:  "role_changed",
+			EntityType: "user_role",
+			EntityID:   created.ID,
+			Payload:    []byte(`{"action":"create"}`),
+		}); err != nil {
+			return fmt.Errorf("userRoleService.Create: outbox: %w", err)
+		}
+
 		result = created
 		return nil
 	})
@@ -113,12 +158,26 @@ func (s *userRoleServiceImpl) Update(ctx context.Context, id uuid.UUID, input Up
 			apperror.Validation("role cannot be its own parent"))
 	}
 
+	parentChanged := !uuidPtrEqual(existing.ParentID, input.ParentID)
+
 	var result *UserRole
 	err = withTx(ctx, s.txBeginner, func(tx pgx.Tx) error {
 		updated, err := s.repo.Update(ctx, tx, id, input)
 		if err != nil {
 			return fmt.Errorf("userRoleService.Update: %w", err)
 		}
+
+		if parentChanged {
+			if err := s.outboxRepo.Insert(ctx, tx, OutboxEvent{
+				EventType:  "role_changed",
+				EntityType: "user_role",
+				EntityID:   id,
+				Payload:    []byte(`{"action":"update"}`),
+			}); err != nil {
+				return fmt.Errorf("userRoleService.Update: outbox: %w", err)
+			}
+		}
+
 		result = updated
 		return nil
 	})

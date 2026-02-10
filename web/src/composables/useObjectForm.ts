@@ -1,5 +1,5 @@
 import { reactive, computed } from 'vue'
-import type { ObjectDefinition, CreateObjectRequest, UpdateObjectRequest, ObjectType } from '@/types/metadata'
+import type { ObjectDefinition, CreateObjectRequest, UpdateObjectRequest, ObjectType, Visibility } from '@/types/metadata'
 
 const API_NAME_REGEX = /^[A-Za-z][A-Za-z0-9_]*$/
 
@@ -21,6 +21,7 @@ export interface ObjectFormState {
   hasNotes: boolean
   hasHistoryTracking: boolean
   hasSharingRules: boolean
+  visibility: Visibility
 }
 
 export interface ObjectFormErrors {
@@ -48,6 +49,7 @@ function defaultState(): ObjectFormState {
     hasNotes: false,
     hasHistoryTracking: false,
     hasSharingRules: false,
+    visibility: 'private',
   }
 }
 
@@ -70,6 +72,7 @@ export function useObjectForm(existing?: ObjectDefinition) {
     hasNotes: existing.hasNotes,
     hasHistoryTracking: existing.hasHistoryTracking,
     hasSharingRules: existing.hasSharingRules,
+    visibility: existing.visibility,
   } : defaultState())
 
   const errors = reactive<ObjectFormErrors>({})
@@ -136,6 +139,7 @@ export function useObjectForm(existing?: ObjectDefinition) {
       hasNotes: state.hasNotes,
       hasHistoryTracking: state.hasHistoryTracking,
       hasSharingRules: state.hasSharingRules,
+      visibility: state.visibility,
     }
   }
 
@@ -164,6 +168,7 @@ export function useObjectForm(existing?: ObjectDefinition) {
     state.hasNotes = obj.hasNotes
     state.hasHistoryTracking = obj.hasHistoryTracking
     state.hasSharingRules = obj.hasSharingRules
+    state.visibility = obj.visibility
   }
 
   return { state, errors, validate, isValid, toCreateRequest, toUpdateRequest, reset, initFrom }

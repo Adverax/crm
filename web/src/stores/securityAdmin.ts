@@ -19,6 +19,15 @@ import type {
   UpdateUserRequest,
   UserFilter,
   PermissionSetAssignment,
+  Group,
+  CreateGroupRequest,
+  GroupFilter,
+  GroupMember,
+  AddGroupMemberRequest,
+  SharingRule,
+  CreateSharingRuleRequest,
+  UpdateSharingRuleRequest,
+  SharingRuleFilter,
 } from '@/types/security'
 import type { PaginationMeta } from '@/types/metadata'
 
@@ -370,8 +379,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
     usersLoading.value = true
     usersError.value = null
     try {
-      const response = await securityApi.assignPermissionSet(userId, permissionSetId)
-      return response.data
+      await securityApi.assignPermissionSet(userId, permissionSetId)
     } catch (err) {
       usersError.value = err instanceof Error ? err.message : 'Ошибка назначения набора разрешений'
       throw err
@@ -390,6 +398,191 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       throw err
     } finally {
       usersLoading.value = false
+    }
+  }
+
+  // --- Groups ---
+
+  const groups = ref<Group[]>([])
+  const currentGroup = ref<Group | null>(null)
+  const groupsPagination = ref<PaginationMeta | null>(null)
+  const groupsLoading = ref(false)
+  const groupsError = ref<string | null>(null)
+  const groupMembers = ref<GroupMember[]>([])
+
+  async function fetchGroups(filter?: GroupFilter) {
+    groupsLoading.value = true
+    groupsError.value = null
+    try {
+      const response = await securityApi.listGroups(filter)
+      groups.value = response.data ?? []
+      groupsPagination.value = response.pagination
+    } catch (err) {
+      groupsError.value = err instanceof Error ? err.message : 'Ошибка загрузки групп'
+      throw err
+    } finally {
+      groupsLoading.value = false
+    }
+  }
+
+  async function fetchGroup(groupId: string) {
+    groupsLoading.value = true
+    groupsError.value = null
+    try {
+      const response = await securityApi.getGroup(groupId)
+      currentGroup.value = response.data
+      return response.data
+    } catch (err) {
+      groupsError.value = err instanceof Error ? err.message : 'Ошибка загрузки группы'
+      throw err
+    } finally {
+      groupsLoading.value = false
+    }
+  }
+
+  async function createGroup(data: CreateGroupRequest) {
+    groupsLoading.value = true
+    groupsError.value = null
+    try {
+      const response = await securityApi.createGroup(data)
+      return response.data
+    } catch (err) {
+      groupsError.value = err instanceof Error ? err.message : 'Ошибка создания группы'
+      throw err
+    } finally {
+      groupsLoading.value = false
+    }
+  }
+
+  async function deleteGroup(groupId: string) {
+    groupsLoading.value = true
+    groupsError.value = null
+    try {
+      await securityApi.deleteGroup(groupId)
+    } catch (err) {
+      groupsError.value = err instanceof Error ? err.message : 'Ошибка удаления группы'
+      throw err
+    } finally {
+      groupsLoading.value = false
+    }
+  }
+
+  async function fetchGroupMembers(groupId: string) {
+    groupsLoading.value = true
+    groupsError.value = null
+    try {
+      const response = await securityApi.listGroupMembers(groupId)
+      groupMembers.value = response.data ?? []
+    } catch (err) {
+      groupsError.value = err instanceof Error ? err.message : 'Ошибка загрузки членов группы'
+      throw err
+    } finally {
+      groupsLoading.value = false
+    }
+  }
+
+  async function addGroupMember(groupId: string, data: AddGroupMemberRequest) {
+    groupsLoading.value = true
+    groupsError.value = null
+    try {
+      const response = await securityApi.addGroupMember(groupId, data)
+      return response.data
+    } catch (err) {
+      groupsError.value = err instanceof Error ? err.message : 'Ошибка добавления члена группы'
+      throw err
+    } finally {
+      groupsLoading.value = false
+    }
+  }
+
+  async function removeGroupMember(groupId: string, memberId: string) {
+    groupsLoading.value = true
+    groupsError.value = null
+    try {
+      await securityApi.removeGroupMember(groupId, memberId)
+    } catch (err) {
+      groupsError.value = err instanceof Error ? err.message : 'Ошибка удаления члена группы'
+      throw err
+    } finally {
+      groupsLoading.value = false
+    }
+  }
+
+  // --- Sharing Rules ---
+
+  const sharingRules = ref<SharingRule[]>([])
+  const currentSharingRule = ref<SharingRule | null>(null)
+  const sharingRulesLoading = ref(false)
+  const sharingRulesError = ref<string | null>(null)
+
+  async function fetchSharingRules(filter: SharingRuleFilter) {
+    sharingRulesLoading.value = true
+    sharingRulesError.value = null
+    try {
+      const response = await securityApi.listSharingRules(filter)
+      sharingRules.value = response.data ?? []
+    } catch (err) {
+      sharingRulesError.value = err instanceof Error ? err.message : 'Ошибка загрузки правил'
+      throw err
+    } finally {
+      sharingRulesLoading.value = false
+    }
+  }
+
+  async function fetchSharingRule(ruleId: string) {
+    sharingRulesLoading.value = true
+    sharingRulesError.value = null
+    try {
+      const response = await securityApi.getSharingRule(ruleId)
+      currentSharingRule.value = response.data
+      return response.data
+    } catch (err) {
+      sharingRulesError.value = err instanceof Error ? err.message : 'Ошибка загрузки правила'
+      throw err
+    } finally {
+      sharingRulesLoading.value = false
+    }
+  }
+
+  async function createSharingRule(data: CreateSharingRuleRequest) {
+    sharingRulesLoading.value = true
+    sharingRulesError.value = null
+    try {
+      const response = await securityApi.createSharingRule(data)
+      return response.data
+    } catch (err) {
+      sharingRulesError.value = err instanceof Error ? err.message : 'Ошибка создания правила'
+      throw err
+    } finally {
+      sharingRulesLoading.value = false
+    }
+  }
+
+  async function updateSharingRule(ruleId: string, data: UpdateSharingRuleRequest) {
+    sharingRulesLoading.value = true
+    sharingRulesError.value = null
+    try {
+      const response = await securityApi.updateSharingRule(ruleId, data)
+      currentSharingRule.value = response.data
+      return response.data
+    } catch (err) {
+      sharingRulesError.value = err instanceof Error ? err.message : 'Ошибка обновления правила'
+      throw err
+    } finally {
+      sharingRulesLoading.value = false
+    }
+  }
+
+  async function deleteSharingRule(ruleId: string) {
+    sharingRulesLoading.value = true
+    sharingRulesError.value = null
+    try {
+      await securityApi.deleteSharingRule(ruleId)
+    } catch (err) {
+      sharingRulesError.value = err instanceof Error ? err.message : 'Ошибка удаления правила'
+      throw err
+    } finally {
+      sharingRulesLoading.value = false
     }
   }
 
@@ -447,5 +640,31 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
     fetchUserPermissionSets,
     assignPermissionSet,
     revokePermissionSet,
+
+    // Groups
+    groups,
+    currentGroup,
+    groupsPagination,
+    groupsLoading,
+    groupsError,
+    groupMembers,
+    fetchGroups,
+    fetchGroup,
+    createGroup,
+    deleteGroup,
+    fetchGroupMembers,
+    addGroupMember,
+    removeGroupMember,
+
+    // Sharing Rules
+    sharingRules,
+    currentSharingRule,
+    sharingRulesLoading,
+    sharingRulesError,
+    fetchSharingRules,
+    fetchSharingRule,
+    createSharingRule,
+    updateSharingRule,
+    deleteSharingRule,
   }
 })

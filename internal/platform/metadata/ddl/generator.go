@@ -107,6 +107,34 @@ func DropColumn(tableName string, field FieldInfo) []string {
 	}
 }
 
+// ShareTableName returns the share table name for a given object table name.
+func ShareTableName(tableName string) string {
+	return tableName + "__share"
+}
+
+// CreateShareTable generates DDL to create a share table for an object (ADR-0011).
+func CreateShareTable(tableName string) string {
+	shareTable := ShareTableName(tableName)
+	return fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (
+    id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    record_id    UUID        NOT NULL REFERENCES %s(id) ON DELETE CASCADE,
+    group_id     UUID        NOT NULL,
+    access_level VARCHAR(20) NOT NULL CHECK (access_level IN ('read', 'read_write')),
+    reason       VARCHAR(30) NOT NULL CHECK (reason IN ('manual', 'sharing_rule', 'territory')),
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_%s UNIQUE (record_id, group_id, reason)
+)`,
+		quoteIdent(shareTable),
+		quoteIdent(tableName),
+		sanitizeForIndex(shareTable)+"_record_group_reason",
+	)
+}
+
+// DropShareTable generates DDL to drop a share table.
+func DropShareTable(tableName string) string {
+	return fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE", quoteIdent(ShareTableName(tableName)))
+}
+
 // AlterColumnSetNotNull generates DDL to set NOT NULL constraint.
 func AlterColumnSetNotNull(tableName, columnName string) string {
 	return fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s SET NOT NULL",

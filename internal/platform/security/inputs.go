@@ -75,3 +75,53 @@ type SetFieldPermissionInput struct {
 	FieldID     uuid.UUID `json:"field_id"`
 	Permissions int       `json:"permissions"`
 }
+
+// CreateGroupInput contains input data for creating a group.
+type CreateGroupInput struct {
+	APIName       string     `json:"api_name"`
+	Label         string     `json:"label"`
+	GroupType     GroupType  `json:"group_type"`
+	RelatedRoleID *uuid.UUID `json:"related_role_id"`
+	RelatedUserID *uuid.UUID `json:"related_user_id"`
+}
+
+// AddGroupMemberInput contains input for adding a member to a group.
+type AddGroupMemberInput struct {
+	GroupID       uuid.UUID  `json:"group_id"`
+	MemberUserID  *uuid.UUID `json:"member_user_id"`
+	MemberGroupID *uuid.UUID `json:"member_group_id"`
+}
+
+// CreateSharingRuleInput contains input data for creating a sharing rule.
+type CreateSharingRuleInput struct {
+	ObjectID      uuid.UUID `json:"object_id"`
+	RuleType      RuleType  `json:"rule_type"`
+	SourceGroupID uuid.UUID `json:"source_group_id"`
+	TargetGroupID uuid.UUID `json:"target_group_id"`
+	AccessLevel   string    `json:"access_level"`
+	CriteriaField *string   `json:"criteria_field"`
+	CriteriaOp    *string   `json:"criteria_op"`
+	CriteriaValue *string   `json:"criteria_value"`
+}
+
+// UpdateSharingRuleInput contains input data for updating a sharing rule.
+type UpdateSharingRuleInput struct {
+	TargetGroupID uuid.UUID `json:"target_group_id"`
+	AccessLevel   string    `json:"access_level"`
+	CriteriaField *string   `json:"criteria_field"`
+	CriteriaOp    *string   `json:"criteria_op"`
+	CriteriaValue *string   `json:"criteria_value"`
+}
+
+// ShareRecordInput contains input for manually sharing a record.
+type ShareRecordInput struct {
+	RecordID    uuid.UUID `json:"record_id"`
+	GroupID     uuid.UUID `json:"group_id"`
+	AccessLevel string    `json:"access_level"`
+}
+
+// RevokeShareInput contains input for revoking a manual share.
+type RevokeShareInput struct {
+	RecordID uuid.UUID `json:"record_id"`
+	GroupID  uuid.UUID `json:"group_id"`
+}

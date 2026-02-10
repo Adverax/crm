@@ -12,12 +12,14 @@ import (
 )
 
 type userServiceImpl struct {
-	txBeginner  TxBeginner
-	userRepo    UserRepository
-	profileRepo ProfileRepository
-	roleRepo    UserRoleRepository
+	txBeginner   TxBeginner
+	userRepo     UserRepository
+	profileRepo  ProfileRepository
+	roleRepo     UserRoleRepository
 	psToUserRepo PermissionSetToUserRepository
-	outboxRepo  OutboxRepository
+	outboxRepo   OutboxRepository
+	groupRepo    GroupRepository
+	memberRepo   GroupMemberRepository
 }
 
 // NewUserService creates a new UserService.
@@ -28,6 +30,8 @@ func NewUserService(
 	roleRepo UserRoleRepository,
 	psToUserRepo PermissionSetToUserRepository,
 	outboxRepo OutboxRepository,
+	groupRepo GroupRepository,
+	memberRepo GroupMemberRepository,
 ) UserService {
 	return &userServiceImpl{
 		txBeginner:   txBeginner,
@@ -36,6 +40,8 @@ func NewUserService(
 		roleRepo:     roleRepo,
 		psToUserRepo: psToUserRepo,
 		outboxRepo:   outboxRepo,
+		groupRepo:    groupRepo,
+		memberRepo:   memberRepo,
 	}
 }
 
@@ -75,6 +81,32 @@ func (s *userServiceImpl) Create(ctx context.Context, input CreateUserInput) (*U
 		created, err := s.userRepo.Create(ctx, tx, input)
 		if err != nil {
 			return fmt.Errorf("userService.Create: %w", err)
+		}
+
+		// Auto-create personal group
+		personalGroup, err := s.groupRepo.Create(ctx, tx, CreateGroupInput{
+			APIName:       "personal_" + input.Username,
+			Label:         input.Username + " (Personal)",
+			GroupType:     GroupTypePersonal,
+			RelatedUserID: &created.ID,
+		})
+		if err != nil {
+			return fmt.Errorf("userService.Create: create personal group: %w", err)
+		}
+
+		// Add user to their personal group
+		if _, err := s.memberRepo.Add(ctx, tx, AddGroupMemberInput{
+			GroupID:      personalGroup.ID,
+			MemberUserID: &created.ID,
+		}); err != nil {
+			return fmt.Errorf("userService.Create: add to personal group: %w", err)
+		}
+
+		// Add user to role groups if role is assigned
+		if created.RoleID != nil {
+			if err := s.addUserToRoleGroups(ctx, tx, created.ID, *created.RoleID); err != nil {
+				return fmt.Errorf("userService.Create: %w", err)
+			}
 		}
 
 		payload, _ := json.Marshal(map[string]string{"action": "create"})
@@ -155,6 +187,18 @@ func (s *userServiceImpl) Update(ctx context.Context, id uuid.UUID, input Update
 		updated, err := s.userRepo.Update(ctx, tx, id, input)
 		if err != nil {
 			return fmt.Errorf("userService.Update: %w", err)
+		}
+
+		// Recompute role group memberships on role change
+		if roleChanged {
+			if err := s.removeUserFromRoleGroups(ctx, tx, id, existing.RoleID); err != nil {
+				return fmt.Errorf("userService.Update: %w", err)
+			}
+			if input.RoleID != nil {
+				if err := s.addUserToRoleGroups(ctx, tx, id, *input.RoleID); err != nil {
+					return fmt.Errorf("userService.Update: %w", err)
+				}
+			}
 		}
 
 		if profileChanged || roleChanged {
@@ -243,6 +287,66 @@ func (s *userServiceImpl) ListPermissionSets(ctx context.Context, userID uuid.UU
 		return nil, fmt.Errorf("userService.ListPermissionSets: %w", err)
 	}
 	return assignments, nil
+}
+
+// addUserToRoleGroups adds user to the role and role_and_subordinates groups for the given role.
+func (s *userServiceImpl) addUserToRoleGroups(ctx context.Context, tx pgx.Tx, userID, roleID uuid.UUID) error {
+	roleGroup, err := s.groupRepo.GetByRelatedRoleID(ctx, roleID, GroupTypeRole)
+	if err != nil {
+		return fmt.Errorf("addUserToRoleGroups: lookup role group: %w", err)
+	}
+	if roleGroup != nil {
+		if _, err := s.memberRepo.Add(ctx, tx, AddGroupMemberInput{
+			GroupID:      roleGroup.ID,
+			MemberUserID: &userID,
+		}); err != nil {
+			return fmt.Errorf("addUserToRoleGroups: add to role group: %w", err)
+		}
+	}
+
+	roleAndSubGroup, err := s.groupRepo.GetByRelatedRoleID(ctx, roleID, GroupTypeRoleAndSubordinates)
+	if err != nil {
+		return fmt.Errorf("addUserToRoleGroups: lookup role_and_sub group: %w", err)
+	}
+	if roleAndSubGroup != nil {
+		if _, err := s.memberRepo.Add(ctx, tx, AddGroupMemberInput{
+			GroupID:      roleAndSubGroup.ID,
+			MemberUserID: &userID,
+		}); err != nil {
+			return fmt.Errorf("addUserToRoleGroups: add to role_and_sub group: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// removeUserFromRoleGroups removes user from role groups for the old role.
+func (s *userServiceImpl) removeUserFromRoleGroups(ctx context.Context, tx pgx.Tx, userID uuid.UUID, roleID *uuid.UUID) error {
+	if roleID == nil {
+		return nil
+	}
+
+	roleGroup, err := s.groupRepo.GetByRelatedRoleID(ctx, *roleID, GroupTypeRole)
+	if err != nil {
+		return fmt.Errorf("removeUserFromRoleGroups: lookup role group: %w", err)
+	}
+	if roleGroup != nil {
+		if err := s.memberRepo.Remove(ctx, tx, roleGroup.ID, &userID, nil); err != nil {
+			return fmt.Errorf("removeUserFromRoleGroups: remove from role group: %w", err)
+		}
+	}
+
+	roleAndSubGroup, err := s.groupRepo.GetByRelatedRoleID(ctx, *roleID, GroupTypeRoleAndSubordinates)
+	if err != nil {
+		return fmt.Errorf("removeUserFromRoleGroups: lookup role_and_sub group: %w", err)
+	}
+	if roleAndSubGroup != nil {
+		if err := s.memberRepo.Remove(ctx, tx, roleAndSubGroup.ID, &userID, nil); err != nil {
+			return fmt.Errorf("removeUserFromRoleGroups: remove from role_and_sub group: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func uuidPtrEqual(a, b *uuid.UUID) bool {

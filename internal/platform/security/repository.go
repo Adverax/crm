@@ -102,3 +102,48 @@ type AllObjectPermissions interface {
 type AllFieldPermissions interface {
 	ListByPermissionSetIDs(ctx context.Context, psIDs []uuid.UUID) ([]FieldPermission, error)
 }
+
+// GroupRepository defines data access for groups.
+type GroupRepository interface {
+	Create(ctx context.Context, tx pgx.Tx, input CreateGroupInput) (*Group, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*Group, error)
+	GetByAPIName(ctx context.Context, apiName string) (*Group, error)
+	GetByRelatedRoleID(ctx context.Context, roleID uuid.UUID, groupType GroupType) (*Group, error)
+	GetByRelatedUserID(ctx context.Context, userID uuid.UUID) (*Group, error)
+	List(ctx context.Context, limit, offset int32) ([]Group, error)
+	Delete(ctx context.Context, tx pgx.Tx, id uuid.UUID) error
+	Count(ctx context.Context) (int64, error)
+}
+
+// GroupMemberRepository defines data access for group members.
+type GroupMemberRepository interface {
+	Add(ctx context.Context, tx pgx.Tx, input AddGroupMemberInput) (*GroupMember, error)
+	Remove(ctx context.Context, tx pgx.Tx, groupID uuid.UUID, memberUserID *uuid.UUID, memberGroupID *uuid.UUID) error
+	ListByGroupID(ctx context.Context, groupID uuid.UUID) ([]GroupMember, error)
+	ListByUserID(ctx context.Context, userID uuid.UUID) ([]GroupMember, error)
+	DeleteByGroupID(ctx context.Context, tx pgx.Tx, groupID uuid.UUID) error
+}
+
+// SharingRuleRepository defines data access for sharing rules.
+type SharingRuleRepository interface {
+	Create(ctx context.Context, tx pgx.Tx, input CreateSharingRuleInput) (*SharingRule, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*SharingRule, error)
+	ListByObjectID(ctx context.Context, objectID uuid.UUID) ([]SharingRule, error)
+	Update(ctx context.Context, tx pgx.Tx, id uuid.UUID, input UpdateSharingRuleInput) (*SharingRule, error)
+	Delete(ctx context.Context, tx pgx.Tx, id uuid.UUID) error
+}
+
+// RLSEffectiveCacheRepository defines data access for RLS effective caches.
+type RLSEffectiveCacheRepository interface {
+	ReplaceRoleHierarchy(ctx context.Context, tx pgx.Tx, entries []EffectiveRoleHierarchy) error
+	ReplaceVisibleOwners(ctx context.Context, tx pgx.Tx, userID uuid.UUID, entries []EffectiveVisibleOwner) error
+	ReplaceVisibleOwnersAll(ctx context.Context, tx pgx.Tx, entries []EffectiveVisibleOwner) error
+	ReplaceGroupMembers(ctx context.Context, tx pgx.Tx, groupID uuid.UUID, entries []EffectiveGroupMember) error
+	ReplaceGroupMembersAll(ctx context.Context, tx pgx.Tx, entries []EffectiveGroupMember) error
+	ReplaceObjectHierarchy(ctx context.Context, tx pgx.Tx, entries []EffectiveObjectHierarchy) error
+
+	GetVisibleOwners(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
+	GetGroupMemberships(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
+	GetRoleDescendants(ctx context.Context, roleID uuid.UUID) ([]uuid.UUID, error)
+	ListAllRoles(ctx context.Context) ([]EffectiveRoleHierarchy, error)
+}

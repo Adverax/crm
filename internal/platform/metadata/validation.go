@@ -197,6 +197,19 @@ func GenerateTableName(apiName string) string {
 	return tableNamePrefix + name
 }
 
+// ValidateVisibility validates the visibility (OWD) value.
+func ValidateVisibility(v Visibility) error {
+	switch v {
+	case VisibilityPrivate, VisibilityPublicRead, VisibilityPublicReadWrite, VisibilityControlledByParent:
+		return nil
+	case "":
+		return nil // empty means default (private)
+	default:
+		return apperror.Validation(fmt.Sprintf(
+			"visibility must be one of: private, public_read, public_read_write, controlled_by_parent; got '%s'", v))
+	}
+}
+
 func subtypeStr(s *FieldSubtype) string {
 	if s == nil {
 		return "null"

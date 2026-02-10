@@ -61,6 +61,16 @@ const (
 	ObjectTypeCustom   ObjectType = "custom"
 )
 
+// Visibility represents the Organization-Wide Default (OWD) for an object.
+type Visibility string
+
+const (
+	VisibilityPrivate            Visibility = "private"
+	VisibilityPublicRead         Visibility = "public_read"
+	VisibilityPublicReadWrite    Visibility = "public_read_write"
+	VisibilityControlledByParent Visibility = "controlled_by_parent"
+)
+
 // ObjectDefinition represents metadata of a CRM object.
 type ObjectDefinition struct {
 	ID          uuid.UUID  `json:"id"`
@@ -89,6 +99,9 @@ type ObjectDefinition struct {
 	HasNotes           bool `json:"has_notes"`
 	HasHistoryTracking bool `json:"has_history_tracking"`
 	HasSharingRules    bool `json:"has_sharing_rules"`
+
+	// Security: Organization-Wide Default
+	Visibility Visibility `json:"visibility"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

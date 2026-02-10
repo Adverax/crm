@@ -1,5 +1,7 @@
 export type ObjectType = 'standard' | 'custom'
 
+export type Visibility = 'private' | 'public_read' | 'public_read_write' | 'controlled_by_parent'
+
 export interface ObjectDefinition {
   id: string
   apiName: string
@@ -20,6 +22,7 @@ export interface ObjectDefinition {
   hasNotes: boolean
   hasHistoryTracking: boolean
   hasSharingRules: boolean
+  visibility: Visibility
   createdAt: string
   updatedAt: string
 }
@@ -42,6 +45,7 @@ export interface CreateObjectRequest {
   hasNotes: boolean
   hasHistoryTracking: boolean
   hasSharingRules: boolean
+  visibility: Visibility
 }
 
 export interface UpdateObjectRequest {
@@ -60,6 +64,7 @@ export interface UpdateObjectRequest {
   hasNotes?: boolean
   hasHistoryTracking?: boolean
   hasSharingRules?: boolean
+  visibility?: Visibility
 }
 
 export type FieldType = 'text' | 'number' | 'boolean' | 'datetime' | 'picklist' | 'reference'

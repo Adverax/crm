@@ -27,24 +27,26 @@ func (r *PgObjectRepository) Create(ctx context.Context, tx pgx.Tx, input Create
 			api_name, label, plural_label, description, table_name, object_type,
 			is_visible_in_setup, is_custom_fields_allowed, is_deleteable_object,
 			is_createable, is_updateable, is_deleteable, is_queryable, is_searchable,
-			has_activities, has_notes, has_history_tracking, has_sharing_rules
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+			has_activities, has_notes, has_history_tracking, has_sharing_rules,
+			visibility
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
 		RETURNING id, api_name, label, plural_label, description, table_name, object_type,
 			is_platform_managed, is_visible_in_setup, is_custom_fields_allowed, is_deleteable_object,
 			is_createable, is_updateable, is_deleteable, is_queryable, is_searchable,
 			has_activities, has_notes, has_history_tracking, has_sharing_rules,
-			created_at, updated_at
+			visibility, created_at, updated_at
 	`,
 		input.APIName, input.Label, input.PluralLabel, input.Description, tableName, input.ObjectType,
 		input.IsVisibleInSetup, input.IsCustomFieldsAllowed, input.IsDeleteableObject,
 		input.IsCreateable, input.IsUpdateable, input.IsDeleteable, input.IsQueryable, input.IsSearchable,
 		input.HasActivities, input.HasNotes, input.HasHistoryTracking, input.HasSharingRules,
+		input.Visibility,
 	).Scan(
 		&obj.ID, &obj.APIName, &obj.Label, &obj.PluralLabel, &obj.Description, &obj.TableName, &obj.ObjectType,
 		&obj.IsPlatformManaged, &obj.IsVisibleInSetup, &obj.IsCustomFieldsAllowed, &obj.IsDeleteableObject,
 		&obj.IsCreateable, &obj.IsUpdateable, &obj.IsDeleteable, &obj.IsQueryable, &obj.IsSearchable,
 		&obj.HasActivities, &obj.HasNotes, &obj.HasHistoryTracking, &obj.HasSharingRules,
-		&obj.CreatedAt, &obj.UpdatedAt,
+		&obj.Visibility, &obj.CreatedAt, &obj.UpdatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("pgObjectRepo.Create: %w", err)
@@ -59,14 +61,14 @@ func (r *PgObjectRepository) GetByID(ctx context.Context, id uuid.UUID) (*Object
 			is_platform_managed, is_visible_in_setup, is_custom_fields_allowed, is_deleteable_object,
 			is_createable, is_updateable, is_deleteable, is_queryable, is_searchable,
 			has_activities, has_notes, has_history_tracking, has_sharing_rules,
-			created_at, updated_at
+			visibility, created_at, updated_at
 		FROM metadata.object_definitions WHERE id = $1
 	`, id).Scan(
 		&obj.ID, &obj.APIName, &obj.Label, &obj.PluralLabel, &obj.Description, &obj.TableName, &obj.ObjectType,
 		&obj.IsPlatformManaged, &obj.IsVisibleInSetup, &obj.IsCustomFieldsAllowed, &obj.IsDeleteableObject,
 		&obj.IsCreateable, &obj.IsUpdateable, &obj.IsDeleteable, &obj.IsQueryable, &obj.IsSearchable,
 		&obj.HasActivities, &obj.HasNotes, &obj.HasHistoryTracking, &obj.HasSharingRules,
-		&obj.CreatedAt, &obj.UpdatedAt,
+		&obj.Visibility, &obj.CreatedAt, &obj.UpdatedAt,
 	)
 	if err == pgx.ErrNoRows {
 		return nil, nil
@@ -84,14 +86,14 @@ func (r *PgObjectRepository) GetByAPIName(ctx context.Context, apiName string) (
 			is_platform_managed, is_visible_in_setup, is_custom_fields_allowed, is_deleteable_object,
 			is_createable, is_updateable, is_deleteable, is_queryable, is_searchable,
 			has_activities, has_notes, has_history_tracking, has_sharing_rules,
-			created_at, updated_at
+			visibility, created_at, updated_at
 		FROM metadata.object_definitions WHERE api_name = $1
 	`, apiName).Scan(
 		&obj.ID, &obj.APIName, &obj.Label, &obj.PluralLabel, &obj.Description, &obj.TableName, &obj.ObjectType,
 		&obj.IsPlatformManaged, &obj.IsVisibleInSetup, &obj.IsCustomFieldsAllowed, &obj.IsDeleteableObject,
 		&obj.IsCreateable, &obj.IsUpdateable, &obj.IsDeleteable, &obj.IsQueryable, &obj.IsSearchable,
 		&obj.HasActivities, &obj.HasNotes, &obj.HasHistoryTracking, &obj.HasSharingRules,
-		&obj.CreatedAt, &obj.UpdatedAt,
+		&obj.Visibility, &obj.CreatedAt, &obj.UpdatedAt,
 	)
 	if err == pgx.ErrNoRows {
 		return nil, nil
@@ -108,7 +110,7 @@ func (r *PgObjectRepository) List(ctx context.Context, limit, offset int32) ([]O
 			is_platform_managed, is_visible_in_setup, is_custom_fields_allowed, is_deleteable_object,
 			is_createable, is_updateable, is_deleteable, is_queryable, is_searchable,
 			has_activities, has_notes, has_history_tracking, has_sharing_rules,
-			created_at, updated_at
+			visibility, created_at, updated_at
 		FROM metadata.object_definitions
 		ORDER BY created_at
 		LIMIT $1 OFFSET $2
@@ -126,7 +128,7 @@ func (r *PgObjectRepository) List(ctx context.Context, limit, offset int32) ([]O
 			&obj.IsPlatformManaged, &obj.IsVisibleInSetup, &obj.IsCustomFieldsAllowed, &obj.IsDeleteableObject,
 			&obj.IsCreateable, &obj.IsUpdateable, &obj.IsDeleteable, &obj.IsQueryable, &obj.IsSearchable,
 			&obj.HasActivities, &obj.HasNotes, &obj.HasHistoryTracking, &obj.HasSharingRules,
-			&obj.CreatedAt, &obj.UpdatedAt,
+			&obj.Visibility, &obj.CreatedAt, &obj.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("pgObjectRepo.List: scan: %w", err)
 		}
@@ -148,25 +150,27 @@ func (r *PgObjectRepository) Update(ctx context.Context, tx pgx.Tx, id uuid.UUID
 			is_createable = $8, is_updateable = $9, is_deleteable = $10,
 			is_queryable = $11, is_searchable = $12,
 			has_activities = $13, has_notes = $14, has_history_tracking = $15, has_sharing_rules = $16,
+			visibility = $17,
 			updated_at = now()
 		WHERE id = $1
 		RETURNING id, api_name, label, plural_label, description, table_name, object_type,
 			is_platform_managed, is_visible_in_setup, is_custom_fields_allowed, is_deleteable_object,
 			is_createable, is_updateable, is_deleteable, is_queryable, is_searchable,
 			has_activities, has_notes, has_history_tracking, has_sharing_rules,
-			created_at, updated_at
+			visibility, created_at, updated_at
 	`,
 		id, input.Label, input.PluralLabel, input.Description,
 		input.IsVisibleInSetup, input.IsCustomFieldsAllowed, input.IsDeleteableObject,
 		input.IsCreateable, input.IsUpdateable, input.IsDeleteable,
 		input.IsQueryable, input.IsSearchable,
 		input.HasActivities, input.HasNotes, input.HasHistoryTracking, input.HasSharingRules,
+		input.Visibility,
 	).Scan(
 		&obj.ID, &obj.APIName, &obj.Label, &obj.PluralLabel, &obj.Description, &obj.TableName, &obj.ObjectType,
 		&obj.IsPlatformManaged, &obj.IsVisibleInSetup, &obj.IsCustomFieldsAllowed, &obj.IsDeleteableObject,
 		&obj.IsCreateable, &obj.IsUpdateable, &obj.IsDeleteable, &obj.IsQueryable, &obj.IsSearchable,
 		&obj.HasActivities, &obj.HasNotes, &obj.HasHistoryTracking, &obj.HasSharingRules,
-		&obj.CreatedAt, &obj.UpdatedAt,
+		&obj.Visibility, &obj.CreatedAt, &obj.UpdatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("pgObjectRepo.Update: %w", err)

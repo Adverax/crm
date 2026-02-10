@@ -221,3 +221,245 @@ func TestValidateSetFieldPermission(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateUpdateUserRole(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		input   UpdateUserRoleInput
+		wantErr bool
+	}{
+		{name: "valid input", input: UpdateUserRoleInput{Label: "Updated"}, wantErr: false},
+		{name: "empty label", input: UpdateUserRoleInput{Label: ""}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			err := ValidateUpdateUserRole(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("wantErr=%v, got err=%v", tt.wantErr, err)
+			}
+		})
+	}
+}
+
+func TestValidateUpdatePermissionSet(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		input   UpdatePermissionSetInput
+		wantErr bool
+	}{
+		{name: "valid input", input: UpdatePermissionSetInput{Label: "Updated"}, wantErr: false},
+		{name: "empty label", input: UpdatePermissionSetInput{Label: ""}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			err := ValidateUpdatePermissionSet(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("wantErr=%v, got err=%v", tt.wantErr, err)
+			}
+		})
+	}
+}
+
+func TestValidateCreateProfile(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		input   CreateProfileInput
+		wantErr bool
+	}{
+		{name: "valid input", input: CreateProfileInput{APIName: "sales_profile", Label: "Sales"}, wantErr: false},
+		{name: "empty api_name", input: CreateProfileInput{APIName: "", Label: "Bad"}, wantErr: true},
+		{name: "empty label", input: CreateProfileInput{APIName: "good_name", Label: ""}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			err := ValidateCreateProfile(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("wantErr=%v, got err=%v", tt.wantErr, err)
+			}
+		})
+	}
+}
+
+func TestValidateUpdateProfile(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		input   UpdateProfileInput
+		wantErr bool
+	}{
+		{name: "valid input", input: UpdateProfileInput{Label: "Updated"}, wantErr: false},
+		{name: "empty label", input: UpdateProfileInput{Label: ""}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			err := ValidateUpdateProfile(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("wantErr=%v, got err=%v", tt.wantErr, err)
+			}
+		})
+	}
+}
+
+func TestValidateUpdateUser(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		input   UpdateUserInput
+		wantErr bool
+	}{
+		{name: "valid input", input: UpdateUserInput{Email: "j@test.com"}, wantErr: false},
+		{name: "empty email", input: UpdateUserInput{Email: ""}, wantErr: true},
+		{name: "invalid email", input: UpdateUserInput{Email: "no-at"}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			err := ValidateUpdateUser(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("wantErr=%v, got err=%v", tt.wantErr, err)
+			}
+		})
+	}
+}
+
+func TestValidateCreateGroup(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		input   CreateGroupInput
+		wantErr bool
+	}{
+		{name: "valid public group", input: CreateGroupInput{APIName: "test_group", Label: "Test", GroupType: GroupTypePublic}, wantErr: false},
+		{name: "valid personal group", input: CreateGroupInput{APIName: "personal_john", Label: "John", GroupType: GroupTypePersonal}, wantErr: false},
+		{name: "valid role group", input: CreateGroupInput{APIName: "role_sales", Label: "Sales", GroupType: GroupTypeRole}, wantErr: false},
+		{name: "invalid group_type", input: CreateGroupInput{APIName: "bad", Label: "Bad", GroupType: "invalid"}, wantErr: true},
+		{name: "empty api_name", input: CreateGroupInput{APIName: "", Label: "Bad", GroupType: GroupTypePublic}, wantErr: true},
+		{name: "empty label", input: CreateGroupInput{APIName: "good_name", Label: "", GroupType: GroupTypePublic}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			err := ValidateCreateGroup(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("wantErr=%v, got err=%v", tt.wantErr, err)
+			}
+		})
+	}
+}
+
+func TestValidateAddGroupMember(t *testing.T) {
+	t.Parallel()
+	uid := uuid.New()
+	gid := uuid.New()
+	tests := []struct {
+		name    string
+		input   AddGroupMemberInput
+		wantErr bool
+	}{
+		{name: "valid user member", input: AddGroupMemberInput{GroupID: uuid.New(), MemberUserID: &uid}, wantErr: false},
+		{name: "valid group member", input: AddGroupMemberInput{GroupID: uuid.New(), MemberGroupID: &gid}, wantErr: false},
+		{name: "both set", input: AddGroupMemberInput{GroupID: uuid.New(), MemberUserID: &uid, MemberGroupID: &gid}, wantErr: true},
+		{name: "neither set", input: AddGroupMemberInput{GroupID: uuid.New()}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			err := ValidateAddGroupMember(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("wantErr=%v, got err=%v", tt.wantErr, err)
+			}
+		})
+	}
+}
+
+func TestValidateCreateSharingRule(t *testing.T) {
+	t.Parallel()
+	cf := "status"
+	cop := "eq"
+	cv := "active"
+	tests := []struct {
+		name    string
+		input   CreateSharingRuleInput
+		wantErr bool
+	}{
+		{
+			name: "valid owner_based",
+			input: CreateSharingRuleInput{
+				ObjectID: uuid.New(), RuleType: RuleTypeOwnerBased,
+				SourceGroupID: uuid.New(), TargetGroupID: uuid.New(), AccessLevel: "read",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid criteria_based",
+			input: CreateSharingRuleInput{
+				ObjectID: uuid.New(), RuleType: RuleTypeCriteriaBased,
+				SourceGroupID: uuid.New(), TargetGroupID: uuid.New(), AccessLevel: "read_write",
+				CriteriaField: &cf, CriteriaOp: &cop, CriteriaValue: &cv,
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid rule_type",
+			input: CreateSharingRuleInput{
+				ObjectID: uuid.New(), RuleType: "invalid",
+				SourceGroupID: uuid.New(), TargetGroupID: uuid.New(), AccessLevel: "read",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid access_level",
+			input: CreateSharingRuleInput{
+				ObjectID: uuid.New(), RuleType: RuleTypeOwnerBased,
+				SourceGroupID: uuid.New(), TargetGroupID: uuid.New(), AccessLevel: "write",
+			},
+			wantErr: true,
+		},
+		{
+			name: "criteria_based without criteria",
+			input: CreateSharingRuleInput{
+				ObjectID: uuid.New(), RuleType: RuleTypeCriteriaBased,
+				SourceGroupID: uuid.New(), TargetGroupID: uuid.New(), AccessLevel: "read",
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			err := ValidateCreateSharingRule(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("wantErr=%v, got err=%v", tt.wantErr, err)
+			}
+		})
+	}
+}
+
+func TestValidateUpdateSharingRule(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		input   UpdateSharingRuleInput
+		wantErr bool
+	}{
+		{name: "valid read", input: UpdateSharingRuleInput{TargetGroupID: uuid.New(), AccessLevel: "read"}, wantErr: false},
+		{name: "valid read_write", input: UpdateSharingRuleInput{TargetGroupID: uuid.New(), AccessLevel: "read_write"}, wantErr: false},
+		{name: "invalid access_level", input: UpdateSharingRuleInput{TargetGroupID: uuid.New(), AccessLevel: "write"}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			err := ValidateUpdateSharingRule(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("wantErr=%v, got err=%v", tt.wantErr, err)
+			}
+		})
+	}
+}

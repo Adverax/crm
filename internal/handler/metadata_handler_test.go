@@ -106,7 +106,11 @@ func (m *mockFieldService) Delete(ctx context.Context, id uuid.UUID) error {
 func setupRouter(h *MetadataHandler) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	api.RegisterHandlers(r, h)
+	admin := r.Group("/api/v1/admin")
+	h.RegisterRoutes(admin)
+	r.GET("/healthz", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
 	return r
 }
 

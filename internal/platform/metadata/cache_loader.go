@@ -28,7 +28,7 @@ func (l *PgCacheLoader) LoadAllObjects(ctx context.Context) ([]ObjectDefinition,
 		       is_createable, is_updateable, is_deleteable,
 		       is_queryable, is_searchable,
 		       has_activities, has_notes, has_history_tracking, has_sharing_rules,
-		       created_at, updated_at
+		       visibility, created_at, updated_at
 		FROM metadata.object_definitions
 	`)
 	if err != nil {
@@ -47,7 +47,7 @@ func (l *PgCacheLoader) LoadAllObjects(ctx context.Context) ([]ObjectDefinition,
 			&obj.IsCreateable, &obj.IsUpdateable, &obj.IsDeleteable,
 			&obj.IsQueryable, &obj.IsSearchable,
 			&obj.HasActivities, &obj.HasNotes, &obj.HasHistoryTracking, &obj.HasSharingRules,
-			&obj.CreatedAt, &obj.UpdatedAt,
+			&obj.Visibility, &obj.CreatedAt, &obj.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("pgCacheLoader.LoadAllObjects: scan: %w", err)
 		}

@@ -14,13 +14,13 @@
 |-------|-----------|-----------|-----------------|
 | Metadata Engine | Custom Objects, Fields, Relationships, Record Types, Layouts | Objects, Fields (все типы), Relationships (assoc/comp/poly), Table-per-object DDL | 80% SF |
 | Security (OLS/FLS) | Profile, Permission Set, Permission Set Group, Muting PS | Profile, Grant/Deny PS, OLS bitmask, FLS bitmask, effective caches | 90% SF |
-| Security (RLS) | OWD, Role Hierarchy, Sharing Rules, Manual Sharing, Apex Sharing, Teams, Territory | ADR приняты (0011-0013), не реализовано | 80% SF |
+| Security (RLS) | OWD, Role Hierarchy, Sharing Rules, Manual Sharing, Apex Sharing, Teams, Territory | OWD, Groups (4 типа), Share tables, Role hierarchy, Sharing Rules (owner+criteria), Manual Sharing, RLS enforcer, effective caches | 80% SF |
 | Data Access (SOQL) | SOQL с relationship queries, aggregates, security enforcement | Не реализовано | 70% SF |
 | Data Mutation (DML) | Insert, Update, Upsert, Delete, Undelete, Merge + triggers | Не реализовано | 60% SF |
 | Auth | OAuth 2.0, SAML, MFA, Connected Apps | Не реализовано (отложено) | JWT + refresh tokens |
 | Automation | Flow Builder, Triggers, Workflow Rules, Approval Processes | Не реализовано | Triggers + базовые Flows |
-| UI Framework | Lightning App Builder, LWC, Dynamic Forms | Vue.js admin для metadata + security | Admin + Record UI |
-| APIs | REST, SOAP, Bulk, Streaming, Metadata, Tooling, GraphQL | REST admin endpoints (metadata + security) | REST + Streaming |
+| UI Framework | Lightning App Builder, LWC, Dynamic Forms | Vue.js admin для metadata + security + groups + sharing rules + OWD visibility | Admin + Record UI |
+| APIs | REST, SOAP, Bulk, Streaming, Metadata, Tooling, GraphQL | REST admin endpoints (metadata + security + groups + sharing rules) | REST + Streaming |
 | Analytics | Reports, Dashboards, Einstein | Не реализовано | Базовые отчёты |
 | Integration | Platform Events, CDC, External Services | Не реализовано | CDC + webhooks |
 | Developer Tools | Apex, CLI, Sandboxes, Packaging | — | CLI + migration tools |
@@ -75,7 +75,7 @@
 
 ---
 
-### Phase 2: Security Engine 🔧 (в процессе)
+### Phase 2: Security Engine ✅
 
 Три слоя безопасности — фундамент enterprise-grade платформы.
 
@@ -93,32 +93,34 @@
 - [x] REST API: полный CRUD для всех сущностей
 - [x] Vue.js admin: роли, PS, профили, пользователи, OLS/FLS редактор
 
-#### Phase 2b: RLS Core ⬜
+#### Phase 2b: RLS Core ✅
 
 Row-Level Security — кто видит какие записи.
 
-- [ ] Org-Wide Defaults (OWD) per object: private, public_read, public_read_write, controlled_by_parent
-- [ ] Share tables: `obj_{name}__share` (grantee_id, access_level, share_reason)
-- [ ] Role Hierarchy: closure table `effective_role_hierarchy`
-- [ ] Sharing Rules (ownership-based): source group → target group, access level
-- [ ] Sharing Rules (criteria-based): field conditions → target group, access level
-- [ ] Manual Sharing: owner/admin расшаривает запись конкретному user/group
-- [ ] Record ownership model: OwnerId на каждой записи
-- [ ] Effective visibility cache: `effective_visible_owners`
-- [ ] REST API: OWD settings, sharing rules CRUD, manual sharing
-- [ ] Vue.js admin: OWD настройки, sharing rules UI
+- [x] Org-Wide Defaults (OWD) per object: private, public_read, public_read_write, controlled_by_parent
+- [x] Share tables: `obj_{name}__share` (grantee_id, access_level, share_reason)
+- [x] Role Hierarchy: closure table `effective_role_hierarchy`
+- [x] Sharing Rules (ownership-based): source group → target group, access level
+- [x] Sharing Rules (criteria-based): field conditions → target group, access level
+- [x] Manual Sharing: owner/admin расшаривает запись конкретному user/group
+- [x] Record ownership model: OwnerId на каждой записи
+- [x] Effective visibility cache: `effective_visible_owners`
+- [x] REST API: OWD settings, sharing rules CRUD, manual sharing
+- [x] Vue.js admin: OWD настройки (visibility в object create/edit), sharing rules UI (list/create/detail)
+- [x] E2E тесты: sharing rules (14 тестов), visibility в объектах
 
-#### Phase 2c: Groups ⬜
+#### Phase 2c: Groups ✅
 
 Группы — единый grantee для всех sharing-операций.
 
-- [ ] Типы групп: personal, role, role_and_subordinates, public
-- [ ] Auto-generation: при создании user → personal group; при создании role → role group + role_and_sub group
-- [ ] Public group: админ создаёт, добавляет участников (users, roles, other groups)
-- [ ] Effective group members cache: `effective_group_members` (closure table)
-- [ ] Единый grantee (всегда group_id) для share tables и sharing rules
-- [ ] REST API: groups CRUD, membership management
-- [ ] Vue.js admin: управление группами
+- [x] Типы групп: personal, role, role_and_subordinates, public
+- [x] Auto-generation: при создании user → personal group; при создании role → role group + role_and_sub group
+- [x] Public group: админ создаёт, добавляет участников (users, roles, other groups)
+- [x] Effective group members cache: `effective_group_members` (closure table)
+- [x] Единый grantee (всегда group_id) для share tables и sharing rules
+- [x] REST API: groups CRUD, membership management
+- [x] Vue.js admin: управление группами (list/create/detail + members tab)
+- [x] E2E тесты: groups (18 тестов), sidebar навигация
 
 **Что отличает от Salesforce и будет добавлено позже:**
 
@@ -490,7 +492,7 @@ Event-driven архитектура для интеграций.
 ## Приоритеты и зависимости
 
 ```
-Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 🔧 ──→ Phase 3 ──→ Phase 4 ──→ Phase 5
+Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ──→ Phase 4 ──→ Phase 5
                                   │                │          │          │
                                   │                ▼          ▼          ▼
                                   │           Phase 10    Phase 13   Phase 7a
@@ -515,7 +517,7 @@ Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 🔧 ──→ Phase 3 ─�
 Минимальный набор для рабочей CRM:
 
 ```
-Phase 2b/2c → Phase 3 → Phase 4 → Phase 5 → Phase 6 → Phase 7 → v0.1.0
+Phase 2b/2c ✅ → Phase 3 → Phase 4 → Phase 5 → Phase 6 → Phase 7 → v0.1.0
 ```
 
 Это покрывает: security → query → mutation → auth → standard objects → UI.
@@ -555,7 +557,7 @@ Phase 2b/2c → Phase 3 → Phase 4 → Phase 5 → Phase 6 → Phase 7 → v0.1
 
 | Версия | Фазы | Что пользователь получает |
 |--------|-------|--------------------------|
-| **v0.1.0-alpha** | 0-2 | Metadata engine + security admin (текущее состояние) |
+| **v0.1.0-alpha** | 0-2 | Metadata engine + полный security (OLS/FLS/RLS + Groups + Sharing Rules) ✅ |
 | **v0.2.0-alpha** | 3-4 | SOQL + DML — данные можно читать и писать через платформу |
 | **v0.3.0-beta** | 5-6 | Auth + standard objects — можно логиниться и работать с CRM-данными |
 | **v0.4.0-beta** | 7 | Полноценный UI — CRM можно использовать через браузер |
@@ -583,4 +585,4 @@ Phase 2b/2c → Phase 3 → Phase 4 → Phase 5 → Phase 6 → Phase 7 → v0.1
 
 ---
 
-*Этот документ обновляется по мере завершения фаз. Последнее обновление: 2026-02-08.*
+*Этот документ обновляется по мере завершения фаз. Последнее обновление: 2026-02-10.*

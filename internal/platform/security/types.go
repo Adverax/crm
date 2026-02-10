@@ -38,13 +38,13 @@ type PermissionSet struct {
 
 // Profile represents a user profile with a base permission set.
 type Profile struct {
-	ID                   uuid.UUID `json:"id"`
-	APIName              string    `json:"api_name"`
-	Label                string    `json:"label"`
-	Description          string    `json:"description"`
-	BasePermissionSetID  uuid.UUID `json:"base_permission_set_id"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
+	ID                  uuid.UUID `json:"id"`
+	APIName             string    `json:"api_name"`
+	Label               string    `json:"label"`
+	Description         string    `json:"description"`
+	BasePermissionSetID uuid.UUID `json:"base_permission_set_id"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
 }
 
 // User represents a CRM user.
@@ -130,6 +130,98 @@ type UserContext struct {
 	UserID    uuid.UUID
 	ProfileID uuid.UUID
 	RoleID    *uuid.UUID
+}
+
+// GroupType represents the type of a group (ADR-0013).
+type GroupType string
+
+const (
+	GroupTypePersonal            GroupType = "personal"
+	GroupTypeRole                GroupType = "role"
+	GroupTypeRoleAndSubordinates GroupType = "role_and_subordinates"
+	GroupTypePublic              GroupType = "public"
+)
+
+// Group represents a security group.
+type Group struct {
+	ID            uuid.UUID  `json:"id"`
+	APIName       string     `json:"api_name"`
+	Label         string     `json:"label"`
+	GroupType     GroupType  `json:"group_type"`
+	RelatedRoleID *uuid.UUID `json:"related_role_id"`
+	RelatedUserID *uuid.UUID `json:"related_user_id"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+}
+
+// GroupMember represents membership in a group (user XOR nested group).
+type GroupMember struct {
+	ID            uuid.UUID  `json:"id"`
+	GroupID       uuid.UUID  `json:"group_id"`
+	MemberUserID  *uuid.UUID `json:"member_user_id"`
+	MemberGroupID *uuid.UUID `json:"member_group_id"`
+	CreatedAt     time.Time  `json:"created_at"`
+}
+
+// RecordShare represents a sharing entry in an object's share table.
+type RecordShare struct {
+	ID          uuid.UUID `json:"id"`
+	RecordID    uuid.UUID `json:"record_id"`
+	GroupID     uuid.UUID `json:"group_id"`
+	AccessLevel string    `json:"access_level"`
+	Reason      string    `json:"reason"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+// SharingRule represents a declarative sharing rule.
+type SharingRule struct {
+	ID            uuid.UUID `json:"id"`
+	ObjectID      uuid.UUID `json:"object_id"`
+	RuleType      RuleType  `json:"rule_type"`
+	SourceGroupID uuid.UUID `json:"source_group_id"`
+	TargetGroupID uuid.UUID `json:"target_group_id"`
+	AccessLevel   string    `json:"access_level"`
+	CriteriaField *string   `json:"criteria_field"`
+	CriteriaOp    *string   `json:"criteria_op"`
+	CriteriaValue *string   `json:"criteria_value"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+// RuleType represents the type of a sharing rule.
+type RuleType string
+
+const (
+	RuleTypeOwnerBased    RuleType = "owner_based"
+	RuleTypeCriteriaBased RuleType = "criteria_based"
+)
+
+// Effective cache types for RLS (ADR-0012).
+
+// EffectiveRoleHierarchy represents a transitive closure entry in the role tree.
+type EffectiveRoleHierarchy struct {
+	AncestorRoleID   uuid.UUID `json:"ancestor_role_id"`
+	DescendantRoleID uuid.UUID `json:"descendant_role_id"`
+	Depth            int       `json:"depth"`
+}
+
+// EffectiveVisibleOwner represents which record owners a user can see via role hierarchy.
+type EffectiveVisibleOwner struct {
+	UserID         uuid.UUID `json:"user_id"`
+	VisibleOwnerID uuid.UUID `json:"visible_owner_id"`
+}
+
+// EffectiveGroupMember represents flattened group membership (including nested groups).
+type EffectiveGroupMember struct {
+	GroupID uuid.UUID `json:"group_id"`
+	UserID  uuid.UUID `json:"user_id"`
+}
+
+// EffectiveObjectHierarchy represents the parent-child closure for controlled_by_parent objects.
+type EffectiveObjectHierarchy struct {
+	AncestorObjectID   uuid.UUID `json:"ancestor_object_id"`
+	DescendantObjectID uuid.UUID `json:"descendant_object_id"`
+	Depth              int       `json:"depth"`
 }
 
 // Well-known UUIDs for seed data.

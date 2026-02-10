@@ -98,6 +98,40 @@ const router = createRouter({
           component: () => import('../views/admin/security/UserDetailView.vue'),
           props: true,
         },
+        // Security — Groups
+        {
+          path: 'security/groups',
+          name: 'admin-groups',
+          component: () => import('../views/admin/security/GroupListView.vue'),
+        },
+        {
+          path: 'security/groups/new',
+          name: 'admin-group-create',
+          component: () => import('../views/admin/security/GroupCreateView.vue'),
+        },
+        {
+          path: 'security/groups/:groupId',
+          name: 'admin-group-detail',
+          component: () => import('../views/admin/security/GroupDetailView.vue'),
+          props: true,
+        },
+        // Security — Sharing Rules
+        {
+          path: 'security/sharing-rules',
+          name: 'admin-sharing-rules',
+          component: () => import('../views/admin/security/SharingRuleListView.vue'),
+        },
+        {
+          path: 'security/sharing-rules/new',
+          name: 'admin-sharing-rule-create',
+          component: () => import('../views/admin/security/SharingRuleCreateView.vue'),
+        },
+        {
+          path: 'security/sharing-rules/:ruleId',
+          name: 'admin-sharing-rule-detail',
+          component: () => import('../views/admin/security/SharingRuleDetailView.vue'),
+          props: true,
+        },
       ],
     },
   ],

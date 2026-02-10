@@ -114,6 +114,59 @@ func ValidateSetFieldPermission(input SetFieldPermissionInput) error {
 	return nil
 }
 
+// ValidateCreateGroup validates input for creating a group.
+func ValidateCreateGroup(input CreateGroupInput) error {
+	if err := validateAPIName(input.APIName); err != nil {
+		return err
+	}
+	if input.Label == "" {
+		return apperror.Validation("label is required")
+	}
+	switch input.GroupType {
+	case GroupTypePersonal, GroupTypeRole, GroupTypeRoleAndSubordinates, GroupTypePublic:
+	default:
+		return apperror.Validation(fmt.Sprintf("group_type must be one of: personal, role, role_and_subordinates, public; got '%s'", input.GroupType))
+	}
+	return nil
+}
+
+// ValidateAddGroupMember validates input for adding a group member.
+func ValidateAddGroupMember(input AddGroupMemberInput) error {
+	if input.MemberUserID == nil && input.MemberGroupID == nil {
+		return apperror.Validation("either member_user_id or member_group_id is required")
+	}
+	if input.MemberUserID != nil && input.MemberGroupID != nil {
+		return apperror.Validation("only one of member_user_id or member_group_id can be set")
+	}
+	return nil
+}
+
+// ValidateCreateSharingRule validates input for creating a sharing rule.
+func ValidateCreateSharingRule(input CreateSharingRuleInput) error {
+	switch input.RuleType {
+	case RuleTypeOwnerBased, RuleTypeCriteriaBased:
+	default:
+		return apperror.Validation(fmt.Sprintf("rule_type must be 'owner_based' or 'criteria_based'; got '%s'", input.RuleType))
+	}
+	if input.AccessLevel != "read" && input.AccessLevel != "read_write" {
+		return apperror.Validation("access_level must be 'read' or 'read_write'")
+	}
+	if input.RuleType == RuleTypeCriteriaBased {
+		if input.CriteriaField == nil || input.CriteriaOp == nil || input.CriteriaValue == nil {
+			return apperror.Validation("criteria_field, criteria_op, and criteria_value are required for criteria_based rules")
+		}
+	}
+	return nil
+}
+
+// ValidateUpdateSharingRule validates input for updating a sharing rule.
+func ValidateUpdateSharingRule(input UpdateSharingRuleInput) error {
+	if input.AccessLevel != "read" && input.AccessLevel != "read_write" {
+		return apperror.Validation("access_level must be 'read' or 'read_write'")
+	}
+	return nil
+}
+
 func validateAPIName(apiName string) error {
 	if apiName == "" {
 		return apperror.Validation("api_name is required")

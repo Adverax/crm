@@ -59,6 +59,14 @@ const (
 	CreateObjectRequestObjectTypeStandard CreateObjectRequestObjectType = "standard"
 )
 
+// Defines values for CreateObjectRequestVisibility.
+const (
+	CreateObjectRequestVisibilityControlledByParent CreateObjectRequestVisibility = "controlled_by_parent"
+	CreateObjectRequestVisibilityPrivate            CreateObjectRequestVisibility = "private"
+	CreateObjectRequestVisibilityPublicRead         CreateObjectRequestVisibility = "public_read"
+	CreateObjectRequestVisibilityPublicReadWrite    CreateObjectRequestVisibility = "public_read_write"
+)
+
 // Defines values for FieldConfigOnDelete.
 const (
 	Cascade  FieldConfigOnDelete = "cascade"
@@ -70,6 +78,22 @@ const (
 const (
 	ObjectDefinitionObjectTypeCustom   ObjectDefinitionObjectType = "custom"
 	ObjectDefinitionObjectTypeStandard ObjectDefinitionObjectType = "standard"
+)
+
+// Defines values for ObjectDefinitionVisibility.
+const (
+	ObjectDefinitionVisibilityControlledByParent ObjectDefinitionVisibility = "controlled_by_parent"
+	ObjectDefinitionVisibilityPrivate            ObjectDefinitionVisibility = "private"
+	ObjectDefinitionVisibilityPublicRead         ObjectDefinitionVisibility = "public_read"
+	ObjectDefinitionVisibilityPublicReadWrite    ObjectDefinitionVisibility = "public_read_write"
+)
+
+// Defines values for UpdateObjectRequestVisibility.
+const (
+	ControlledByParent UpdateObjectRequestVisibility = "controlled_by_parent"
+	Private            UpdateObjectRequestVisibility = "private"
+	PublicRead         UpdateObjectRequestVisibility = "public_read"
+	PublicReadWrite    UpdateObjectRequestVisibility = "public_read_write"
 )
 
 // Defines values for ListObjectsParamsObjectType.
@@ -102,27 +126,31 @@ type CreateFieldRequestFieldType string
 
 // CreateObjectRequest defines model for CreateObjectRequest.
 type CreateObjectRequest struct {
-	ApiName               string                        `json:"api_name"`
-	Description           *string                       `json:"description,omitempty"`
-	HasActivities         *bool                         `json:"has_activities,omitempty"`
-	HasHistoryTracking    *bool                         `json:"has_history_tracking,omitempty"`
-	HasNotes              *bool                         `json:"has_notes,omitempty"`
-	HasSharingRules       *bool                         `json:"has_sharing_rules,omitempty"`
-	IsCreateable          *bool                         `json:"is_createable,omitempty"`
-	IsCustomFieldsAllowed *bool                         `json:"is_custom_fields_allowed,omitempty"`
-	IsDeleteable          *bool                         `json:"is_deleteable,omitempty"`
-	IsDeleteableObject    *bool                         `json:"is_deleteable_object,omitempty"`
-	IsQueryable           *bool                         `json:"is_queryable,omitempty"`
-	IsSearchable          *bool                         `json:"is_searchable,omitempty"`
-	IsUpdateable          *bool                         `json:"is_updateable,omitempty"`
-	IsVisibleInSetup      *bool                         `json:"is_visible_in_setup,omitempty"`
-	Label                 string                        `json:"label"`
-	ObjectType            CreateObjectRequestObjectType `json:"object_type"`
-	PluralLabel           string                        `json:"plural_label"`
+	ApiName               string                         `json:"api_name"`
+	Description           *string                        `json:"description,omitempty"`
+	HasActivities         *bool                          `json:"has_activities,omitempty"`
+	HasHistoryTracking    *bool                          `json:"has_history_tracking,omitempty"`
+	HasNotes              *bool                          `json:"has_notes,omitempty"`
+	HasSharingRules       *bool                          `json:"has_sharing_rules,omitempty"`
+	IsCreateable          *bool                          `json:"is_createable,omitempty"`
+	IsCustomFieldsAllowed *bool                          `json:"is_custom_fields_allowed,omitempty"`
+	IsDeleteable          *bool                          `json:"is_deleteable,omitempty"`
+	IsDeleteableObject    *bool                          `json:"is_deleteable_object,omitempty"`
+	IsQueryable           *bool                          `json:"is_queryable,omitempty"`
+	IsSearchable          *bool                          `json:"is_searchable,omitempty"`
+	IsUpdateable          *bool                          `json:"is_updateable,omitempty"`
+	IsVisibleInSetup      *bool                          `json:"is_visible_in_setup,omitempty"`
+	Label                 string                         `json:"label"`
+	ObjectType            CreateObjectRequestObjectType  `json:"object_type"`
+	PluralLabel           string                         `json:"plural_label"`
+	Visibility            *CreateObjectRequestVisibility `json:"visibility,omitempty"`
 }
 
 // CreateObjectRequestObjectType defines model for CreateObjectRequest.ObjectType.
 type CreateObjectRequestObjectType string
+
+// CreateObjectRequestVisibility defines model for CreateObjectRequest.Visibility.
+type CreateObjectRequestVisibility string
 
 // ErrorBody defines model for ErrorBody.
 type ErrorBody struct {
@@ -206,10 +234,14 @@ type ObjectDefinition struct {
 	ObjectType            *ObjectDefinitionObjectType `json:"object_type,omitempty"`
 	PluralLabel           *string                     `json:"plural_label,omitempty"`
 	UpdatedAt             *time.Time                  `json:"updated_at,omitempty"`
+	Visibility            *ObjectDefinitionVisibility `json:"visibility,omitempty"`
 }
 
 // ObjectDefinitionObjectType defines model for ObjectDefinition.ObjectType.
 type ObjectDefinitionObjectType string
+
+// ObjectDefinitionVisibility defines model for ObjectDefinition.Visibility.
+type ObjectDefinitionVisibility string
 
 // ObjectListResponse defines model for ObjectListResponse.
 type ObjectListResponse struct {
@@ -243,22 +275,26 @@ type UpdateFieldRequest struct {
 
 // UpdateObjectRequest defines model for UpdateObjectRequest.
 type UpdateObjectRequest struct {
-	Description           *string `json:"description,omitempty"`
-	HasActivities         *bool   `json:"has_activities,omitempty"`
-	HasHistoryTracking    *bool   `json:"has_history_tracking,omitempty"`
-	HasNotes              *bool   `json:"has_notes,omitempty"`
-	HasSharingRules       *bool   `json:"has_sharing_rules,omitempty"`
-	IsCreateable          *bool   `json:"is_createable,omitempty"`
-	IsCustomFieldsAllowed *bool   `json:"is_custom_fields_allowed,omitempty"`
-	IsDeleteable          *bool   `json:"is_deleteable,omitempty"`
-	IsDeleteableObject    *bool   `json:"is_deleteable_object,omitempty"`
-	IsQueryable           *bool   `json:"is_queryable,omitempty"`
-	IsSearchable          *bool   `json:"is_searchable,omitempty"`
-	IsUpdateable          *bool   `json:"is_updateable,omitempty"`
-	IsVisibleInSetup      *bool   `json:"is_visible_in_setup,omitempty"`
-	Label                 string  `json:"label"`
-	PluralLabel           string  `json:"plural_label"`
+	Description           *string                        `json:"description,omitempty"`
+	HasActivities         *bool                          `json:"has_activities,omitempty"`
+	HasHistoryTracking    *bool                          `json:"has_history_tracking,omitempty"`
+	HasNotes              *bool                          `json:"has_notes,omitempty"`
+	HasSharingRules       *bool                          `json:"has_sharing_rules,omitempty"`
+	IsCreateable          *bool                          `json:"is_createable,omitempty"`
+	IsCustomFieldsAllowed *bool                          `json:"is_custom_fields_allowed,omitempty"`
+	IsDeleteable          *bool                          `json:"is_deleteable,omitempty"`
+	IsDeleteableObject    *bool                          `json:"is_deleteable_object,omitempty"`
+	IsQueryable           *bool                          `json:"is_queryable,omitempty"`
+	IsSearchable          *bool                          `json:"is_searchable,omitempty"`
+	IsUpdateable          *bool                          `json:"is_updateable,omitempty"`
+	IsVisibleInSetup      *bool                          `json:"is_visible_in_setup,omitempty"`
+	Label                 string                         `json:"label"`
+	PluralLabel           string                         `json:"plural_label"`
+	Visibility            *UpdateObjectRequestVisibility `json:"visibility,omitempty"`
 }
+
+// UpdateObjectRequestVisibility defines model for UpdateObjectRequest.Visibility.
+type UpdateObjectRequestVisibility string
 
 // FieldId defines model for FieldId.
 type FieldId = openapi_types.UUID
@@ -679,40 +715,41 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
