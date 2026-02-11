@@ -15,6 +15,9 @@ coverage.html
 # Claude Code
 .claude/
 
+# Blog
+blog/
+
 # IDE
 .idea/
 .vscode/
