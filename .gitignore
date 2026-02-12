@@ -18,6 +18,9 @@ coverage.html
 # Blog
 blog/
 
+# Private documents
+docs/private/
+
 # IDE
 .idea/
 .vscode/
