@@ -14,9 +14,9 @@
 |-------|-----------|-----------|-----------------|
 | Metadata Engine | Custom Objects, Fields, Relationships, Record Types, Layouts | Objects, Fields (все типы), Relationships (assoc/comp/poly), Table-per-object DDL | 80% SF |
 | Security (OLS/FLS) | Profile, Permission Set, Permission Set Group, Muting PS | Profile, Grant/Deny PS, OLS bitmask, FLS bitmask, effective caches | 90% SF |
-| Security (RLS) | OWD, Role Hierarchy, Sharing Rules, Manual Sharing, Apex Sharing, Teams, Territory | OWD, Groups (4 типа), Share tables, Role hierarchy, Sharing Rules (owner+criteria), Manual Sharing, RLS enforcer, effective caches | 80% SF |
-| Data Access (SOQL) | SOQL с relationship queries, aggregates, security enforcement | Не реализовано | 70% SF |
-| Data Mutation (DML) | Insert, Update, Upsert, Delete, Undelete, Merge + triggers | Не реализовано | 60% SF |
+| Security (RLS) | OWD, Role Hierarchy, Sharing Rules, Manual Sharing, Apex Sharing, Teams, Territory | OWD, Groups (4 типа), Share tables, Role hierarchy, Sharing Rules (owner+criteria), Manual Sharing, RLS enforcer, effective caches, Territory Management (ee/) | 85% SF |
+| Data Access (SOQL) | SOQL с relationship queries, aggregates, security enforcement | SOQL parser (participle), validator, compiler, executor с OLS+FLS+RLS enforcement, relationship queries, aggregates, date literals, subqueries | 70% SF |
+| Data Mutation (DML) | Insert, Update, Upsert, Delete, Undelete, Merge + triggers | INSERT/UPDATE/DELETE/UPSERT, OLS+FLS enforcement, RLS injection для UPDATE/DELETE, batch operations, functions | 60% SF |
 | Auth | OAuth 2.0, SAML, MFA, Connected Apps | Не реализовано (отложено) | JWT + refresh tokens |
 | Automation | Flow Builder, Triggers, Workflow Rules, Approval Processes | Не реализовано | Triggers + базовые Flows |
 | UI Framework | Lightning App Builder, LWC, Dynamic Forms | Vue.js admin для metadata + security + groups + sharing rules + OWD visibility | Admin + Record UI |
@@ -131,96 +131,78 @@ Row-Level Security — кто видит какие записи.
 | View All / Modify All per object | Не реализовано | Phase 2d |
 | Implicit Sharing (parent↔child) | Не реализовано | Phase 2d |
 | Queues (ownership) | Не реализовано | Phase 6 |
-| Territory Management | Не реализовано | Phase N (ee/) |
+| Territory Management | ✅ Реализовано (ee/) | — |
 
 ---
 
-### Phase 3: SOQL — язык запросов ⬜
+### Phase 3: SOQL — язык запросов ✅
 
 Единая точка входа для всех чтений данных с автоматическим security enforcement.
 
-#### Phase 3a: Lexer + Parser
-
-- [ ] Tokenizer: SELECT, FROM, WHERE, AND, OR, NOT, ORDER BY, LIMIT, OFFSET, GROUP BY, HAVING
-- [ ] AST: SelectStatement, FieldExpr, WhereClause, OrderByClause, LimitExpr
-- [ ] Поддержка dot-notation для parent fields: `Account.Name`
-- [ ] Subquery для child relationships: `(SELECT Id FROM Contacts)`
-- [ ] Bind-переменные: `:paramName`
-- [ ] Литералы: string, number, boolean, null, date literals (TODAY, LAST_N_DAYS:n)
-
-#### Phase 3b: Executor
-
-- [ ] AST → SQL translation с использованием metadata registry
-- [ ] Автоматическое разрешение `obj_{api_name}` → реальная таблица
-- [ ] Автоматическое разрешение field api_name → column name
-- [ ] JOIN для relationship queries (parent-to-child, child-to-parent)
-- [ ] FLS enforcement: исключение полей без доступа из SELECT
-- [ ] RLS enforcement: добавление WHERE-условий на основе visibility
-- [ ] Aggregate functions: COUNT, SUM, AVG, MIN, MAX
-- [ ] Pagination: LIMIT + OFFSET (позже — cursor-based)
-- [ ] Parameterized queries (защита от SQL injection)
-
-#### Phase 3c: REST API
-
-- [ ] `POST /api/v1/soql/query` — выполнение SOQL-запроса
-- [ ] `GET /api/v1/soql/describe/{objectName}` — описание объекта (доступные поля с учётом FLS)
-- [ ] Query result format: `{ totalSize, done, records: [...] }`
-- [ ] Пагинация через `nextRecordsUrl` (queryLocator)
+- [x] Parser (participle/v2): SELECT, FROM, WHERE, AND, OR, NOT, ORDER BY, LIMIT, OFFSET, GROUP BY, HAVING
+- [x] AST: SelectStatement, FieldExpr, WhereClause, OrderByClause, LimitExpr
+- [x] Dot-notation для parent fields: `Account.Name` (до 5 уровней)
+- [x] Subquery для child relationships: `(SELECT Id FROM Contacts)`
+- [x] Литералы: string, number, boolean, null, date/datetime
+- [x] Date literals: TODAY, YESTERDAY, THIS_WEEK, LAST_N_DAYS:N и др.
+- [x] Aggregate functions: COUNT, COUNT_DISTINCT, SUM, AVG, MIN, MAX
+- [x] Built-in functions: UPPER, LOWER, TRIM, CONCAT, LENGTH, ABS, ROUND, COALESCE, NULLIF и др.
+- [x] Операторы: =, !=, <>, >, <, >=, <=, IN, NOT IN, LIKE, IS NULL, IS NOT NULL
+- [x] FOR UPDATE, WITH SECURITY_ENFORCED, TYPEOF (polymorphic fields)
+- [x] Semi-joins: `WHERE Id IN (SELECT ... FROM ...)`
+- [x] Field aliases: `SELECT Name AS ContactName`
+- [x] Validator: проверка полей/объектов через MetadataProvider + AccessController
+- [x] Compiler: AST → PostgreSQL SQL с параметризацией
+- [x] MetadataAdapter: мост MetadataCache → engine.MetadataProvider
+- [x] AccessControllerAdapter: мост OLS/FLS → engine.AccessController (CanAccessObject, CanAccessField)
+- [x] Executor (pgx): выполнение SQL с RLS WHERE injection
+- [x] QueryService: фасад parse → validate → compile → execute
+- [x] REST API: `GET /api/v1/query?q=...`, `POST /api/v1/query`
+- [x] OpenAPI spec: endpoints + schemas
 
 **Salesforce SOQL features для будущих фаз:**
 
 | Возможность | Фаза |
 |-------------|------|
-| FOR UPDATE (row locking) | Phase 3d |
-| TYPEOF (polymorphic resolution) | Phase 3d |
-| WITH SECURITY_ENFORCED / USER_MODE | Встроено с Phase 3b |
-| Semi-joins / Anti-joins | Phase 3d |
-| Relationship queries (5 levels deep) | Phase 3b: 2 уровня, 3d: 5 уровней |
-| Date literals (THIS_QUARTER, LAST_N_DAYS) | Phase 3a |
+| Cursor-based pagination (queryLocator) | Phase 3d |
 | SOSL (full-text search) | Phase 12 |
+| `GET /api/v1/soql/describe/{objectName}` | Phase 3d |
 
 ---
 
-### Phase 4: DML Engine ⬜
+### Phase 4: DML Engine ✅
 
-Единая точка входа для всех записей данных с security + trigger pipeline.
+Единая точка входа для всех записей данных с security enforcement.
 
-#### Phase 4a: Core Operations
-
-- [ ] `INSERT`: создание записей с OLS/FLS enforcement
-- [ ] `UPDATE`: обновление с OLS/FLS + ownership check
-- [ ] `DELETE`: удаление с OLS check + cascade (composition)
-- [ ] `UPSERT`: insert-or-update по external ID или record ID
-- [ ] Bulk operations: операции над массивом записей (до 200 за вызов)
-- [ ] Partial success mode: `allOrNone: false` — возврат ошибок per record
-
-#### Phase 4b: Trigger Pipeline
-
-- [ ] Before triggers: before insert, before update, before delete
-- [ ] After triggers: after insert, after update, after delete
-- [ ] Trigger context: `new`, `old`, `newMap`, `oldMap`, `isInsert`, `isUpdate`, `isDelete`
-- [ ] Trigger handler registry: один handler per object, регистрация в metadata
-- [ ] Order of execution: validation → before triggers → DML → after triggers → sharing recalc
-
-#### Phase 4c: REST API
-
-- [ ] `POST /api/v1/data/{objectName}` — insert
-- [ ] `PATCH /api/v1/data/{objectName}/{id}` — update
-- [ ] `DELETE /api/v1/data/{objectName}/{id}` — delete
-- [ ] `PUT /api/v1/data/{objectName}/{externalIdField}/{externalIdValue}` — upsert
-- [ ] `POST /api/v1/data/composite` — batch operations
+- [x] Parser (participle/v2): INSERT INTO, UPDATE SET, DELETE FROM, UPSERT ON
+- [x] AST: DMLStatement, InsertStmt, UpdateStmt, DeleteStmt, UpsertStmt
+- [x] INSERT: single + multi-row batch (до 10 000 строк)
+- [x] UPDATE: SET clause + WHERE clause, OLS/FLS/RLS enforcement
+- [x] DELETE: WHERE clause (обязателен по умолчанию), OLS/RLS enforcement
+- [x] UPSERT: INSERT ON CONFLICT по external ID field
+- [x] WHERE в DML: =, !=, <>, >, <, >=, <=, IN, NOT IN, LIKE, IS NULL, AND, OR, NOT
+- [x] Built-in functions в VALUES/SET: UPPER, LOWER, CONCAT, COALESCE, ROUND и др.
+- [x] Validator: проверка полей/объектов через MetadataProvider + WriteAccessController
+- [x] Compiler: AST → PostgreSQL SQL с RETURNING clause
+- [x] MetadataAdapter: мост MetadataCache → engine.MetadataProvider (с ReadOnly, Required, HasDefault)
+- [x] WriteAccessControllerAdapter: мост OLS/FLS → engine.WriteAccessController (CanCreate/CanUpdate/CanDelete + CheckWritableFields)
+- [x] RLS Executor: pgx-based, с RLS WHERE injection для UPDATE/DELETE
+- [x] DMLService: фасад parse → validate → compile → execute
+- [x] REST API: `POST /api/v1/data`
+- [x] OpenAPI spec: endpoint + schemas
 
 **DML features для будущих фаз:**
 
 | Возможность | Фаза |
 |-------------|------|
+| Trigger Pipeline (before/after insert/update/delete) | Phase 13 |
 | Undelete (Recycle Bin) | Phase 4d |
 | Merge | Phase 4d |
 | Validation Rules (formula-based, pre-DML) | Phase 10 |
-| Auto-number fields (sequence on insert) | Phase 4a |
-| Default values | Phase 4a |
 | Cascade delete (composition) | Phase 4a |
 | Set null on delete (association) | Phase 4a |
+| Partial success mode (`allOrNone: false`) | Phase 4d |
+| Composite batch API (`/data/composite`) | Phase 4d |
 
 ---
 
@@ -476,7 +458,7 @@ Event-driven архитектура для интеграций.
 
 | Возможность | Описание | Аналог SF |
 |-------------|----------|-----------|
-| **Territory Management** | Иерархия территорий, привязка accounts, territory-based sharing | Territory2 |
+| **Territory Management** ✅ | Иерархия территорий, модели (planning/active/archived), user/record assignment, object defaults, assignment rules, territory-based sharing | Territory2 |
 | **Audit Trail** | Полный журнал всех изменений данных (field-level, 10+ лет) | Field Audit Trail (Shield) |
 | **SSO (SAML 2.0)** | Single Sign-On через corporate IdP | SAML SSO |
 | **Advanced Analytics** | Embedded BI, SAQL-like query language, predictive | CRM Analytics |
@@ -492,7 +474,7 @@ Event-driven архитектура для интеграций.
 ## Приоритеты и зависимости
 
 ```
-Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ──→ Phase 4 ──→ Phase 5
+Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ✅ ──→ Phase 4 ✅ ──→ Phase 5
                                   │                │          │          │
                                   │                ▼          ▼          ▼
                                   │           Phase 10    Phase 13   Phase 7a
@@ -517,7 +499,7 @@ Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ──
 Минимальный набор для рабочей CRM:
 
 ```
-Phase 2b/2c ✅ → Phase 3 → Phase 4 → Phase 5 → Phase 6 → Phase 7 → v0.1.0
+Phase 2b/2c ✅ → Phase 3 ✅ → Phase 4 ✅ → Phase 5 → Phase 6 → Phase 7 → v0.1.0
 ```
 
 Это покрывает: security → query → mutation → auth → standard objects → UI.
@@ -557,8 +539,8 @@ Phase 2b/2c ✅ → Phase 3 → Phase 4 → Phase 5 → Phase 6 → Phase 7 → 
 
 | Версия | Фазы | Что пользователь получает |
 |--------|-------|--------------------------|
-| **v0.1.0-alpha** | 0-2 | Metadata engine + полный security (OLS/FLS/RLS + Groups + Sharing Rules) ✅ |
-| **v0.2.0-alpha** | 3-4 | SOQL + DML — данные можно читать и писать через платформу |
+| **v0.1.0-alpha** | 0-2 | Metadata engine + полный security (OLS/FLS/RLS + Groups + Sharing Rules) + Territory Management (ee/) ✅ |
+| **v0.2.0-alpha** | 3-4 | SOQL + DML — данные можно читать и писать через платформу с полным security enforcement ✅ |
 | **v0.3.0-beta** | 5-6 | Auth + standard objects — можно логиниться и работать с CRM-данными |
 | **v0.4.0-beta** | 7 | Полноценный UI — CRM можно использовать через браузер |
 | **v0.5.0-beta** | 8 | Notifications + dashboards — CRM как рабочий инструмент |
@@ -585,4 +567,4 @@ Phase 2b/2c ✅ → Phase 3 → Phase 4 → Phase 5 → Phase 6 → Phase 7 → 
 
 ---
 
-*Этот документ обновляется по мере завершения фаз. Последнее обновление: 2026-02-10.*
+*Этот документ обновляется по мере завершения фаз. Последнее обновление: 2026-02-12.*

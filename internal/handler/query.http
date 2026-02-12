@@ -1,0 +1,694 @@
+### ============================================================
+### CRM SOQL & DML API — HTTP Client
+### ============================================================
+### Переменные: GoLand / VS Code REST Client
+### Запуск: требуется работающий сервер (make run или docker compose up -d)
+### Prerequisite: объекты Account и Contact должны быть созданы через Metadata Admin API
+###              (см. security.http → секция Metadata для создания объектов)
+### Порядок: Setup → SOQL → DML → Cleanup
+
+@baseUrl = http://localhost:8080
+
+### ─── Setup: Metadata (объекты и поля) ────────────────────────
+
+### Создать объект Account
+POST {{baseUrl}}/api/v1/admin/metadata/objects
+Content-Type: application/json
+
+{
+  "api_name": "account",
+  "label": "Account",
+  "plural_label": "Accounts",
+  "description": "Company or organization",
+  "object_type": "custom"
+}
+
+> {%
+  client.global.set("accountObjectId", response.body.data.id);
+%}
+
+### Добавить поле Name (text)
+POST {{baseUrl}}/api/v1/admin/metadata/objects/{{accountObjectId}}/fields
+Content-Type: application/json
+
+{
+  "api_name": "name",
+  "label": "Name",
+  "field_type": "text",
+  "is_required": true,
+  "config": { "max_length": 255 }
+}
+
+### Добавить поле Industry (text)
+POST {{baseUrl}}/api/v1/admin/metadata/objects/{{accountObjectId}}/fields
+Content-Type: application/json
+
+{
+  "api_name": "industry",
+  "label": "Industry",
+  "field_type": "text",
+  "config": { "max_length": 100 }
+}
+
+### Добавить поле Revenue (number)
+POST {{baseUrl}}/api/v1/admin/metadata/objects/{{accountObjectId}}/fields
+Content-Type: application/json
+
+{
+  "api_name": "revenue",
+  "label": "Annual Revenue",
+  "field_type": "number",
+  "field_subtype": "currency"
+}
+
+### Добавить поле IsActive (boolean)
+POST {{baseUrl}}/api/v1/admin/metadata/objects/{{accountObjectId}}/fields
+Content-Type: application/json
+
+{
+  "api_name": "is_active",
+  "label": "Active",
+  "field_type": "boolean"
+}
+
+### Создать объект Contact
+POST {{baseUrl}}/api/v1/admin/metadata/objects
+Content-Type: application/json
+
+{
+  "api_name": "contact",
+  "label": "Contact",
+  "plural_label": "Contacts",
+  "description": "Individual person",
+  "object_type": "custom"
+}
+
+> {%
+  client.global.set("contactObjectId", response.body.data.id);
+%}
+
+### Добавить поле FirstName
+POST {{baseUrl}}/api/v1/admin/metadata/objects/{{contactObjectId}}/fields
+Content-Type: application/json
+
+{
+  "api_name": "first_name",
+  "label": "First Name",
+  "field_type": "text",
+  "is_required": true,
+  "config": { "max_length": 100 }
+}
+
+### Добавить поле LastName
+POST {{baseUrl}}/api/v1/admin/metadata/objects/{{contactObjectId}}/fields
+Content-Type: application/json
+
+{
+  "api_name": "last_name",
+  "label": "Last Name",
+  "field_type": "text",
+  "is_required": true,
+  "config": { "max_length": 100 }
+}
+
+### Добавить поле Email
+POST {{baseUrl}}/api/v1/admin/metadata/objects/{{contactObjectId}}/fields
+Content-Type: application/json
+
+{
+  "api_name": "email",
+  "label": "Email",
+  "field_type": "text",
+  "field_subtype": "email",
+  "config": { "max_length": 255 }
+}
+
+### Добавить поле Phone
+POST {{baseUrl}}/api/v1/admin/metadata/objects/{{contactObjectId}}/fields
+Content-Type: application/json
+
+{
+  "api_name": "phone",
+  "label": "Phone",
+  "field_type": "text",
+  "field_subtype": "phone",
+  "config": { "max_length": 30 }
+}
+
+### Добавить поле AccountId (lookup → Account)
+POST {{baseUrl}}/api/v1/admin/metadata/objects/{{contactObjectId}}/fields
+Content-Type: application/json
+
+{
+  "api_name": "account_id",
+  "label": "Account",
+  "field_type": "reference",
+  "field_subtype": "association",
+  "config": {
+    "reference_object_id": "{{accountObjectId}}",
+    "on_delete": "set_null"
+  }
+}
+
+### ============================================================
+### SOQL — SELECT Queries
+### ============================================================
+
+### ─── Базовые запросы ────────────────────────────────────────
+
+### SELECT всех полей Account (GET)
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name, Industry, Revenue, IsActive, OwnerId, CreatedAt, UpdatedAt FROM Account
+
+### SELECT всех полей Account (POST)
+POST {{baseUrl}}/api/v1/query
+Content-Type: application/json
+
+{
+  "query": "SELECT Id, Name, Industry, Revenue, IsActive FROM Account",
+  "pageSize": 10
+}
+
+### SELECT контактов
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, FirstName, LastName, Email, Phone FROM Contact
+
+### SELECT с LIMIT
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name FROM Account LIMIT 5
+
+### SELECT с OFFSET (пагинация)
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name FROM Account LIMIT 10 OFFSET 0
+
+### ─── WHERE с различными операторами ─────────────────────────
+
+### Равенство
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name FROM Account WHERE Name = 'Acme Corp'
+
+### Не равно
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name FROM Account WHERE Industry != 'Technology'
+
+### Больше / меньше
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name, Revenue FROM Account WHERE Revenue > 1000000
+
+### LIKE — поиск подстроки
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name FROM Account WHERE Name LIKE '%Corp%'
+
+### IN — список значений
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name FROM Account WHERE Industry IN ('Technology', 'Finance', 'Healthcare')
+
+### NOT IN
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name FROM Account WHERE Industry NOT IN ('Unknown')
+
+### IS NULL
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, FirstName, LastName FROM Contact WHERE Email = NULL
+
+### IS NOT NULL
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, FirstName, Email FROM Contact WHERE Email != NULL
+
+### Boolean фильтр
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name FROM Account WHERE IsActive = TRUE
+
+### Составное условие (AND)
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name FROM Account WHERE Industry = 'Technology' AND Revenue > 500000
+
+### Составное условие (OR)
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name FROM Account WHERE Industry = 'Technology' OR Industry = 'Finance'
+
+### Составное условие (AND + OR со скобками)
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name FROM Account WHERE (Industry = 'Technology' OR Industry = 'Finance') AND IsActive = TRUE
+
+### ─── ORDER BY ───────────────────────────────────────────────
+
+### Сортировка по одному полю (ASC)
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name, Revenue FROM Account ORDER BY Revenue ASC
+
+### Сортировка по одному полю (DESC)
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name, Revenue FROM Account ORDER BY Revenue DESC
+
+### Сортировка по нескольким полям
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name, Industry FROM Account ORDER BY Industry ASC, Name ASC
+
+### NULLS FIRST / NULLS LAST
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name, Revenue FROM Account ORDER BY Revenue ASC NULLS LAST
+
+### ORDER BY + LIMIT
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name, Revenue FROM Account ORDER BY Revenue DESC LIMIT 3
+
+### ─── Агрегатные функции ─────────────────────────────────────
+
+### COUNT
+GET {{baseUrl}}/api/v1/query?q=SELECT COUNT(Id) FROM Account
+
+### COUNT с WHERE
+GET {{baseUrl}}/api/v1/query?q=SELECT COUNT(Id) FROM Account WHERE IsActive = TRUE
+
+### SUM
+GET {{baseUrl}}/api/v1/query?q=SELECT SUM(Revenue) FROM Account
+
+### AVG
+GET {{baseUrl}}/api/v1/query?q=SELECT AVG(Revenue) FROM Account WHERE Revenue != NULL
+
+### MIN / MAX
+GET {{baseUrl}}/api/v1/query?q=SELECT MIN(Revenue), MAX(Revenue) FROM Account
+
+### GROUP BY
+GET {{baseUrl}}/api/v1/query?q=SELECT Industry, COUNT(Id), SUM(Revenue) FROM Account GROUP BY Industry
+
+### GROUP BY + HAVING
+GET {{baseUrl}}/api/v1/query?q=SELECT Industry, COUNT(Id) FROM Account GROUP BY Industry HAVING COUNT(Id) > 1
+
+### ─── Date литералы и функции ────────────────────────────────
+
+### Фильтр по дате создания
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name, CreatedAt FROM Account WHERE CreatedAt > 2026-01-01T00:00:00Z
+
+### TODAY
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name FROM Account WHERE CreatedAt = TODAY
+
+### YESTERDAY
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name FROM Account WHERE CreatedAt = YESTERDAY
+
+### THIS_WEEK
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name FROM Account WHERE CreatedAt = THIS_WEEK
+
+### THIS_MONTH
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name FROM Account WHERE CreatedAt = THIS_MONTH
+
+### LAST_N_DAYS:30
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name FROM Account WHERE CreatedAt = LAST_N_DAYS:30
+
+### ─── Relationship queries ───────────────────────────────────
+
+### Lookup — поле родителя через точку
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, FirstName, LastName, Account.Name FROM Contact
+
+### Lookup с фильтром по родителю
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, FirstName, LastName FROM Contact WHERE Account.Industry = 'Technology'
+
+### ─── pageSize (POST) ────────────────────────────────────────
+
+### Маленькая страница
+POST {{baseUrl}}/api/v1/query
+Content-Type: application/json
+
+{
+  "query": "SELECT Id, Name FROM Account ORDER BY Name ASC",
+  "pageSize": 2
+}
+
+### Большая страница
+POST {{baseUrl}}/api/v1/query
+Content-Type: application/json
+
+{
+  "query": "SELECT Id, Name, Industry, Revenue FROM Account",
+  "pageSize": 1000
+}
+
+### ─── SOQL: Ошибки ───────────────────────────────────────────
+
+### Пустой запрос (GET)
+GET {{baseUrl}}/api/v1/query?q=
+
+### Пустой параметр q
+GET {{baseUrl}}/api/v1/query
+
+### Синтаксическая ошибка
+GET {{baseUrl}}/api/v1/query?q=SELCT Id FROM Account
+
+### Несуществующий объект
+GET {{baseUrl}}/api/v1/query?q=SELECT Id FROM NonExistentObject
+
+### Несуществующее поле
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, FakeField FROM Account
+
+### SELECT * (не поддерживается)
+GET {{baseUrl}}/api/v1/query?q=SELECT * FROM Account
+
+### OFFSET без LIMIT
+GET {{baseUrl}}/api/v1/query?q=SELECT Id FROM Account OFFSET 10
+
+### OFFSET превышает лимит (>2000)
+GET {{baseUrl}}/api/v1/query?q=SELECT Id FROM Account LIMIT 100 OFFSET 2001
+
+### Пустое тело POST
+POST {{baseUrl}}/api/v1/query
+Content-Type: application/json
+
+{}
+
+### ============================================================
+### DML — INSERT
+### ============================================================
+
+### ─── INSERT одиночная запись ─────────────────────────────────
+
+### Создать Account «Acme Corp»
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "INSERT INTO Account (Name, Industry, Revenue, IsActive) VALUES ('Acme Corp', 'Technology', 5000000, TRUE)"
+}
+
+> {%
+  client.global.set("acmeId", response.body.ids[0]);
+%}
+
+### Создать Account «Global Finance»
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "INSERT INTO Account (Name, Industry, Revenue, IsActive) VALUES ('Global Finance', 'Finance', 12000000, TRUE)"
+}
+
+> {%
+  client.global.set("globalFinanceId", response.body.ids[0]);
+%}
+
+### Создать Account «HealthPlus» (без Revenue)
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "INSERT INTO Account (Name, Industry, IsActive) VALUES ('HealthPlus', 'Healthcare', TRUE)"
+}
+
+> {%
+  client.global.set("healthPlusId", response.body.ids[0]);
+%}
+
+### Создать Account «Inactive Inc» (неактивный)
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "INSERT INTO Account (Name, Industry, Revenue, IsActive) VALUES ('Inactive Inc', 'Consulting', 100000, FALSE)"
+}
+
+> {%
+  client.global.set("inactiveId", response.body.ids[0]);
+%}
+
+### ─── INSERT контактов ───────────────────────────────────────
+
+### Контакт для Acme Corp
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "INSERT INTO Contact (FirstName, LastName, Email, Phone, AccountId) VALUES ('John', 'Doe', 'john.doe@acme.com', '+1-555-0101', '{{acmeId}}')"
+}
+
+> {%
+  client.global.set("johnId", response.body.ids[0]);
+%}
+
+### Контакт для Acme Corp (второй)
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "INSERT INTO Contact (FirstName, LastName, Email, AccountId) VALUES ('Jane', 'Smith', 'jane.smith@acme.com', '{{acmeId}}')"
+}
+
+> {%
+  client.global.set("janeId", response.body.ids[0]);
+%}
+
+### Контакт для Global Finance
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "INSERT INTO Contact (FirstName, LastName, Email, Phone, AccountId) VALUES ('Bob', 'Johnson', 'bob@globalfinance.com', '+1-555-0202', '{{globalFinanceId}}')"
+}
+
+> {%
+  client.global.set("bobId", response.body.ids[0]);
+%}
+
+### Контакт без Account
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "INSERT INTO Contact (FirstName, LastName, Email) VALUES ('Alice', 'Williams', 'alice@example.com')"
+}
+
+> {%
+  client.global.set("aliceId", response.body.ids[0]);
+%}
+
+### ─── INSERT batch (несколько строк) ─────────────────────────
+
+### Batch-вставка нескольких Account
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "INSERT INTO Account (Name, Industry, Revenue, IsActive) VALUES ('TechStart', 'Technology', 250000, TRUE), ('EduWorld', 'Education', 800000, TRUE), ('BuildCo', 'Construction', 3000000, FALSE)"
+}
+
+### ============================================================
+### SOQL — Проверка INSERT-ов
+### ============================================================
+
+### Все Accounts после вставки
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name, Industry, Revenue, IsActive FROM Account ORDER BY Name ASC
+
+### Все Contacts после вставки
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, FirstName, LastName, Email, Phone, AccountId FROM Contact ORDER BY LastName ASC
+
+### Количество записей
+GET {{baseUrl}}/api/v1/query?q=SELECT COUNT(Id) FROM Account
+
+### Контакты с Account name (через lookup)
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, FirstName, LastName, Account.Name FROM Contact ORDER BY LastName ASC
+
+### ============================================================
+### DML — UPDATE
+### ============================================================
+
+### Обновить Revenue у Acme Corp
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "UPDATE Account SET Revenue = 7500000 WHERE Id = '{{acmeId}}'"
+}
+
+### Обновить несколько полей
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "UPDATE Account SET Industry = 'FinTech', Revenue = 15000000 WHERE Id = '{{globalFinanceId}}'"
+}
+
+### Обновить email контакта
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "UPDATE Contact SET Email = 'john.doe@acme-corp.com', Phone = '+1-555-9999' WHERE Id = '{{johnId}}'"
+}
+
+### UPDATE по условию (массовый)
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "UPDATE Account SET IsActive = FALSE WHERE Revenue < 500000"
+}
+
+### Проверить результат обновления
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name, Revenue, IsActive FROM Account ORDER BY Name ASC
+
+### ============================================================
+### DML — UPSERT
+### ============================================================
+
+### UPSERT — вставка новой записи (если не существует)
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "UPSERT Account (Name, Industry, Revenue, IsActive) VALUES ('NewVenture', 'Startup', 50000, TRUE) ON Id"
+}
+
+### UPSERT — обновление существующей записи
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "UPSERT Account (Id, Name, Industry, Revenue, IsActive) VALUES ('{{acmeId}}', 'Acme Corporation', 'Technology', 8000000, TRUE) ON Id"
+}
+
+### Проверить UPSERT
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name, Industry, Revenue FROM Account WHERE Name LIKE '%Acme%' OR Name = 'NewVenture'
+
+### ============================================================
+### DML — DELETE
+### ============================================================
+
+### Удалить контакт без Account
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "DELETE FROM Contact WHERE Id = '{{aliceId}}'"
+}
+
+### Удалить неактивные Accounts
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "DELETE FROM Account WHERE IsActive = FALSE"
+}
+
+### Проверить удаление
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name, IsActive FROM Account ORDER BY Name ASC
+
+### Проверить контакты после удаления
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, FirstName, LastName, Email FROM Contact ORDER BY LastName ASC
+
+### ============================================================
+### DML — Ошибки
+### ============================================================
+
+### Пустой statement
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{}
+
+### Синтаксическая ошибка
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "INSRT INTO Account (Name) VALUES ('Bad')"
+}
+
+### Несуществующий объект
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "INSERT INTO FakeObject (Name) VALUES ('Test')"
+}
+
+### Несуществующее поле
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "INSERT INTO Account (Name, FakeField) VALUES ('Test', 'value')"
+}
+
+### DELETE без WHERE (должен быть отклонён — RequireWhereOnDelete)
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "DELETE FROM Account"
+}
+
+### UPDATE несуществующей записи (0 affected rows)
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "UPDATE Account SET Name = 'Ghost' WHERE Id = '00000000-0000-0000-0000-000000000000'"
+}
+
+### Пропущено обязательное поле (Name required для Account)
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "INSERT INTO Account (Industry) VALUES ('Technology')"
+}
+
+### Невалидный UUID в reference
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "INSERT INTO Contact (FirstName, LastName, AccountId) VALUES ('Test', 'User', 'not-a-uuid')"
+}
+
+### ============================================================
+### Комплексные сценарии (SOQL после DML)
+### ============================================================
+
+### Сценарий 1: вставить + сразу прочитать
+# Шаг 1: INSERT
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "INSERT INTO Account (Name, Industry, Revenue, IsActive) VALUES ('QueryTest Inc', 'Testing', 999999, TRUE)"
+}
+
+> {%
+  client.global.set("queryTestId", response.body.ids[0]);
+%}
+
+###
+# Шаг 2: SELECT по ID
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, Name, Industry, Revenue FROM Account WHERE Id = '{{queryTestId}}'
+
+### Сценарий 2: агрегация после вставок
+GET {{baseUrl}}/api/v1/query?q=SELECT Industry, COUNT(Id), SUM(Revenue), AVG(Revenue) FROM Account GROUP BY Industry ORDER BY Industry ASC
+
+### Сценарий 3: join-like через lookup
+GET {{baseUrl}}/api/v1/query?q=SELECT Id, FirstName, LastName, Email, Account.Name, Account.Industry FROM Contact WHERE Account.Industry = 'Technology' ORDER BY LastName ASC
+
+### Сценарий 4: пагинация по страницам
+# Страница 1
+POST {{baseUrl}}/api/v1/query
+Content-Type: application/json
+
+{
+  "query": "SELECT Id, Name FROM Account ORDER BY Name ASC",
+  "pageSize": 2
+}
+
+###
+# Страница 2 (OFFSET)
+POST {{baseUrl}}/api/v1/query
+Content-Type: application/json
+
+{
+  "query": "SELECT Id, Name FROM Account ORDER BY Name ASC LIMIT 2 OFFSET 2",
+  "pageSize": 2
+}
+
+### ============================================================
+### Cleanup — удаление тестовых данных
+### ============================================================
+### Порядок: сначала Contact (FK → Account), потом Account
+
+### Удалить все контакты
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "DELETE FROM Contact WHERE Id != NULL"
+}
+
+### Удалить все accounts
+POST {{baseUrl}}/api/v1/data
+Content-Type: application/json
+
+{
+  "statement": "DELETE FROM Account WHERE Id != NULL"
+}
+
+### Проверить пустоту
+GET {{baseUrl}}/api/v1/query?q=SELECT COUNT(Id) FROM Account
+
+###
+GET {{baseUrl}}/api/v1/query?q=SELECT COUNT(Id) FROM Contact

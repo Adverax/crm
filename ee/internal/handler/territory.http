@@ -1,0 +1,334 @@
+### ============================================================
+### CRM Territory Management API — HTTP Client (Enterprise)
+### ============================================================
+### Copyright 2026 Adverax. All rights reserved.
+### Licensed under the Adverax Commercial License.
+### See ee/LICENSE for details.
+### Unauthorized use, copying, or distribution is prohibited.
+### ============================================================
+### Переменные: GoLand / VS Code REST Client
+### Запуск: требуется enterprise-сборка сервера
+### Prerequisite: security.http → Profile + Role + User (нужны {{userId}}, {{userId2}}, {{objectId}})
+### Порядок: Model → Territory → Object Defaults → User Assignment → Record Assignment → Rules
+
+@baseUrl = http://localhost:8080
+
+### ─── Territory Models ──────────────────────────────────────────
+
+### Создать модель территорий «FY2026»
+POST {{baseUrl}}/api/v1/admin/territory/models
+Content-Type: application/json
+
+{
+  "api_name": "fy2026",
+  "label": "Территориальная модель FY2026",
+  "description": "Модель территорий на 2026 финансовый год"
+}
+
+> {%
+  client.global.set("modelId", response.body.data.id);
+%}
+
+### Создать вторую модель «FY2027»
+POST {{baseUrl}}/api/v1/admin/territory/models
+Content-Type: application/json
+
+{
+  "api_name": "fy2027",
+  "label": "Территориальная модель FY2027",
+  "description": "Планируемая модель на 2027 год"
+}
+
+> {%
+  client.global.set("modelId2", response.body.data.id);
+%}
+
+### Список моделей
+GET {{baseUrl}}/api/v1/admin/territory/models?page=1&per_page=10
+
+### Получить модель по ID
+GET {{baseUrl}}/api/v1/admin/territory/models/{{modelId}}
+
+### Обновить модель
+PUT {{baseUrl}}/api/v1/admin/territory/models/{{modelId}}
+Content-Type: application/json
+
+{
+  "label": "Территориальная модель FY2026 (v2)",
+  "description": "Обновлённое описание"
+}
+
+### Активировать модель
+POST {{baseUrl}}/api/v1/admin/territory/models/{{modelId}}/activate
+
+### Архивировать модель
+# POST {{baseUrl}}/api/v1/admin/territory/models/{{modelId}}/archive
+
+### ─── Territories ───────────────────────────────────────────────
+
+### Создать корневую территорию «Россия»
+POST {{baseUrl}}/api/v1/admin/territory/territories
+Content-Type: application/json
+
+{
+  "model_id": "{{modelId}}",
+  "api_name": "russia",
+  "label": "Россия",
+  "description": "Корневая территория — вся Россия"
+}
+
+> {%
+  client.global.set("rootTerritoryId", response.body.data.id);
+%}
+
+### Создать дочернюю территорию «Москва»
+POST {{baseUrl}}/api/v1/admin/territory/territories
+Content-Type: application/json
+
+{
+  "model_id": "{{modelId}}",
+  "parent_id": "{{rootTerritoryId}}",
+  "api_name": "moscow",
+  "label": "Москва и МО",
+  "description": "Московский регион"
+}
+
+> {%
+  client.global.set("moscowTerritoryId", response.body.data.id);
+%}
+
+### Создать дочернюю территорию «СПб»
+POST {{baseUrl}}/api/v1/admin/territory/territories
+Content-Type: application/json
+
+{
+  "model_id": "{{modelId}}",
+  "parent_id": "{{rootTerritoryId}}",
+  "api_name": "spb",
+  "label": "Санкт-Петербург и ЛО",
+  "description": "Северо-Западный регион"
+}
+
+> {%
+  client.global.set("spbTerritoryId", response.body.data.id);
+%}
+
+### Создать вложенную территорию «Москва — Центр»
+POST {{baseUrl}}/api/v1/admin/territory/territories
+Content-Type: application/json
+
+{
+  "model_id": "{{modelId}}",
+  "parent_id": "{{moscowTerritoryId}}",
+  "api_name": "moscow_center",
+  "label": "Москва — Центр",
+  "description": "ЦАО, Тверская, Арбат"
+}
+
+> {%
+  client.global.set("moscowCenterTerritoryId", response.body.data.id);
+%}
+
+### Список территорий модели
+GET {{baseUrl}}/api/v1/admin/territory/territories?model_id={{modelId}}
+
+### Получить территорию по ID
+GET {{baseUrl}}/api/v1/admin/territory/territories/{{moscowTerritoryId}}
+
+### Обновить территорию
+PUT {{baseUrl}}/api/v1/admin/territory/territories/{{spbTerritoryId}}
+Content-Type: application/json
+
+{
+  "label": "СПб и Ленинградская область (обновлено)",
+  "description": "Северо-Западный федеральный округ"
+}
+
+### ─── Object Defaults ───────────────────────────────────────────
+
+### Установить уровень доступа для объекта в территории (read)
+POST {{baseUrl}}/api/v1/admin/territory/territories/{{moscowTerritoryId}}/object-defaults
+Content-Type: application/json
+
+{
+  "object_id": "{{objectId}}",
+  "access_level": "read"
+}
+
+### Установить уровень доступа read_write для другой территории
+POST {{baseUrl}}/api/v1/admin/territory/territories/{{spbTerritoryId}}/object-defaults
+Content-Type: application/json
+
+{
+  "object_id": "{{objectId}}",
+  "access_level": "read_write"
+}
+
+### Список object defaults территории
+GET {{baseUrl}}/api/v1/admin/territory/territories/{{moscowTerritoryId}}/object-defaults
+
+### Удалить object default
+# DELETE {{baseUrl}}/api/v1/admin/territory/territories/{{moscowTerritoryId}}/object-defaults/{{objectId}}
+
+### ─── User Assignments ──────────────────────────────────────────
+
+### Назначить пользователя в территорию «Москва»
+POST {{baseUrl}}/api/v1/admin/territory/territories/{{moscowTerritoryId}}/users
+Content-Type: application/json
+
+{
+  "user_id": "{{userId}}"
+}
+
+### Назначить второго пользователя в территорию «СПб»
+POST {{baseUrl}}/api/v1/admin/territory/territories/{{spbTerritoryId}}/users
+Content-Type: application/json
+
+{
+  "user_id": "{{userId2}}"
+}
+
+### Назначить пользователя в корневую территорию (менеджер над всеми регионами)
+POST {{baseUrl}}/api/v1/admin/territory/territories/{{rootTerritoryId}}/users
+Content-Type: application/json
+
+{
+  "user_id": "{{userId}}"
+}
+
+### Список пользователей территории «Москва»
+GET {{baseUrl}}/api/v1/admin/territory/territories/{{moscowTerritoryId}}/users
+
+### Список пользователей корневой территории
+GET {{baseUrl}}/api/v1/admin/territory/territories/{{rootTerritoryId}}/users
+
+### Отозвать пользователя из территории
+# DELETE {{baseUrl}}/api/v1/admin/territory/territories/{{moscowTerritoryId}}/users/{{userId}}
+
+### ─── Record Assignments ────────────────────────────────────────
+
+### Привязать запись к территории «Москва»
+POST {{baseUrl}}/api/v1/admin/territory/territories/{{moscowTerritoryId}}/records
+Content-Type: application/json
+
+{
+  "record_id": "{{recordId}}",
+  "object_id": "{{objectId}}",
+  "reason": "manual"
+}
+
+### Привязать запись к территории «СПб»
+POST {{baseUrl}}/api/v1/admin/territory/territories/{{spbTerritoryId}}/records
+Content-Type: application/json
+
+{
+  "record_id": "{{recordId2}}",
+  "object_id": "{{objectId}}",
+  "reason": "rule"
+}
+
+### Список записей территории «Москва»
+GET {{baseUrl}}/api/v1/admin/territory/territories/{{moscowTerritoryId}}/records
+
+### Отвязать запись от территории
+# DELETE {{baseUrl}}/api/v1/admin/territory/territories/{{moscowTerritoryId}}/records/{{recordId}}?object_id={{objectId}}
+
+### ─── Assignment Rules ──────────────────────────────────────────
+
+### Создать правило назначения для территории «Москва»
+POST {{baseUrl}}/api/v1/admin/territory/assignment-rules
+Content-Type: application/json
+
+{
+  "territory_id": "{{moscowTerritoryId}}",
+  "object_id": "{{objectId}}",
+  "field_name": "city",
+  "operator": "equals",
+  "value": "Москва",
+  "is_active": true
+}
+
+> {%
+  client.global.set("ruleId", response.body.data.id);
+%}
+
+### Создать правило для территории «СПб»
+POST {{baseUrl}}/api/v1/admin/territory/assignment-rules
+Content-Type: application/json
+
+{
+  "territory_id": "{{spbTerritoryId}}",
+  "object_id": "{{objectId}}",
+  "field_name": "city",
+  "operator": "equals",
+  "value": "Санкт-Петербург",
+  "is_active": true
+}
+
+> {%
+  client.global.set("ruleId2", response.body.data.id);
+%}
+
+### Список правил территории «Москва»
+GET {{baseUrl}}/api/v1/admin/territory/assignment-rules?territory_id={{moscowTerritoryId}}
+
+### Получить правило по ID
+GET {{baseUrl}}/api/v1/admin/territory/assignment-rules/{{ruleId}}
+
+### Обновить правило
+PUT {{baseUrl}}/api/v1/admin/territory/assignment-rules/{{ruleId}}
+Content-Type: application/json
+
+{
+  "field_name": "region",
+  "operator": "equals",
+  "value": "МО",
+  "is_active": true
+}
+
+### Удалить правило
+# DELETE {{baseUrl}}/api/v1/admin/territory/assignment-rules/{{ruleId2}}
+
+### ─── Ошибки ────────────────────────────────────────────────────
+
+### Список территорий без model_id → 400
+GET {{baseUrl}}/api/v1/admin/territory/territories
+
+### Невалидный model_id → 400
+GET {{baseUrl}}/api/v1/admin/territory/territories?model_id=not-a-uuid
+
+### Несуществующая территория → 404
+GET {{baseUrl}}/api/v1/admin/territory/territories/00000000-0000-0000-0000-000000000000
+
+### Список правил без territory_id → 400
+GET {{baseUrl}}/api/v1/admin/territory/assignment-rules
+
+### ─── Cleanup ───────────────────────────────────────────────────
+### Раскомментируйте и выполните в обратном порядке зависимостей
+
+### Удалить правила
+# DELETE {{baseUrl}}/api/v1/admin/territory/assignment-rules/{{ruleId}}
+# DELETE {{baseUrl}}/api/v1/admin/territory/assignment-rules/{{ruleId2}}
+
+### Отвязать записи
+# DELETE {{baseUrl}}/api/v1/admin/territory/territories/{{moscowTerritoryId}}/records/{{recordId}}?object_id={{objectId}}
+# DELETE {{baseUrl}}/api/v1/admin/territory/territories/{{spbTerritoryId}}/records/{{recordId2}}?object_id={{objectId}}
+
+### Отозвать пользователей
+# DELETE {{baseUrl}}/api/v1/admin/territory/territories/{{moscowTerritoryId}}/users/{{userId}}
+# DELETE {{baseUrl}}/api/v1/admin/territory/territories/{{rootTerritoryId}}/users/{{userId}}
+# DELETE {{baseUrl}}/api/v1/admin/territory/territories/{{spbTerritoryId}}/users/{{userId2}}
+
+### Удалить object defaults
+# DELETE {{baseUrl}}/api/v1/admin/territory/territories/{{moscowTerritoryId}}/object-defaults/{{objectId}}
+# DELETE {{baseUrl}}/api/v1/admin/territory/territories/{{spbTerritoryId}}/object-defaults/{{objectId}}
+
+### Удалить территории (снизу вверх)
+# DELETE {{baseUrl}}/api/v1/admin/territory/territories/{{moscowCenterTerritoryId}}
+# DELETE {{baseUrl}}/api/v1/admin/territory/territories/{{moscowTerritoryId}}
+# DELETE {{baseUrl}}/api/v1/admin/territory/territories/{{spbTerritoryId}}
+# DELETE {{baseUrl}}/api/v1/admin/territory/territories/{{rootTerritoryId}}
+
+### Удалить модели
+# DELETE {{baseUrl}}/api/v1/admin/territory/models/{{modelId}}
+# DELETE {{baseUrl}}/api/v1/admin/territory/models/{{modelId2}}
