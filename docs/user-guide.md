@@ -15,7 +15,31 @@
    - [Группы](#45-группы)
    - [Правила совместного доступа](#46-правила-совместного-доступа)
    - [Ручной шаринг](#47-ручной-шаринг)
-5. [Типичные сценарии](#5-типичные-сценарии)
+5. [SOQL — язык запросов](#5-soql--язык-запросов)
+   - [Синтаксис](#51-синтаксис)
+   - [Операторы и функции](#52-операторы-и-функции)
+   - [Дата-литералы](#53-дата-литералы)
+   - [Связи и подзапросы](#54-связи-и-подзапросы)
+   - [Безопасность в SOQL](#55-безопасность-в-soql)
+   - [API](#56-api)
+   - [Лимиты](#57-лимиты)
+6. [DML — язык манипуляции данными](#6-dml--язык-манипуляции-данными)
+   - [INSERT](#61-insert)
+   - [UPDATE](#62-update)
+   - [DELETE](#63-delete)
+   - [UPSERT](#64-upsert)
+   - [Функции в DML](#65-функции-в-dml)
+   - [Безопасность в DML](#66-безопасность-в-dml)
+   - [API](#67-api)
+   - [Лимиты](#68-лимиты)
+7. [Управление территориями (Enterprise)](#7-управление-территориями-enterprise)
+   - [Модели территорий](#71-модели-территорий)
+   - [Территории](#72-территории)
+   - [Настройки объектов](#73-настройки-объектов-по-умолчанию)
+   - [Назначение пользователей](#74-назначение-пользователей)
+   - [Назначение записей](#75-назначение-записей)
+   - [Правила назначения](#76-правила-назначения)
+8. [Типичные сценарии](#8-типичные-сценарии)
 
 ---
 
@@ -755,7 +779,542 @@ Deny всегда побеждает Grant.
 
 ---
 
-## 5. Типичные сценарии
+## 5. SOQL — язык запросов
+
+SOQL (Structured Object Query Language) — встроенный язык запросов платформы. Все операции чтения данных проходят через SOQL с автоматическим применением OLS, FLS и RLS.
+
+### 5.1. Синтаксис
+
+#### Базовая структура
+
+```
+SELECT <поля> FROM <объект>
+[WHERE <условие>]
+[GROUP BY <поля>]
+[HAVING <условие>]
+[ORDER BY <поля> [ASC|DESC] [NULLS FIRST|LAST]]
+[LIMIT <число>]
+[OFFSET <число>]
+[FOR UPDATE]
+```
+
+#### Примеры запросов
+
+Простой запрос:
+```
+SELECT Id, Name, Email FROM Contact WHERE Status = 'Active'
+```
+
+С сортировкой и ограничением:
+```
+SELECT Id, Name, Amount FROM Deal ORDER BY Amount DESC LIMIT 10
+```
+
+Группировка с агрегатами:
+```
+SELECT Status, COUNT(), SUM(Amount) FROM Deal GROUP BY Status HAVING COUNT() > 5
+```
+
+Алиасы полей:
+```
+SELECT Name AS ContactName, Email AS ContactEmail FROM Contact
+```
+
+### 5.2. Операторы и функции
+
+#### Операторы сравнения
+
+| Оператор | Описание | Пример |
+|----------|----------|--------|
+| `=` или `==` | Равно | `WHERE Status = 'Active'` |
+| `!=` или `<>` | Не равно | `WHERE Status != 'Closed'` |
+| `>` | Больше | `WHERE Amount > 1000` |
+| `<` | Меньше | `WHERE Amount < 500` |
+| `>=` | Больше или равно | `WHERE CreatedAt >= 2024-01-01` |
+| `<=` | Меньше или равно | `WHERE Amount <= 10000` |
+
+#### Логические операторы
+
+| Оператор | Пример |
+|----------|--------|
+| `AND` | `WHERE Status = 'Active' AND Amount > 1000` |
+| `OR` | `WHERE Status = 'Closed' OR Status = 'Won'` |
+| `NOT` | `WHERE NOT IsDeleted` |
+
+#### Специальные операторы
+
+| Оператор | Описание | Пример |
+|----------|----------|--------|
+| `IS NULL` | Проверка на NULL | `WHERE Phone IS NULL` |
+| `IS NOT NULL` | Проверка на не-NULL | `WHERE Email IS NOT NULL` |
+| `IN` | Вхождение в список | `WHERE Id IN ('001', '002', '003')` |
+| `NOT IN` | Невхождение в список | `WHERE Status NOT IN ('Closed', 'Archived')` |
+| `LIKE` | Поиск по шаблону | `WHERE Name LIKE 'Acme%'` |
+| `NOT LIKE` | Инверсия LIKE | `WHERE Email NOT LIKE '%test%'` |
+
+Шаблоны `LIKE`: `%` — любые символы, `_` — один символ.
+
+#### Агрегатные функции
+
+| Функция | Описание | Пример |
+|---------|----------|--------|
+| `COUNT()` | Количество записей | `SELECT COUNT() FROM Contact` |
+| `COUNT_DISTINCT(field)` | Количество уникальных значений | `SELECT COUNT_DISTINCT(Status) FROM Deal` |
+| `SUM(field)` | Сумма | `SELECT SUM(Amount) FROM Deal` |
+| `AVG(field)` | Среднее | `SELECT AVG(Amount) FROM Deal` |
+| `MIN(field)` | Минимум | `SELECT MIN(CreatedAt) FROM Contact` |
+| `MAX(field)` | Максимум | `SELECT MAX(Amount) FROM Deal` |
+
+#### Встроенные функции
+
+**Строковые:**
+
+| Функция | Описание |
+|---------|----------|
+| `UPPER(str)` | Перевод в верхний регистр |
+| `LOWER(str)` | Перевод в нижний регистр |
+| `TRIM(str)` | Удаление пробелов по краям |
+| `LENGTH(str)` или `LEN(str)` | Длина строки |
+| `SUBSTRING(str, start, length)` или `SUBSTR(...)` | Подстрока |
+| `CONCAT(str1, str2, ...)` | Конкатенация |
+
+**Числовые:**
+
+| Функция | Описание |
+|---------|----------|
+| `ABS(num)` | Абсолютное значение |
+| `ROUND(num, decimals)` | Округление |
+| `FLOOR(num)` | Округление вниз |
+| `CEIL(num)` или `CEILING(num)` | Округление вверх |
+
+**Обработка NULL:**
+
+| Функция | Описание |
+|---------|----------|
+| `COALESCE(expr1, expr2, ...)` | Первое не-NULL значение |
+| `NULLIF(expr1, expr2)` | NULL, если значения равны |
+
+### 5.3. Дата-литералы
+
+SOQL поддерживает символические дата-литералы, которые автоматически разрешаются в конкретные даты на момент выполнения запроса.
+
+**Статические литералы:**
+
+| Литерал | Описание |
+|---------|----------|
+| `TODAY` | Сегодня |
+| `YESTERDAY` | Вчера |
+| `TOMORROW` | Завтра |
+| `THIS_WEEK` / `LAST_WEEK` / `NEXT_WEEK` | Текущая / прошлая / следующая неделя |
+| `THIS_MONTH` / `LAST_MONTH` / `NEXT_MONTH` | Текущий / прошлый / следующий месяц |
+| `THIS_QUARTER` / `LAST_QUARTER` / `NEXT_QUARTER` | Текущий / прошлый / следующий квартал |
+| `THIS_YEAR` / `LAST_YEAR` / `NEXT_YEAR` | Текущий / прошлый / следующий год |
+| `LAST_90_DAYS` / `NEXT_90_DAYS` | Последние / следующие 90 дней |
+| `THIS_FISCAL_QUARTER` / `THIS_FISCAL_YEAR` | Текущий фискальный квартал / год |
+
+**Параметрические литералы (с указанием N):**
+
+| Литерал | Пример |
+|---------|--------|
+| `LAST_N_DAYS:N` | `WHERE CreatedAt >= LAST_N_DAYS:30` |
+| `NEXT_N_DAYS:N` | `WHERE DueDate <= NEXT_N_DAYS:7` |
+| `LAST_N_WEEKS:N` / `NEXT_N_WEEKS:N` | Последние/следующие N недель |
+| `LAST_N_MONTHS:N` / `NEXT_N_MONTHS:N` | Последние/следующие N месяцев |
+| `LAST_N_QUARTERS:N` / `NEXT_N_QUARTERS:N` | Последние/следующие N кварталов |
+| `LAST_N_YEARS:N` / `NEXT_N_YEARS:N` | Последние/следующие N лет |
+
+### 5.4. Связи и подзапросы
+
+#### Lookup-запросы (child → parent)
+
+Используйте точечную нотацию для обращения к полям родительского объекта:
+
+```
+SELECT Name, Account.Name, Account.Owner.Name FROM Contact
+```
+
+Глубина вложенности — до 5 уровней.
+
+#### Relationship-подзапросы (parent → child)
+
+Для получения дочерних записей используйте подзапросы в SELECT:
+
+```
+SELECT Name, (SELECT Email, Phone FROM Contacts) FROM Account
+```
+
+Подзапросы поддерживают WHERE, ORDER BY и LIMIT.
+
+#### Semi-join (IN с подзапросом)
+
+```
+SELECT Name FROM Contact
+WHERE AccountId IN (SELECT Id FROM Account WHERE Industry = 'Tech')
+```
+
+#### TYPEOF (полиморфные поля)
+
+Для полиморфных reference-полей:
+
+```
+SELECT TYPEOF What
+  WHEN Account THEN Name, Industry
+  WHEN Opportunity THEN Name, Amount
+  ELSE Name
+END
+FROM Task
+```
+
+### 5.5. Безопасность в SOQL
+
+Каждый SOQL-запрос автоматически проходит три уровня security:
+
+1. **OLS** — проверяется право `Read` на объект в SELECT и FROM. Если у пользователя нет доступа к объекту, запрос отклоняется.
+2. **FLS** — проверяется право `Read` на каждое поле в SELECT. Системные поля (`Id`, `OwnerId`, `CreatedAt`, `UpdatedAt`, `CreatedById`, `UpdatedById`) доступны всегда.
+3. **RLS** — в SQL автоматически инжектируется WHERE-условие, ограничивающее результат записями, видимыми пользователю (на основе OWD, иерархии ролей, групп и шаринга).
+
+### 5.6. API
+
+**GET** `/api/v1/query?q=<SOQL>`
+
+Параметры:
+- `q` (обязательный) — строка SOQL-запроса.
+
+Пример:
+```
+GET /api/v1/query?q=SELECT Id, Name FROM Account LIMIT 10
+```
+
+**POST** `/api/v1/query`
+
+Тело запроса:
+```json
+{
+  "query": "SELECT Id, Name FROM Account WHERE Industry = 'Tech'",
+  "pageSize": 100
+}
+```
+
+Ответ:
+```json
+{
+  "totalSize": 3,
+  "done": true,
+  "records": [
+    {"Id": "...", "Name": "Acme Inc"},
+    {"Id": "...", "Name": "Globex Corp"},
+    {"Id": "...", "Name": "TechStart"}
+  ]
+}
+```
+
+### 5.7. Лимиты
+
+| Параметр | Значение по умолчанию |
+|----------|----------------------|
+| Максимум записей (LIMIT) | 50 000 |
+| Максимум OFFSET | 2 000 |
+| Глубина lookup (точечная нотация) | 5 уровней |
+| Максимум подзапросов | 20 |
+| Записей в подзапросе (per parent) | 200 |
+| Длина запроса | 100 000 символов |
+
+---
+
+## 6. DML — язык манипуляции данными
+
+DML (Data Manipulation Language) — встроенный язык для операций записи. Все изменения данных проходят через DML с автоматическим применением OLS и FLS. Для UPDATE и DELETE дополнительно применяется RLS.
+
+### 6.1. INSERT
+
+Вставка одной или нескольких записей.
+
+```
+INSERT INTO <объект> (поле1, поле2, ...) VALUES (значение1, значение2, ...)
+```
+
+**Одна запись:**
+```
+INSERT INTO Contact (FirstName, LastName, Email)
+VALUES ('Иван', 'Петров', 'ivan@example.com')
+```
+
+**Несколько записей (batch):**
+```
+INSERT INTO Contact (FirstName, LastName, Email)
+VALUES
+  ('Иван', 'Петров', 'ivan@example.com'),
+  ('Мария', 'Сидорова', 'maria@example.com')
+```
+
+### 6.2. UPDATE
+
+Обновление записей по условию.
+
+```
+UPDATE <объект> SET поле1 = значение1, поле2 = значение2 [WHERE условие]
+```
+
+**Примеры:**
+```
+UPDATE Contact SET Status = 'Active' WHERE Id = '550e8400-e29b-41d4-a716-446655440000'
+
+UPDATE Account SET Revenue = 1000000, Industry = 'Tech'
+WHERE Name LIKE 'Acme%'
+```
+
+> **Важно:** RLS автоматически ограничивает UPDATE только записями, видимыми текущему пользователю. Попытка обновить чужую запись не вызовет ошибку, но запись не будет затронута.
+
+### 6.3. DELETE
+
+Удаление записей по условию.
+
+```
+DELETE FROM <объект> WHERE условие
+```
+
+**Пример:**
+```
+DELETE FROM Task WHERE Status = 'Completed' AND CreatedAt < 2023-01-01
+```
+
+> **Важно:** По умолчанию `WHERE` обязателен для DELETE (защита от случайного удаления всех записей). RLS ограничивает удаление только видимыми записями.
+
+### 6.4. UPSERT
+
+Вставка или обновление на основе внешнего идентификатора.
+
+```
+UPSERT <объект> (поле1, поле2, ...) VALUES (значение1, значение2, ...) ON <внешний_ключ>
+```
+
+Если запись с указанным значением внешнего ключа существует — выполняется UPDATE. Если не существует — INSERT.
+
+**Пример:**
+```
+UPSERT Account (Name, Revenue, ExternalId)
+VALUES ('Acme Inc', 1000000, 'ext_001')
+ON ExternalId
+```
+
+**Batch UPSERT:**
+```
+UPSERT Account (Name, Revenue, ExternalId)
+VALUES
+  ('Acme', 1000000, 'ext_001'),
+  ('Globex', 500000, 'ext_002')
+ON ExternalId
+```
+
+### 6.5. Функции в DML
+
+В значениях INSERT, UPDATE и UPSERT можно использовать те же функции, что и в SOQL:
+
+```
+INSERT INTO Contact (FirstName, Email)
+VALUES (UPPER('ivan'), COALESCE(NULL, 'default@example.com'))
+
+UPDATE Contact SET Email = LOWER(Email) WHERE Status = 'Pending'
+```
+
+### 6.6. Безопасность в DML
+
+| Операция | OLS | FLS | RLS |
+|----------|-----|-----|-----|
+| **INSERT** | CanCreate | CanWrite (каждое поле) | — (не нужен) |
+| **UPDATE** | CanUpdate | CanWrite (каждое поле) | WHERE injection (только видимые записи) |
+| **DELETE** | CanDelete | — | WHERE injection (только видимые записи) |
+| **UPSERT** | CanCreate + CanUpdate | CanWrite (каждое поле) | — (INSERT path) |
+
+Системные поля (`Id`, `CreatedAt`, `UpdatedAt`, `CreatedById`, `UpdatedById`) — только для чтения, их нельзя указывать в DML. Поле `OwnerId` — записываемое.
+
+### 6.7. API
+
+**POST** `/api/v1/data`
+
+Тело запроса:
+```json
+{
+  "statement": "INSERT INTO Contact (FirstName, LastName) VALUES ('Иван', 'Петров')"
+}
+```
+
+Ответ:
+```json
+{
+  "rows_affected": 1,
+  "inserted_ids": ["550e8400-e29b-41d4-a716-446655440000"]
+}
+```
+
+Для UPDATE/DELETE — `updated_ids` / `deleted_ids` соответственно.
+
+### 6.8. Лимиты
+
+| Параметр | Значение по умолчанию |
+|----------|----------------------|
+| Максимум строк в batch (INSERT/UPSERT) | 10 000 |
+| Длина выражения | 100 000 символов |
+| WHERE обязателен для DELETE | Да |
+
+---
+
+## 7. Управление территориями (Enterprise)
+
+> **Внимание:** Управление территориями доступно только в Enterprise-редакции (лицензия Adverax Commercial License). В Community-редакции эти эндпоинты отсутствуют.
+
+Территории — это механизм организации доступа к записям на основе географических, функциональных или иных критериев. Территории работают параллельно с иерархией ролей и расширяют модель RLS.
+
+Базовый маршрут: `/api/v1/admin/territory`
+
+### 7.1. Модели территорий
+
+Модель территорий — контейнер верхнего уровня, определяющий набор территорий. Модель имеет жизненный цикл: `planning` → `active` → `archived`.
+
+#### Маршруты
+
+| Метод | Маршрут | Описание |
+|-------|---------|----------|
+| POST | `/territory/models` | Создать модель |
+| GET | `/territory/models` | Список моделей (с пагинацией) |
+| GET | `/territory/models/:id` | Получить модель по ID |
+| PUT | `/territory/models/:id` | Обновить модель |
+| DELETE | `/territory/models/:id` | Удалить модель |
+| POST | `/territory/models/:id/activate` | Активировать модель |
+| POST | `/territory/models/:id/archive` | Архивировать модель |
+
+#### Создание модели
+
+```json
+{
+  "api_name": "fy2026",
+  "label": "Территориальная модель FY2026",
+  "description": "Модель территорий на 2026 финансовый год"
+}
+```
+
+#### Жизненный цикл
+
+- **Planning** — начальное состояние. Можно редактировать структуру территорий.
+- **Active** — модель активна, территории влияют на видимость записей.
+- **Archived** — модель архивирована, территории не влияют на доступ.
+
+Переходы: `planning → active` (активация), `active → archived` (архивация).
+
+### 7.2. Территории
+
+Территория — узел в иерархическом дереве внутри модели. Территории образуют дерево (parent → children).
+
+#### Маршруты
+
+| Метод | Маршрут | Описание |
+|-------|---------|----------|
+| POST | `/territory/territories` | Создать территорию |
+| GET | `/territory/territories?model_id=<uuid>` | Список территорий модели |
+| GET | `/territory/territories/:id` | Получить территорию по ID |
+| PUT | `/territory/territories/:id` | Обновить территорию |
+| DELETE | `/territory/territories/:id` | Удалить территорию |
+
+#### Создание территории
+
+```json
+{
+  "model_id": "...",
+  "parent_id": null,
+  "api_name": "moscow_region",
+  "label": "Московский регион",
+  "description": "Включает Москву и Московскую область"
+}
+```
+
+При `parent_id = null` создаётся корневая территория. При указании `parent_id` — дочерняя.
+
+### 7.3. Настройки объектов по умолчанию
+
+Определяют, какой уровень доступа территория предоставляет к записям конкретного объекта.
+
+#### Маршруты
+
+| Метод | Маршрут | Описание |
+|-------|---------|----------|
+| POST | `/territory/territories/:id/object-defaults` | Установить настройку |
+| GET | `/territory/territories/:id/object-defaults` | Список настроек территории |
+| DELETE | `/territory/territories/:id/object-defaults/:objectId` | Удалить настройку |
+
+#### Установка настройки
+
+```json
+{
+  "object_id": "...",
+  "access_level": "read_write"
+}
+```
+
+Уровни доступа: `read`, `read_write`.
+
+### 7.4. Назначение пользователей
+
+Пользователи назначаются в территории (M:M связь). Пользователь может быть назначен в несколько территорий.
+
+#### Маршруты
+
+| Метод | Маршрут | Описание |
+|-------|---------|----------|
+| POST | `/territory/territories/:id/users` | Назначить пользователя |
+| GET | `/territory/territories/:id/users` | Список пользователей территории |
+| DELETE | `/territory/territories/:id/users/:userId` | Отозвать пользователя |
+
+#### Назначение
+
+```json
+{
+  "user_id": "..."
+}
+```
+
+### 7.5. Назначение записей
+
+Конкретные записи могут быть привязаны к территории.
+
+#### Маршруты
+
+| Метод | Маршрут | Описание |
+|-------|---------|----------|
+| POST | `/territory/territories/:id/records` | Привязать запись |
+| GET | `/territory/territories/:id/records` | Список записей территории |
+| DELETE | `/territory/territories/:id/records/:recordId?object_id=<uuid>` | Отвязать запись |
+
+#### Привязка записи
+
+```json
+{
+  "record_id": "...",
+  "object_id": "...",
+  "reason": "manual"
+}
+```
+
+### 7.6. Правила назначения
+
+Правила автоматически назначают записи в территории на основе критериев.
+
+#### Маршруты
+
+| Метод | Маршрут | Описание |
+|-------|---------|----------|
+| POST | `/territory/assignment-rules` | Создать правило |
+| GET | `/territory/assignment-rules?territory_id=<uuid>` | Список правил территории |
+| GET | `/territory/assignment-rules/:id` | Получить правило по ID |
+| PUT | `/territory/assignment-rules/:id` | Обновить правило |
+| DELETE | `/territory/assignment-rules/:id` | Удалить правило |
+
+### Как территории влияют на RLS
+
+Пользователь, назначенный в территорию, получает доступ к записям этой территории (и всех дочерних территорий) на уровне, определённом в object-defaults. Доступ предоставляется через share-таблицы объектов с причиной `territory`.
+
+---
+
+## 8. Типичные сценарии
 
 ### Сценарий 1: Создать новый объект с полями
 
@@ -873,4 +1432,53 @@ Deny всегда побеждает Grant.
 
 ---
 
-*Документ создан для CRM Platform. Актуален для Phase 2a–2c (Identity + Permission engine, RLS core, Groups).*
+### Сценарий 10: Выполнить SOQL-запрос к данным
+
+1. Отправьте GET-запрос:
+   ```
+   GET /api/v1/query?q=SELECT Id, Name, Email FROM Contact WHERE Status = 'Active' ORDER BY Name LIMIT 20
+   ```
+2. Или POST-запрос для длинных запросов:
+   ```json
+   POST /api/v1/query
+   {
+     "query": "SELECT Name, SUM(Amount) FROM Deal GROUP BY Name HAVING SUM(Amount) > 100000",
+     "pageSize": 50
+   }
+   ```
+3. Ответ содержит массив `records` с полями, запрошенными в SELECT. Все поля, недоступные пользователю по FLS, будут исключены. Записи, невидимые по RLS, не попадут в результат.
+
+### Сценарий 11: Создать записи через DML
+
+1. Отправьте POST-запрос:
+   ```json
+   POST /api/v1/data
+   {
+     "statement": "INSERT INTO Contact (FirstName, LastName, Email) VALUES ('Иван', 'Петров', 'ivan@example.com')"
+   }
+   ```
+2. Ответ содержит `inserted_ids` — список UUID созданных записей.
+3. Для пакетной вставки передайте несколько строк VALUES через запятую (до 10 000 строк).
+
+### Сценарий 12: Обновить записи через DML
+
+1. Отправьте POST-запрос:
+   ```json
+   POST /api/v1/data
+   {
+     "statement": "UPDATE Contact SET Status = 'Inactive' WHERE LastLoginDate < 2025-01-01"
+   }
+   ```
+2. Ответ содержит `updated_ids`. RLS гарантирует, что обновятся только записи, видимые текущему пользователю.
+
+### Сценарий 13: Настроить территориальную модель (Enterprise)
+
+1. **Создайте модель:** POST `/api/v1/admin/territory/models` с `api_name`, `label`.
+2. **Создайте территории:** POST `/api/v1/admin/territory/territories` — корневую и дочерние (указывая `parent_id`).
+3. **Настройте доступ:** POST `/api/v1/admin/territory/territories/:id/object-defaults` — укажите `object_id` и `access_level` (`read` или `read_write`) для каждого объекта.
+4. **Назначьте пользователей:** POST `/api/v1/admin/territory/territories/:id/users` — добавьте пользователей в территории.
+5. **Активируйте модель:** POST `/api/v1/admin/territory/models/:id/activate` — территории начнут влиять на видимость записей.
+
+---
+
+*Документ создан для CRM Platform. Актуален для Phase 0–4 (Scaffolding, Metadata engine, Security engine, SOQL, DML) + Territory Management (Enterprise).*

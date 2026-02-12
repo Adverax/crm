@@ -52,6 +52,10 @@ func DevAuth(userRepo security.UserRepository, defaultUserID uuid.UUID) gin.Hand
 			RoleID:    user.RoleID,
 		}
 		SetUserContext(c, uc)
+
+		// Duplicate into request context for non-Gin code (SOQL/DML engines).
+		c.Request = c.Request.WithContext(security.ContextWithUser(c.Request.Context(), uc))
+
 		c.Next()
 	}
 }

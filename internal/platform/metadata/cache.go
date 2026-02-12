@@ -147,6 +147,17 @@ func (c *MetadataCache) GetReverseRelationships(parentObjectID uuid.UUID) []Rela
 	return c.reverseRels[parentObjectID]
 }
 
+// ListObjectAPINames returns all object API names in the cache.
+func (c *MetadataCache) ListObjectAPINames() []string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	names := make([]string, 0, len(c.objectsByAPIName))
+	for name := range c.objectsByAPIName {
+		names = append(names, name)
+	}
+	return names
+}
+
 // IsLoaded returns whether the cache has been loaded.
 func (c *MetadataCache) IsLoaded() bool {
 	c.mu.RLock()

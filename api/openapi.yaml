@@ -15,6 +15,10 @@ tags:
     description: Object definition management
   - name: metadata-fields
     description: Field definition management
+  - name: soql
+    description: SOQL query execution
+  - name: dml
+    description: DML statement execution
 
 paths:
   /healthz:
@@ -267,6 +271,85 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/query:
+    get:
+      summary: Execute SOQL query (GET)
+      operationId: executeQueryGet
+      tags:
+        - soql
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: SOQL query string
+          schema:
+            type: string
+          example: "SELECT Id, Name FROM Account WHERE Name = 'Acme'"
+      responses:
+        "200":
+          description: Query result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SOQLResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    post:
+      summary: Execute SOQL query (POST)
+      operationId: executeQueryPost
+      tags:
+        - soql
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SOQLRequest"
+      responses:
+        "200":
+          description: Query result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SOQLResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/data:
+    post:
+      summary: Execute DML statement
+      operationId: executeDML
+      tags:
+        - dml
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DMLRequest"
+      responses:
+        "200":
+          description: DML result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DMLResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -635,6 +718,74 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/FieldDefinitionSchema"
+
+    SOQLRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          description: SOQL query string
+          example: "SELECT Id, Name FROM Account LIMIT 10"
+        pageSize:
+          type: integer
+          minimum: 1
+          maximum: 2000
+          default: 100
+          description: Maximum number of records per page
+
+    SOQLResult:
+      type: object
+      properties:
+        totalSize:
+          type: integer
+          description: Total number of records returned
+        done:
+          type: boolean
+          description: Whether all records have been returned
+        records:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+          description: Query result records
+        nextRecordsUrl:
+          type: string
+          description: Cursor for fetching the next page (empty if done)
+
+    DMLRequest:
+      type: object
+      required:
+        - statement
+      properties:
+        statement:
+          type: string
+          description: DML statement string
+          example: "INSERT INTO Account (Name, Industry) VALUES ('Acme', 'Technology')"
+
+    DMLResult:
+      type: object
+      properties:
+        rowsAffected:
+          type: integer
+          format: int64
+          description: Number of rows affected
+        insertedIds:
+          type: array
+          items:
+            type: string
+          description: IDs of inserted records
+        updatedIds:
+          type: array
+          items:
+            type: string
+          description: IDs of updated records
+        deletedIds:
+          type: array
+          items:
+            type: string
+          description: IDs of deleted records
 
     PaginationMeta:
       type: object

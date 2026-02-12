@@ -18,9 +18,16 @@ import (
 	"github.com/adverax/crm/internal/middleware"
 	"github.com/adverax/crm/internal/pkg/config"
 	"github.com/adverax/crm/internal/pkg/database"
+	"github.com/adverax/crm/internal/platform/dml"
+	dmlengine "github.com/adverax/crm/internal/platform/dml/engine"
 	"github.com/adverax/crm/internal/platform/metadata"
 	"github.com/adverax/crm/internal/platform/metadata/ddl"
 	"github.com/adverax/crm/internal/platform/security"
+	"github.com/adverax/crm/internal/platform/security/fls"
+	"github.com/adverax/crm/internal/platform/security/ols"
+	"github.com/adverax/crm/internal/platform/security/rls"
+	"github.com/adverax/crm/internal/platform/soql"
+	soqlengine "github.com/adverax/crm/internal/platform/soql/engine"
 )
 
 func main() {
@@ -148,8 +155,38 @@ func setupRouter(pool *pgxpool.Pool) *gin.Engine {
 	// Territory management (enterprise only, no-op in community build)
 	registerTerritoryRoutes(pool, adminGroup)
 
-	// Effective permission computer (used by outbox worker)
-	_ = effectiveRepo
+	// --- Security enforcers ---
+	effectivePermRepo := effectiveRepo
+	rlsCacheRepo := security.NewPgRLSEffectiveCacheRepository(pool)
+	olsEnforcer := ols.NewEnforcer(effectivePermRepo)
+	flsEnforcer := fls.NewEnforcer(effectivePermRepo)
+	rlsMetadataAdapter := security.NewPgMetadataFieldLister(pool)
+	rlsEnforcer := rls.NewEnforcer(rlsCacheRepo, rlsMetadataAdapter)
+
+	// --- SOQL engine ---
+	soqlMetadataAdapter := soql.NewMetadataAdapter(metadataCache)
+	soqlAccessAdapter := soql.NewAccessControllerAdapter(metadataCache, olsEnforcer, flsEnforcer)
+	soqlEngine := soqlengine.NewEngine(
+		soqlengine.WithMetadata(soqlMetadataAdapter),
+		soqlengine.WithAccessController(soqlAccessAdapter),
+	)
+	soqlExecutor := soql.NewExecutor(pool, metadataCache, rlsEnforcer)
+	soqlService := soql.NewQueryService(soqlEngine, soqlExecutor)
+
+	// --- DML engine ---
+	dmlMetadataAdapter := dml.NewMetadataAdapter(metadataCache)
+	dmlAccessAdapter := dml.NewWriteAccessControllerAdapter(metadataCache, olsEnforcer, flsEnforcer)
+	dmlEngine := dmlengine.NewEngine(
+		dmlengine.WithMetadata(dmlMetadataAdapter),
+		dmlengine.WithWriteAccessController(dmlAccessAdapter),
+	)
+	dmlExecutor := dml.NewRLSExecutor(pool, metadataCache, rlsEnforcer)
+	dmlService := dml.NewDMLService(dmlEngine, dmlExecutor)
+
+	// --- Query/Data API ---
+	queryHandler := handler.NewQueryHandler(soqlService, dmlService)
+	apiGroup := router.Group("/api/v1")
+	queryHandler.RegisterRoutes(apiGroup)
 
 	return router
 }
