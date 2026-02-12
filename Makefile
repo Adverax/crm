@@ -1,9 +1,10 @@
-.PHONY: build run test lint vet fmt clean \
+.PHONY: build build-ee run run-ee test test-ee lint vet fmt clean \
        docker-up docker-down docker-build docker-reset \
        migrate-up migrate-down migrate-create \
        sqlc-generate generate-api \
        web-dev web-build \
-       test-pgtap test-pgtap-setup
+       test-pgtap test-pgtap-setup \
+       test-pgtap-ee test-pgtap-ee-setup test-pgtap-all
 
 -include .env
 export
@@ -20,11 +21,21 @@ DB_TEST_DSN ?= postgres://crm:crm_secret@localhost:5433/crm_test?sslmode=disable
 build:
 	go build -ldflags="-s -w" -o $(BIN_DIR)/$(APP_NAME) ./cmd/api
 
+build-ee:
+	go build -tags enterprise -ldflags="-s -w" -o $(BIN_DIR)/$(APP_NAME) ./cmd/api
+
 run:
 	go run ./cmd/api
 
+run-ee:
+	go run -tags enterprise ./cmd/api
+
 test:
 	go test ./... -race -cover -coverprofile=coverage.out
+	go tool cover -func=coverage.out
+
+test-ee:
+	go test -tags enterprise ./... -race -cover -coverprofile=coverage.out
 	go tool cover -func=coverage.out
 
 lint:
@@ -54,15 +65,31 @@ docker-reset:
 
 # ─── pgTAP ──────────────────────────────────────────────────
 test-pgtap-setup:
+	psql "$(DB_TEST_DSN)" -c "DROP SCHEMA IF EXISTS ee CASCADE; DROP SCHEMA IF EXISTS security CASCADE; DROP SCHEMA IF EXISTS iam CASCADE; DROP SCHEMA IF EXISTS metadata CASCADE;"
 	migrate -path $(MIGRATE_DIR) -database "$(DB_TEST_DSN)" drop -f
 	migrate -path $(MIGRATE_DIR) -database "$(DB_TEST_DSN)" up
 
 test-pgtap: test-pgtap-setup
-	docker compose exec postgres pg_prove -U crm -d crm_test --recurse /tests/pgtap/
+	docker compose exec postgres pg_prove -U crm -d crm_test --ext .sql --recurse /tests/pgtap/
+
+# ─── pgTAP (Enterprise) ─────────────────────────────────────
+EE_MIGRATE_DSN = $(DB_TEST_DSN)&x-migrations-table=ee_schema_migrations
+
+test-pgtap-ee-setup: test-pgtap-setup
+	migrate -path ee/migrations -database "$(EE_MIGRATE_DSN)" up
+
+test-pgtap-ee: test-pgtap-ee-setup
+	docker compose exec postgres pg_prove -U crm -d crm_test --ext .sql --recurse /ee/tests/pgtap/
+
+test-pgtap-all: test-pgtap-ee-setup
+	docker compose exec postgres pg_prove -U crm -d crm_test --ext .sql --recurse /tests/pgtap/ /ee/tests/pgtap/
 
 # ─── Migrations ──────────────────────────────────────────────
 migrate-up:
 	migrate -path $(MIGRATE_DIR) -database "$(DB_DSN)" up
+
+migrate-up-ee: migrate-up
+	migrate -path ee/migrations -database "$(DB_DSN)&x-migrations-table=ee_schema_migrations" up
 
 migrate-down:
 	migrate -path $(MIGRATE_DIR) -database "$(DB_DSN)" down 1

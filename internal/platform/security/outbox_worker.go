@@ -164,6 +164,13 @@ func (w *OutboxWorker) dispatch(ctx context.Context, event OutboxEvent) error {
 			return w.rlsComputer.RecomputeObjectHierarchy(ctx)
 		}
 		return nil
+	case "territory_changed":
+		// Territory cache recomputation is handled by enterprise edition.
+		// In community edition, this is a no-op since there are no territories.
+		w.logger.Info("outbox worker: territory_changed event (enterprise feature)",
+			"entity_id", event.EntityID,
+		)
+		return nil
 	default:
 		w.logger.Warn("outbox worker: unknown event type",
 			"event_type", event.EventType,

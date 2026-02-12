@@ -145,6 +145,9 @@ func setupRouter(pool *pgxpool.Pool) *gin.Engine {
 	secHandler := handler.NewSecurityHandler(roleService, psService, profileService, userService, permissionService, groupService, sharingRuleService)
 	secHandler.RegisterRoutes(adminGroup)
 
+	// Territory management (enterprise only, no-op in community build)
+	registerTerritoryRoutes(pool, adminGroup)
+
 	// Effective permission computer (used by outbox worker)
 	_ = effectiveRepo
 

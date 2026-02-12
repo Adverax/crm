@@ -132,6 +132,40 @@ const router = createRouter({
           component: () => import('../views/admin/security/SharingRuleDetailView.vue'),
           props: true,
         },
+        // Territory — Models
+        {
+          path: 'territory/models',
+          name: 'admin-territory-models',
+          component: () => import('../views/admin/territory/ModelListView.vue'),
+        },
+        {
+          path: 'territory/models/new',
+          name: 'admin-territory-model-create',
+          component: () => import('../views/admin/territory/ModelCreateView.vue'),
+        },
+        {
+          path: 'territory/models/:modelId',
+          name: 'admin-territory-model-detail',
+          component: () => import('../views/admin/territory/ModelDetailView.vue'),
+          props: true,
+        },
+        // Territory — Territories
+        {
+          path: 'territory/territories',
+          name: 'admin-territory-list',
+          component: () => import('../views/admin/territory/TerritoryListView.vue'),
+        },
+        {
+          path: 'territory/territories/new',
+          name: 'admin-territory-create',
+          component: () => import('../views/admin/territory/TerritoryCreateView.vue'),
+        },
+        {
+          path: 'territory/territories/:territoryId',
+          name: 'admin-territory-detail',
+          component: () => import('../views/admin/territory/TerritoryDetailView.vue'),
+          props: true,
+        },
       ],
     },
   ],

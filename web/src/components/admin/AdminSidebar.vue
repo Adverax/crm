@@ -30,19 +30,35 @@ const securityGroup: NavGroup = {
   ],
 }
 
+const territoryGroup: NavGroup = {
+  label: 'Территории',
+  children: [
+    { label: 'Модели', to: '/admin/territory/models' },
+    { label: 'Территории', to: '/admin/territory/territories' },
+  ],
+}
+
 const bottomItems: NavItem[] = [
   { label: 'Пользователи', to: '/admin/security/users' },
 ]
 
 const securityExpanded = ref(false)
+const territoryExpanded = ref(false)
 
 const isSecurityActive = computed(() =>
   securityGroup.children.some((child) => route.path.startsWith(child.to)),
 )
 
+const isTerritoryActive = computed(() =>
+  territoryGroup.children.some((child) => route.path.startsWith(child.to)),
+)
+
 watchEffect(() => {
   if (isSecurityActive.value) {
     securityExpanded.value = true
+  }
+  if (isTerritoryActive.value) {
+    territoryExpanded.value = true
   }
 })
 
@@ -52,6 +68,10 @@ function isActive(path: string): boolean {
 
 function toggleSecurity() {
   securityExpanded.value = !securityExpanded.value
+}
+
+function toggleTerritory() {
+  territoryExpanded.value = !territoryExpanded.value
 }
 </script>
 
@@ -95,6 +115,37 @@ function toggleSecurity() {
           </button>
           <ul v-if="securityExpanded" class="ml-3 space-y-1 mt-1">
             <li v-for="child in securityGroup.children" :key="child.to">
+              <RouterLink
+                :to="child.to"
+                class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                :class="{ 'bg-accent text-accent-foreground': isActive(child.to) }"
+              >
+                {{ child.label }}
+              </RouterLink>
+            </li>
+          </ul>
+        </li>
+
+        <li>
+          <button
+            class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+            :class="{ 'text-accent-foreground': isTerritoryActive }"
+            @click="toggleTerritory"
+          >
+            {{ territoryGroup.label }}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-4 w-4 transition-transform"
+              :class="{ 'rotate-180': territoryExpanded }"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <ul v-if="territoryExpanded" class="ml-3 space-y-1 mt-1">
+            <li v-for="child in territoryGroup.children" :key="child.to">
               <RouterLink
                 :to="child.to"
                 class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"

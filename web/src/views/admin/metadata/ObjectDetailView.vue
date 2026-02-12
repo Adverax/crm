@@ -104,7 +104,10 @@ async function loadData() {
   try {
     const obj = await store.fetchObject(props.objectId)
     initFrom(obj)
-    await store.fetchFields(props.objectId)
+    await Promise.all([
+      store.fetchFields(props.objectId),
+      store.fetchObjects(),
+    ])
   } catch (err) {
     toast.errorFromApi(err)
   }

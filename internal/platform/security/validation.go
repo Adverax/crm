@@ -123,9 +123,9 @@ func ValidateCreateGroup(input CreateGroupInput) error {
 		return apperror.Validation("label is required")
 	}
 	switch input.GroupType {
-	case GroupTypePersonal, GroupTypeRole, GroupTypeRoleAndSubordinates, GroupTypePublic:
+	case GroupTypePersonal, GroupTypeRole, GroupTypeRoleAndSubordinates, GroupTypePublic, GroupTypeTerritory:
 	default:
-		return apperror.Validation(fmt.Sprintf("group_type must be one of: personal, role, role_and_subordinates, public; got '%s'", input.GroupType))
+		return apperror.Validation(fmt.Sprintf("group_type must be one of: personal, role, role_and_subordinates, public, territory; got '%s'", input.GroupType))
 	}
 	return nil
 }

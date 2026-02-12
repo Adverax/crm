@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/select'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Separator } from '@/components/ui/separator'
+
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -49,6 +49,7 @@ function groupTypeLabel(type: string): string {
     role: 'Роль',
     role_and_subordinates: 'Роль и подчинённые',
     public: 'Публичная',
+    territory: 'Территория',
   }
   return labels[type] ?? type
 }

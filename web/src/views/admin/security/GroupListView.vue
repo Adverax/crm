@@ -74,6 +74,7 @@ function groupTypeLabel(type: string): string {
     role: 'Роль',
     role_and_subordinates: 'Роль и подчинённые',
     public: 'Публичная',
+    territory: 'Территория',
   }
   return labels[type] ?? type
 }

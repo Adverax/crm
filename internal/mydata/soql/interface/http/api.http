@@ -1,0 +1,215 @@
+### SOQL Query API - Test Requests
+### Base URL configuration
+
+### ===== POST /data/query =====
+
+### Simple SELECT query - get Account records
+POST http://localhost:8080/api/v1/data/query
+Content-Type: application/json
+
+{
+  "query": "SELECT UPPER(TRIM('Hello ' || COALESCE( name, NULL))) AS cnt FROM hco__c LIMIT 5"
+}
+
+### SELECT with WHERE clause
+POST http://localhost:8080/api/v1/data/query
+Content-Type: application/json
+
+{
+  "query": "SELECT Id, Name, Industry FROM Account WHERE Industry = 'Technology'"
+}
+
+### SELECT with ORDER BY and LIMIT
+POST http://localhost:8080/api/v1/data/query
+Content-Type: application/json
+
+{
+  "query": "SELECT Id, Name, CreatedAt FROM Account ORDER BY CreatedAt DESC LIMIT 10"
+}
+
+### SELECT with multiple conditions
+POST http://localhost:8080/api/v1/data/query
+Content-Type: application/json
+
+{
+  "query": "SELECT Id, Name FROM Account WHERE Industry = 'Technology' AND Name LIKE 'A%'"
+}
+
+### SELECT with IN clause
+POST http://localhost:8080/api/v1/data/query
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "query": "SELECT Id, Name FROM Account WHERE Industry IN ('Technology', 'Healthcare', 'Finance')"
+}
+
+### SELECT with date literal
+POST http://localhost:8080/api/v1/data/query
+Content-Type: application/json
+
+{
+  "query": "SELECT Id, Name, CreatedAt FROM Account WHERE CreatedAt > LAST_MONTH"
+}
+
+### Aggregate query - COUNT
+POST http://localhost:8080/api/v1/data/query
+Content-Type: application/json
+
+{
+  "query": "SELECT COUNT(Id) FROM Account"
+}
+
+### Aggregate query with GROUP BY
+POST http://localhost:8080/api/v1/data/query
+Content-Type: application/json
+
+{
+  "query": "SELECT Industry, COUNT(Id) FROM Account GROUP BY Industry"
+}
+
+### Parent lookup query (Contact -> Account)
+POST http://localhost:8080/api/v1/data/query
+Content-Type: application/json
+
+{
+  "query": "SELECT Id, FirstName, LastName, Account.Name FROM Contact"
+}
+
+### Child subquery (Account -> Contacts)
+POST http://localhost:8080/api/v1/data/query
+Content-Type: application/json
+
+{
+  "query": "SELECT Id, Name, (SELECT Id, FirstName, LastName FROM Contacts) FROM Account"
+}
+
+### ===== Keyset Cursor Pagination =====
+### Keyset pagination uses signed cursors for efficient, stable pagination.
+### The cursor encodes: ORDER BY fields, last row values, and context hash.
+
+### Step 1: First page request (no cursor)
+### Response will include "nextCursor" if more records exist
+POST http://localhost:8080/api/v1/data/query
+Content-Type: application/json
+
+{
+  "query": "SELECT name, crm_eaddr__c FROM hco__c ORDER BY created_at DESC LIMIT 10"
+}
+
+### Step 2: Next page request using cursor from previous response
+### Replace the cursor value with "nextCursor" from the previous response
+POST http://localhost:8080/api/v1/data/query
+Content-Type: application/json
+
+{
+  "query": "SELECT Id, Name, CreatedAt FROM Account ORDER BY CreatedAt DESC LIMIT 10",
+  "cursor": "eyJ2IjoxLCJvYiI6W3siZiI6ImNyZWF0ZWRfYXQiLCJkIjoiZGVzYyJ9LHsiZiI6InJlY29yZF9pZCIsImQiOiJkZXNjIn1dLCJrIjp7ImNyZWF0ZWRfYXQiOiIyMDI0LTAxLTE1VDEwOjMwOjAwWiIsInJlY29yZF9pZCI6MTIzfSwiZmlkIjoiQWNjb3VudDphYmMxMjM6dXNlcjEifQ.c2lnbmF0dXJl"
+}
+
+### Pagination with ASC order
+### Cursor pagination works with any ORDER BY direction
+POST http://localhost:8080/api/v1/data/query
+Content-Type: application/json
+
+{
+  "query": "SELECT Id, Name FROM Account ORDER BY Name ASC LIMIT 20"
+}
+
+### Pagination with multiple ORDER BY fields
+### Tie-breaker (record_id) is automatically added if not present
+POST http://localhost:8080/api/v1/data/query
+Content-Type: application/json
+
+{
+  "query": "SELECT Id, Name, Industry FROM Account ORDER BY Industry ASC, Name DESC LIMIT 15"
+}
+
+### Pagination without explicit ORDER BY
+### Default order: record_id DESC (newest first)
+POST http://localhost:8080/api/v1/data/query
+Content-Type: application/json
+
+{
+  "query": "SELECT Id, Name FROM Account LIMIT 10"
+}
+
+### ===== GET /data/query =====
+
+### Simple GET request
+GET http://localhost:8080/api/v1/data/query?q=SELECT Id, Name FROM Account
+
+### GET with URL-encoded query
+GET http://localhost:8080/api/v1/data/query?q=SELECT%20Id%2C%20Name%20FROM%20Account%20WHERE%20Industry%20%3D%20'Technology'
+
+### GET with LIMIT
+GET http://localhost:8080/api/v1/data/query?q=SELECT Id, Name FROM Account ORDER BY Name LIMIT 5
+
+### GET with cursor for pagination
+### Use nextCursor from previous response
+GET http://localhost:8080/api/v1/data/query?q=SELECT Id, Name FROM Account ORDER BY Name LIMIT 5&cursor=eyJ2IjoxLCJvYiI6W3siZiI6Im5hbWUiLCJkIjoiYXNjIn1dLCJrIjp7Im5hbWUiOiJBY21lIn0sImZpZCI6IkFjY291bnQ6YWJjOnVzZXIxIn0.c2ln
+
+### ===== Error cases =====
+
+### Invalid query syntax
+POST http://localhost:8080/api/v1/data/query
+Content-Type: application/json
+
+{
+  "query": "SELEC Id FROM Account"
+}
+
+### Unknown object
+POST http://localhost:8080/api/v1/data/query
+Content-Type: application/json
+
+{
+  "query": "SELECT Id FROM UnknownObject"
+}
+
+### Unknown field
+POST http://localhost:8080/api/v1/data/query
+Content-Type: application/json
+
+{
+  "query": "SELECT Id, UnknownField FROM Account"
+}
+
+### Empty query
+POST http://localhost:8080/api/v1/data/query
+Content-Type: application/json
+
+{
+  "query": ""
+}
+
+### ===== Cursor Error Cases =====
+
+### Invalid cursor format (malformed base64)
+POST http://localhost:8080/api/v1/data/query
+Content-Type: application/json
+
+{
+  "query": "SELECT Id, Name FROM Account LIMIT 10",
+  "cursor": "invalid-cursor-format!!!"
+}
+
+### Tampered cursor (signature mismatch)
+### This cursor has been modified after signing
+POST http://localhost:8080/api/v1/data/query
+Content-Type: application/json
+
+{
+  "query": "SELECT Id, Name FROM Account LIMIT 10",
+  "cursor": "eyJ2IjoxLCJvYiI6W10sImsiOnt9LCJmaWQiOiJ0YW1wZXJlZCJ9.aW52YWxpZHNpZw=="
+}
+
+### Cursor context mismatch (different ORDER BY)
+### Cursor was created with different sort order than current query
+POST http://localhost:8080/api/v1/data/query
+Content-Type: application/json
+
+{
+  "query": "SELECT UPPER(TRIM('Hello ' || COALESCE( name, NULL))) AS cnt FROM hco__c LIMIT 5",
+  "cursor": "eyJ2IjoxLCJvYiI6W3siZiI6InJlY29yZF9pZCIsImQiOiJkZXNjIn1dLCJrIjp7InJlY29yZF9pZCI6Imhjb2ZmODY5MDdjMzc1NTlmZDQifSwiZmlkIjoiaGNvX19jOmUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTU6dXNlcjEifQ==.dxxhIR5YVxlORvLDVlosgT5_90r1kbdCF3gh9PX9e5M="
+}

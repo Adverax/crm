@@ -615,9 +615,194 @@ export async function setupSharingRuleRoutes(page: Page) {
   }
 }
 
+// ─── Territory mock data ─────────────────────────────────────
+
+export const mockTerritoryModels = [
+  {
+    id: 'tm111111-1111-1111-1111-111111111111',
+    api_name: 'q1_2026',
+    label: 'Q1 2026',
+    description: 'Территориальная модель первого квартала',
+    status: 'planning',
+    activated_at: null,
+    archived_at: null,
+    created_at: '2026-01-15T10:00:00Z',
+    updated_at: '2026-01-15T10:00:00Z',
+  },
+  {
+    id: 'tm222222-2222-2222-2222-222222222222',
+    api_name: 'q4_2025',
+    label: 'Q4 2025',
+    description: 'Территориальная модель четвёртого квартала',
+    status: 'active',
+    activated_at: '2025-10-01T10:00:00Z',
+    archived_at: null,
+    created_at: '2025-09-15T10:00:00Z',
+    updated_at: '2025-10-01T10:00:00Z',
+  },
+]
+
+export const mockTerritories = [
+  {
+    id: 'tt111111-1111-1111-1111-111111111111',
+    model_id: 'tm111111-1111-1111-1111-111111111111',
+    parent_id: null,
+    api_name: 'north_america',
+    label: 'Северная Америка',
+    description: 'Регион Северной Америки',
+    created_at: '2026-01-16T10:00:00Z',
+    updated_at: '2026-01-16T10:00:00Z',
+  },
+  {
+    id: 'tt222222-2222-2222-2222-222222222222',
+    model_id: 'tm111111-1111-1111-1111-111111111111',
+    parent_id: 'tt111111-1111-1111-1111-111111111111',
+    api_name: 'us_east',
+    label: 'Восток США',
+    description: 'Восточное побережье',
+    created_at: '2026-01-17T10:00:00Z',
+    updated_at: '2026-01-17T10:00:00Z',
+  },
+]
+
+export const mockTerritoryUsers = [
+  {
+    id: 'tu111111-1111-1111-1111-111111111111',
+    user_id: 'u1111111-1111-1111-1111-111111111111',
+    territory_id: 'tt111111-1111-1111-1111-111111111111',
+    created_at: '2026-01-16T10:00:00Z',
+  },
+]
+
+export const mockObjectDefaults = [
+  {
+    id: 'od111111-1111-1111-1111-111111111111',
+    territory_id: 'tt111111-1111-1111-1111-111111111111',
+    object_id: '11111111-1111-1111-1111-111111111111',
+    access_level: 'read_write',
+    created_at: '2026-01-16T10:00:00Z',
+    updated_at: '2026-01-16T10:00:00Z',
+  },
+]
+
+export async function setupTerritoryRoutes(page: Page) {
+  // ── Models ──
+  await page.route('**/api/v1/admin/territory/models?*', (route) => {
+    route.fulfill({ json: listResponse(mockTerritoryModels) })
+  })
+  await page.route('**/api/v1/admin/territory/models', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ json: listResponse(mockTerritoryModels) })
+    }
+    if (route.request().method() === 'POST') {
+      return route.fulfill({
+        json: singleResponse({ ...mockTerritoryModels[0], id: 'new-model-id' }),
+      })
+    }
+    return route.continue()
+  })
+  for (const model of mockTerritoryModels) {
+    await page.route(`**/api/v1/admin/territory/models/${model.id}/activate`, (route) => {
+      if (route.request().method() === 'POST') {
+        return route.fulfill({ status: 204 })
+      }
+      return route.continue()
+    })
+    await page.route(`**/api/v1/admin/territory/models/${model.id}/archive`, (route) => {
+      if (route.request().method() === 'POST') {
+        return route.fulfill({ status: 204 })
+      }
+      return route.continue()
+    })
+    await page.route(`**/api/v1/admin/territory/models/${model.id}`, (route) => {
+      if (route.request().method() === 'GET') {
+        return route.fulfill({ json: singleResponse(model) })
+      }
+      if (route.request().method() === 'PUT') {
+        return route.fulfill({ json: singleResponse(model) })
+      }
+      if (route.request().method() === 'DELETE') {
+        return route.fulfill({ status: 204 })
+      }
+      return route.continue()
+    })
+  }
+
+  // ── Territories ──
+  await page.route('**/api/v1/admin/territory/territories?*', (route) => {
+    route.fulfill({ json: listResponse(mockTerritories) })
+  })
+  await page.route('**/api/v1/admin/territory/territories', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ json: listResponse(mockTerritories) })
+    }
+    if (route.request().method() === 'POST') {
+      return route.fulfill({
+        json: singleResponse({ ...mockTerritories[0], id: 'new-territory-id' }),
+      })
+    }
+    return route.continue()
+  })
+  for (const territory of mockTerritories) {
+    await page.route(`**/api/v1/admin/territory/territories/${territory.id}/users`, (route) => {
+      if (route.request().method() === 'GET') {
+        return route.fulfill({
+          json: singleResponse(
+            mockTerritoryUsers.filter((tu) => tu.territory_id === territory.id),
+          ),
+        })
+      }
+      if (route.request().method() === 'POST') {
+        return route.fulfill({ json: singleResponse(mockTerritoryUsers[0]) })
+      }
+      return route.continue()
+    })
+    await page.route(`**/api/v1/admin/territory/territories/${territory.id}/object-defaults`, (route) => {
+      if (route.request().method() === 'GET') {
+        return route.fulfill({
+          json: singleResponse(
+            mockObjectDefaults.filter((od) => od.territory_id === territory.id),
+          ),
+        })
+      }
+      if (route.request().method() === 'POST') {
+        return route.fulfill({ json: singleResponse(mockObjectDefaults[0]) })
+      }
+      return route.continue()
+    })
+    await page.route(`**/api/v1/admin/territory/territories/${territory.id}`, (route) => {
+      if (route.request().method() === 'GET') {
+        return route.fulfill({ json: singleResponse(territory) })
+      }
+      if (route.request().method() === 'PUT') {
+        return route.fulfill({ json: singleResponse(territory) })
+      }
+      if (route.request().method() === 'DELETE') {
+        return route.fulfill({ status: 204 })
+      }
+      return route.continue()
+    })
+  }
+
+  // Delete routes for nested resources
+  await page.route(/\/api\/v1\/admin\/territory\/territories\/[^/]+\/users\/[^/]+$/, (route) => {
+    if (route.request().method() === 'DELETE') {
+      return route.fulfill({ status: 204 })
+    }
+    return route.continue()
+  })
+  await page.route(/\/api\/v1\/admin\/territory\/territories\/[^/]+\/object-defaults\/[^/]+$/, (route) => {
+    if (route.request().method() === 'DELETE') {
+      return route.fulfill({ status: 204 })
+    }
+    return route.continue()
+  })
+}
+
 export async function setupAllRoutes(page: Page) {
   await setupMetadataRoutes(page)
   await setupSecurityRoutes(page)
   await setupGroupRoutes(page)
   await setupSharingRuleRoutes(page)
+  await setupTerritoryRoutes(page)
 }

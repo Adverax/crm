@@ -140,6 +140,7 @@ const (
 	GroupTypeRole                GroupType = "role"
 	GroupTypeRoleAndSubordinates GroupType = "role_and_subordinates"
 	GroupTypePublic              GroupType = "public"
+	GroupTypeTerritory           GroupType = "territory"
 )
 
 // Group represents a security group.
