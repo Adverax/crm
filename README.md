@@ -246,5 +246,4 @@ Enterprise features: territory management, audit trail, SSO, advanced analytics.
 ## Links
 
 - [Architecture Decision Records](docs/adr/)
-- [Go-to-Market Plan](docs/go-to-market-plan.md) (Russian)
 - [API Specification](api/openapi.yaml)
