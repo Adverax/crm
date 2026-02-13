@@ -165,13 +165,13 @@ func (d DateTime) Format(layout string) string {
 
 // Const represents a constant value in DML statements
 type Const struct {
-	DateTime  *DateTime `  @DateTime`
-	Date      *Date     `| @Date`
-	String    *string   `| @String`
-	Float     *float64  `| @Float`
-	Integer   *int      `| @Integer`
-	Boolean   *Boolean  `| @("TRUE" | "FALSE")`
-	Null      bool      `| @"NULL"`
+	DateTime  *DateTime `parser:"  @DateTime"`
+	Date      *Date     `parser:"| @Date"`
+	String    *string   `parser:"| @String"`
+	Float     *float64  `parser:"| @Float"`
+	Integer   *int      `parser:"| @Integer"`
+	Boolean   *Boolean  `parser:"| @('TRUE' | 'FALSE')"`
+	Null      bool      `parser:"| @'NULL'"`
 	FieldType FieldType // Inferred type
 }
 
