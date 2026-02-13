@@ -6,10 +6,10 @@ import "github.com/alecthomas/participle/v2/lexer"
 // Only one of Insert, Update, Delete, or Upsert will be non-nil.
 type DMLStatement struct {
 	Pos    lexer.Position
-	Insert *InsertStatement `  @@`
-	Update *UpdateStatement `| @@`
-	Delete *DeleteStatement `| @@`
-	Upsert *UpsertStatement `| @@`
+	Insert *InsertStatement `parser:"  @@"`
+	Update *UpdateStatement `parser:"| @@"`
+	Delete *DeleteStatement `parser:"| @@"`
+	Upsert *UpsertStatement `parser:"| @@"`
 }
 
 // GetOperation returns the operation type of this statement.
@@ -48,51 +48,51 @@ func (s *DMLStatement) GetObject() string {
 // Example: INSERT INTO Account (Name, Industry) VALUES ('Acme', 'Tech'), ('Globex', 'Finance')
 type InsertStatement struct {
 	Pos    lexer.Position
-	Object string       `"INSERT" "INTO" @Ident`
-	Fields []string     `"(" @Ident ("," @Ident)* ")"`
-	Values []*ValueList `"VALUES" @@ ("," @@)*`
+	Object string       `parser:"'INSERT' 'INTO' @Ident"`
+	Fields []string     `parser:"'(' @Ident (',' @Ident)* ')'"`
+	Values []*ValueList `parser:"'VALUES' @@ (',' @@)*"`
 }
 
 // ValueList represents a single row of values in INSERT/UPSERT.
 // Example: ('Acme', 'Tech', 100) or (UPPER('test'), COALESCE(NULL, 'default'))
 type ValueList struct {
 	Pos    lexer.Position
-	Values []*Expr `"(" @@ ("," @@)* ")"`
+	Values []*Expr `parser:"'(' @@ (',' @@)* ')'"`
 }
 
 // UpdateStatement represents an UPDATE statement.
 // Example: UPDATE Contact SET Status = 'Active', UpdatedAt = 2024-01-15 WHERE AccountId = 'acc-001'
 type UpdateStatement struct {
 	Pos         lexer.Position
-	Object      string        `"UPDATE" @Ident`
-	Assignments []*Assignment `"SET" @@ ("," @@)*`
-	Where       *Expression   `("WHERE" @@)?`
+	Object      string        `parser:"'UPDATE' @Ident"`
+	Assignments []*Assignment `parser:"'SET' @@ (',' @@)*"`
+	Where       *Expression   `parser:"('WHERE' @@)?"`
 }
 
 // Assignment represents a field assignment in UPDATE.
 // Example: Status = 'Active' or Name = UPPER('test')
 type Assignment struct {
 	Pos   lexer.Position
-	Field string `@Ident "="`
-	Value *Expr  `@@`
+	Field string `parser:"@Ident '='"`
+	Value *Expr  `parser:"@@"`
 }
 
 // DeleteStatement represents a DELETE statement.
 // Example: DELETE FROM Task WHERE Status = 'Completed' AND CreatedDate < 2023-01-01
 type DeleteStatement struct {
 	Pos    lexer.Position
-	Object string      `"DELETE" "FROM" @Ident`
-	Where  *Expression `("WHERE" @@)?`
+	Object string      `parser:"'DELETE' 'FROM' @Ident"`
+	Where  *Expression `parser:"('WHERE' @@)?"`
 }
 
 // UpsertStatement represents an UPSERT statement.
 // Example: UPSERT Account (external_id, Name, Industry) VALUES ('ext-001', 'Acme', 'Tech') ON external_id
 type UpsertStatement struct {
 	Pos             lexer.Position
-	Object          string       `"UPSERT" @Ident`
-	Fields          []string     `"(" @Ident ("," @Ident)* ")"`
-	Values          []*ValueList `"VALUES" @@ ("," @@)*`
-	ExternalIdField string       `"ON" @Ident`
+	Object          string       `parser:"'UPSERT' @Ident"`
+	Fields          []string     `parser:"'(' @Ident (',' @Ident)* ')'"`
+	Values          []*ValueList `parser:"'VALUES' @@ (',' @@)*"`
+	ExternalIdField string       `parser:"'ON' @Ident"`
 }
 
 // =============================================================================
@@ -102,83 +102,83 @@ type UpsertStatement struct {
 // Expression is the top-level expression node for WHERE clauses.
 type Expression struct {
 	Pos       lexer.Position
-	Or        *OrExpr `@@`
+	Or        *OrExpr `parser:"@@"`
 	FieldType FieldType
 }
 
 // OrExpr represents OR expressions.
 type OrExpr struct {
-	And       []*AndExpr `@@ ("OR" @@)*`
+	And       []*AndExpr `parser:"@@ ('OR' @@)*"`
 	FieldType FieldType
 }
 
 // AndExpr represents AND expressions.
 type AndExpr struct {
-	Not       []*NotExpr `@@ ("AND" @@)*`
+	Not       []*NotExpr `parser:"@@ ('AND' @@)*"`
 	FieldType FieldType
 }
 
 // NotExpr represents NOT expressions.
 type NotExpr struct {
-	Not       bool         `@"NOT"?`
-	Compare   *CompareExpr `@@`
+	Not       bool         `parser:"@'NOT'?"`
+	Compare   *CompareExpr `parser:"@@"`
 	FieldType FieldType
 }
 
 // CompareExpr represents comparison expressions.
 type CompareExpr struct {
-	Left      *InExpr   `@@`
-	Operator  *Operator `(@("=" | "==" | "!=" | "<>" | ">" | "<" | ">=" | "<=")`
-	Right     *InExpr   `@@)?`
+	Left      *InExpr   `parser:"@@"`
+	Operator  *Operator `parser:"(@('=' | '==' | '!=' | '<>' | '>' | '<' | '>=' | '<=')"`
+	Right     *InExpr   `parser:"@@)?"`
 	FieldType FieldType
 }
 
 // InExpr represents IN/NOT IN expressions.
 type InExpr struct {
-	Left      *LikeExpr `@@`
-	Not       bool      `(@"NOT"?`
-	In        bool      `@"IN"`
-	Values    []*Value  `"(" @@ ("," @@)* ")")?`
+	Left      *LikeExpr `parser:"@@"`
+	Not       bool      `parser:"(@'NOT'?"`
+	In        bool      `parser:"@'IN'"`
+	Values    []*Value  `parser:"'(' @@ (',' @@)* ')')?"`
 	FieldType FieldType
 }
 
 // LikeExpr represents LIKE expressions.
 type LikeExpr struct {
-	Left      *IsExpr `@@`
-	Not       bool    `(@"NOT"?`
-	Like      bool    `@"LIKE"`
-	Pattern   *Value  `@@)?`
+	Left      *IsExpr `parser:"@@"`
+	Not       bool    `parser:"(@'NOT'?"`
+	Like      bool    `parser:"@'LIKE'"`
+	Pattern   *Value  `parser:"@@)?"`
 	FieldType FieldType
 }
 
 // IsExpr represents IS NULL / IS NOT NULL expressions.
 type IsExpr struct {
-	Left      *Primary `@@`
-	Is        bool     `(@"IS"`
-	Not       bool     `@"NOT"?`
-	Null      bool     `@"NULL")?`
+	Left      *Primary `parser:"@@"`
+	Is        bool     `parser:"(@'IS'"`
+	Not       bool     `parser:"@'NOT'?"`
+	Null      bool     `parser:"@'NULL')?"`
 	FieldType FieldType
 }
 
 // Primary represents primary expressions in WHERE clause.
 type Primary struct {
-	Subexpression *Expression `  "(" @@ ")"`
-	Const         *Const      `| @@`
-	Field         *Field      `| @@`
+	Subexpression *Expression `parser:"  '(' @@ ')'"`
+	Const         *Const      `parser:"| @@"`
+	Field         *Field      `parser:"| @@"`
 	FieldType     FieldType
 }
 
 // Value represents a value in IN clause or LIKE pattern.
 type Value struct {
-	Const     *Const `  @@`
-	Field     *Field `| @@`
+	Const     *Const `parser:"  @@"`
+	Field     *Field `parser:"| @@"`
 	FieldType FieldType
 }
 
 // Field represents a field reference in WHERE clause.
 type Field struct {
 	Pos       lexer.Position
-	Name      string `@Ident`
+	Name      string `parser:"@Ident"`
 	FieldType FieldType
 }
 
@@ -190,9 +190,9 @@ type Field struct {
 // Can be a function call, a constant, or a field reference.
 type Expr struct {
 	Pos       lexer.Position
-	FuncCall  *FuncCall `  @@`
-	Const     *Const    `| @@`
-	Field     *Field    `| @@`
+	FuncCall  *FuncCall `parser:"  @@"`
+	Const     *Const    `parser:"| @@"`
+	Field     *Field    `parser:"| @@"`
 	FieldType FieldType
 }
 
@@ -224,7 +224,7 @@ func (e *Expr) IsField() bool {
 // Example: UPPER('test'), COALESCE(Name, 'default'), ROUND(Amount, 2)
 type FuncCall struct {
 	Pos       lexer.Position
-	Name      Function `@("COALESCE" | "NULLIF" | "CONCAT" | "UPPER" | "LOWER" | "TRIM" | "LENGTH" | "LEN" | "SUBSTRING" | "SUBSTR" | "ABS" | "ROUND" | "FLOOR" | "CEIL" | "CEILING")`
-	Args      []*Expr  `"(" (@@ ("," @@)*)? ")"`
+	Name      Function `parser:"@('COALESCE' | 'NULLIF' | 'CONCAT' | 'UPPER' | 'LOWER' | 'TRIM' | 'LENGTH' | 'LEN' | 'SUBSTRING' | 'SUBSTR' | 'ABS' | 'ROUND' | 'FLOOR' | 'CEIL' | 'CEILING')"`
+	Args      []*Expr  `parser:"'(' (@@ (',' @@)*)? ')'"`
 	FieldType FieldType
 }
