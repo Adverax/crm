@@ -12,9 +12,40 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"github.com/adverax/crm/internal/modules/auth"
 	"github.com/adverax/crm/internal/pkg/apperror"
 	"github.com/adverax/crm/internal/platform/security"
 )
+
+type mockAuthService struct {
+	setPasswordFn func(ctx context.Context, userID uuid.UUID, password string) error
+}
+
+func (m *mockAuthService) Login(_ context.Context, _ auth.LoginInput) (*auth.TokenPair, error) {
+	return nil, nil
+}
+func (m *mockAuthService) Refresh(_ context.Context, _ auth.RefreshInput) (*auth.TokenPair, error) {
+	return nil, nil
+}
+func (m *mockAuthService) Logout(_ context.Context, _ string) error { return nil }
+func (m *mockAuthService) LogoutAll(_ context.Context, _ uuid.UUID) error {
+	return nil
+}
+func (m *mockAuthService) Me(_ context.Context, _ uuid.UUID) (*auth.UserInfo, error) {
+	return nil, nil
+}
+func (m *mockAuthService) SetPassword(ctx context.Context, userID uuid.UUID, password string) error {
+	if m.setPasswordFn != nil {
+		return m.setPasswordFn(ctx, userID, password)
+	}
+	return nil
+}
+func (m *mockAuthService) ForgotPassword(_ context.Context, _ auth.ForgotPasswordInput) error {
+	return nil
+}
+func (m *mockAuthService) ResetPassword(_ context.Context, _ auth.ResetPasswordInput) error {
+	return nil
+}
 
 // --- Mocks ---
 
@@ -407,7 +438,7 @@ func newSecurityHandler(
 	if sharing == nil {
 		sharing = &mockSharingRuleService{}
 	}
-	return NewSecurityHandler(roles, ps, profiles, users, perms, groups, sharing)
+	return NewSecurityHandler(roles, ps, profiles, users, perms, groups, sharing, &mockAuthService{})
 }
 
 // --- Tests ---

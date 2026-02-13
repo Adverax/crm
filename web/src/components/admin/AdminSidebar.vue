@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { computed, ref, watchEffect } from 'vue'
 import { Separator } from '@/components/ui/separator'
+import { Button } from '@/components/ui/button'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
 
 interface NavItem {
   label: string
@@ -72,6 +76,11 @@ function toggleSecurity() {
 
 function toggleTerritory() {
   territoryExpanded.value = !territoryExpanded.value
+}
+
+async function onLogout() {
+  await authStore.logout()
+  router.push('/login')
 }
 </script>
 
@@ -168,5 +177,14 @@ function toggleTerritory() {
         </li>
       </ul>
     </nav>
+    <Separator />
+    <div class="p-3">
+      <div class="text-xs text-muted-foreground truncate mb-2">
+        {{ authStore.displayName || 'Пользователь' }}
+      </div>
+      <Button variant="outline" size="sm" class="w-full" @click="onLogout">
+        Выйти
+      </Button>
+    </div>
   </aside>
 </template>

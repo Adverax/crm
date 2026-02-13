@@ -1,4 +1,4 @@
-.PHONY: build build-ee run run-ee test test-ee lint vet fmt clean \
+.PHONY: build build-ee run run-ee test test-ee test-integration lint vet fmt clean \
        docker-up docker-down docker-build docker-reset \
        migrate-up migrate-down migrate-create \
        sqlc-generate generate-api \
@@ -37,6 +37,9 @@ test:
 test-ee:
 	go test -tags enterprise ./... -race -cover -coverprofile=coverage.out
 	go tool cover -func=coverage.out
+
+test-integration:
+	DB_TEST_DSN="$(DB_TEST_DSN)" go test -tags integration ./... -race -v -count=1
 
 lint:
 	golangci-lint run ./...

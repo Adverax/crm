@@ -17,9 +17,9 @@
 | Security (RLS) | OWD, Role Hierarchy, Sharing Rules, Manual Sharing, Apex Sharing, Teams, Territory | OWD, Groups (4 типа), Share tables, Role hierarchy, Sharing Rules (owner+criteria), Manual Sharing, RLS enforcer, effective caches, Territory Management (ee/) | 85% SF |
 | Data Access (SOQL) | SOQL с relationship queries, aggregates, security enforcement | SOQL parser (participle), validator, compiler, executor с OLS+FLS+RLS enforcement, relationship queries, aggregates, date literals, subqueries | 70% SF |
 | Data Mutation (DML) | Insert, Update, Upsert, Delete, Undelete, Merge + triggers | INSERT/UPDATE/DELETE/UPSERT, OLS+FLS enforcement, RLS injection для UPDATE/DELETE, batch operations, functions | 60% SF |
-| Auth | OAuth 2.0, SAML, MFA, Connected Apps | Не реализовано (отложено) | JWT + refresh tokens |
+| Auth | OAuth 2.0, SAML, MFA, Connected Apps | JWT (access + refresh), login, password reset, rate limiting | JWT + refresh tokens |
 | Automation | Flow Builder, Triggers, Workflow Rules, Approval Processes | Не реализовано | Triggers + базовые Flows |
-| UI Framework | Lightning App Builder, LWC, Dynamic Forms | Vue.js admin для metadata + security + groups + sharing rules + OWD visibility | Admin + Record UI |
+| UI Framework | Lightning App Builder, LWC, Dynamic Forms | Vue.js admin для metadata + security + groups + sharing rules + OWD visibility + auth (login/logout/password reset) | Admin + Record UI |
 | APIs | REST, SOAP, Bulk, Streaming, Metadata, Tooling, GraphQL | REST admin endpoints (metadata + security + groups + sharing rules) | REST + Streaming |
 | Analytics | Reports, Dashboards, Einstein | Не реализовано | Базовые отчёты |
 | Integration | Platform Events, CDC, External Services | Не реализовано | CDC + webhooks |
@@ -206,20 +206,26 @@ Row-Level Security — кто видит какие записи.
 
 ---
 
-### Phase 5: Auth Module ⬜
+### Phase 5: Auth Module ✅
 
 Аутентификация и управление сессиями.
 
-- [ ] `POST /auth/login` — вход по username + password → JWT access + refresh tokens
-- [ ] `POST /auth/register` — регистрация (admin-only или self-service)
-- [ ] `POST /auth/refresh` — обновление access token
-- [ ] `POST /auth/logout` — инвалидация refresh token
-- [ ] JWT middleware: проверка access token на каждом запросе
-- [ ] Refresh tokens: хранение хэшей в БД, ротация при использовании
-- [ ] Password hashing: bcrypt/argon2
-- [ ] Rate limiting: login attempts per IP/username
-- [ ] Password reset flow (email + token)
-- [ ] User ↔ security.User интеграция: auth middleware → context с userId, profileId, roleId
+- [x] `POST /auth/login` — вход по username + password → JWT access + refresh tokens
+- [x] `POST /auth/refresh` — обновление access token (с ротацией refresh token)
+- [x] `POST /auth/logout` — инвалидация refresh token
+- [x] `GET /auth/me` — текущий пользователь
+- [x] JWT middleware: проверка access token (HMAC-SHA256) на каждом запросе
+- [x] Refresh tokens: хранение SHA-256 хэшей в `iam.refresh_tokens`, ротация при использовании
+- [x] Password hashing: bcrypt (cost=12), `password_hash` в `iam.users`
+- [x] Rate limiting: in-memory sliding window per IP (5 attempts / 15 min)
+- [x] Password reset flow: `POST /auth/forgot-password` + `POST /auth/reset-password` (token + email)
+- [x] Admin password set: `PUT /admin/security/users/:id/password`
+- [x] User ↔ security.User интеграция: JWT claims → UserContext (userId, profileId, roleId)
+- [x] Admin-only регистрация через существующий CRUD `POST /admin/security/users`
+- [x] Seed admin password: `ADMIN_INITIAL_PASSWORD` env var при первом запуске
+- [x] Vue.js frontend: Login, ForgotPassword, ResetPassword views, auth store (Pinia), router guards, 401 interceptor
+- [x] pgTAP тесты: password_hash, refresh_tokens, password_reset_tokens
+- [x] E2E тесты: 15 тестов (login, forgot-password, reset-password, guards)
 
 **Auth features для будущих фаз:**
 
@@ -274,11 +280,11 @@ Row-Level Security — кто видит какие записи.
 
 Переход от admin-only к полноценному CRM-интерфейсу.
 
-#### Phase 7a: Shell + Auth UI
+#### Phase 7a: Shell + Auth UI (частично в Phase 5 ✅)
 
-- [ ] Login page, register page
-- [ ] Auth store (Pinia): JWT management, auto-refresh
-- [ ] Protected routes (navigation guard)
+- [x] Login page, forgot-password, reset-password pages (Phase 5)
+- [x] Auth store (Pinia): JWT management, auto-refresh, 401 interceptor (Phase 5)
+- [x] Protected routes (navigation guard) (Phase 5)
 - [ ] App shell: top nav, user menu, global search placeholder
 
 #### Phase 7b: Dynamic Record UI
@@ -474,7 +480,7 @@ Event-driven архитектура для интеграций.
 ## Приоритеты и зависимости
 
 ```
-Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ✅ ──→ Phase 4 ✅ ──→ Phase 5
+Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ✅ ──→ Phase 4 ✅ ──→ Phase 5 ✅
                                   │                │          │          │
                                   │                ▼          ▼          ▼
                                   │           Phase 10    Phase 13   Phase 7a
@@ -499,7 +505,7 @@ Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ✅ �
 Минимальный набор для рабочей CRM:
 
 ```
-Phase 2b/2c ✅ → Phase 3 ✅ → Phase 4 ✅ → Phase 5 → Phase 6 → Phase 7 → v0.1.0
+Phase 2b/2c ✅ → Phase 3 ✅ → Phase 4 ✅ → Phase 5 ✅ → Phase 6 → Phase 7 → v0.1.0
 ```
 
 Это покрывает: security → query → mutation → auth → standard objects → UI.
@@ -540,8 +546,8 @@ Phase 2b/2c ✅ → Phase 3 ✅ → Phase 4 ✅ → Phase 5 → Phase 6 → Phas
 | Версия | Фазы | Что пользователь получает |
 |--------|-------|--------------------------|
 | **v0.1.0-alpha** | 0-2 | Metadata engine + полный security (OLS/FLS/RLS + Groups + Sharing Rules) + Territory Management (ee/) ✅ |
-| **v0.2.0-alpha** | 3-4 | SOQL + DML — данные можно читать и писать через платформу с полным security enforcement ✅ |
-| **v0.3.0-beta** | 5-6 | Auth + standard objects — можно логиниться и работать с CRM-данными |
+| **v0.2.0-alpha** | 3-5 | SOQL + DML + Auth — данные можно читать/писать с security enforcement, JWT-аутентификация ✅ |
+| **v0.3.0-beta** | 6-7 | Standard objects + Record UI — можно логиниться и работать с CRM-данными |
 | **v0.4.0-beta** | 7 | Полноценный UI — CRM можно использовать через браузер |
 | **v0.5.0-beta** | 8 | Notifications + dashboards — CRM как рабочий инструмент |
 | **v1.0.0** | 9-10 | Record types, formulas, validation — production-ready |
@@ -567,4 +573,4 @@ Phase 2b/2c ✅ → Phase 3 ✅ → Phase 4 ✅ → Phase 5 → Phase 6 → Phas
 
 ---
 
-*Этот документ обновляется по мере завершения фаз. Последнее обновление: 2026-02-12.*
+*Этот документ обновляется по мере завершения фаз. Последнее обновление: 2026-02-13.*

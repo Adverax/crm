@@ -4,12 +4,21 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 )
 
 type Config struct {
-	Port     int
-	DB       DatabaseConfig
-	LogLevel string
+	Port                 int
+	DB                   DatabaseConfig
+	LogLevel             string
+	JWT                  JWTConfig
+	AdminInitialPassword string
+}
+
+type JWTConfig struct {
+	Secret     string
+	AccessTTL  time.Duration
+	RefreshTTL time.Duration
 }
 
 type DatabaseConfig struct {
@@ -40,6 +49,12 @@ func Load() Config {
 			Name:     getEnv("DB_NAME", "crm"),
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
 		},
+		JWT: JWTConfig{
+			Secret:     getEnv("JWT_SECRET", ""),
+			AccessTTL:  getEnvDuration("JWT_ACCESS_TTL", 15*time.Minute),
+			RefreshTTL: getEnvDuration("JWT_REFRESH_TTL", 168*time.Hour),
+		},
+		AdminInitialPassword: getEnv("ADMIN_INITIAL_PASSWORD", ""),
 	}
 }
 
@@ -48,6 +63,18 @@ func getEnv(key, fallback string) string {
 		return val
 	}
 	return fallback
+}
+
+func getEnvDuration(key string, fallback time.Duration) time.Duration {
+	val := os.Getenv(key)
+	if val == "" {
+		return fallback
+	}
+	d, err := time.ParseDuration(val)
+	if err != nil {
+		return fallback
+	}
+	return d
 }
 
 func getEnvInt(key string, fallback int) int {

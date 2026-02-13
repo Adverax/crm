@@ -11,6 +11,8 @@ servers:
 tags:
   - name: system
     description: System health and diagnostics
+  - name: auth
+    description: Authentication and authorization
   - name: metadata-objects
     description: Object definition management
   - name: metadata-fields
@@ -38,6 +40,160 @@ paths:
                   status:
                     type: string
                     example: ok
+
+  /api/v1/auth/login:
+    post:
+      summary: Authenticate user
+      operationId: login
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPairResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/auth/refresh:
+    post:
+      summary: Refresh access token
+      operationId: refreshToken
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPairResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/auth/logout:
+    post:
+      summary: Logout (revoke refresh token)
+      operationId: logout
+      tags:
+        - auth
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        "204":
+          description: Logged out
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/auth/me:
+    get:
+      summary: Get current user info
+      operationId: getMe
+      tags:
+        - auth
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfoResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/auth/forgot-password:
+    post:
+      summary: Request password reset
+      operationId: forgotPassword
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPasswordRequest"
+      responses:
+        "200":
+          description: If the email exists, a reset link has been sent
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/v1/auth/reset-password:
+    post:
+      summary: Reset password with token
+      operationId: resetPassword
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "200":
+          description: Password has been reset
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/v1/admin/security/users/{userId}/password:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      summary: Set user password (admin)
+      operationId: setUserPassword
+      tags:
+        - auth
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetPasswordRequest"
+      responses:
+        "200":
+          description: Password updated
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /api/v1/admin/metadata/objects:
     post:
@@ -392,7 +548,107 @@ components:
         minimum: 1
         maximum: 100
 
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   schemas:
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+
+    RefreshRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+
+    ForgotPasswordRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+
+    ResetPasswordRequest:
+      type: object
+      required:
+        - token
+        - password
+      properties:
+        token:
+          type: string
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+
+    SetPasswordRequest:
+      type: object
+      required:
+        - password
+      properties:
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+
+    TokenPair:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+
+    TokenPairResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/TokenPair"
+
+    UserInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        email:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        profile_id:
+          type: string
+          format: uuid
+        role_id:
+          type: string
+          format: uuid
+        is_active:
+          type: boolean
+
+    UserInfoResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/UserInfo"
+
     CreateObjectRequest:
       type: object
       required:
@@ -829,6 +1085,12 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
     NotFound:
       description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Authentication required or invalid
       content:
         application/json:
           schema:

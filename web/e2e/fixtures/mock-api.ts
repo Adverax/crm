@@ -282,7 +282,75 @@ function singleResponse<T>(item: T) {
   return { data: item }
 }
 
+// ─── Auth mock data ────────────────────────────────────────
+
+export const mockAuthMe = {
+  id: 'u1111111-1111-1111-1111-111111111111',
+  username: 'admin',
+  email: 'admin@example.com',
+  first_name: 'Иван',
+  last_name: 'Иванов',
+}
+
+export const mockTokenPair = {
+  access_token: 'mock-access-token-jwt',
+  refresh_token: 'mock-refresh-token-hex',
+}
+
+// ─── Auth helpers ──────────────────────────────────────────
+
+export async function seedAuthToken(page: Page) {
+  await page.addInitScript(() => {
+    localStorage.setItem('crm_access_token', 'mock-access-token-jwt')
+    localStorage.setItem('crm_refresh_token', 'mock-refresh-token-hex')
+  })
+}
+
 // ─── Route setup ────────────────────────────────────────────
+
+export async function setupAuthRoutes(page: Page) {
+  await page.route('**/api/v1/auth/login', (route) => {
+    if (route.request().method() === 'POST') {
+      return route.fulfill({ json: { data: mockTokenPair } })
+    }
+    return route.continue()
+  })
+
+  await page.route('**/api/v1/auth/refresh', (route) => {
+    if (route.request().method() === 'POST') {
+      return route.fulfill({ json: { data: mockTokenPair } })
+    }
+    return route.continue()
+  })
+
+  await page.route('**/api/v1/auth/logout', (route) => {
+    if (route.request().method() === 'POST') {
+      return route.fulfill({ status: 204 })
+    }
+    return route.continue()
+  })
+
+  await page.route('**/api/v1/auth/me', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ json: { data: mockAuthMe } })
+    }
+    return route.continue()
+  })
+
+  await page.route('**/api/v1/auth/forgot-password', (route) => {
+    if (route.request().method() === 'POST') {
+      return route.fulfill({ json: {} })
+    }
+    return route.continue()
+  })
+
+  await page.route('**/api/v1/auth/reset-password', (route) => {
+    if (route.request().method() === 'POST') {
+      return route.fulfill({ json: {} })
+    }
+    return route.continue()
+  })
+}
 
 export async function setupMetadataRoutes(page: Page) {
   // List objects
@@ -800,6 +868,8 @@ export async function setupTerritoryRoutes(page: Page) {
 }
 
 export async function setupAllRoutes(page: Page) {
+  await seedAuthToken(page)
+  await setupAuthRoutes(page)
   await setupMetadataRoutes(page)
   await setupSecurityRoutes(page)
   await setupGroupRoutes(page)

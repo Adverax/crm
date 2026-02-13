@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"github.com/adverax/crm/internal/modules/auth"
 	"github.com/adverax/crm/internal/pkg/apperror"
 	"github.com/adverax/crm/internal/platform/security"
 )
@@ -19,6 +20,7 @@ type SecurityHandler struct {
 	permissionService  security.PermissionService
 	groupService       security.GroupService
 	sharingRuleService security.SharingRuleService
+	authService        auth.Service
 }
 
 // NewSecurityHandler creates a new SecurityHandler.
@@ -30,6 +32,7 @@ func NewSecurityHandler(
 	permissionService security.PermissionService,
 	groupService security.GroupService,
 	sharingRuleService security.SharingRuleService,
+	authService auth.Service,
 ) *SecurityHandler {
 	return &SecurityHandler{
 		roleService:        roleService,
@@ -39,6 +42,7 @@ func NewSecurityHandler(
 		permissionService:  permissionService,
 		groupService:       groupService,
 		sharingRuleService: sharingRuleService,
+		authService:        authService,
 	}
 }
 
@@ -69,6 +73,8 @@ func (h *SecurityHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	sec.GET("/users/:id", h.GetUser)
 	sec.PUT("/users/:id", h.UpdateUser)
 	sec.DELETE("/users/:id", h.DeleteUser)
+
+	sec.PUT("/users/:id/password", h.SetUserPassword)
 
 	sec.POST("/users/:id/permission-sets", h.AssignPermissionSet)
 	sec.DELETE("/users/:id/permission-sets/:psId", h.RevokePermissionSet)
@@ -383,6 +389,23 @@ func (h *SecurityHandler) DeleteUser(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+func (h *SecurityHandler) SetUserPassword(c *gin.Context) {
+	id, err := parseUUID(c, "id")
+	if err != nil {
+		return
+	}
+	var req auth.SetPasswordInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		apperror.Respond(c, apperror.BadRequest("invalid request body"))
+		return
+	}
+	if err := h.authService.SetPassword(c.Request.Context(), id, req.Password); err != nil {
+		apperror.Respond(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "password updated"})
 }
 
 // --- User Permission Sets ---

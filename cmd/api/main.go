@@ -16,6 +16,7 @@ import (
 
 	"github.com/adverax/crm/internal/handler"
 	"github.com/adverax/crm/internal/middleware"
+	"github.com/adverax/crm/internal/modules/auth"
 	"github.com/adverax/crm/internal/pkg/config"
 	"github.com/adverax/crm/internal/pkg/database"
 	"github.com/adverax/crm/internal/platform/dml"
@@ -47,7 +48,7 @@ func main() {
 	defer pool.Close()
 	slog.Info("database connected", "host", cfg.DB.Host, "db", cfg.DB.Name)
 
-	router := setupRouter(pool)
+	router := setupRouter(pool, cfg)
 
 	// Start outbox worker
 	workerCtx, workerCancel := context.WithCancel(ctx)
@@ -88,7 +89,7 @@ func main() {
 	slog.Info("server stopped")
 }
 
-func setupRouter(pool *pgxpool.Pool) *gin.Engine {
+func setupRouter(pool *pgxpool.Pool, cfg config.Config) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 
@@ -143,13 +144,49 @@ func setupRouter(pool *pgxpool.Pool) *gin.Engine {
 	groupService := security.NewGroupService(pool, groupRepo, memberRepo, outboxRepo)
 	sharingRuleService := security.NewSharingRuleService(pool, sharingRuleRepo, groupRepo, outboxRepo)
 
-	// Dev auth middleware (replaces JWT in Phase 5)
-	router.Use(middleware.DevAuth(userRepo, security.SystemAdminUserID))
+	// --- Auth module ---
+	userAuthRepo := auth.NewPgUserAuthRepository(pool)
+	refreshTokenRepo := auth.NewPgRefreshTokenRepository(pool)
+	resetTokenRepo := auth.NewPgPasswordResetTokenRepository(pool)
+	emailSender := auth.NewConsoleEmailSender()
+	rateLimiter := auth.NewRateLimiter(5, 15*time.Minute)
+
+	jwtSecret := cfg.JWT.Secret
+	if jwtSecret == "" {
+		slog.Error("JWT_SECRET environment variable is required")
+		os.Exit(1)
+	}
+
+	authService := auth.NewService(auth.ServiceConfig{
+		UserRepo:     userAuthRepo,
+		RefreshRepo:  refreshTokenRepo,
+		ResetRepo:    resetTokenRepo,
+		EmailSender:  emailSender,
+		JWTSecret:    jwtSecret,
+		AccessTTL:    cfg.JWT.AccessTTL,
+		RefreshTTL:   cfg.JWT.RefreshTTL,
+		ResetBaseURL: getEnv("RESET_PASSWORD_URL", "http://localhost:5173/reset-password"),
+	})
+
+	// Admin password startup hook
+	seedAdminPassword(ctx, userAuthRepo, cfg.AdminInitialPassword)
+
+	// Public auth routes (before JWT middleware)
+	authHandler := auth.NewHandler(authService, rateLimiter)
+	publicAPI := router.Group("/api/v1")
+	authHandler.RegisterPublicRoutes(publicAPI)
+
+	// JWT auth middleware for all protected routes
+	router.Use(middleware.JWTAuth([]byte(jwtSecret)))
+
+	// Protected auth routes
+	protectedAPI := router.Group("/api/v1")
+	authHandler.RegisterProtectedRoutes(protectedAPI)
 
 	// Admin routes
 	adminGroup := router.Group("/api/v1/admin")
 	metadataHandler.RegisterRoutes(adminGroup)
-	secHandler := handler.NewSecurityHandler(roleService, psService, profileService, userService, permissionService, groupService, sharingRuleService)
+	secHandler := handler.NewSecurityHandler(roleService, psService, profileService, userService, permissionService, groupService, sharingRuleService, authService)
 	secHandler.RegisterRoutes(adminGroup)
 
 	// Territory management (enterprise only, no-op in community build)
@@ -232,6 +269,45 @@ func startOutboxWorker(ctx context.Context, pool *pgxpool.Pool, dsn string, logg
 	}()
 
 	slog.Info("outbox worker started")
+}
+
+func seedAdminPassword(ctx context.Context, userAuthRepo auth.UserAuthRepository, password string) {
+	if password == "" {
+		return
+	}
+
+	user, err := userAuthRepo.GetByID(ctx, security.SystemAdminUserID)
+	if err != nil {
+		slog.Error("failed to load admin user for password seeding", "error", err)
+		return
+	}
+	if user == nil {
+		slog.Warn("admin user not found, skipping password seed")
+		return
+	}
+	if user.PasswordHash != "" {
+		return
+	}
+
+	hash, err := auth.HashPassword(password)
+	if err != nil {
+		slog.Error("failed to hash admin password", "error", err)
+		return
+	}
+
+	if err := userAuthRepo.SetPassword(ctx, security.SystemAdminUserID, hash); err != nil {
+		slog.Error("failed to set admin password", "error", err)
+		return
+	}
+
+	slog.Info("admin initial password set from ADMIN_INITIAL_PASSWORD")
+}
+
+func getEnv(key, fallback string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	return fallback
 }
 
 func parseLogLevel(level string) slog.Level {

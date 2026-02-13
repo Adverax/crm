@@ -1,5 +1,7 @@
 # Adverax CRM
 
+[![CI](https://github.com/adverax/crm/actions/workflows/ci.yml/badge.svg)](https://github.com/adverax/crm/actions/workflows/ci.yml)
+
 **Open-source CRM platform with Salesforce-grade security and metadata-driven architecture.**
 
 Build custom objects, enforce 3-layer security (OLS/FLS/RLS), and query data through a unified SOQL engine — all self-hosted on PostgreSQL.
@@ -193,11 +195,11 @@ make docker-reset     # Reset all data and restart
 | Phase 2c | Done | Groups — personal, role, role & subordinates, public |
 | Phase 3 | Done | SOQL parser and executor |
 | Phase 4 | Done | DML engine |
-| Phase 5 | Next | Auth module (JWT, login, register) |
-| Phase 6 | Planned | Standard objects (contacts, accounts, deals, tasks) |
-| Phase 7 | Planned | Vue.js frontend — shell, auth, object views |
+| Phase 5 | Done | Auth module — JWT, login, password reset, rate limiting |
+| Phase 6 | Next | Standard objects (contacts, accounts, deals, tasks) |
+| Phase 7 | Planned | Vue.js frontend — record UI, dynamic forms |
 
-The security engine, SOQL query engine, and DML engine are **fully implemented** (16 ADRs). The platform can create objects, manage permissions, enforce row-level access control, query data through SOQL, and perform all DML operations today.
+The security engine, SOQL query engine, DML engine, and auth module are **fully implemented** (17 ADRs). The platform can create objects, manage permissions, enforce row-level access control, query data through SOQL, perform all DML operations, and authenticate users via JWT today.
 
 ---
 
@@ -215,8 +217,9 @@ Every significant decision is documented as an ADR in [`docs/adr/`](docs/adr/):
 | [0011](docs/adr/0011-row-level-security-model.md) | RLS: OWD + sharing rules + role hierarchy |
 | [0012](docs/adr/0012-security-caching-strategy.md) | Closure tables + outbox for cache invalidation |
 | [0014](docs/adr/0014-licensing-and-business-model.md) | Open Core: AGPL v3 + proprietary ee/ |
+| [0017](docs/adr/0017-auth-module.md) | JWT auth: access + refresh tokens, bcrypt, rate limiting |
 
-[All 14 ADRs →](docs/adr/)
+[All 17 ADRs →](docs/adr/)
 
 ---
 

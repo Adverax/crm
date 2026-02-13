@@ -10,9 +10,28 @@ const router = createRouter({
       component: HomeView,
     },
     {
+      path: '/login',
+      name: 'login',
+      component: () => import('../views/LoginView.vue'),
+      meta: { public: true },
+    },
+    {
+      path: '/forgot-password',
+      name: 'forgot-password',
+      component: () => import('../views/ForgotPasswordView.vue'),
+      meta: { public: true },
+    },
+    {
+      path: '/reset-password',
+      name: 'reset-password',
+      component: () => import('../views/ResetPasswordView.vue'),
+      meta: { public: true },
+    },
+    {
       path: '/admin',
       component: () => import('../layouts/AdminLayout.vue'),
       redirect: '/admin/metadata/objects',
+      meta: { requiresAuth: true },
       children: [
         {
           path: 'metadata/objects',
@@ -169,6 +188,26 @@ const router = createRouter({
       ],
     },
   ],
+})
+
+router.beforeEach((to) => {
+  const isPublic = to.meta.public === true
+  const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
+
+  if (requiresAuth && !isPublic) {
+    const token = localStorage.getItem('crm_access_token')
+    if (!token) {
+      return { name: 'login', query: { redirect: to.fullPath } }
+    }
+  }
+
+  // Redirect authenticated users away from login
+  if (to.name === 'login') {
+    const token = localStorage.getItem('crm_access_token')
+    if (token) {
+      return { path: '/admin' }
+    }
+  }
 })
 
 export default router

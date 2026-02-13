@@ -11,9 +11,13 @@ export class HttpError extends Error {
   }
 }
 
+type RefreshHandler = () => Promise<boolean>
+
 class HttpClient {
   private baseUrl: string
   private token: string | null = null
+  private refreshHandler: RefreshHandler | null = null
+  private isRefreshing = false
 
   constructor(baseUrl = '') {
     this.baseUrl = baseUrl
@@ -21,6 +25,10 @@ class HttpClient {
 
   setToken(token: string | null) {
     this.token = token
+  }
+
+  setRefreshHandler(handler: RefreshHandler) {
+    this.refreshHandler = handler
   }
 
   private buildHeaders(): Record<string, string> {
@@ -68,6 +76,32 @@ class HttpClient {
     const json = await response.json()
 
     if (!response.ok) {
+      if (response.status === 401 && this.refreshHandler && !this.isRefreshing) {
+        this.isRefreshing = true
+        try {
+          const refreshed = await this.refreshHandler()
+          if (refreshed) {
+            // Retry the original request with new token
+            const retryInit: RequestInit = {
+              method,
+              headers: this.buildHeaders(),
+            }
+            if (options?.body) {
+              retryInit.body = JSON.stringify(camelToSnake(options.body))
+            }
+            const retryResponse = await fetch(url, retryInit)
+            if (retryResponse.status === 204) return undefined as T
+            const retryJson = await retryResponse.json()
+            if (!retryResponse.ok) {
+              const retryError = snakeToCamel<{ error: ApiError }>(retryJson)
+              throw new HttpError(retryResponse.status, retryError.error)
+            }
+            return snakeToCamel<T>(retryJson)
+          }
+        } finally {
+          this.isRefreshing = false
+        }
+      }
       const apiError = snakeToCamel<{ error: ApiError }>(json)
       throw new HttpError(response.status, apiError.error)
     }
