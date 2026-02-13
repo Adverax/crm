@@ -191,13 +191,13 @@ make docker-reset     # Reset all data and restart
 | Phase 2a | Done | Identity + Permissions — users, profiles, permission sets, OLS, FLS |
 | Phase 2b | Done | RLS core — OWD, share tables, role hierarchy, sharing rules |
 | Phase 2c | Done | Groups — personal, role, role & subordinates, public |
-| Phase 3 | Next | SOQL parser and executor |
-| Phase 4 | Planned | DML engine |
-| Phase 5 | Planned | Auth module (JWT, login, register) |
+| Phase 3 | Done | SOQL parser and executor |
+| Phase 4 | Done | DML engine |
+| Phase 5 | Next | Auth module (JWT, login, register) |
 | Phase 6 | Planned | Standard objects (contacts, accounts, deals, tasks) |
 | Phase 7 | Planned | Vue.js frontend — shell, auth, object views |
 
-The security engine is **fully implemented** (38 migrations, 14 ADRs). The platform can create objects, manage permissions, and enforce row-level access control today.
+The security engine, SOQL query engine, and DML engine are **fully implemented** (16 ADRs). The platform can create objects, manage permissions, enforce row-level access control, query data through SOQL, and perform all DML operations today.
 
 ---
 
