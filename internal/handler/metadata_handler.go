@@ -455,13 +455,6 @@ func derefBool(b *bool) bool {
 	return *b
 }
 
-func derefInt(i *int) int {
-	if i == nil {
-		return 0
-	}
-	return *i
-}
-
 func derefVisibility[T ~string](v *T) string {
 	if v == nil {
 		return "private"

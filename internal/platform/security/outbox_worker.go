@@ -58,7 +58,7 @@ func (w *OutboxWorker) runLoop(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("outboxWorker.runLoop: connect: %w", err)
 	}
-	defer conn.Close(ctx)
+	defer func() { _ = conn.Close(ctx) }()
 
 	_, err = conn.Exec(ctx, "LISTEN security_outbox")
 	if err != nil {

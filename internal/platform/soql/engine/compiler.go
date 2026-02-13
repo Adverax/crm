@@ -703,10 +703,7 @@ func (c *Compiler) compileTypeof(ctx *compileContext, typeof *TypeofExpression) 
 
 	// Type column name - derive from Column by replacing _id with _type
 	// e.g., "what_id" -> "what_type", or if no _id suffix, append _type
-	baseColumn := polyField.Column
-	if strings.HasSuffix(baseColumn, "_id") {
-		baseColumn = strings.TrimSuffix(baseColumn, "_id")
-	}
+	baseColumn := strings.TrimSuffix(polyField.Column, "_id")
 	typeColumn := qualifiedColumn(ctx.mainAlias, baseColumn+"_type")
 
 	// Process each WHEN clause
@@ -772,11 +769,8 @@ func (c *Compiler) getOrCreateTypeofJoin(ctx *compileContext, polyFieldName, obj
 
 	// Derive id and type columns from the polymorphic field's Column
 	// e.g., "what_id" -> idColumn="what_id", typeColumn="what_type"
-	baseColumn := polyField.Column
-	idColumn := baseColumn
-	if strings.HasSuffix(baseColumn, "_id") {
-		baseColumn = strings.TrimSuffix(baseColumn, "_id")
-	}
+	idColumn := polyField.Column
+	baseColumn := strings.TrimSuffix(polyField.Column, "_id")
 	typeColumn := baseColumn + "_type"
 
 	// Polymorphic join: LEFT JOIN on both id and type match

@@ -516,8 +516,8 @@ func TestDateCapture(t *testing.T) {
 			}
 			if !tt.wantErr {
 				expected := tt.input
-				if d.Time.Format("2006-01-02") != expected {
-					t.Errorf("Date = %v, want %v", d.Time.Format("2006-01-02"), expected)
+				if d.Format("2006-01-02") != expected {
+					t.Errorf("Date = %v, want %v", d.Format("2006-01-02"), expected)
 				}
 			}
 		})
