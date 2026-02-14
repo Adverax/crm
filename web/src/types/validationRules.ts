@@ -1,46 +1,9 @@
-export type Severity = 'error' | 'warning'
+import type { components } from './openapi'
+import type { CamelCaseKeys } from './camelcase'
 
-export interface ValidationRule {
-  id: string
-  objectId: string
-  apiName: string
-  label: string
-  description: string
-  expression: string
-  errorMessage: string
-  errorCode: string
-  severity: Severity
-  whenExpression: string | null
-  appliesTo: string
-  sortOrder: number
-  isActive: boolean
-  createdAt: string
-  updatedAt: string
-}
+// --- Derived from OpenAPI spec (single source of truth) ---
 
-export interface CreateValidationRuleRequest {
-  apiName: string
-  label: string
-  expression: string
-  errorMessage: string
-  errorCode?: string
-  severity?: Severity
-  whenExpression?: string
-  appliesTo?: string
-  sortOrder?: number
-  isActive?: boolean
-  description?: string
-}
-
-export interface UpdateValidationRuleRequest {
-  label: string
-  expression: string
-  errorMessage: string
-  errorCode?: string
-  severity?: Severity
-  whenExpression?: string
-  appliesTo?: string
-  sortOrder?: number
-  isActive?: boolean
-  description?: string
-}
+export type Severity = components['schemas']['CreateValidationRuleRequest']['severity']
+export type ValidationRule = CamelCaseKeys<components['schemas']['ValidationRule']>
+export type CreateValidationRuleRequest = CamelCaseKeys<components['schemas']['CreateValidationRuleRequest']>
+export type UpdateValidationRuleRequest = CamelCaseKeys<components['schemas']['UpdateValidationRuleRequest']>

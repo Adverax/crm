@@ -57,9 +57,11 @@ func (m *mockRecordService) Delete(ctx context.Context, objectName string, recor
 	return nil
 }
 
-func setupRecordRouter(h *RecordHandler) *gin.Engine {
+func setupRecordRouter(t *testing.T, h *RecordHandler) *gin.Engine {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
+	r.Use(contractValidationMiddleware(t))
 	api := r.Group("/api/v1")
 	h.RegisterRoutes(api)
 	return r
@@ -114,7 +116,7 @@ func TestRecordHandler_ListRecords(t *testing.T) {
 				tt.setupSvc(svc)
 			}
 			h := NewRecordHandler(svc)
-			r := setupRecordRouter(h)
+			r := setupRecordRouter(t, h)
 
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodGet, tt.url, nil)
@@ -176,7 +178,7 @@ func TestRecordHandler_GetRecord(t *testing.T) {
 				tt.setupSvc(svc)
 			}
 			h := NewRecordHandler(svc)
-			r := setupRecordRouter(h)
+			r := setupRecordRouter(t, h)
 
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodGet, tt.url, nil)
@@ -233,7 +235,7 @@ func TestRecordHandler_CreateRecord(t *testing.T) {
 				tt.setupSvc(svc)
 			}
 			h := NewRecordHandler(svc)
-			r := setupRecordRouter(h)
+			r := setupRecordRouter(t, h)
 
 			body, _ := json.Marshal(tt.body)
 			w := httptest.NewRecorder()
@@ -292,7 +294,7 @@ func TestRecordHandler_UpdateRecord(t *testing.T) {
 				tt.setupSvc(svc)
 			}
 			h := NewRecordHandler(svc)
-			r := setupRecordRouter(h)
+			r := setupRecordRouter(t, h)
 
 			body, _ := json.Marshal(tt.body)
 			w := httptest.NewRecorder()
@@ -352,7 +354,7 @@ func TestRecordHandler_DeleteRecord(t *testing.T) {
 				tt.setupSvc(svc)
 			}
 			h := NewRecordHandler(svc)
-			r := setupRecordRouter(h)
+			r := setupRecordRouter(t, h)
 
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodDelete, "/api/v1/records/Account/some-id", nil)

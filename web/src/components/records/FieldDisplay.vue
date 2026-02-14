@@ -26,9 +26,9 @@ function formatValue(): string {
     }
   }
 
-  if (props.field.fieldType === 'picklist' && props.field.config.values) {
+  if (props.field.fieldType === 'picklist' && props.field.config?.values) {
     const opt = props.field.config.values.find((v) => v.value === val)
-    if (opt) return opt.label
+    if (opt?.label) return opt.label
   }
 
   return String(val)

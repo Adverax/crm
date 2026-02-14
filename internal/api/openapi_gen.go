@@ -20,6 +20,10 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+const (
+	BearerAuthScopes = "BearerAuth.Scopes"
+)
+
 // Defines values for CreateFieldRequestFieldSubtype.
 const (
 	CreateFieldRequestFieldSubtypeArea        CreateFieldRequestFieldSubtype = "area"
@@ -67,11 +71,50 @@ const (
 	CreateObjectRequestVisibilityPublicReadWrite    CreateObjectRequestVisibility = "public_read_write"
 )
 
+// Defines values for CreateValidationRuleRequestSeverity.
+const (
+	CreateValidationRuleRequestSeverityError   CreateValidationRuleRequestSeverity = "error"
+	CreateValidationRuleRequestSeverityWarning CreateValidationRuleRequestSeverity = "warning"
+)
+
 // Defines values for FieldConfigOnDelete.
 const (
 	Cascade  FieldConfigOnDelete = "cascade"
 	Restrict FieldConfigOnDelete = "restrict"
 	SetNull  FieldConfigOnDelete = "set_null"
+)
+
+// Defines values for FieldDefinitionSchemaFieldSubtype.
+const (
+	FieldDefinitionSchemaFieldSubtypeArea        FieldDefinitionSchemaFieldSubtype = "area"
+	FieldDefinitionSchemaFieldSubtypeAssociation FieldDefinitionSchemaFieldSubtype = "association"
+	FieldDefinitionSchemaFieldSubtypeAutoNumber  FieldDefinitionSchemaFieldSubtype = "auto_number"
+	FieldDefinitionSchemaFieldSubtypeComposition FieldDefinitionSchemaFieldSubtype = "composition"
+	FieldDefinitionSchemaFieldSubtypeCurrency    FieldDefinitionSchemaFieldSubtype = "currency"
+	FieldDefinitionSchemaFieldSubtypeDate        FieldDefinitionSchemaFieldSubtype = "date"
+	FieldDefinitionSchemaFieldSubtypeDatetime    FieldDefinitionSchemaFieldSubtype = "datetime"
+	FieldDefinitionSchemaFieldSubtypeDecimal     FieldDefinitionSchemaFieldSubtype = "decimal"
+	FieldDefinitionSchemaFieldSubtypeEmail       FieldDefinitionSchemaFieldSubtype = "email"
+	FieldDefinitionSchemaFieldSubtypeInteger     FieldDefinitionSchemaFieldSubtype = "integer"
+	FieldDefinitionSchemaFieldSubtypeMulti       FieldDefinitionSchemaFieldSubtype = "multi"
+	FieldDefinitionSchemaFieldSubtypePercent     FieldDefinitionSchemaFieldSubtype = "percent"
+	FieldDefinitionSchemaFieldSubtypePhone       FieldDefinitionSchemaFieldSubtype = "phone"
+	FieldDefinitionSchemaFieldSubtypePlain       FieldDefinitionSchemaFieldSubtype = "plain"
+	FieldDefinitionSchemaFieldSubtypePolymorphic FieldDefinitionSchemaFieldSubtype = "polymorphic"
+	FieldDefinitionSchemaFieldSubtypeRich        FieldDefinitionSchemaFieldSubtype = "rich"
+	FieldDefinitionSchemaFieldSubtypeSingle      FieldDefinitionSchemaFieldSubtype = "single"
+	FieldDefinitionSchemaFieldSubtypeTime        FieldDefinitionSchemaFieldSubtype = "time"
+	FieldDefinitionSchemaFieldSubtypeUrl         FieldDefinitionSchemaFieldSubtype = "url"
+)
+
+// Defines values for FieldDefinitionSchemaFieldType.
+const (
+	FieldDefinitionSchemaFieldTypeBoolean   FieldDefinitionSchemaFieldType = "boolean"
+	FieldDefinitionSchemaFieldTypeDatetime  FieldDefinitionSchemaFieldType = "datetime"
+	FieldDefinitionSchemaFieldTypeNumber    FieldDefinitionSchemaFieldType = "number"
+	FieldDefinitionSchemaFieldTypePicklist  FieldDefinitionSchemaFieldType = "picklist"
+	FieldDefinitionSchemaFieldTypeReference FieldDefinitionSchemaFieldType = "reference"
+	FieldDefinitionSchemaFieldTypeText      FieldDefinitionSchemaFieldType = "text"
 )
 
 // Defines values for ObjectDefinitionObjectType.
@@ -88,12 +131,31 @@ const (
 	ObjectDefinitionVisibilityPublicReadWrite    ObjectDefinitionVisibility = "public_read_write"
 )
 
+// Defines values for TemplateInfoStatus.
+const (
+	Applied   TemplateInfoStatus = "applied"
+	Available TemplateInfoStatus = "available"
+	Blocked   TemplateInfoStatus = "blocked"
+)
+
 // Defines values for UpdateObjectRequestVisibility.
 const (
 	ControlledByParent UpdateObjectRequestVisibility = "controlled_by_parent"
 	Private            UpdateObjectRequestVisibility = "private"
 	PublicRead         UpdateObjectRequestVisibility = "public_read"
 	PublicReadWrite    UpdateObjectRequestVisibility = "public_read_write"
+)
+
+// Defines values for UpdateValidationRuleRequestSeverity.
+const (
+	UpdateValidationRuleRequestSeverityError   UpdateValidationRuleRequestSeverity = "error"
+	UpdateValidationRuleRequestSeverityWarning UpdateValidationRuleRequestSeverity = "warning"
+)
+
+// Defines values for ValidationRuleSeverity.
+const (
+	Error   ValidationRuleSeverity = "error"
+	Warning ValidationRuleSeverity = "warning"
 )
 
 // Defines values for ListObjectsParamsObjectType.
@@ -152,6 +214,49 @@ type CreateObjectRequestObjectType string
 // CreateObjectRequestVisibility defines model for CreateObjectRequest.Visibility.
 type CreateObjectRequestVisibility string
 
+// CreateValidationRuleRequest defines model for CreateValidationRuleRequest.
+type CreateValidationRuleRequest struct {
+	ApiName      string  `json:"api_name"`
+	AppliesTo    *string `json:"applies_to,omitempty"`
+	Description  *string `json:"description,omitempty"`
+	ErrorCode    *string `json:"error_code,omitempty"`
+	ErrorMessage string  `json:"error_message"`
+
+	// Expression CEL expression that must return true for valid data
+	Expression string                               `json:"expression"`
+	IsActive   *bool                                `json:"is_active,omitempty"`
+	Label      string                               `json:"label"`
+	Severity   *CreateValidationRuleRequestSeverity `json:"severity,omitempty"`
+	SortOrder  *int                                 `json:"sort_order,omitempty"`
+
+	// WhenExpression Optional CEL condition for when this rule applies
+	WhenExpression *string `json:"when_expression,omitempty"`
+}
+
+// CreateValidationRuleRequestSeverity defines model for CreateValidationRuleRequest.Severity.
+type CreateValidationRuleRequestSeverity string
+
+// DMLRequest defines model for DMLRequest.
+type DMLRequest struct {
+	// Statement DML statement string
+	Statement string `json:"statement"`
+}
+
+// DMLResult defines model for DMLResult.
+type DMLResult struct {
+	// DeletedIds IDs of deleted records
+	DeletedIds *[]string `json:"deletedIds,omitempty"`
+
+	// InsertedIds IDs of inserted records
+	InsertedIds *[]string `json:"insertedIds,omitempty"`
+
+	// RowsAffected Number of rows affected
+	RowsAffected *int64 `json:"rowsAffected,omitempty"`
+
+	// UpdatedIds IDs of updated records
+	UpdatedIds *[]string `json:"updatedIds,omitempty"`
+}
+
 // ErrorBody defines model for ErrorBody.
 type ErrorBody struct {
 	Code    string `json:"code"`
@@ -165,6 +270,11 @@ type ErrorResponse struct {
 
 // FieldConfig defines model for FieldConfig.
 type FieldConfig struct {
+	// DefaultExpr CEL expression for dynamic default value
+	DefaultExpr *string `json:"default_expr,omitempty"`
+
+	// DefaultOn When to apply default (create, update, create,update)
+	DefaultOn        *string              `json:"default_on,omitempty"`
 	DefaultValue     *string              `json:"default_value,omitempty"`
 	Format           *string              `json:"format,omitempty"`
 	IsReparentable   *bool                `json:"is_reparentable,omitempty"`
@@ -181,24 +291,56 @@ type FieldConfigOnDelete string
 
 // FieldDefinitionSchema defines model for FieldDefinitionSchema.
 type FieldDefinitionSchema struct {
-	ApiName            *string             `json:"api_name,omitempty"`
-	Config             *FieldConfig        `json:"config,omitempty"`
-	CreatedAt          *time.Time          `json:"created_at,omitempty"`
-	Description        *string             `json:"description,omitempty"`
-	FieldSubtype       *string             `json:"field_subtype,omitempty"`
-	FieldType          *string             `json:"field_type,omitempty"`
-	HelpText           *string             `json:"help_text,omitempty"`
-	Id                 *openapi_types.UUID `json:"id,omitempty"`
-	IsCustom           *bool               `json:"is_custom,omitempty"`
-	IsPlatformManaged  *bool               `json:"is_platform_managed,omitempty"`
-	IsRequired         *bool               `json:"is_required,omitempty"`
-	IsSystemField      *bool               `json:"is_system_field,omitempty"`
-	IsUnique           *bool               `json:"is_unique,omitempty"`
-	Label              *string             `json:"label,omitempty"`
-	ObjectId           *openapi_types.UUID `json:"object_id,omitempty"`
-	ReferencedObjectId *openapi_types.UUID `json:"referenced_object_id,omitempty"`
-	SortOrder          *int                `json:"sort_order,omitempty"`
-	UpdatedAt          *time.Time          `json:"updated_at,omitempty"`
+	ApiName            string                             `json:"api_name"`
+	Config             FieldConfig                        `json:"config"`
+	CreatedAt          time.Time                          `json:"created_at"`
+	Description        string                             `json:"description"`
+	FieldSubtype       *FieldDefinitionSchemaFieldSubtype `json:"field_subtype,omitempty"`
+	FieldType          FieldDefinitionSchemaFieldType     `json:"field_type"`
+	HelpText           string                             `json:"help_text"`
+	Id                 openapi_types.UUID                 `json:"id"`
+	IsCustom           bool                               `json:"is_custom"`
+	IsPlatformManaged  bool                               `json:"is_platform_managed"`
+	IsRequired         bool                               `json:"is_required"`
+	IsSystemField      bool                               `json:"is_system_field"`
+	IsUnique           bool                               `json:"is_unique"`
+	Label              string                             `json:"label"`
+	ObjectId           openapi_types.UUID                 `json:"object_id"`
+	ReferencedObjectId *openapi_types.UUID                `json:"referenced_object_id,omitempty"`
+	SortOrder          int                                `json:"sort_order"`
+	UpdatedAt          time.Time                          `json:"updated_at"`
+}
+
+// FieldDefinitionSchemaFieldSubtype defines model for FieldDefinitionSchema.FieldSubtype.
+type FieldDefinitionSchemaFieldSubtype string
+
+// FieldDefinitionSchemaFieldType defines model for FieldDefinitionSchema.FieldType.
+type FieldDefinitionSchemaFieldType string
+
+// FieldDescribe defines model for FieldDescribe.
+type FieldDescribe struct {
+	ApiName string `json:"api_name"`
+	Config  struct {
+		DefaultValue *string `json:"default_value,omitempty"`
+		MaxLength    *int    `json:"max_length,omitempty"`
+		Precision    *int    `json:"precision,omitempty"`
+		Scale        *int    `json:"scale,omitempty"`
+		Values       *[]struct {
+			Id        string `json:"id"`
+			IsActive  bool   `json:"is_active"`
+			IsDefault bool   `json:"is_default"`
+			Label     string `json:"label"`
+			SortOrder int    `json:"sort_order"`
+			Value     string `json:"value"`
+		} `json:"values,omitempty"`
+	} `json:"config"`
+	FieldSubtype  *string `json:"field_subtype"`
+	FieldType     string  `json:"field_type"`
+	IsReadOnly    bool    `json:"is_read_only"`
+	IsRequired    bool    `json:"is_required"`
+	IsSystemField bool    `json:"is_system_field"`
+	Label         string  `json:"label"`
+	SortOrder     int     `json:"sort_order"`
 }
 
 // FieldListResponse defines model for FieldListResponse.
@@ -211,30 +353,41 @@ type FieldResponse struct {
 	Data *FieldDefinitionSchema `json:"data,omitempty"`
 }
 
+// ForgotPasswordRequest defines model for ForgotPasswordRequest.
+type ForgotPasswordRequest struct {
+	Email openapi_types.Email `json:"email"`
+}
+
+// LoginRequest defines model for LoginRequest.
+type LoginRequest struct {
+	Password string `json:"password"`
+	Username string `json:"username"`
+}
+
 // ObjectDefinition defines model for ObjectDefinition.
 type ObjectDefinition struct {
-	ApiName               *string                     `json:"api_name,omitempty"`
-	CreatedAt             *time.Time                  `json:"created_at,omitempty"`
-	Description           *string                     `json:"description,omitempty"`
-	HasActivities         *bool                       `json:"has_activities,omitempty"`
-	HasHistoryTracking    *bool                       `json:"has_history_tracking,omitempty"`
-	HasNotes              *bool                       `json:"has_notes,omitempty"`
-	HasSharingRules       *bool                       `json:"has_sharing_rules,omitempty"`
-	Id                    *openapi_types.UUID         `json:"id,omitempty"`
-	IsCreateable          *bool                       `json:"is_createable,omitempty"`
-	IsCustomFieldsAllowed *bool                       `json:"is_custom_fields_allowed,omitempty"`
-	IsDeleteable          *bool                       `json:"is_deleteable,omitempty"`
-	IsDeleteableObject    *bool                       `json:"is_deleteable_object,omitempty"`
-	IsPlatformManaged     *bool                       `json:"is_platform_managed,omitempty"`
-	IsQueryable           *bool                       `json:"is_queryable,omitempty"`
-	IsSearchable          *bool                       `json:"is_searchable,omitempty"`
-	IsUpdateable          *bool                       `json:"is_updateable,omitempty"`
-	IsVisibleInSetup      *bool                       `json:"is_visible_in_setup,omitempty"`
-	Label                 *string                     `json:"label,omitempty"`
-	ObjectType            *ObjectDefinitionObjectType `json:"object_type,omitempty"`
-	PluralLabel           *string                     `json:"plural_label,omitempty"`
-	UpdatedAt             *time.Time                  `json:"updated_at,omitempty"`
-	Visibility            *ObjectDefinitionVisibility `json:"visibility,omitempty"`
+	ApiName               string                     `json:"api_name"`
+	CreatedAt             time.Time                  `json:"created_at"`
+	Description           string                     `json:"description"`
+	HasActivities         bool                       `json:"has_activities"`
+	HasHistoryTracking    bool                       `json:"has_history_tracking"`
+	HasNotes              bool                       `json:"has_notes"`
+	HasSharingRules       bool                       `json:"has_sharing_rules"`
+	Id                    openapi_types.UUID         `json:"id"`
+	IsCreateable          bool                       `json:"is_createable"`
+	IsCustomFieldsAllowed bool                       `json:"is_custom_fields_allowed"`
+	IsDeleteable          bool                       `json:"is_deleteable"`
+	IsDeleteableObject    bool                       `json:"is_deleteable_object"`
+	IsPlatformManaged     bool                       `json:"is_platform_managed"`
+	IsQueryable           bool                       `json:"is_queryable"`
+	IsSearchable          bool                       `json:"is_searchable"`
+	IsUpdateable          bool                       `json:"is_updateable"`
+	IsVisibleInSetup      bool                       `json:"is_visible_in_setup"`
+	Label                 string                     `json:"label"`
+	ObjectType            ObjectDefinitionObjectType `json:"object_type"`
+	PluralLabel           string                     `json:"plural_label"`
+	UpdatedAt             time.Time                  `json:"updated_at"`
+	Visibility            ObjectDefinitionVisibility `json:"visibility"`
 }
 
 // ObjectDefinitionObjectType defines model for ObjectDefinition.ObjectType.
@@ -243,10 +396,30 @@ type ObjectDefinitionObjectType string
 // ObjectDefinitionVisibility defines model for ObjectDefinition.Visibility.
 type ObjectDefinitionVisibility string
 
+// ObjectDescribe defines model for ObjectDescribe.
+type ObjectDescribe struct {
+	ApiName      string          `json:"api_name"`
+	Fields       []FieldDescribe `json:"fields"`
+	IsCreateable bool            `json:"is_createable"`
+	IsDeleteable bool            `json:"is_deleteable"`
+	IsUpdateable bool            `json:"is_updateable"`
+	Label        string          `json:"label"`
+	PluralLabel  string          `json:"plural_label"`
+}
+
 // ObjectListResponse defines model for ObjectListResponse.
 type ObjectListResponse struct {
 	Data       *[]ObjectDefinition `json:"data,omitempty"`
 	Pagination *PaginationMeta     `json:"pagination,omitempty"`
+}
+
+// ObjectNavItem defines model for ObjectNavItem.
+type ObjectNavItem struct {
+	ApiName      string `json:"api_name"`
+	IsCreateable bool   `json:"is_createable"`
+	IsQueryable  bool   `json:"is_queryable"`
+	Label        string `json:"label"`
+	PluralLabel  string `json:"plural_label"`
 }
 
 // ObjectResponse defines model for ObjectResponse.
@@ -256,10 +429,87 @@ type ObjectResponse struct {
 
 // PaginationMeta defines model for PaginationMeta.
 type PaginationMeta struct {
-	Page       *int   `json:"page,omitempty"`
-	PerPage    *int   `json:"per_page,omitempty"`
-	Total      *int64 `json:"total,omitempty"`
-	TotalPages *int64 `json:"total_pages,omitempty"`
+	Page       int   `json:"page"`
+	PerPage    int   `json:"per_page"`
+	Total      int64 `json:"total"`
+	TotalPages int64 `json:"total_pages"`
+}
+
+// RefreshRequest defines model for RefreshRequest.
+type RefreshRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
+// ResetPasswordRequest defines model for ResetPasswordRequest.
+type ResetPasswordRequest struct {
+	Password string `json:"password"`
+	Token    string `json:"token"`
+}
+
+// SOQLRequest defines model for SOQLRequest.
+type SOQLRequest struct {
+	// PageSize Maximum number of records per page
+	PageSize *int `json:"pageSize,omitempty"`
+
+	// Query SOQL query string
+	Query string `json:"query"`
+}
+
+// SOQLResult defines model for SOQLResult.
+type SOQLResult struct {
+	// Done Whether all records have been returned
+	Done *bool `json:"done,omitempty"`
+
+	// NextRecordsUrl Cursor for fetching the next page (empty if done)
+	NextRecordsUrl *string `json:"nextRecordsUrl,omitempty"`
+
+	// Records Query result records
+	Records *[]map[string]interface{} `json:"records,omitempty"`
+
+	// TotalSize Total number of records returned
+	TotalSize *int `json:"totalSize,omitempty"`
+}
+
+// SetPasswordRequest defines model for SetPasswordRequest.
+type SetPasswordRequest struct {
+	Password string `json:"password"`
+}
+
+// TemplateApplyResponse defines model for TemplateApplyResponse.
+type TemplateApplyResponse struct {
+	Data *struct {
+		Message    *string `json:"message,omitempty"`
+		TemplateId *string `json:"template_id,omitempty"`
+	} `json:"data,omitempty"`
+}
+
+// TemplateInfo defines model for TemplateInfo.
+type TemplateInfo struct {
+	Description *string             `json:"description,omitempty"`
+	Fields      *int                `json:"fields,omitempty"`
+	Id          *string             `json:"id,omitempty"`
+	Label       *string             `json:"label,omitempty"`
+	Objects     *int                `json:"objects,omitempty"`
+	Status      *TemplateInfoStatus `json:"status,omitempty"`
+}
+
+// TemplateInfoStatus defines model for TemplateInfo.Status.
+type TemplateInfoStatus string
+
+// TemplateListResponse defines model for TemplateListResponse.
+type TemplateListResponse struct {
+	Data *[]TemplateInfo `json:"data,omitempty"`
+}
+
+// TokenPair defines model for TokenPair.
+type TokenPair struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+// TokenPairResponse defines model for TokenPairResponse.
+type TokenPairResponse struct {
+	Data *TokenPair `json:"data,omitempty"`
 }
 
 // UpdateFieldRequest defines model for UpdateFieldRequest.
@@ -296,11 +546,86 @@ type UpdateObjectRequest struct {
 // UpdateObjectRequestVisibility defines model for UpdateObjectRequest.Visibility.
 type UpdateObjectRequestVisibility string
 
+// UpdateValidationRuleRequest defines model for UpdateValidationRuleRequest.
+type UpdateValidationRuleRequest struct {
+	AppliesTo      *string                              `json:"applies_to,omitempty"`
+	Description    *string                              `json:"description,omitempty"`
+	ErrorCode      *string                              `json:"error_code,omitempty"`
+	ErrorMessage   string                               `json:"error_message"`
+	Expression     string                               `json:"expression"`
+	IsActive       *bool                                `json:"is_active,omitempty"`
+	Label          string                               `json:"label"`
+	Severity       *UpdateValidationRuleRequestSeverity `json:"severity,omitempty"`
+	SortOrder      *int                                 `json:"sort_order,omitempty"`
+	WhenExpression *string                              `json:"when_expression,omitempty"`
+}
+
+// UpdateValidationRuleRequestSeverity defines model for UpdateValidationRuleRequest.Severity.
+type UpdateValidationRuleRequestSeverity string
+
+// UserInfo defines model for UserInfo.
+type UserInfo struct {
+	Email     string              `json:"email"`
+	FirstName string              `json:"first_name"`
+	Id        openapi_types.UUID  `json:"id"`
+	IsActive  bool                `json:"is_active"`
+	LastName  string              `json:"last_name"`
+	ProfileId openapi_types.UUID  `json:"profile_id"`
+	RoleId    *openapi_types.UUID `json:"role_id"`
+	Username  string              `json:"username"`
+}
+
+// UserInfoResponse defines model for UserInfoResponse.
+type UserInfoResponse struct {
+	Data *UserInfo `json:"data,omitempty"`
+}
+
+// ValidationRule defines model for ValidationRule.
+type ValidationRule struct {
+	ApiName        string                 `json:"api_name"`
+	AppliesTo      string                 `json:"applies_to"`
+	CreatedAt      time.Time              `json:"created_at"`
+	Description    string                 `json:"description"`
+	ErrorCode      string                 `json:"error_code"`
+	ErrorMessage   string                 `json:"error_message"`
+	Expression     string                 `json:"expression"`
+	Id             openapi_types.UUID     `json:"id"`
+	IsActive       bool                   `json:"is_active"`
+	Label          string                 `json:"label"`
+	ObjectId       openapi_types.UUID     `json:"object_id"`
+	Severity       ValidationRuleSeverity `json:"severity"`
+	SortOrder      int                    `json:"sort_order"`
+	UpdatedAt      time.Time              `json:"updated_at"`
+	WhenExpression *string                `json:"when_expression"`
+}
+
+// ValidationRuleSeverity defines model for ValidationRule.Severity.
+type ValidationRuleSeverity string
+
+// ValidationRuleListResponse defines model for ValidationRuleListResponse.
+type ValidationRuleListResponse struct {
+	Data *[]ValidationRule `json:"data,omitempty"`
+}
+
+// ValidationRuleResponse defines model for ValidationRuleResponse.
+type ValidationRuleResponse struct {
+	Data *ValidationRule `json:"data,omitempty"`
+}
+
 // FieldId defines model for FieldId.
 type FieldId = openapi_types.UUID
 
 // ObjectId defines model for ObjectId.
 type ObjectId = openapi_types.UUID
+
+// Page defines model for Page.
+type Page = int
+
+// PerPage defines model for PerPage.
+type PerPage = int
+
+// RuleId defines model for RuleId.
+type RuleId = openapi_types.UUID
 
 // BadRequest defines model for BadRequest.
 type BadRequest = ErrorResponse
@@ -317,6 +642,9 @@ type InternalError = ErrorResponse
 // NotFound defines model for NotFound.
 type NotFound = ErrorResponse
 
+// Unauthorized defines model for Unauthorized.
+type Unauthorized = ErrorResponse
+
 // ListObjectsParams defines parameters for ListObjects.
 type ListObjectsParams struct {
 	Page       *int                         `form:"page,omitempty" json:"page,omitempty"`
@@ -326,6 +654,29 @@ type ListObjectsParams struct {
 
 // ListObjectsParamsObjectType defines parameters for ListObjects.
 type ListObjectsParamsObjectType string
+
+// LogoutJSONBody defines parameters for Logout.
+type LogoutJSONBody struct {
+	RefreshToken *string `json:"refresh_token,omitempty"`
+}
+
+// ExecuteQueryGetParams defines parameters for ExecuteQueryGet.
+type ExecuteQueryGetParams struct {
+	// Q SOQL query string
+	Q string `form:"q" json:"q"`
+}
+
+// ListRecordsParams defines parameters for ListRecords.
+type ListRecordsParams struct {
+	Page    *Page    `form:"page,omitempty" json:"page,omitempty"`
+	PerPage *PerPage `form:"per_page,omitempty" json:"per_page,omitempty"`
+}
+
+// CreateRecordJSONBody defines parameters for CreateRecord.
+type CreateRecordJSONBody map[string]interface{}
+
+// UpdateRecordJSONBody defines parameters for UpdateRecord.
+type UpdateRecordJSONBody map[string]interface{}
 
 // CreateObjectJSONRequestBody defines body for CreateObject for application/json ContentType.
 type CreateObjectJSONRequestBody = CreateObjectRequest
@@ -338,6 +689,42 @@ type CreateFieldJSONRequestBody = CreateFieldRequest
 
 // UpdateFieldJSONRequestBody defines body for UpdateField for application/json ContentType.
 type UpdateFieldJSONRequestBody = UpdateFieldRequest
+
+// CreateValidationRuleJSONRequestBody defines body for CreateValidationRule for application/json ContentType.
+type CreateValidationRuleJSONRequestBody = CreateValidationRuleRequest
+
+// UpdateValidationRuleJSONRequestBody defines body for UpdateValidationRule for application/json ContentType.
+type UpdateValidationRuleJSONRequestBody = UpdateValidationRuleRequest
+
+// SetUserPasswordJSONRequestBody defines body for SetUserPassword for application/json ContentType.
+type SetUserPasswordJSONRequestBody = SetPasswordRequest
+
+// ForgotPasswordJSONRequestBody defines body for ForgotPassword for application/json ContentType.
+type ForgotPasswordJSONRequestBody = ForgotPasswordRequest
+
+// LoginJSONRequestBody defines body for Login for application/json ContentType.
+type LoginJSONRequestBody = LoginRequest
+
+// LogoutJSONRequestBody defines body for Logout for application/json ContentType.
+type LogoutJSONRequestBody LogoutJSONBody
+
+// RefreshTokenJSONRequestBody defines body for RefreshToken for application/json ContentType.
+type RefreshTokenJSONRequestBody = RefreshRequest
+
+// ResetPasswordJSONRequestBody defines body for ResetPassword for application/json ContentType.
+type ResetPasswordJSONRequestBody = ResetPasswordRequest
+
+// ExecuteDMLJSONRequestBody defines body for ExecuteDML for application/json ContentType.
+type ExecuteDMLJSONRequestBody = DMLRequest
+
+// ExecuteQueryPostJSONRequestBody defines body for ExecuteQueryPost for application/json ContentType.
+type ExecuteQueryPostJSONRequestBody = SOQLRequest
+
+// CreateRecordJSONRequestBody defines body for CreateRecord for application/json ContentType.
+type CreateRecordJSONRequestBody CreateRecordJSONBody
+
+// UpdateRecordJSONRequestBody defines body for UpdateRecord for application/json ContentType.
+type UpdateRecordJSONRequestBody UpdateRecordJSONBody
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -371,6 +758,78 @@ type ServerInterface interface {
 	// Update field definition
 	// (PUT /api/v1/admin/metadata/objects/{objectId}/fields/{fieldId})
 	UpdateField(c *gin.Context, objectId ObjectId, fieldId FieldId)
+	// List validation rules for object
+	// (GET /api/v1/admin/metadata/objects/{objectId}/rules)
+	ListValidationRules(c *gin.Context, objectId ObjectId)
+	// Create validation rule
+	// (POST /api/v1/admin/metadata/objects/{objectId}/rules)
+	CreateValidationRule(c *gin.Context, objectId ObjectId)
+	// Delete validation rule
+	// (DELETE /api/v1/admin/metadata/objects/{objectId}/rules/{ruleId})
+	DeleteValidationRule(c *gin.Context, objectId ObjectId, ruleId RuleId)
+	// Get validation rule
+	// (GET /api/v1/admin/metadata/objects/{objectId}/rules/{ruleId})
+	GetValidationRule(c *gin.Context, objectId ObjectId, ruleId RuleId)
+	// Update validation rule
+	// (PUT /api/v1/admin/metadata/objects/{objectId}/rules/{ruleId})
+	UpdateValidationRule(c *gin.Context, objectId ObjectId, ruleId RuleId)
+	// Set user password (admin)
+	// (PUT /api/v1/admin/security/users/{userId}/password)
+	SetUserPassword(c *gin.Context, userId openapi_types.UUID)
+	// List available application templates
+	// (GET /api/v1/admin/templates)
+	ListTemplates(c *gin.Context)
+	// Apply an application template
+	// (POST /api/v1/admin/templates/{templateId}/apply)
+	ApplyTemplate(c *gin.Context, templateId string)
+	// Request password reset
+	// (POST /api/v1/auth/forgot-password)
+	ForgotPassword(c *gin.Context)
+	// Authenticate user
+	// (POST /api/v1/auth/login)
+	Login(c *gin.Context)
+	// Logout (revoke refresh token)
+	// (POST /api/v1/auth/logout)
+	Logout(c *gin.Context)
+	// Get current user info
+	// (GET /api/v1/auth/me)
+	GetMe(c *gin.Context)
+	// Refresh access token
+	// (POST /api/v1/auth/refresh)
+	RefreshToken(c *gin.Context)
+	// Reset password with token
+	// (POST /api/v1/auth/reset-password)
+	ResetPassword(c *gin.Context)
+	// Execute DML statement
+	// (POST /api/v1/data)
+	ExecuteDML(c *gin.Context)
+	// List accessible objects for navigation
+	// (GET /api/v1/describe)
+	ListDescribeObjects(c *gin.Context)
+	// Describe object with fields
+	// (GET /api/v1/describe/{objectName})
+	DescribeObject(c *gin.Context, objectName string)
+	// Execute SOQL query (GET)
+	// (GET /api/v1/query)
+	ExecuteQueryGet(c *gin.Context, params ExecuteQueryGetParams)
+	// Execute SOQL query (POST)
+	// (POST /api/v1/query)
+	ExecuteQueryPost(c *gin.Context)
+	// List records for an object
+	// (GET /api/v1/records/{objectName})
+	ListRecords(c *gin.Context, objectName string, params ListRecordsParams)
+	// Create a record
+	// (POST /api/v1/records/{objectName})
+	CreateRecord(c *gin.Context, objectName string)
+	// Delete a record
+	// (DELETE /api/v1/records/{objectName}/{recordId})
+	DeleteRecord(c *gin.Context, objectName string, recordId openapi_types.UUID)
+	// Get a record by ID
+	// (GET /api/v1/records/{objectName}/{recordId})
+	GetRecord(c *gin.Context, objectName string, recordId openapi_types.UUID)
+	// Update a record
+	// (PUT /api/v1/records/{objectName}/{recordId})
+	UpdateRecord(c *gin.Context, objectName string, recordId openapi_types.UUID)
 	// Health check
 	// (GET /healthz)
 	HealthCheck(c *gin.Context)
@@ -659,6 +1118,588 @@ func (siw *ServerInterfaceWrapper) UpdateField(c *gin.Context) {
 	siw.Handler.UpdateField(c, objectId, fieldId)
 }
 
+// ListValidationRules operation middleware
+func (siw *ServerInterfaceWrapper) ListValidationRules(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "objectId" -------------
+	var objectId ObjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "objectId", c.Param("objectId"), &objectId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter objectId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ListValidationRules(c, objectId)
+}
+
+// CreateValidationRule operation middleware
+func (siw *ServerInterfaceWrapper) CreateValidationRule(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "objectId" -------------
+	var objectId ObjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "objectId", c.Param("objectId"), &objectId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter objectId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.CreateValidationRule(c, objectId)
+}
+
+// DeleteValidationRule operation middleware
+func (siw *ServerInterfaceWrapper) DeleteValidationRule(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "objectId" -------------
+	var objectId ObjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "objectId", c.Param("objectId"), &objectId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter objectId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "ruleId" -------------
+	var ruleId RuleId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ruleId", c.Param("ruleId"), &ruleId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter ruleId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DeleteValidationRule(c, objectId, ruleId)
+}
+
+// GetValidationRule operation middleware
+func (siw *ServerInterfaceWrapper) GetValidationRule(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "objectId" -------------
+	var objectId ObjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "objectId", c.Param("objectId"), &objectId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter objectId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "ruleId" -------------
+	var ruleId RuleId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ruleId", c.Param("ruleId"), &ruleId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter ruleId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetValidationRule(c, objectId, ruleId)
+}
+
+// UpdateValidationRule operation middleware
+func (siw *ServerInterfaceWrapper) UpdateValidationRule(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "objectId" -------------
+	var objectId ObjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "objectId", c.Param("objectId"), &objectId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter objectId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "ruleId" -------------
+	var ruleId RuleId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ruleId", c.Param("ruleId"), &ruleId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter ruleId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.UpdateValidationRule(c, objectId, ruleId)
+}
+
+// SetUserPassword operation middleware
+func (siw *ServerInterfaceWrapper) SetUserPassword(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "userId" -------------
+	var userId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "userId", c.Param("userId"), &userId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter userId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.SetUserPassword(c, userId)
+}
+
+// ListTemplates operation middleware
+func (siw *ServerInterfaceWrapper) ListTemplates(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ListTemplates(c)
+}
+
+// ApplyTemplate operation middleware
+func (siw *ServerInterfaceWrapper) ApplyTemplate(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "templateId" -------------
+	var templateId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "templateId", c.Param("templateId"), &templateId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter templateId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ApplyTemplate(c, templateId)
+}
+
+// ForgotPassword operation middleware
+func (siw *ServerInterfaceWrapper) ForgotPassword(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ForgotPassword(c)
+}
+
+// Login operation middleware
+func (siw *ServerInterfaceWrapper) Login(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.Login(c)
+}
+
+// Logout operation middleware
+func (siw *ServerInterfaceWrapper) Logout(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.Logout(c)
+}
+
+// GetMe operation middleware
+func (siw *ServerInterfaceWrapper) GetMe(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetMe(c)
+}
+
+// RefreshToken operation middleware
+func (siw *ServerInterfaceWrapper) RefreshToken(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.RefreshToken(c)
+}
+
+// ResetPassword operation middleware
+func (siw *ServerInterfaceWrapper) ResetPassword(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ResetPassword(c)
+}
+
+// ExecuteDML operation middleware
+func (siw *ServerInterfaceWrapper) ExecuteDML(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ExecuteDML(c)
+}
+
+// ListDescribeObjects operation middleware
+func (siw *ServerInterfaceWrapper) ListDescribeObjects(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ListDescribeObjects(c)
+}
+
+// DescribeObject operation middleware
+func (siw *ServerInterfaceWrapper) DescribeObject(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "objectName" -------------
+	var objectName string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "objectName", c.Param("objectName"), &objectName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter objectName: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DescribeObject(c, objectName)
+}
+
+// ExecuteQueryGet operation middleware
+func (siw *ServerInterfaceWrapper) ExecuteQueryGet(c *gin.Context) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ExecuteQueryGetParams
+
+	// ------------- Required query parameter "q" -------------
+
+	if paramValue := c.Query("q"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument q is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "q", c.Request.URL.Query(), &params.Q)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter q: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ExecuteQueryGet(c, params)
+}
+
+// ExecuteQueryPost operation middleware
+func (siw *ServerInterfaceWrapper) ExecuteQueryPost(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ExecuteQueryPost(c)
+}
+
+// ListRecords operation middleware
+func (siw *ServerInterfaceWrapper) ListRecords(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "objectName" -------------
+	var objectName string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "objectName", c.Param("objectName"), &objectName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter objectName: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListRecordsParams
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page", c.Request.URL.Query(), &params.Page)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "per_page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "per_page", c.Request.URL.Query(), &params.PerPage)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter per_page: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ListRecords(c, objectName, params)
+}
+
+// CreateRecord operation middleware
+func (siw *ServerInterfaceWrapper) CreateRecord(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "objectName" -------------
+	var objectName string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "objectName", c.Param("objectName"), &objectName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter objectName: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.CreateRecord(c, objectName)
+}
+
+// DeleteRecord operation middleware
+func (siw *ServerInterfaceWrapper) DeleteRecord(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "objectName" -------------
+	var objectName string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "objectName", c.Param("objectName"), &objectName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter objectName: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "recordId" -------------
+	var recordId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "recordId", c.Param("recordId"), &recordId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter recordId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DeleteRecord(c, objectName, recordId)
+}
+
+// GetRecord operation middleware
+func (siw *ServerInterfaceWrapper) GetRecord(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "objectName" -------------
+	var objectName string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "objectName", c.Param("objectName"), &objectName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter objectName: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "recordId" -------------
+	var recordId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "recordId", c.Param("recordId"), &recordId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter recordId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetRecord(c, objectName, recordId)
+}
+
+// UpdateRecord operation middleware
+func (siw *ServerInterfaceWrapper) UpdateRecord(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "objectName" -------------
+	var objectName string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "objectName", c.Param("objectName"), &objectName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter objectName: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "recordId" -------------
+	var recordId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "recordId", c.Param("recordId"), &recordId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter recordId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.UpdateRecord(c, objectName, recordId)
+}
+
 // HealthCheck operation middleware
 func (siw *ServerInterfaceWrapper) HealthCheck(c *gin.Context) {
 
@@ -709,47 +1750,113 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.DELETE(options.BaseURL+"/api/v1/admin/metadata/objects/:objectId/fields/:fieldId", wrapper.DeleteField)
 	router.GET(options.BaseURL+"/api/v1/admin/metadata/objects/:objectId/fields/:fieldId", wrapper.GetField)
 	router.PUT(options.BaseURL+"/api/v1/admin/metadata/objects/:objectId/fields/:fieldId", wrapper.UpdateField)
+	router.GET(options.BaseURL+"/api/v1/admin/metadata/objects/:objectId/rules", wrapper.ListValidationRules)
+	router.POST(options.BaseURL+"/api/v1/admin/metadata/objects/:objectId/rules", wrapper.CreateValidationRule)
+	router.DELETE(options.BaseURL+"/api/v1/admin/metadata/objects/:objectId/rules/:ruleId", wrapper.DeleteValidationRule)
+	router.GET(options.BaseURL+"/api/v1/admin/metadata/objects/:objectId/rules/:ruleId", wrapper.GetValidationRule)
+	router.PUT(options.BaseURL+"/api/v1/admin/metadata/objects/:objectId/rules/:ruleId", wrapper.UpdateValidationRule)
+	router.PUT(options.BaseURL+"/api/v1/admin/security/users/:userId/password", wrapper.SetUserPassword)
+	router.GET(options.BaseURL+"/api/v1/admin/templates", wrapper.ListTemplates)
+	router.POST(options.BaseURL+"/api/v1/admin/templates/:templateId/apply", wrapper.ApplyTemplate)
+	router.POST(options.BaseURL+"/api/v1/auth/forgot-password", wrapper.ForgotPassword)
+	router.POST(options.BaseURL+"/api/v1/auth/login", wrapper.Login)
+	router.POST(options.BaseURL+"/api/v1/auth/logout", wrapper.Logout)
+	router.GET(options.BaseURL+"/api/v1/auth/me", wrapper.GetMe)
+	router.POST(options.BaseURL+"/api/v1/auth/refresh", wrapper.RefreshToken)
+	router.POST(options.BaseURL+"/api/v1/auth/reset-password", wrapper.ResetPassword)
+	router.POST(options.BaseURL+"/api/v1/data", wrapper.ExecuteDML)
+	router.GET(options.BaseURL+"/api/v1/describe", wrapper.ListDescribeObjects)
+	router.GET(options.BaseURL+"/api/v1/describe/:objectName", wrapper.DescribeObject)
+	router.GET(options.BaseURL+"/api/v1/query", wrapper.ExecuteQueryGet)
+	router.POST(options.BaseURL+"/api/v1/query", wrapper.ExecuteQueryPost)
+	router.GET(options.BaseURL+"/api/v1/records/:objectName", wrapper.ListRecords)
+	router.POST(options.BaseURL+"/api/v1/records/:objectName", wrapper.CreateRecord)
+	router.DELETE(options.BaseURL+"/api/v1/records/:objectName/:recordId", wrapper.DeleteRecord)
+	router.GET(options.BaseURL+"/api/v1/records/:objectName/:recordId", wrapper.GetRecord)
+	router.PUT(options.BaseURL+"/api/v1/records/:objectName/:recordId", wrapper.UpdateRecord)
 	router.GET(options.BaseURL+"/healthz", wrapper.HealthCheck)
 }
 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
+	"k4IAAA==",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

@@ -1,146 +1,28 @@
-export type ObjectType = 'standard' | 'custom'
+import type { components } from './openapi'
+import type { CamelCaseKeys } from './camelcase'
 
-export type Visibility = 'private' | 'public_read' | 'public_read_write' | 'controlled_by_parent'
+// --- Enum types (inline unions from OpenAPI) ---
 
-export interface ObjectDefinition {
-  id: string
-  apiName: string
-  label: string
-  pluralLabel: string
-  description: string
-  objectType: ObjectType
-  isPlatformManaged: boolean
-  isVisibleInSetup: boolean
-  isCustomFieldsAllowed: boolean
-  isDeleteableObject: boolean
-  isCreateable: boolean
-  isUpdateable: boolean
-  isDeleteable: boolean
-  isQueryable: boolean
-  isSearchable: boolean
-  hasActivities: boolean
-  hasNotes: boolean
-  hasHistoryTracking: boolean
-  hasSharingRules: boolean
-  visibility: Visibility
-  createdAt: string
-  updatedAt: string
-}
+export type ObjectType = components['schemas']['CreateObjectRequest']['object_type']
+export type Visibility = components['schemas']['CreateObjectRequest']['visibility']
+export type FieldType = components['schemas']['CreateFieldRequest']['field_type']
+export type FieldSubtype = NonNullable<components['schemas']['CreateFieldRequest']['field_subtype']>
+export type OnDeleteAction = NonNullable<components['schemas']['FieldConfig']['on_delete']>
 
-export interface CreateObjectRequest {
-  apiName: string
-  label: string
-  pluralLabel: string
-  description: string
-  objectType: ObjectType
-  isVisibleInSetup: boolean
-  isCustomFieldsAllowed: boolean
-  isDeleteableObject: boolean
-  isCreateable: boolean
-  isUpdateable: boolean
-  isDeleteable: boolean
-  isQueryable: boolean
-  isSearchable: boolean
-  hasActivities: boolean
-  hasNotes: boolean
-  hasHistoryTracking: boolean
-  hasSharingRules: boolean
-  visibility: Visibility
-}
+// --- Derived from OpenAPI spec (single source of truth) ---
 
-export interface UpdateObjectRequest {
-  label: string
-  pluralLabel: string
-  description?: string
-  isVisibleInSetup?: boolean
-  isCustomFieldsAllowed?: boolean
-  isDeleteableObject?: boolean
-  isCreateable?: boolean
-  isUpdateable?: boolean
-  isDeleteable?: boolean
-  isQueryable?: boolean
-  isSearchable?: boolean
-  hasActivities?: boolean
-  hasNotes?: boolean
-  hasHistoryTracking?: boolean
-  hasSharingRules?: boolean
-  visibility?: Visibility
-}
+export type ObjectDefinition = CamelCaseKeys<components['schemas']['ObjectDefinition']>
+export type CreateObjectRequest = CamelCaseKeys<components['schemas']['CreateObjectRequest']>
+export type UpdateObjectRequest = CamelCaseKeys<components['schemas']['UpdateObjectRequest']>
 
-export type FieldType = 'text' | 'number' | 'boolean' | 'datetime' | 'picklist' | 'reference'
-export type FieldSubtype =
-  | 'plain' | 'area' | 'rich' | 'email' | 'phone' | 'url'
-  | 'integer' | 'decimal' | 'currency' | 'percent' | 'auto_number'
-  | 'date' | 'datetime' | 'time'
-  | 'single' | 'multi'
-  | 'association' | 'composition' | 'polymorphic'
+export type FieldConfig = CamelCaseKeys<components['schemas']['FieldConfig']>
+export type FieldDefinition = CamelCaseKeys<components['schemas']['FieldDefinitionSchema']>
+export type CreateFieldRequest = CamelCaseKeys<components['schemas']['CreateFieldRequest']>
+export type UpdateFieldRequest = CamelCaseKeys<components['schemas']['UpdateFieldRequest']>
 
-export type OnDeleteAction = 'set_null' | 'cascade' | 'restrict'
+export type PaginationMeta = CamelCaseKeys<components['schemas']['PaginationMeta']>
 
-export interface FieldConfig {
-  maxLength?: number
-  precision?: number
-  scale?: number
-  format?: string
-  startValue?: number
-  relationshipName?: string
-  onDelete?: OnDeleteAction
-  isReparentable?: boolean
-  defaultValue?: string
-}
-
-export interface FieldDefinition {
-  id: string
-  objectId: string
-  apiName: string
-  label: string
-  description: string
-  helpText: string
-  fieldType: FieldType
-  fieldSubtype?: FieldSubtype
-  referencedObjectId?: string
-  isRequired: boolean
-  isUnique: boolean
-  config: FieldConfig
-  isSystemField: boolean
-  isCustom: boolean
-  isPlatformManaged: boolean
-  sortOrder: number
-  createdAt: string
-  updatedAt: string
-}
-
-export interface CreateFieldRequest {
-  apiName: string
-  label: string
-  fieldType: FieldType
-  fieldSubtype?: FieldSubtype
-  description?: string
-  helpText?: string
-  referencedObjectId?: string
-  isRequired?: boolean
-  isUnique?: boolean
-  isCustom?: boolean
-  config?: FieldConfig
-  sortOrder?: number
-}
-
-export interface UpdateFieldRequest {
-  label: string
-  description?: string
-  helpText?: string
-  isRequired?: boolean
-  isUnique?: boolean
-  config?: FieldConfig
-  sortOrder?: number
-}
-
-export interface PaginationMeta {
-  page: number
-  perPage: number
-  total: number
-  totalPages: number
-}
+// --- Wrapper types (not part of OpenAPI schemas) ---
 
 export interface ApiResponse<T> {
   data: T
@@ -155,6 +37,8 @@ export interface ApiError {
   code: string
   message: string
 }
+
+// --- Business-specific filter (not from API) ---
 
 export interface ObjectFilter {
   page?: number

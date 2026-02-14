@@ -1,7 +1,7 @@
 .PHONY: build build-ee run run-ee test test-ee test-integration lint vet fmt clean \
        docker-up docker-down docker-build docker-reset \
        migrate-up migrate-down migrate-create \
-       sqlc-generate generate-api \
+       sqlc-generate generate-api web-generate-types \
        web-dev web-build \
        test-pgtap test-pgtap-setup \
        test-pgtap-ee test-pgtap-ee-setup test-pgtap-all
@@ -108,6 +108,10 @@ sqlc-generate:
 # ─── OpenAPI code generation ─────────────────────────────────
 generate-api:
 	oapi-codegen -generate gin,types,spec -package api -o internal/api/openapi_gen.go api/openapi.yaml
+	cd web && npx openapi-typescript ../api/openapi.yaml -o src/types/openapi.d.ts
+
+web-generate-types:
+	cd web && npx openapi-typescript ../api/openapi.yaml -o src/types/openapi.d.ts
 
 # ─── Frontend ────────────────────────────────────────────────
 web-dev:

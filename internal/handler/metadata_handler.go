@@ -122,10 +122,10 @@ func (h *MetadataHandler) ListObjects(c *gin.Context) {
 	c.JSON(http.StatusOK, api.ObjectListResponse{
 		Data: &data,
 		Pagination: &api.PaginationMeta{
-			Page:       &page,
-			PerPage:    &perPage,
-			Total:      &total,
-			TotalPages: &totalPages,
+			Page:       page,
+			PerPage:    perPage,
+			Total:      total,
+			TotalPages: totalPages,
 		},
 	})
 }
@@ -356,66 +356,63 @@ func (h *MetadataHandler) DeleteField(c *gin.Context) {
 // Conversion helpers
 
 func toAPIObject(obj *metadata.ObjectDefinition) *api.ObjectDefinition {
-	objType := api.ObjectDefinitionObjectType(obj.ObjectType)
 	return &api.ObjectDefinition{
-		Id:                    &obj.ID,
-		ApiName:               &obj.APIName,
-		Label:                 &obj.Label,
-		PluralLabel:           &obj.PluralLabel,
-		Description:           &obj.Description,
-		ObjectType:            &objType,
-		IsPlatformManaged:     &obj.IsPlatformManaged,
-		IsVisibleInSetup:      &obj.IsVisibleInSetup,
-		IsCustomFieldsAllowed: &obj.IsCustomFieldsAllowed,
-		IsDeleteableObject:    &obj.IsDeleteableObject,
-		IsCreateable:          &obj.IsCreateable,
-		IsUpdateable:          &obj.IsUpdateable,
-		IsDeleteable:          &obj.IsDeleteable,
-		IsQueryable:           &obj.IsQueryable,
-		IsSearchable:          &obj.IsSearchable,
-		HasActivities:         &obj.HasActivities,
-		HasNotes:              &obj.HasNotes,
-		HasHistoryTracking:    &obj.HasHistoryTracking,
-		HasSharingRules:       &obj.HasSharingRules,
-		Visibility:            (*api.ObjectDefinitionVisibility)(&obj.Visibility),
-		CreatedAt:             &obj.CreatedAt,
-		UpdatedAt:             &obj.UpdatedAt,
+		Id:                    obj.ID,
+		ApiName:               obj.APIName,
+		Label:                 obj.Label,
+		PluralLabel:           obj.PluralLabel,
+		Description:           obj.Description,
+		ObjectType:            api.ObjectDefinitionObjectType(obj.ObjectType),
+		IsPlatformManaged:     obj.IsPlatformManaged,
+		IsVisibleInSetup:      obj.IsVisibleInSetup,
+		IsCustomFieldsAllowed: obj.IsCustomFieldsAllowed,
+		IsDeleteableObject:    obj.IsDeleteableObject,
+		IsCreateable:          obj.IsCreateable,
+		IsUpdateable:          obj.IsUpdateable,
+		IsDeleteable:          obj.IsDeleteable,
+		IsQueryable:           obj.IsQueryable,
+		IsSearchable:          obj.IsSearchable,
+		HasActivities:         obj.HasActivities,
+		HasNotes:              obj.HasNotes,
+		HasHistoryTracking:    obj.HasHistoryTracking,
+		HasSharingRules:       obj.HasSharingRules,
+		Visibility:            api.ObjectDefinitionVisibility(obj.Visibility),
+		CreatedAt:             obj.CreatedAt,
+		UpdatedAt:             obj.UpdatedAt,
 	}
 }
 
 func toAPIField(f *metadata.FieldDefinition) *api.FieldDefinitionSchema {
-	ft := string(f.FieldType)
 	result := &api.FieldDefinitionSchema{
-		Id:                 &f.ID,
-		ObjectId:           &f.ObjectID,
-		ApiName:            &f.APIName,
-		Label:              &f.Label,
-		Description:        &f.Description,
-		HelpText:           &f.HelpText,
-		FieldType:          &ft,
+		Id:                 f.ID,
+		ObjectId:           f.ObjectID,
+		ApiName:            f.APIName,
+		Label:              f.Label,
+		Description:        f.Description,
+		HelpText:           f.HelpText,
+		FieldType:          api.FieldDefinitionSchemaFieldType(f.FieldType),
 		ReferencedObjectId: f.ReferencedObjectID,
-		IsRequired:         &f.IsRequired,
-		IsUnique:           &f.IsUnique,
-		IsSystemField:      &f.IsSystemField,
-		IsCustom:           &f.IsCustom,
-		IsPlatformManaged:  &f.IsPlatformManaged,
-		SortOrder:          &f.SortOrder,
-		CreatedAt:          &f.CreatedAt,
-		UpdatedAt:          &f.UpdatedAt,
+		IsRequired:         f.IsRequired,
+		IsUnique:           f.IsUnique,
+		IsSystemField:      f.IsSystemField,
+		IsCustom:           f.IsCustom,
+		IsPlatformManaged:  f.IsPlatformManaged,
+		SortOrder:          f.SortOrder,
+		CreatedAt:          f.CreatedAt,
+		UpdatedAt:          f.UpdatedAt,
+		Config:             toAPIFieldConfig(f.Config),
 	}
 
 	if f.FieldSubtype != nil {
-		sub := string(*f.FieldSubtype)
+		sub := api.FieldDefinitionSchemaFieldSubtype(*f.FieldSubtype)
 		result.FieldSubtype = &sub
 	}
-
-	result.Config = toAPIFieldConfig(&f.Config)
 
 	return result
 }
 
-func toAPIFieldConfig(fc *metadata.FieldConfig) *api.FieldConfig {
-	result := &api.FieldConfig{
+func toAPIFieldConfig(fc metadata.FieldConfig) api.FieldConfig {
+	result := api.FieldConfig{
 		MaxLength:        fc.MaxLength,
 		Precision:        fc.Precision,
 		Scale:            fc.Scale,

@@ -45,10 +45,12 @@ async function onSubmit() {
       label: form.value.label,
       expression: form.value.expression,
       errorMessage: form.value.errorMessage,
-      errorCode: form.value.errorCode || undefined,
-      severity: form.value.severity || undefined,
+      errorCode: form.value.errorCode || 'validation_failed',
+      severity: form.value.severity || 'error',
       whenExpression: form.value.whenExpression || undefined,
-      appliesTo: form.value.appliesTo || undefined,
+      appliesTo: form.value.appliesTo || 'create,update',
+      sortOrder: 0,
+      isActive: true,
       description: form.value.description || undefined,
     })
     toast.success('Правило создано')

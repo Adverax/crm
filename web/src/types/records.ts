@@ -1,49 +1,18 @@
-export interface ObjectNavItem {
-  apiName: string
-  label: string
-  pluralLabel: string
-  isCreateable: boolean
-  isQueryable: boolean
-}
+import type { components } from './openapi'
+import type { CamelCaseKeys } from './camelcase'
 
-export interface FieldConfigDescribe {
-  maxLength?: number
-  precision?: number
-  scale?: number
-  defaultValue?: string | null
-  values?: PicklistValueDescribe[]
-}
+// --- Derived from OpenAPI spec (single source of truth) ---
 
-export interface PicklistValueDescribe {
-  id: string
-  value: string
-  label: string
-  sortOrder: number
-  isDefault: boolean
-  isActive: boolean
-}
+export type ObjectNavItem = CamelCaseKeys<components['schemas']['ObjectNavItem']>
+export type ObjectDescribe = CamelCaseKeys<components['schemas']['ObjectDescribe']>
+export type FieldDescribe = CamelCaseKeys<components['schemas']['FieldDescribe']>
 
-export interface FieldDescribe {
-  apiName: string
-  label: string
-  fieldType: string
-  fieldSubtype: string | null
-  isRequired: boolean
-  isReadOnly: boolean
-  isSystemField: boolean
-  sortOrder: number
-  config: FieldConfigDescribe
-}
+// --- Inline sub-types from FieldDescribe.config ---
 
-export interface ObjectDescribe {
-  apiName: string
-  label: string
-  pluralLabel: string
-  isCreateable: boolean
-  isUpdateable: boolean
-  isDeleteable: boolean
-  fields: FieldDescribe[]
-}
+export type FieldConfigDescribe = NonNullable<FieldDescribe['config']>
+export type PicklistValueDescribe = NonNullable<NonNullable<FieldConfigDescribe['values']>[number]>
+
+// --- Business types (not from API schema) ---
 
 export type RecordData = Record<string, unknown>
 

@@ -954,6 +954,9 @@ components:
 
     TokenPair:
       type: object
+      required:
+        - access_token
+        - refresh_token
       properties:
         access_token:
           type: string
@@ -968,6 +971,14 @@ components:
 
     UserInfo:
       type: object
+      required:
+        - id
+        - username
+        - email
+        - first_name
+        - last_name
+        - profile_id
+        - is_active
       properties:
         id:
           type: string
@@ -986,6 +997,7 @@ components:
         role_id:
           type: string
           format: uuid
+          nullable: true
         is_active:
           type: boolean
 
@@ -1107,6 +1119,29 @@ components:
 
     ObjectDefinition:
       type: object
+      required:
+        - id
+        - api_name
+        - label
+        - plural_label
+        - description
+        - object_type
+        - is_platform_managed
+        - is_visible_in_setup
+        - is_custom_fields_allowed
+        - is_deleteable_object
+        - is_createable
+        - is_updateable
+        - is_deleteable
+        - is_queryable
+        - is_searchable
+        - has_activities
+        - has_notes
+        - has_history_tracking
+        - has_sharing_rules
+        - visibility
+        - created_at
+        - updated_at
       properties:
         id:
           type: string
@@ -1347,6 +1382,21 @@ components:
 
     ValidationRule:
       type: object
+      required:
+        - id
+        - object_id
+        - api_name
+        - label
+        - description
+        - expression
+        - error_message
+        - error_code
+        - severity
+        - applies_to
+        - sort_order
+        - is_active
+        - created_at
+        - updated_at
       properties:
         id:
           type: string
@@ -1401,6 +1451,23 @@ components:
 
     FieldDefinitionSchema:
       type: object
+      required:
+        - id
+        - object_id
+        - api_name
+        - label
+        - description
+        - help_text
+        - field_type
+        - is_required
+        - is_unique
+        - config
+        - is_system_field
+        - is_custom
+        - is_platform_managed
+        - sort_order
+        - created_at
+        - updated_at
       properties:
         id:
           type: string
@@ -1418,8 +1485,10 @@ components:
           type: string
         field_type:
           type: string
+          enum: [text, number, boolean, datetime, picklist, reference]
         field_subtype:
           type: string
+          enum: [plain, area, rich, email, phone, url, integer, decimal, currency, percent, auto_number, date, datetime, time, single, multi, association, composition, polymorphic]
         referenced_object_id:
           type: string
           format: uuid
@@ -1564,6 +1633,12 @@ components:
 
     ObjectNavItem:
       type: object
+      required:
+        - api_name
+        - label
+        - plural_label
+        - is_createable
+        - is_queryable
       properties:
         api_name:
           type: string
@@ -1578,6 +1653,14 @@ components:
 
     ObjectDescribe:
       type: object
+      required:
+        - api_name
+        - label
+        - plural_label
+        - is_createable
+        - is_updateable
+        - is_deleteable
+        - fields
       properties:
         api_name:
           type: string
@@ -1598,6 +1681,15 @@ components:
 
     FieldDescribe:
       type: object
+      required:
+        - api_name
+        - label
+        - field_type
+        - is_required
+        - is_read_only
+        - is_system_field
+        - sort_order
+        - config
       properties:
         api_name:
           type: string
@@ -1607,6 +1699,7 @@ components:
           type: string
         field_subtype:
           type: string
+          nullable: true
         is_required:
           type: boolean
         is_read_only:
@@ -1630,6 +1723,13 @@ components:
               type: array
               items:
                 type: object
+                required:
+                  - id
+                  - value
+                  - label
+                  - sort_order
+                  - is_default
+                  - is_active
                 properties:
                   id:
                     type: string
@@ -1646,6 +1746,11 @@ components:
 
     PaginationMeta:
       type: object
+      required:
+        - page
+        - per_page
+        - total
+        - total_pages
       properties:
         page:
           type: integer

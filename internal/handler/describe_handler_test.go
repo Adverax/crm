@@ -117,9 +117,11 @@ func buildDescribeTestCache(objID uuid.UUID, apiName, tableName string) *metadat
 	return cache
 }
 
-func setupDescribeRouter(h *DescribeHandler, userID uuid.UUID) *gin.Engine {
+func setupDescribeRouter(t *testing.T, h *DescribeHandler, userID uuid.UUID) *gin.Engine {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
+	r.Use(contractValidationMiddleware(t))
 	r.Use(func(c *gin.Context) {
 		ctx := security.ContextWithUser(c.Request.Context(), security.UserContext{UserID: userID})
 		c.Request = c.Request.WithContext(ctx)
@@ -130,9 +132,11 @@ func setupDescribeRouter(h *DescribeHandler, userID uuid.UUID) *gin.Engine {
 	return r
 }
 
-func setupDescribeRouterNoAuth(h *DescribeHandler) *gin.Engine {
+func setupDescribeRouterNoAuth(t *testing.T, h *DescribeHandler) *gin.Engine {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
+	r.Use(contractValidationMiddleware(t))
 	api := r.Group("/api/v1")
 	h.RegisterRoutes(api)
 	return r
@@ -188,9 +192,9 @@ func TestDescribeHandler_ListObjects(t *testing.T) {
 
 			var r *gin.Engine
 			if tt.noAuth {
-				r = setupDescribeRouterNoAuth(h)
+				r = setupDescribeRouterNoAuth(t, h)
 			} else {
-				r = setupDescribeRouter(h, userID)
+				r = setupDescribeRouter(t, h, userID)
 			}
 
 			w := httptest.NewRecorder()
@@ -290,9 +294,9 @@ func TestDescribeHandler_DescribeObject(t *testing.T) {
 
 			var r *gin.Engine
 			if tt.noAuth {
-				r = setupDescribeRouterNoAuth(h)
+				r = setupDescribeRouterNoAuth(t, h)
 			} else {
-				r = setupDescribeRouter(h, userID)
+				r = setupDescribeRouter(t, h, userID)
 			}
 
 			w := httptest.NewRecorder()

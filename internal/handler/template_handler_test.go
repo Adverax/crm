@@ -102,7 +102,8 @@ func (m *tmplMockCacheInvalidator) Invalidate(_ context.Context) error { return 
 
 // --- tests ---
 
-func setupTemplateHandler(countResult int64) (*TemplateHandler, *gin.Engine) {
+func setupTemplateHandler(t *testing.T, countResult int64) (*TemplateHandler, *gin.Engine) {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
 
 	registry := templates.BuildRegistry()
@@ -117,6 +118,7 @@ func setupTemplateHandler(countResult int64) (*TemplateHandler, *gin.Engine) {
 	h := NewTemplateHandler(registry, applier)
 
 	router := gin.New()
+	router.Use(contractValidationMiddleware(t))
 	group := router.Group("/api/v1/admin")
 	h.RegisterRoutes(group)
 
@@ -141,7 +143,7 @@ func TestTemplateHandler_ListTemplates(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, router := setupTemplateHandler(0)
+			_, router := setupTemplateHandler(t, 0)
 
 			req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/templates", nil)
 			w := httptest.NewRecorder()
@@ -212,7 +214,7 @@ func TestTemplateHandler_ApplyTemplate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, router := setupTemplateHandler(tt.countResult)
+			_, router := setupTemplateHandler(t, tt.countResult)
 
 			req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/templates/"+tt.templateID+"/apply", nil)
 			w := httptest.NewRecorder()

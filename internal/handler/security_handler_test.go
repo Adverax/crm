@@ -400,9 +400,11 @@ func (m *mockSharingRuleService) Delete(ctx context.Context, id uuid.UUID) error
 
 // --- Helpers ---
 
-func setupSecurityRouter(h *SecurityHandler) *gin.Engine {
+func setupSecurityRouter(t *testing.T, h *SecurityHandler) *gin.Engine {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
+	r.Use(contractValidationMiddleware(t))
 	admin := r.Group("/api/v1/admin")
 	h.RegisterRoutes(admin)
 	return r
@@ -482,7 +484,7 @@ func TestSecurityHandler_CreateRole(t *testing.T) {
 				tt.setup(roles)
 			}
 			h := newSecurityHandler(roles, nil, nil, nil, nil, nil, nil)
-			r := setupSecurityRouter(h)
+			r := setupSecurityRouter(t, h)
 
 			body, _ := json.Marshal(tt.body)
 			w := httptest.NewRecorder()
@@ -538,7 +540,7 @@ func TestSecurityHandler_GetRole(t *testing.T) {
 				tt.setup(roles)
 			}
 			h := newSecurityHandler(roles, nil, nil, nil, nil, nil, nil)
-			r := setupSecurityRouter(h)
+			r := setupSecurityRouter(t, h)
 
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodGet, "/api/v1/admin/security/roles/"+tt.id, nil)
@@ -560,7 +562,7 @@ func TestSecurityHandler_ListRoles(t *testing.T) {
 		},
 	}
 	h := newSecurityHandler(roles, nil, nil, nil, nil, nil, nil)
-	r := setupSecurityRouter(h)
+	r := setupSecurityRouter(t, h)
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/admin/security/roles?page=1&per_page=10", nil)
@@ -605,7 +607,7 @@ func TestSecurityHandler_DeleteRole(t *testing.T) {
 				tt.setup(roles)
 			}
 			h := newSecurityHandler(roles, nil, nil, nil, nil, nil, nil)
-			r := setupSecurityRouter(h)
+			r := setupSecurityRouter(t, h)
 
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodDelete, "/api/v1/admin/security/roles/"+tt.id, nil)
@@ -667,7 +669,7 @@ func TestSecurityHandler_CreateUser(t *testing.T) {
 				tt.setup(users)
 			}
 			h := newSecurityHandler(nil, nil, nil, users, nil, nil, nil)
-			r := setupSecurityRouter(h)
+			r := setupSecurityRouter(t, h)
 
 			body, _ := json.Marshal(tt.body)
 			w := httptest.NewRecorder()
@@ -718,7 +720,7 @@ func TestSecurityHandler_GetUser(t *testing.T) {
 				tt.setup(users)
 			}
 			h := newSecurityHandler(nil, nil, nil, users, nil, nil, nil)
-			r := setupSecurityRouter(h)
+			r := setupSecurityRouter(t, h)
 
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodGet, "/api/v1/admin/security/users/"+tt.id, nil)
@@ -773,7 +775,7 @@ func TestSecurityHandler_AssignPermissionSet(t *testing.T) {
 				tt.setup(users)
 			}
 			h := newSecurityHandler(nil, nil, nil, users, nil, nil, nil)
-			r := setupSecurityRouter(h)
+			r := setupSecurityRouter(t, h)
 
 			body, _ := json.Marshal(tt.body)
 			w := httptest.NewRecorder()
@@ -819,7 +821,7 @@ func TestSecurityHandler_CreatePermissionSet(t *testing.T) {
 				tt.setup(ps)
 			}
 			h := newSecurityHandler(nil, ps, nil, nil, nil, nil, nil)
-			r := setupSecurityRouter(h)
+			r := setupSecurityRouter(t, h)
 
 			body, _ := json.Marshal(tt.body)
 			w := httptest.NewRecorder()
@@ -866,7 +868,7 @@ func TestSecurityHandler_SetObjectPermission(t *testing.T) {
 				tt.setup(perms)
 			}
 			h := newSecurityHandler(nil, nil, nil, nil, perms, nil, nil)
-			r := setupSecurityRouter(h)
+			r := setupSecurityRouter(t, h)
 
 			body, _ := json.Marshal(tt.body)
 			w := httptest.NewRecorder()
@@ -912,7 +914,7 @@ func TestSecurityHandler_CreateGroup(t *testing.T) {
 				tt.setup(groups)
 			}
 			h := newSecurityHandler(nil, nil, nil, nil, nil, groups, nil)
-			r := setupSecurityRouter(h)
+			r := setupSecurityRouter(t, h)
 
 			body, _ := json.Marshal(tt.body)
 			w := httptest.NewRecorder()
@@ -958,7 +960,7 @@ func TestSecurityHandler_ListSharingRules(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			h := newSecurityHandler(nil, nil, nil, nil, nil, nil, &mockSharingRuleService{})
-			r := setupSecurityRouter(h)
+			r := setupSecurityRouter(t, h)
 
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodGet, "/api/v1/admin/security/sharing-rules"+tt.query, nil)
