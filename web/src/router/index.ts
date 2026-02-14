@@ -49,6 +49,12 @@ const router = createRouter({
           component: () => import('../views/admin/metadata/ObjectDetailView.vue'),
           props: true,
         },
+        // Templates
+        {
+          path: 'templates',
+          name: 'admin-templates',
+          component: () => import('../views/admin/TemplateListView.vue'),
+        },
         // Security — Roles
         {
           path: 'security/roles',

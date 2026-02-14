@@ -29,6 +29,7 @@ import (
 	"github.com/adverax/crm/internal/platform/security/rls"
 	"github.com/adverax/crm/internal/platform/soql"
 	soqlengine "github.com/adverax/crm/internal/platform/soql/engine"
+	"github.com/adverax/crm/internal/platform/templates"
 )
 
 func main() {
@@ -188,6 +189,12 @@ func setupRouter(pool *pgxpool.Pool, cfg config.Config) *gin.Engine {
 	metadataHandler.RegisterRoutes(adminGroup)
 	secHandler := handler.NewSecurityHandler(roleService, psService, profileService, userService, permissionService, groupService, sharingRuleService, authService)
 	secHandler.RegisterRoutes(adminGroup)
+
+	// App templates
+	templateRegistry := templates.BuildRegistry()
+	templateApplier := templates.NewApplier(objectService, fieldService, objectRepo, permissionService, metadataCache)
+	templateHandler := handler.NewTemplateHandler(templateRegistry, templateApplier)
+	templateHandler.RegisterRoutes(adminGroup)
 
 	// Territory management (enterprise only, no-op in community build)
 	registerTerritoryRoutes(pool, adminGroup)

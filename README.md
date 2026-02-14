@@ -78,6 +78,13 @@ ORDER BY CloseDate DESC
 LIMIT 50
 ```
 
+### App Templates
+
+Start with a pre-built set of objects and fields for your domain — or build your own from scratch. Templates are applied once through the admin UI and create real metadata objects.
+
+- **Sales CRM** — Account, Contact, Opportunity, Task (4 objects, 36 fields)
+- **Recruiting** — Position, Candidate, Application, Interview (4 objects, 28 fields)
+
 ### Table-per-Object Storage
 
 Each object gets a dedicated PostgreSQL table. This means:
@@ -196,10 +203,10 @@ make docker-reset     # Reset all data and restart
 | Phase 3 | Done | SOQL parser and executor |
 | Phase 4 | Done | DML engine |
 | Phase 5 | Done | Auth module — JWT, login, password reset, rate limiting |
-| Phase 6 | Next | Standard objects (contacts, accounts, deals, tasks) |
-| Phase 7 | Planned | Vue.js frontend — record UI, dynamic forms |
+| Phase 6 | Done | App Templates — Sales CRM & Recruiting (one-click object/field setup) |
+| Phase 7 | Next | Vue.js frontend — record UI, dynamic forms |
 
-The security engine, SOQL query engine, DML engine, and auth module are **fully implemented** (17 ADRs). The platform can create objects, manage permissions, enforce row-level access control, query data through SOQL, perform all DML operations, and authenticate users via JWT today.
+The platform is **fully functional** across 7 completed phases (18 ADRs). It can create objects via metadata engine or App Templates, manage permissions, enforce 3-layer security (OLS/FLS/RLS), query data through SOQL, perform all DML operations, and authenticate users via JWT.
 
 ---
 
@@ -218,8 +225,9 @@ Every significant decision is documented as an ADR in [`docs/adr/`](docs/adr/):
 | [0012](docs/adr/0012-security-caching-strategy.md) | Closure tables + outbox for cache invalidation |
 | [0014](docs/adr/0014-licensing-and-business-model.md) | Open Core: AGPL v3 + proprietary ee/ |
 | [0017](docs/adr/0017-auth-module.md) | JWT auth: access + refresh tokens, bcrypt, rate limiting |
+| [0018](docs/adr/0018-app-templates.md) | App Templates: Go-embedded templates instead of hardcoded standard objects |
 
-[All 17 ADRs →](docs/adr/)
+[All 18 ADRs →](docs/adr/)
 
 ---
 

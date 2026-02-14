@@ -21,6 +21,8 @@ tags:
     description: SOQL query execution
   - name: dml
     description: DML statement execution
+  - name: templates
+    description: Application template management
 
 paths:
   /healthz:
@@ -506,6 +508,50 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/admin/templates:
+    get:
+      summary: List available application templates
+      operationId: listTemplates
+      tags:
+        - templates
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of templates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemplateListResponse"
+
+  /api/v1/admin/templates/{templateId}/apply:
+    parameters:
+      - name: templateId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      summary: Apply an application template
+      operationId: applyTemplate
+      tags:
+        - templates
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Template applied successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemplateApplyResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -1042,6 +1088,42 @@ components:
           items:
             type: string
           description: IDs of deleted records
+
+    TemplateInfo:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [available, applied, blocked]
+        objects:
+          type: integer
+        fields:
+          type: integer
+
+    TemplateListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/TemplateInfo"
+
+    TemplateApplyResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            template_id:
+              type: string
+            message:
+              type: string
 
     PaginationMeta:
       type: object

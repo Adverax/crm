@@ -24,7 +24,7 @@
 | Analytics | Reports, Dashboards, Einstein | Не реализовано | Базовые отчёты |
 | Integration | Platform Events, CDC, External Services | Не реализовано | CDC + webhooks |
 | Developer Tools | Apex, CLI, Sandboxes, Packaging | — | CLI + migration tools |
-| Standard Objects | Account, Contact, Opportunity, Lead, Case, Task и др. | Не реализовано | 6-8 core objects |
+| Standard Objects | Account, Contact, Opportunity, Lead, Case, Task и др. | App Templates (Sales CRM: 4 obj, Recruiting: 4 obj) | 6-8 core objects |
 
 ---
 
@@ -240,39 +240,36 @@ Row-Level Security — кто видит какие записи.
 
 ---
 
-### Phase 6: Standard Objects ⬜
+### Phase 6: App Templates ✅
 
-Предустановленные объекты для CRM-сценариев. Создаются через metadata engine (не хардкод).
+Вместо хардкода стандартных объектов — система шаблонов приложений (ADR-0018).
+Админ выбирает шаблон через UI, платформа создаёт объекты и поля через metadata engine.
 
-#### Объекты и поля
+#### Реализовано
 
-| Объект | Ключевые поля | Relationships |
-|--------|--------------|---------------|
-| **Account** | name, industry, type, phone, website, billing_address, shipping_address | parent_account_id (self-ref) |
-| **Contact** | first_name, last_name, email, phone, title, department, mailing_address | account_id (association) |
-| **Opportunity** | name, stage, amount, close_date, probability, type | account_id (association) |
-| **Lead** | first_name, last_name, company, email, phone, status, source, rating | — |
-| **Task** | subject, description, status, priority, due_date | who_id (polymorphic: Contact/Lead), what_id (polymorphic: Account/Opportunity) |
-| **Event** | subject, location, start_datetime, end_datetime, is_all_day | who_id, what_id (polymorphic) |
+- [x] **App Templates engine**: Registry + Applier pattern, двухпроходное создание (objects → fields)
+- [x] **Sales CRM шаблон**: Account, Contact, Opportunity, Task (4 объекта, 36 полей)
+- [x] **Recruiting шаблон**: Position, Candidate, Application, Interview (4 объекта, 28 полей)
+- [x] **REST API**: `GET /api/v1/admin/templates` (список), `POST /api/v1/admin/templates/:id/apply` (применить)
+- [x] **Guard**: шаблон можно применить только на пустую базу (object_definitions.count == 0)
+- [x] **OLS/FLS**: автоматическое назначение full CRUD + full RW для admin PS
+- [x] **Vue.js admin**: страница шаблонов с карточками, кнопки «Применить»
+- [x] **E2E тесты**: 9 тестов (list page + sidebar navigation)
+- [x] **Go тесты**: 95%+ покрытие (applier + registry + template structure validation)
+- [x] **OpenAPI spec**: endpoints + schemas
 
-#### Дополнительно
+#### Шаблоны — Go-код (type-safe)
 
-- [ ] Seed-миграция: создание standard objects через metadata API (не raw SQL)
-- [ ] Picklist values: стандартные значения для stage, status, industry, type
-- [ ] Флаг `is_platform_managed: true` — запрет удаления standard objects
-- [ ] System fields: created_by, updated_by, owner_id на всех объектах
+Шаблоны встроены в бинарник как Go-код. Добавление нового шаблона = новый файл в `internal/platform/templates/`.
 
-**Standard Objects для будущих фаз:**
+**Standard Objects для будущих фаз (дополнительные шаблоны):**
 
-| Объект | Фаза |
-|--------|------|
-| Campaign | Phase 8 |
-| Case | Phase 8 |
-| Product / PriceBook / PriceBookEntry | Phase 11 |
-| Order / OrderItem | Phase 11 |
-| Contract | Phase 11 |
-| Note / Attachment | Phase 9 |
-| ActivityHistory (unified) | Phase 9 |
+| Шаблон | Объекты | Фаза |
+|--------|---------|------|
+| Customer Support | Case, Knowledge Article, Entitlement | Phase 8 |
+| Marketing | Campaign, CampaignMember, Lead | Phase 8 |
+| Commerce | Product, PriceBook, Order, OrderItem | Phase 11 |
+| Project Management | Project, Milestone, Task, TimeEntry | Phase 11 |
 
 ---
 
@@ -480,7 +477,7 @@ Event-driven архитектура для интеграций.
 ## Приоритеты и зависимости
 
 ```
-Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ✅ ──→ Phase 4 ✅ ──→ Phase 5 ✅
+Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ✅ ──→ Phase 4 ✅ ──→ Phase 5 ✅ ──→ Phase 6 ✅
                                   │                │          │          │
                                   │                ▼          ▼          ▼
                                   │           Phase 10    Phase 13   Phase 7a
@@ -505,7 +502,7 @@ Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ✅ �
 Минимальный набор для рабочей CRM:
 
 ```
-Phase 2b/2c ✅ → Phase 3 ✅ → Phase 4 ✅ → Phase 5 ✅ → Phase 6 → Phase 7 → v0.1.0
+Phase 2b/2c ✅ → Phase 3 ✅ → Phase 4 ✅ → Phase 5 ✅ → Phase 6 ✅ → Phase 7 → v0.1.0
 ```
 
 Это покрывает: security → query → mutation → auth → standard objects → UI.
@@ -547,7 +544,7 @@ Phase 2b/2c ✅ → Phase 3 ✅ → Phase 4 ✅ → Phase 5 ✅ → Phase 6 → 
 |--------|-------|--------------------------|
 | **v0.1.0-alpha** | 0-2 | Metadata engine + полный security (OLS/FLS/RLS + Groups + Sharing Rules) + Territory Management (ee/) ✅ |
 | **v0.2.0-alpha** | 3-5 | SOQL + DML + Auth — данные можно читать/писать с security enforcement, JWT-аутентификация ✅ |
-| **v0.3.0-beta** | 6-7 | Standard objects + Record UI — можно логиниться и работать с CRM-данными |
+| **v0.3.0-beta** | 6-7 | App Templates + Record UI — можно логиниться и работать с CRM-данными |
 | **v0.4.0-beta** | 7 | Полноценный UI — CRM можно использовать через браузер |
 | **v0.5.0-beta** | 8 | Notifications + dashboards — CRM как рабочий инструмент |
 | **v1.0.0** | 9-10 | Record types, formulas, validation — production-ready |
@@ -573,4 +570,4 @@ Phase 2b/2c ✅ → Phase 3 ✅ → Phase 4 ✅ → Phase 5 ✅ → Phase 6 → 
 
 ---
 
-*Этот документ обновляется по мере завершения фаз. Последнее обновление: 2026-02-13.*
+*Этот документ обновляется по мере завершения фаз. Последнее обновление: 2026-02-14.*

@@ -21,6 +21,7 @@ interface NavGroup {
 
 const topItems: NavItem[] = [
   { label: 'Объекты', to: '/admin/metadata/objects' },
+  { label: 'Шаблоны', to: '/admin/templates' },
 ]
 
 const securityGroup: NavGroup = {

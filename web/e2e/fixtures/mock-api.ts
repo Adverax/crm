@@ -683,6 +683,47 @@ export async function setupSharingRuleRoutes(page: Page) {
   }
 }
 
+// ─── Templates mock data ─────────────────────────────────────
+
+export const mockTemplates = [
+  {
+    id: 'sales_crm',
+    label: 'Sales CRM',
+    description: 'CRM for sales teams: accounts, contacts, opportunities, and tasks',
+    status: 'available',
+    objects: 4,
+    fields: 36,
+  },
+  {
+    id: 'recruiting',
+    label: 'Recruiting',
+    description: 'Applicant tracking system: positions, candidates, applications, and interviews',
+    status: 'available',
+    objects: 4,
+    fields: 28,
+  },
+]
+
+export async function setupTemplateRoutes(page: Page) {
+  await page.route('**/api/v1/admin/templates', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ json: { data: mockTemplates } })
+    }
+    return route.continue()
+  })
+
+  for (const tmpl of mockTemplates) {
+    await page.route(`**/api/v1/admin/templates/${tmpl.id}/apply`, (route) => {
+      if (route.request().method() === 'POST') {
+        return route.fulfill({
+          json: { data: { template_id: tmpl.id, message: 'template applied successfully' } },
+        })
+      }
+      return route.continue()
+    })
+  }
+}
+
 // ─── Territory mock data ─────────────────────────────────────
 
 export const mockTerritoryModels = [
@@ -874,5 +915,6 @@ export async function setupAllRoutes(page: Page) {
   await setupSecurityRoutes(page)
   await setupGroupRoutes(page)
   await setupSharingRuleRoutes(page)
+  await setupTemplateRoutes(page)
   await setupTerritoryRoutes(page)
 }
