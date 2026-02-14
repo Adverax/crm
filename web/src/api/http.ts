@@ -75,7 +75,26 @@ class HttpClient {
       return undefined as T
     }
 
-    const json = await response.json()
+    const text = await response.text()
+    if (!text) {
+      if (!response.ok) {
+        throw new HttpError(response.status, {
+          code: 'INTERNAL',
+          message: `${method} ${path} → ${response.status}: empty response from server`,
+        })
+      }
+      return undefined as T
+    }
+
+    let json: unknown
+    try {
+      json = JSON.parse(text)
+    } catch {
+      throw new HttpError(response.status, {
+        code: 'INTERNAL',
+        message: `${method} ${path} → ${response.status}: invalid JSON`,
+      })
+    }
 
     if (!response.ok) {
       if (response.status === 401 && this.refreshHandler && !this.isRefreshing) {
@@ -93,7 +112,14 @@ class HttpClient {
             }
             const retryResponse = await fetch(url, retryInit)
             if (retryResponse.status === 204) return undefined as T
-            const retryJson = await retryResponse.json()
+            const retryText = await retryResponse.text()
+            if (!retryText) {
+              if (!retryResponse.ok) {
+                throw new HttpError(retryResponse.status, { code: 'INTERNAL', message: 'empty response from server' })
+              }
+              return undefined as T
+            }
+            const retryJson = JSON.parse(retryText)
             if (!retryResponse.ok) {
               const retryError = snakeToCamel<{ error: ApiError }>(retryJson)
               throw new HttpError(retryResponse.status, retryError.error)

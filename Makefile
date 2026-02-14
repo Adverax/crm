@@ -25,9 +25,11 @@ build-ee:
 	go build -tags enterprise -ldflags="-s -w" -o $(BIN_DIR)/$(APP_NAME) ./cmd/api
 
 run:
+	-pkill -f 'go-build.*/api$$' 2>/dev/null || true
 	go run ./cmd/api
 
 run-ee:
+	-pkill -f 'go-build.*/api$$' 2>/dev/null || true
 	go run -tags enterprise ./cmd/api
 
 test:
