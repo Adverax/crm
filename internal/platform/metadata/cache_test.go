@@ -47,6 +47,10 @@ func (m *mockCacheLoader) RefreshMaterializedView(_ context.Context) error {
 	return m.refreshErr
 }
 
+func (m *mockCacheLoader) LoadAllValidationRules(_ context.Context) ([]ValidationRule, error) {
+	return nil, nil
+}
+
 func TestMetadataCacheLoad(t *testing.T) {
 	t.Parallel()
 

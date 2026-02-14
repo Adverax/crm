@@ -14,15 +14,21 @@ import (
 
 // MetadataHandler handles admin CRUD for metadata resources.
 type MetadataHandler struct {
-	objectService metadata.ObjectService
-	fieldService  metadata.FieldService
+	objectService         metadata.ObjectService
+	fieldService          metadata.FieldService
+	validationRuleHandler *ValidationRuleHandler
 }
 
 // NewMetadataHandler creates a new MetadataHandler.
-func NewMetadataHandler(objectService metadata.ObjectService, fieldService metadata.FieldService) *MetadataHandler {
+func NewMetadataHandler(
+	objectService metadata.ObjectService,
+	fieldService metadata.FieldService,
+	validationRuleService metadata.ValidationRuleService,
+) *MetadataHandler {
 	return &MetadataHandler{
-		objectService: objectService,
-		fieldService:  fieldService,
+		objectService:         objectService,
+		fieldService:          fieldService,
+		validationRuleHandler: NewValidationRuleHandler(validationRuleService),
 	}
 }
 
@@ -41,6 +47,9 @@ func (h *MetadataHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	meta.GET("/objects/:objectId/fields/:fieldId", h.GetField)
 	meta.PUT("/objects/:objectId/fields/:fieldId", h.UpdateField)
 	meta.DELETE("/objects/:objectId/fields/:fieldId", h.DeleteField)
+
+	// Validation rules
+	h.validationRuleHandler.RegisterRoutes(meta)
 }
 
 func (h *MetadataHandler) CreateObject(c *gin.Context) {

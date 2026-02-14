@@ -506,3 +506,7 @@ func (s *stubCacheLoader) LoadRelationships(_ context.Context) ([]metadata.Relat
 func (s *stubCacheLoader) RefreshMaterializedView(_ context.Context) error {
 	return nil
 }
+
+func (s *stubCacheLoader) LoadAllValidationRules(_ context.Context) ([]metadata.ValidationRule, error) {
+	return nil, nil
+}

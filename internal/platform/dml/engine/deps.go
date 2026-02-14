@@ -233,6 +233,15 @@ type FieldMeta struct {
 
 	// IsUnique indicates whether the field has a unique constraint.
 	IsUnique bool
+
+	// DefaultValue is the static default value (string representation).
+	DefaultValue *string
+
+	// DefaultExpr is a CEL expression for dynamic defaults.
+	DefaultExpr *string
+
+	// DefaultOn specifies when defaults apply: "create", "update", or "create,update".
+	DefaultOn *string
 }
 
 // StaticMetadataProvider is a simple MetadataProvider backed by a static map.
@@ -344,6 +353,38 @@ func (b *ObjectMetaBuilder) FieldFull(field *FieldMeta) *ObjectMetaBuilder {
 // Build returns the constructed ObjectMeta.
 func (b *ObjectMetaBuilder) Build() *ObjectMeta {
 	return b.meta
+}
+
+// =============================================================================
+// Default Resolver Abstraction
+// =============================================================================
+
+// DefaultResolver computes default values for fields not provided in a DML statement.
+type DefaultResolver interface {
+	// ResolveDefaults returns default values for fields not in providedFields.
+	// The returned map uses DML field names as keys.
+	ResolveDefaults(ctx context.Context, object *ObjectMeta, operation Operation,
+		providedFields []string) (map[string]any, error)
+}
+
+// =============================================================================
+// Rule Validator Abstraction
+// =============================================================================
+
+// ValidationRuleError represents a single validation rule failure.
+type ValidationRuleError struct {
+	RuleID   string
+	Code     string
+	Message  string
+	Severity string // "error" or "warning"
+}
+
+// RuleValidator evaluates business validation rules against a record.
+type RuleValidator interface {
+	// ValidateRules evaluates all active validation rules for the object.
+	// Returns a list of rule violations.
+	ValidateRules(ctx context.Context, object *ObjectMeta, operation Operation,
+		record, old map[string]any) ([]ValidationRuleError, error)
 }
 
 // =============================================================================

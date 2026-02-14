@@ -143,9 +143,6 @@ func (s *recordService) Create(ctx context.Context, objectName string, fields ma
 	fields["CreatedById"] = uc.UserID.String()
 	fields["UpdatedById"] = uc.UserID.String()
 
-	// Inject static defaults from metadata
-	s.injectDefaults(objDef, fields)
-
 	fieldNames, fieldValues := buildFieldLists(fields)
 
 	stmt := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
@@ -235,20 +232,6 @@ func (s *recordService) buildSelectFields(objDef metadata.ObjectDefinition) []st
 	}
 
 	return fieldNames
-}
-
-// injectDefaults fills in static default values for fields not provided in the input.
-func (s *recordService) injectDefaults(objDef metadata.ObjectDefinition, fields map[string]any) {
-	defs := s.cache.GetFieldsByObjectID(objDef.ID)
-	for _, f := range defs {
-		if f.Config.DefaultValue == nil {
-			continue
-		}
-		if _, exists := fields[f.APIName]; exists {
-			continue
-		}
-		fields[f.APIName] = *f.Config.DefaultValue
-	}
 }
 
 func normalizePerPage(perPage int) int {

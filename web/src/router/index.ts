@@ -74,6 +74,25 @@ const router = createRouter({
           component: () => import('../views/admin/metadata/ObjectDetailView.vue'),
           props: true,
         },
+        // Validation Rules
+        {
+          path: 'metadata/objects/:objectId/rules',
+          name: 'admin-validation-rules',
+          component: () => import('../views/admin/metadata/ValidationRuleListView.vue'),
+          props: true,
+        },
+        {
+          path: 'metadata/objects/:objectId/rules/new',
+          name: 'admin-validation-rule-create',
+          component: () => import('../views/admin/metadata/ValidationRuleCreateView.vue'),
+          props: true,
+        },
+        {
+          path: 'metadata/objects/:objectId/rules/:ruleId',
+          name: 'admin-validation-rule-detail',
+          component: () => import('../views/admin/metadata/ValidationRuleDetailView.vue'),
+          props: true,
+        },
         // Templates
         {
           path: 'templates',

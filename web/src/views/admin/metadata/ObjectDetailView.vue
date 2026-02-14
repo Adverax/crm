@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { storeToRefs } from 'pinia'
+import { RouterLink } from 'vue-router'
 import type { FieldDefinition, Visibility } from '@/types/metadata'
 
 const props = defineProps<{
@@ -197,6 +198,14 @@ const breadcrumbs = computed(() => [
           <TabsTrigger value="info">Основное</TabsTrigger>
           <TabsTrigger value="fields">
             Поля ({{ fields.length }})
+          </TabsTrigger>
+          <TabsTrigger value="rules" as-child>
+            <RouterLink
+              :to="{ name: 'admin-validation-rules', params: { objectId: props.objectId } }"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium"
+            >
+              Правила валидации
+            </RouterLink>
           </TabsTrigger>
         </TabsList>
 

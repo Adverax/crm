@@ -85,6 +85,14 @@ Start with a pre-built set of objects and fields for your domain — or build yo
 - **Sales CRM** — Account, Contact, Opportunity, Task (4 objects, 36 fields)
 - **Recruiting** — Position, Candidate, Application, Interview (4 objects, 28 fields)
 
+### Declarative Business Logic
+
+CEL-based validation rules and dynamic defaults — no code required:
+
+- **Validation Rules** — CEL expressions checked on every INSERT/UPDATE. `size(record.Name) > 0` blocks records with empty names.
+- **Dynamic Defaults** — CEL expressions for default field values. `user.id` auto-fills owner, `now` sets timestamps.
+- **DML Pipeline** — 6-stage pipeline (Parse → Resolve → Defaults → Validate → Compile → Execute) with typed interfaces and Option pattern.
+
 ### Generic CRUD + Metadata-Driven UI
 
 One set of REST endpoints and Vue.js views serves **all objects** — no per-object code. The frontend renders forms, tables, and detail pages dynamically from metadata.
@@ -214,9 +222,10 @@ make docker-reset     # Reset all data and restart
 | Phase 5 | Done | Auth module — JWT, login, password reset, rate limiting |
 | Phase 6 | Done | App Templates — Sales CRM & Recruiting (one-click object/field setup) |
 | Phase 7a | Done | Generic CRUD + metadata-driven UI — dynamic record views, describe API |
-| Phase 7b | Next | CEL engine, validation rules, dynamic defaults |
+| Phase 7b | Done | CEL engine, validation rules, dynamic defaults, DML pipeline extension |
+| Phase 8 | Next | Notifications, dashboard, analytics |
 
-The platform is **fully functional** across 8 completed phases (20 ADRs). It can create objects via metadata engine or App Templates, manage permissions, enforce 3-layer security (OLS/FLS/RLS), query data through SOQL, perform all DML operations, authenticate users via JWT, and work with records through a dynamic metadata-driven UI.
+The platform is **fully functional** across 9 completed phases (20 ADRs). It can create objects via metadata engine or App Templates, manage permissions, enforce 3-layer security (OLS/FLS/RLS), query data through SOQL, perform all DML operations with CEL-based validation rules and dynamic defaults, authenticate users via JWT, and work with records through a dynamic metadata-driven UI.
 
 ---
 

@@ -103,6 +103,24 @@ func (m *mockFieldService) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
+type mockValidationRuleService struct{}
+
+func (m *mockValidationRuleService) Create(_ context.Context, _ metadata.CreateValidationRuleInput) (*metadata.ValidationRule, error) {
+	return &metadata.ValidationRule{ID: uuid.New()}, nil
+}
+func (m *mockValidationRuleService) GetByID(_ context.Context, _ uuid.UUID) (*metadata.ValidationRule, error) {
+	return nil, apperror.NotFound("validation_rule", "")
+}
+func (m *mockValidationRuleService) ListByObjectID(_ context.Context, _ uuid.UUID) ([]metadata.ValidationRule, error) {
+	return nil, nil
+}
+func (m *mockValidationRuleService) Update(_ context.Context, _ uuid.UUID, _ metadata.UpdateValidationRuleInput) (*metadata.ValidationRule, error) {
+	return nil, apperror.NotFound("validation_rule", "")
+}
+func (m *mockValidationRuleService) Delete(_ context.Context, _ uuid.UUID) error {
+	return nil
+}
+
 func setupRouter(h *MetadataHandler) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
@@ -162,7 +180,7 @@ func TestMetadataHandlerCreateObject(t *testing.T) {
 			if tt.setupObj != nil {
 				tt.setupObj(objSvc)
 			}
-			h := NewMetadataHandler(objSvc, &mockFieldService{})
+			h := NewMetadataHandler(objSvc, &mockFieldService{}, &mockValidationRuleService{})
 			r := setupRouter(h)
 
 			body, _ := json.Marshal(tt.body)
@@ -213,7 +231,7 @@ func TestMetadataHandlerGetObject(t *testing.T) {
 			if tt.setupObj != nil {
 				tt.setupObj(objSvc)
 			}
-			h := NewMetadataHandler(objSvc, &mockFieldService{})
+			h := NewMetadataHandler(objSvc, &mockFieldService{}, &mockValidationRuleService{})
 			r := setupRouter(h)
 
 			w := httptest.NewRecorder()
@@ -237,7 +255,7 @@ func TestMetadataHandlerListObjects(t *testing.T) {
 			}, 1, nil
 		},
 	}
-	h := NewMetadataHandler(objSvc, &mockFieldService{})
+	h := NewMetadataHandler(objSvc, &mockFieldService{}, &mockValidationRuleService{})
 	r := setupRouter(h)
 
 	w := httptest.NewRecorder()
@@ -303,7 +321,7 @@ func TestMetadataHandlerDeleteObject(t *testing.T) {
 			if tt.setupObj != nil {
 				tt.setupObj(objSvc)
 			}
-			h := NewMetadataHandler(objSvc, &mockFieldService{})
+			h := NewMetadataHandler(objSvc, &mockFieldService{}, &mockValidationRuleService{})
 			r := setupRouter(h)
 
 			w := httptest.NewRecorder()
@@ -351,7 +369,7 @@ func TestMetadataHandlerCreateField(t *testing.T) {
 			if tt.setupField != nil {
 				tt.setupField(fieldSvc)
 			}
-			h := NewMetadataHandler(&mockObjectService{}, fieldSvc)
+			h := NewMetadataHandler(&mockObjectService{}, fieldSvc, &mockValidationRuleService{})
 			r := setupRouter(h)
 
 			body, _ := json.Marshal(tt.body)
@@ -402,7 +420,7 @@ func TestMetadataHandlerGetField(t *testing.T) {
 			if tt.setupField != nil {
 				tt.setupField(fieldSvc)
 			}
-			h := NewMetadataHandler(&mockObjectService{}, fieldSvc)
+			h := NewMetadataHandler(&mockObjectService{}, fieldSvc, &mockValidationRuleService{})
 			r := setupRouter(h)
 
 			w := httptest.NewRecorder()
@@ -423,7 +441,7 @@ func TestMetadataHandlerDeleteField(t *testing.T) {
 	objectID := uuid.New()
 	fieldID := uuid.New()
 
-	h := NewMetadataHandler(&mockObjectService{}, &mockFieldService{})
+	h := NewMetadataHandler(&mockObjectService{}, &mockFieldService{}, &mockValidationRuleService{})
 	r := setupRouter(h)
 
 	w := httptest.NewRecorder()
@@ -439,7 +457,7 @@ func TestMetadataHandlerDeleteField(t *testing.T) {
 func TestMetadataHandlerHealthCheck(t *testing.T) {
 	t.Parallel()
 
-	h := NewMetadataHandler(&mockObjectService{}, &mockFieldService{})
+	h := NewMetadataHandler(&mockObjectService{}, &mockFieldService{}, &mockValidationRuleService{})
 	r := setupRouter(h)
 
 	w := httptest.NewRecorder()

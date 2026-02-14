@@ -420,6 +420,43 @@ func NewExecutionErrorWithSQL(message, sql string, sqlErr error) *ExecutionError
 	}
 }
 
+// RuleValidationError represents one or more validation rule failures.
+type RuleValidationError struct {
+	Rules []ValidationRuleError
+}
+
+func (e *RuleValidationError) Error() string {
+	if len(e.Rules) == 0 {
+		return "validation rule failed"
+	}
+	if len(e.Rules) == 1 {
+		return fmt.Sprintf("validation rule failed: %s", e.Rules[0].Message)
+	}
+	return fmt.Sprintf("validation rules failed: %d violations", len(e.Rules))
+}
+
+// IsRuleValidationError checks if the error is a RuleValidationError.
+func IsRuleValidationError(err error) bool {
+	var e *RuleValidationError
+	return errors.As(err, &e)
+}
+
+// DefaultEvalError represents a failure evaluating a default expression.
+type DefaultEvalError struct {
+	Field      string
+	Expression string
+	Cause      error
+}
+
+func (e *DefaultEvalError) Error() string {
+	return fmt.Sprintf("failed to evaluate default for field %s (expression: %s): %s",
+		e.Field, e.Expression, e.Cause)
+}
+
+func (e *DefaultEvalError) Unwrap() error {
+	return e.Cause
+}
+
 // Error type checking helpers
 
 // IsParseError checks if the error is a ParseError.

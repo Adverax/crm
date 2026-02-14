@@ -78,6 +78,10 @@ func (s *stubDescribeCacheLoader) RefreshMaterializedView(_ context.Context) err
 	return nil
 }
 
+func (s *stubDescribeCacheLoader) LoadAllValidationRules(_ context.Context) ([]metadata.ValidationRule, error) {
+	return nil, nil
+}
+
 func buildDescribeTestCache(objID uuid.UUID, apiName, tableName string) *metadata.MetadataCache {
 	fieldID := uuid.New()
 	loader := &stubDescribeCacheLoader{

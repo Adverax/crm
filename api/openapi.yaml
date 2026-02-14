@@ -23,6 +23,8 @@ tags:
     description: DML statement execution
   - name: templates
     description: Application template management
+  - name: validation-rules
+    description: Validation rule management
 
 paths:
   /healthz:
@@ -742,6 +744,109 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/v1/admin/metadata/objects/{objectId}/rules:
+    parameters:
+      - $ref: "#/components/parameters/ObjectId"
+    get:
+      summary: List validation rules for object
+      operationId: listValidationRules
+      tags:
+        - validation-rules
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of validation rules
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationRuleListResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      summary: Create validation rule
+      operationId: createValidationRule
+      tags:
+        - validation-rules
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateValidationRuleRequest"
+      responses:
+        "201":
+          description: Validation rule created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationRuleResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/admin/metadata/objects/{objectId}/rules/{ruleId}:
+    parameters:
+      - $ref: "#/components/parameters/ObjectId"
+      - $ref: "#/components/parameters/RuleId"
+    get:
+      summary: Get validation rule
+      operationId: getValidationRule
+      tags:
+        - validation-rules
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Validation rule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationRuleResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      summary: Update validation rule
+      operationId: updateValidationRule
+      tags:
+        - validation-rules
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateValidationRuleRequest"
+      responses:
+        "200":
+          description: Validation rule updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationRuleResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      summary: Delete validation rule
+      operationId: deleteValidationRule
+      tags:
+        - validation-rules
+      security:
+        - BearerAuth: []
+      responses:
+        "204":
+          description: Validation rule deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   # NOTE: Security endpoints (roles, permission-sets, profiles, users, groups,
   # sharing-rules) are registered manually via SecurityHandler.RegisterRoutes.
   # They are not included in OpenAPI codegen to avoid ServerInterface bloat.
@@ -758,6 +863,14 @@ components:
 
     FieldId:
       name: fieldId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    RuleId:
+      name: ruleId
       in: path
       required: true
       schema:
@@ -1148,6 +1261,143 @@ components:
           type: boolean
         default_value:
           type: string
+        default_expr:
+          type: string
+          description: CEL expression for dynamic default value
+        default_on:
+          type: string
+          description: When to apply default (create, update, create,update)
+
+    CreateValidationRuleRequest:
+      type: object
+      required:
+        - api_name
+        - label
+        - expression
+        - error_message
+      properties:
+        api_name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        label:
+          type: string
+          minLength: 1
+          maxLength: 255
+        expression:
+          type: string
+          description: CEL expression that must return true for valid data
+        error_message:
+          type: string
+          maxLength: 500
+        error_code:
+          type: string
+          maxLength: 100
+          default: validation_failed
+        severity:
+          type: string
+          enum: [error, warning]
+          default: error
+        when_expression:
+          type: string
+          description: Optional CEL condition for when this rule applies
+        applies_to:
+          type: string
+          default: "create,update"
+        sort_order:
+          type: integer
+          default: 0
+        is_active:
+          type: boolean
+          default: true
+        description:
+          type: string
+
+    UpdateValidationRuleRequest:
+      type: object
+      required:
+        - label
+        - expression
+        - error_message
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 255
+        expression:
+          type: string
+        error_message:
+          type: string
+          maxLength: 500
+        error_code:
+          type: string
+        severity:
+          type: string
+          enum: [error, warning]
+        when_expression:
+          type: string
+        applies_to:
+          type: string
+        sort_order:
+          type: integer
+        is_active:
+          type: boolean
+        description:
+          type: string
+
+    ValidationRule:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        object_id:
+          type: string
+          format: uuid
+        api_name:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+        expression:
+          type: string
+        error_message:
+          type: string
+        error_code:
+          type: string
+        severity:
+          type: string
+          enum: [error, warning]
+        when_expression:
+          type: string
+          nullable: true
+        applies_to:
+          type: string
+        sort_order:
+          type: integer
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ValidationRuleResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/ValidationRule"
+
+    ValidationRuleListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValidationRule"
 
     FieldDefinitionSchema:
       type: object

@@ -140,6 +140,23 @@ func (l *PgCacheLoader) LoadRelationships(ctx context.Context) ([]RelationshipIn
 	return rels, rows.Err()
 }
 
+// LoadAllValidationRules loads all validation rules from the database.
+func (l *PgCacheLoader) LoadAllValidationRules(ctx context.Context) ([]ValidationRule, error) {
+	rows, err := l.pool.Query(ctx, `
+		SELECT id, object_id, api_name, label, description, expression,
+			error_message, error_code, severity, when_expression,
+			applies_to, sort_order, is_active, created_at, updated_at
+		FROM metadata.validation_rules
+		ORDER BY object_id, sort_order, api_name
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("pgCacheLoader.LoadAllValidationRules: %w", err)
+	}
+	defer rows.Close()
+
+	return scanValidationRules(rows)
+}
+
 // RefreshMaterializedView refreshes the relationship_registry materialized view concurrently.
 func (l *PgCacheLoader) RefreshMaterializedView(ctx context.Context) error {
 	_, err := l.pool.Exec(ctx, "REFRESH MATERIALIZED VIEW CONCURRENTLY metadata.relationship_registry")

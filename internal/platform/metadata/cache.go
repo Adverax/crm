@@ -13,6 +13,7 @@ type CacheLoader interface {
 	LoadAllObjects(ctx context.Context) ([]ObjectDefinition, error)
 	LoadAllFields(ctx context.Context) ([]FieldDefinition, error)
 	LoadRelationships(ctx context.Context) ([]RelationshipInfo, error)
+	LoadAllValidationRules(ctx context.Context) ([]ValidationRule, error)
 	RefreshMaterializedView(ctx context.Context) error
 }
 
@@ -30,6 +31,9 @@ type MetadataCache struct {
 	forwardRels map[uuid.UUID][]RelationshipInfo // child_object_id → []rel
 	reverseRels map[uuid.UUID][]RelationshipInfo // parent_object_id → []rel
 
+	// Validation rules
+	validationRulesByObjectID map[uuid.UUID][]ValidationRule
+
 	loader CacheLoader
 	loaded bool
 }
@@ -37,13 +41,14 @@ type MetadataCache struct {
 // NewMetadataCache creates a new MetadataCache.
 func NewMetadataCache(loader CacheLoader) *MetadataCache {
 	return &MetadataCache{
-		objectsByID:      make(map[uuid.UUID]ObjectDefinition),
-		objectsByAPIName: make(map[string]ObjectDefinition),
-		fieldsByID:       make(map[uuid.UUID]FieldDefinition),
-		fieldsByObjectID: make(map[uuid.UUID][]FieldDefinition),
-		forwardRels:      make(map[uuid.UUID][]RelationshipInfo),
-		reverseRels:      make(map[uuid.UUID][]RelationshipInfo),
-		loader:           loader,
+		objectsByID:               make(map[uuid.UUID]ObjectDefinition),
+		objectsByAPIName:          make(map[string]ObjectDefinition),
+		fieldsByID:                make(map[uuid.UUID]FieldDefinition),
+		fieldsByObjectID:          make(map[uuid.UUID][]FieldDefinition),
+		forwardRels:               make(map[uuid.UUID][]RelationshipInfo),
+		reverseRels:               make(map[uuid.UUID][]RelationshipInfo),
+		validationRulesByObjectID: make(map[uuid.UUID][]ValidationRule),
+		loader:                    loader,
 	}
 }
 
@@ -62,6 +67,11 @@ func (c *MetadataCache) Load(ctx context.Context) error {
 	rels, err := c.loader.LoadRelationships(ctx)
 	if err != nil {
 		return fmt.Errorf("metadataCache.Load: relationships: %w", err)
+	}
+
+	rules, err := c.loader.LoadAllValidationRules(ctx)
+	if err != nil {
+		return fmt.Errorf("metadataCache.Load: validation rules: %w", err)
 	}
 
 	c.mu.Lock()
@@ -88,6 +98,11 @@ func (c *MetadataCache) Load(ctx context.Context) error {
 		if rel.ParentObjectID != uuid.Nil {
 			c.reverseRels[rel.ParentObjectID] = append(c.reverseRels[rel.ParentObjectID], rel)
 		}
+	}
+
+	c.validationRulesByObjectID = make(map[uuid.UUID][]ValidationRule)
+	for _, rule := range rules {
+		c.validationRulesByObjectID[rule.ObjectID] = append(c.validationRulesByObjectID[rule.ObjectID], rule)
 	}
 
 	c.loaded = true
@@ -156,6 +171,30 @@ func (c *MetadataCache) ListObjectAPINames() []string {
 		names = append(names, name)
 	}
 	return names
+}
+
+// GetValidationRules returns all validation rules for an object.
+func (c *MetadataCache) GetValidationRules(objectID uuid.UUID) []ValidationRule {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.validationRulesByObjectID[objectID]
+}
+
+// LoadValidationRules reloads only validation rules into the cache.
+func (c *MetadataCache) LoadValidationRules(ctx context.Context) error {
+	rules, err := c.loader.LoadAllValidationRules(ctx)
+	if err != nil {
+		return fmt.Errorf("metadataCache.LoadValidationRules: %w", err)
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.validationRulesByObjectID = make(map[uuid.UUID][]ValidationRule)
+	for _, rule := range rules {
+		c.validationRulesByObjectID[rule.ObjectID] = append(c.validationRulesByObjectID[rule.ObjectID], rule)
+	}
+	return nil
 }
 
 // IsLoaded returns whether the cache has been loaded.

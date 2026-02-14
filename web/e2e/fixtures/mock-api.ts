@@ -908,6 +908,89 @@ export async function setupTerritoryRoutes(page: Page) {
   })
 }
 
+// ─── Validation Rules mock data ─────────────────────────────────
+
+export const mockValidationRules = [
+  {
+    id: 'vr111111-1111-1111-1111-111111111111',
+    object_id: '11111111-1111-1111-1111-111111111111',
+    api_name: 'name_required',
+    label: 'Имя обязательно',
+    description: 'Проверяет, что имя не пустое',
+    expression: 'size(record.Name) > 0',
+    error_message: 'Поле Name обязательно',
+    error_code: 'validation_failed',
+    severity: 'error',
+    when_expression: null,
+    applies_to: 'create,update',
+    sort_order: 0,
+    is_active: true,
+    created_at: '2026-02-10T10:00:00Z',
+    updated_at: '2026-02-10T10:00:00Z',
+  },
+  {
+    id: 'vr222222-2222-2222-2222-222222222222',
+    object_id: '11111111-1111-1111-1111-111111111111',
+    api_name: 'phone_format',
+    label: 'Формат телефона',
+    description: 'Предупреждение о формате телефона',
+    expression: 'record.Phone.startsWith("+")',
+    error_message: 'Рекомендуется международный формат телефона',
+    error_code: 'phone_format',
+    severity: 'warning',
+    when_expression: 'has(record.Phone)',
+    applies_to: 'create,update',
+    sort_order: 1,
+    is_active: false,
+    created_at: '2026-02-11T10:00:00Z',
+    updated_at: '2026-02-11T10:00:00Z',
+  },
+]
+
+export async function setupValidationRuleRoutes(page: Page) {
+  for (const obj of mockObjects) {
+    // List rules for object
+    await page.route(`**/api/v1/admin/metadata/objects/${obj.id}/rules?*`, (route) => {
+      route.fulfill({
+        json: singleResponse(
+          mockValidationRules.filter((r) => r.object_id === obj.id),
+        ),
+      })
+    })
+    await page.route(`**/api/v1/admin/metadata/objects/${obj.id}/rules`, (route) => {
+      if (route.request().method() === 'GET') {
+        return route.fulfill({
+          json: singleResponse(
+            mockValidationRules.filter((r) => r.object_id === obj.id),
+          ),
+        })
+      }
+      if (route.request().method() === 'POST') {
+        return route.fulfill({
+          json: singleResponse({ ...mockValidationRules[0], id: 'new-rule-id' }),
+        })
+      }
+      return route.continue()
+    })
+  }
+
+  // Single rule routes
+  for (const rule of mockValidationRules) {
+    await page.route(`**/api/v1/admin/metadata/objects/${rule.object_id}/rules/${rule.id}`, (route) => {
+      if (route.request().method() === 'GET') {
+        return route.fulfill({ json: singleResponse(rule) })
+      }
+      if (route.request().method() === 'PUT') {
+        return route.fulfill({ json: singleResponse(rule) })
+      }
+      if (route.request().method() === 'DELETE') {
+        return route.fulfill({ status: 204 })
+      }
+      return route.continue()
+    })
+  }
+}
+
 // ─── Describe / Records mock data ─────────────────────────────
 
 export const mockDescribeList = [
@@ -1075,6 +1158,7 @@ export async function setupAllRoutes(page: Page) {
   await setupSharingRuleRoutes(page)
   await setupTemplateRoutes(page)
   await setupTerritoryRoutes(page)
+  await setupValidationRuleRoutes(page)
   await setupDescribeRoutes(page)
   await setupRecordRoutes(page)
 }

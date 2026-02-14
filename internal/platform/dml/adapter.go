@@ -73,9 +73,12 @@ func (a *MetadataAdapter) convertFieldMeta(f metadata.FieldDefinition) *engine.F
 		Nullable:     !f.IsRequired,
 		Required:     f.IsRequired,
 		ReadOnly:     f.IsSystemField,
-		HasDefault:   f.Config.DefaultValue != nil,
+		HasDefault:   f.Config.DefaultValue != nil || f.Config.DefaultExpr != nil,
 		IsExternalId: false,
 		IsUnique:     f.IsUnique,
+		DefaultValue: f.Config.DefaultValue,
+		DefaultExpr:  f.Config.DefaultExpr,
+		DefaultOn:    f.Config.DefaultOn,
 	}
 }
 

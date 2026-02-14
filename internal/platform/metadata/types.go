@@ -153,6 +153,8 @@ type FieldConfig struct {
 
 	// common
 	DefaultValue *string `json:"default_value,omitempty"`
+	DefaultExpr  *string `json:"default_expr,omitempty"`
+	DefaultOn    *string `json:"default_on,omitempty"`
 }
 
 // Scan implements the sql.Scanner interface for JSONB.

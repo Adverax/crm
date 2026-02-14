@@ -16,7 +16,7 @@
 | Security (OLS/FLS) | Profile, Permission Set, Permission Set Group, Muting PS | Profile, Grant/Deny PS, OLS bitmask, FLS bitmask, effective caches | 90% SF |
 | Security (RLS) | OWD, Role Hierarchy, Sharing Rules, Manual Sharing, Apex Sharing, Teams, Territory | OWD, Groups (4 типа), Share tables, Role hierarchy, Sharing Rules (owner+criteria), Manual Sharing, RLS enforcer, effective caches, Territory Management (ee/) | 85% SF |
 | Data Access (SOQL) | SOQL с relationship queries, aggregates, security enforcement | SOQL parser (participle), validator, compiler, executor с OLS+FLS+RLS enforcement, relationship queries, aggregates, date literals, subqueries | 70% SF |
-| Data Mutation (DML) | Insert, Update, Upsert, Delete, Undelete, Merge + triggers | INSERT/UPDATE/DELETE/UPSERT, OLS+FLS enforcement, RLS injection для UPDATE/DELETE, batch operations, functions | 60% SF |
+| Data Mutation (DML) | Insert, Update, Upsert, Delete, Undelete, Merge + triggers | INSERT/UPDATE/DELETE/UPSERT, OLS+FLS enforcement, RLS injection для UPDATE/DELETE, batch operations, functions, validation rules (CEL), dynamic defaults (CEL) | 65% SF |
 | Auth | OAuth 2.0, SAML, MFA, Connected Apps | JWT (access + refresh), login, password reset, rate limiting | JWT + refresh tokens |
 | Automation | Flow Builder, Triggers, Workflow Rules, Approval Processes | Не реализовано | Triggers + базовые Flows |
 | UI Framework | Lightning App Builder, LWC, Dynamic Forms | Vue.js admin + metadata-driven CRM UI (AppLayout, dynamic record views, FieldRenderer) | Admin + Record UI |
@@ -273,7 +273,7 @@ Row-Level Security — кто видит какие записи.
 
 ---
 
-### Phase 7: Generic CRUD + Vue.js Frontend ⬜
+### Phase 7: Generic CRUD + Vue.js Frontend ✅
 
 Переход от admin-only к полноценному CRM-интерфейсу. Backend: generic CRUD endpoints + DML pipeline расширение. Frontend: metadata-driven UI.
 
@@ -298,16 +298,20 @@ Row-Level Security — кто видит какие записи.
 
 *Auth UI (login, forgot-password, auth store, guards) завершено в Phase 5.*
 
-#### Phase 7b: CEL Engine + Validation Rules + Dynamic Defaults
+#### Phase 7b: CEL Engine + Validation Rules + Dynamic Defaults ✅
 
 **Backend (ADR-0019, ADR-0020):**
-- [ ] CEL engine интеграция (`cel-go`)
-- [ ] Validation Rules: таблица `metadata.validation_rules`, CEL-проверки в DML (Stage 4b)
-- [ ] Dynamic defaults: `FieldConfig.default_expr` (CEL), DML Stage 3 dynamic
-- [ ] DML pipeline extension: typed interfaces (`DefaultResolver`, `RuleValidator`)
+- [x] CEL engine интеграция (`cel-go`) — reusable ProgramCache, StandardEnv/DefaultEnv, EvaluateBool/EvaluateAny
+- [x] Validation Rules: таблица `metadata.validation_rules`, CEL-проверки в DML (Stage 4b)
+- [x] Dynamic defaults: `FieldConfig.default_expr` (CEL), DML Stage 3 dynamic
+- [x] DML pipeline extension: typed interfaces (`DefaultResolver`, `RuleValidator`), Option pattern
+- [x] Admin REST API: CRUD validation rules (5 endpoints)
+- [x] Error mapping: RuleValidationError → 400, DefaultEvalError → 500
 
 **Frontend:**
-- [ ] CEL-eval на клиенте (`cel-js`) для inline-валидации
+- [x] Admin UI: validation rules list/create/detail views
+- [x] ObjectDetailView: tab "Правила валидации" → ссылка на list
+- [x] E2E тесты: 14 тестов (list, create, detail)
 - [ ] Related lists: child objects на detail page (SOQL subqueries)
 - [ ] Inline edit: click-to-edit на detail page
 - [ ] List views: saved filters (мои записи, все записи, custom)
@@ -494,8 +498,8 @@ Event-driven архитектура для интеграций.
 Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ✅ ──→ Phase 4 ✅ ──→ Phase 5 ✅ ──→ Phase 6 ✅
                                                                                           │
                                                                                           ▼
-                                                                                    Phase 7a ──→ Phase 7b ──→ Phase 8
-                                                                               (generic CRUD)  (CEL+valid.) (dashboards)
+                                                                                    Phase 7a ✅──→ Phase 7b ✅──→ Phase 8
+                                                                               (generic CRUD)  (CEL+valid.)   (dashboards)
                                                                                                     │           │
                                                                                                     ▼           ▼
                                                                                               Phase 10      Phase 9

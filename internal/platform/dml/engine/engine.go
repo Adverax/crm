@@ -13,6 +13,10 @@ type Engine struct {
 	access   WriteAccessController
 	limits   *Limits
 
+	// Pipeline extensions
+	defaultResolver DefaultResolver
+	ruleValidator   RuleValidator
+
 	// Internal components
 	validator *Validator
 	compiler  *Compiler
@@ -49,6 +53,20 @@ func WithLimits(l *Limits) Option {
 func WithExecutor(ex Executor) Option {
 	return func(e *Engine) {
 		e.executor = ex
+	}
+}
+
+// WithDefaultResolver sets the default resolver for the engine.
+func WithDefaultResolver(dr DefaultResolver) Option {
+	return func(e *Engine) {
+		e.defaultResolver = dr
+	}
+}
+
+// WithRuleValidator sets the rule validator for the engine.
+func WithRuleValidator(rv RuleValidator) Option {
+	return func(e *Engine) {
+		e.ruleValidator = rv
 	}
 }
 
@@ -120,27 +138,212 @@ func (e *Engine) Compile(validated *ValidatedDML) (*CompiledDML, error) {
 }
 
 // Prepare parses, validates, and compiles a DML statement in a single call.
-// This is the main method for preparing a statement for execution.
+// Pipeline: Parse → applyDefaults → Validate → applyRuleValidation → Compile.
 func (e *Engine) Prepare(ctx context.Context, statement string) (*CompiledDML, error) {
-	// Parse
+	// Stage 1: Parse
 	ast, err := e.Parse(statement)
 	if err != nil {
 		return nil, err
 	}
 
-	// Validate
+	// Stage 3: Apply defaults (before validation so defaults satisfy required checks)
+	if e.defaultResolver != nil {
+		if err := e.applyDefaults(ctx, ast); err != nil {
+			return nil, err
+		}
+	}
+
+	// Stage 4a: Validate
 	validated, err := e.Validate(ctx, ast)
 	if err != nil {
 		return nil, err
 	}
 
-	// Compile
+	// Stage 4b: Rule validation
+	if e.ruleValidator != nil {
+		if err := e.applyRuleValidation(ctx, validated); err != nil {
+			return nil, err
+		}
+	}
+
+	// Stage 5: Compile
 	compiled, err := e.Compile(validated)
 	if err != nil {
 		return nil, err
 	}
 
 	return compiled, nil
+}
+
+// applyDefaults resolves default values and injects them into the AST.
+func (e *Engine) applyDefaults(ctx context.Context, ast *DMLStatement) error {
+	op := ast.GetOperation()
+	objectName := ast.GetObject()
+
+	// Get object metadata
+	obj, err := e.metadata.GetObject(ctx, objectName)
+	if err != nil || obj == nil {
+		return nil // metadata validation will catch missing objects
+	}
+
+	switch {
+	case ast.Insert != nil:
+		return e.applyInsertDefaults(ctx, ast.Insert, obj, op)
+	case ast.Update != nil:
+		return e.applyUpdateDefaults(ctx, ast.Update, obj, op)
+	case ast.Upsert != nil:
+		return e.applyUpsertDefaults(ctx, ast.Upsert, obj, op)
+	}
+	return nil
+}
+
+func (e *Engine) applyInsertDefaults(ctx context.Context, ins *InsertStatement, obj *ObjectMeta, op Operation) error {
+	defaults, err := e.defaultResolver.ResolveDefaults(ctx, obj, op, ins.Fields)
+	if err != nil {
+		return err
+	}
+	if len(defaults) == 0 {
+		return nil
+	}
+
+	for fieldName, value := range defaults {
+		ins.Fields = append(ins.Fields, fieldName)
+		constVal := anyToConst(value)
+		for _, row := range ins.Values {
+			row.Values = append(row.Values, &Expr{Const: constVal})
+		}
+	}
+	return nil
+}
+
+func (e *Engine) applyUpdateDefaults(ctx context.Context, upd *UpdateStatement, obj *ObjectMeta, op Operation) error {
+	providedFields := make([]string, len(upd.Assignments))
+	for i, a := range upd.Assignments {
+		providedFields[i] = a.Field
+	}
+
+	defaults, err := e.defaultResolver.ResolveDefaults(ctx, obj, op, providedFields)
+	if err != nil {
+		return err
+	}
+
+	for fieldName, value := range defaults {
+		upd.Assignments = append(upd.Assignments, &Assignment{
+			Field: fieldName,
+			Value: &Expr{Const: anyToConst(value)},
+		})
+	}
+	return nil
+}
+
+func (e *Engine) applyUpsertDefaults(ctx context.Context, ups *UpsertStatement, obj *ObjectMeta, op Operation) error {
+	defaults, err := e.defaultResolver.ResolveDefaults(ctx, obj, op, ups.Fields)
+	if err != nil {
+		return err
+	}
+	if len(defaults) == 0 {
+		return nil
+	}
+
+	for fieldName, value := range defaults {
+		ups.Fields = append(ups.Fields, fieldName)
+		constVal := anyToConst(value)
+		for _, row := range ups.Values {
+			row.Values = append(row.Values, &Expr{Const: constVal})
+		}
+	}
+	return nil
+}
+
+// applyRuleValidation extracts a record map from the validated statement and evaluates rules.
+func (e *Engine) applyRuleValidation(ctx context.Context, validated *ValidatedDML) error {
+	record := extractRecordMap(validated)
+	if record == nil {
+		return nil
+	}
+
+	violations, err := e.ruleValidator.ValidateRules(ctx, validated.Object, validated.Operation, record, nil)
+	if err != nil {
+		return err
+	}
+
+	// Filter blocking errors (severity = "error")
+	var blocking []ValidationRuleError
+	for _, v := range violations {
+		if v.Severity == "error" {
+			blocking = append(blocking, v)
+		}
+	}
+
+	if len(blocking) > 0 {
+		return &RuleValidationError{Rules: blocking}
+	}
+
+	return nil
+}
+
+// extractRecordMap builds a field→value map from the validated DML for rule evaluation.
+func extractRecordMap(validated *ValidatedDML) map[string]any {
+	switch validated.Operation {
+	case OperationInsert:
+		if validated.AST.Insert == nil || len(validated.AST.Insert.Values) == 0 {
+			return nil
+		}
+		record := make(map[string]any, len(validated.Fields))
+		row := validated.AST.Insert.Values[0]
+		for i, field := range validated.Fields {
+			if i < len(row.Values) {
+				record[field.Name] = row.Values[i].Value()
+			}
+		}
+		return record
+
+	case OperationUpdate:
+		if validated.AST.Update == nil {
+			return nil
+		}
+		record := make(map[string]any, len(validated.Assignments))
+		for _, a := range validated.Assignments {
+			record[a.Field.Name] = a.Value.Value()
+		}
+		return record
+
+	case OperationUpsert:
+		if validated.AST.Upsert == nil || len(validated.AST.Upsert.Values) == 0 {
+			return nil
+		}
+		record := make(map[string]any, len(validated.Fields))
+		row := validated.AST.Upsert.Values[0]
+		for i, field := range validated.Fields {
+			if i < len(row.Values) {
+				record[field.Name] = row.Values[i].Value()
+			}
+		}
+		return record
+	}
+	return nil
+}
+
+// anyToConst converts a Go value to a DML Const AST node.
+func anyToConst(v any) *Const {
+	if v == nil {
+		return NewNullConst()
+	}
+	switch val := v.(type) {
+	case string:
+		return NewStringConst(val)
+	case int:
+		return NewIntConst(val)
+	case int64:
+		return NewIntConst(int(val))
+	case float64:
+		return NewFloatConst(val)
+	case bool:
+		return NewBoolConst(val)
+	default:
+		s := fmt.Sprintf("%v", val)
+		return NewStringConst(s)
+	}
 }
 
 // Execute prepares and executes a DML statement in a single call.

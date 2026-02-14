@@ -116,7 +116,10 @@ func setupRouter(pool *pgxpool.Pool, cfg config.Config) *gin.Engine {
 	objectService := metadata.NewObjectService(pool, objectRepo, fieldRepo, ddlExec, metadataCache)
 	fieldService := metadata.NewFieldService(pool, objectRepo, fieldRepo, polyRepo, ddlExec, metadataCache)
 
-	metadataHandler := handler.NewMetadataHandler(objectService, fieldService)
+	validationRuleRepo := metadata.NewPgValidationRuleRepository(pool)
+	validationRuleService := metadata.NewValidationRuleService(pool, validationRuleRepo, metadataCache)
+
+	metadataHandler := handler.NewMetadataHandler(objectService, fieldService, validationRuleService)
 
 	// Health check
 	router.GET("/healthz", func(c *gin.Context) {
@@ -221,9 +224,23 @@ func setupRouter(pool *pgxpool.Pool, cfg config.Config) *gin.Engine {
 	// --- DML engine ---
 	dmlMetadataAdapter := dml.NewMetadataAdapter(metadataCache)
 	dmlAccessAdapter := dml.NewWriteAccessControllerAdapter(metadataCache, olsEnforcer, flsEnforcer)
+
+	celDefaultResolver, err := dml.NewCELDefaultResolver()
+	if err != nil {
+		slog.Error("failed to create CEL default resolver", "error", err)
+		os.Exit(1)
+	}
+	celRuleValidator, err := dml.NewCELRuleValidator(metadataCache)
+	if err != nil {
+		slog.Error("failed to create CEL rule validator", "error", err)
+		os.Exit(1)
+	}
+
 	dmlEngine := dmlengine.NewEngine(
 		dmlengine.WithMetadata(dmlMetadataAdapter),
 		dmlengine.WithWriteAccessController(dmlAccessAdapter),
+		dmlengine.WithDefaultResolver(celDefaultResolver),
+		dmlengine.WithRuleValidator(celRuleValidator),
 	)
 	dmlExecutor := dml.NewRLSExecutor(pool, metadataCache, rlsEnforcer)
 	dmlService := dml.NewDMLService(dmlEngine, dmlExecutor)
