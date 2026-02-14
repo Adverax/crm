@@ -61,7 +61,7 @@
 **Минусы:**
 - God object (7+ ответственностей): загрузка данных, трансформация, валидация, персистенция, автоматизация
 - Смешивает per-object логику (validation — должна работать всегда) и per-view логику (queries — зависят от UI-контекста)
-- Блокирует Phase 6-7: требует CEL engine, executor, storage, YAML parser, dependency resolver — месяцы работы
+- Блокирует Phase 7a: требует CEL engine, executor, storage, YAML parser, dependency resolver — месяцы работы
 - Не соответствует индустриальному паттерну
 
 ### Вариант B — Декомпозиция на подсистемы с трёхуровневым каскадом (выбран)
@@ -82,10 +82,10 @@
 
 ### Вариант C — Отложить полностью
 
-Построить Phase 6-7 без абстракций, хардкодить логику per-object.
+Построить Phase 7a без абстракций, хардкодить логику per-object.
 
 **Плюсы:**
-- Быстрая доставка Phase 6-7
+- Быстрая доставка Phase 7a
 
 **Минусы:**
 - Технический долг при росте количества объектов
@@ -319,34 +319,33 @@ DML Engine при выполнении операции получает **effec
 | Стандарт | Google, K8s, Firebase | Нет |
 | Синтаксис | C-like, понятный | Expr — похожий |
 
-CEL-интеграция вводится при реализации Validation Rules (Phase N+1), не раньше.
+CEL-интеграция вводится при реализации Validation Rules (Phase 7b).
 
 ### Дорожная карта
 
 ```
-Phase 6-7 (текущая)          Phase N+1              Phase N+2              Phase N+3
-─────────────────────    ──────────────────    ──────────────────    ──────────────────
-Generic CRUD endpoints   Validation Rules      Formula Fields        Object Views
-+ Metadata-driven UI     + Default Expressions + Computed on read    + Query composition
-+ Static defaults only   + CEL engine (Go+JS)  + SOQL integration    + Mutations
-                         + DML integration     + Frontend eval       + Automation Rules
-                         + Cascade merging                           + Layout cascade
-                         + Frontend eval
+Phase 7a                     Phase 7b                   Phase N+1              Phase N+2
+─────────────────────    ──────────────────────    ──────────────────    ──────────────────
+Generic CRUD endpoints   CEL engine (cel-go)       Formula Fields        Object Views
++ Metadata-driven UI     + Validation Rules        + Computed on read    + Query composition
++ Static defaults        + Dynamic defaults        + SOQL integration    + Mutations
++ System fields inject   + DML pipeline ext.       + Frontend eval       + Automation Rules
+                         + Frontend CEL eval                             + Layout cascade
 ```
 
-**Phase 6-7 (текущая).** Generic metadata-driven REST endpoints: один набор handlers обслуживает все объекты через SOQL (чтение) и DML (запись). Frontend рендерит формы по метаданным. Валидация: required + type constraints (уже в DML Engine). Расширить `DefaultValue` в DDL column mapper для всех типов полей (сейчас — только boolean). Новых подсистем не вводится.
+**Phase 7a.** Generic metadata-driven REST endpoints: один набор handlers обслуживает все объекты через SOQL (чтение) и DML (запись). Frontend рендерит формы по метаданным. Валидация: required + type constraints (уже в DML Engine). Static defaults: инжект `FieldConfig.default_value` для отсутствующих полей. Системные поля (`owner_id`, `created_by_id`, `created_at`, `updated_at`). Без CEL.
 
-**Phase N+1 — Validation Rules + Default Expressions.** Первая CEL-подсистема. Таблица `metadata.validation_rules`. Расширение `FieldConfig` для `default_expr`. Интеграция в DML validate step. Frontend-библиотека для CEL-eval. Каскадный мержинг (metadata + Object View context).
+**Phase 7b — CEL + Validation Rules + Dynamic Defaults.** Интеграция `cel-go`. Таблица `metadata.validation_rules`. Расширение `FieldConfig` для `default_expr`. Интеграция в DML pipeline (Stage 3 dynamic + Stage 4b). Frontend-библиотека для CEL-eval (`cel-js`).
 
-**Phase N+2 — Formula Fields.** Новый `field_type = "formula"`. CEL-выражение в config. SOQL executor вычисляет после fetch. Frontend вычисляет локально.
+**Phase N+1 — Formula Fields.** Новый `field_type = "formula"`. CEL-выражение в config. SOQL executor вычисляет после fetch. Frontend вычисляет локально.
 
-**Phase N+3 — Object Views + Automation + Layout cascade.** Полная композиция с трёхуровневым каскадом. Отдельные ADR для каждой подсистемы.
+**Phase N+2 — Object Views + Automation + Layout cascade.** Полная композиция с трёхуровневым каскадом. Каскадный мержинг (metadata + Object View + Layout). Отдельные ADR для каждой подсистемы.
 
 ## Последствия
 
 ### Позитивные
 
-- Phase 6-7 не блокируется — generic CRUD endpoints строятся на существующей инфраструктуре (SOQL + DML + MetadataCache)
+- Phase 7a не блокируется — generic CRUD endpoints строятся на существующей инфраструктуре (SOQL + DML + MetadataCache)
 - Каждая подсистема независимо полезна и тестируема
 - Трёхуровневый каскад (Metadata → Object View → Layout) обеспечивает DRY + гибкость
 - Аддитивная модель validation гарантирует ужесточение без программной верификации выражений
@@ -359,7 +358,7 @@ Generic CRUD endpoints   Validation Rules      Formula Fields        Object View
 
 - Нет единого документа для всей логики объекта (сознательный trade-off в пользу SoC)
 - Больше ADR (каждая подсистема = отдельное архитектурное решение)
-- Композиционный слой (Object View + Layout cascade) откладывается до Phase N+3
+- Композиционный слой (Object View + Layout cascade) откладывается до Phase N+2
 - Аддитивная модель validation не позволяет ослабить правило — если правило может различаться в контекстах, его нужно изначально размещать в Object View, а не в metadata
 
 ### Связанные ADR

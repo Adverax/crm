@@ -30,6 +30,7 @@ import (
 	"github.com/adverax/crm/internal/platform/soql"
 	soqlengine "github.com/adverax/crm/internal/platform/soql/engine"
 	"github.com/adverax/crm/internal/platform/templates"
+	"github.com/adverax/crm/internal/service"
 )
 
 func main() {
@@ -231,6 +232,15 @@ func setupRouter(pool *pgxpool.Pool, cfg config.Config) *gin.Engine {
 	queryHandler := handler.NewQueryHandler(soqlService, dmlService)
 	apiGroup := router.Group("/api/v1")
 	queryHandler.RegisterRoutes(apiGroup)
+
+	// --- Record CRUD API ---
+	recordService := service.NewRecordService(metadataCache, soqlService, dmlService)
+	recordHandler := handler.NewRecordHandler(recordService)
+	recordHandler.RegisterRoutes(apiGroup)
+
+	// --- Public Metadata Describe API ---
+	describeHandler := handler.NewDescribeHandler(metadataCache, olsEnforcer, flsEnforcer)
+	describeHandler.RegisterRoutes(apiGroup)
 
 	return router
 }

@@ -555,6 +555,193 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /api/v1/describe:
+    get:
+      summary: List accessible objects for navigation
+      operationId: listDescribeObjects
+      tags:
+        - describe
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of queryable objects
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ObjectNavItem"
+
+  /api/v1/describe/{objectName}:
+    parameters:
+      - name: objectName
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Describe object with fields
+      operationId: describeObject
+      tags:
+        - describe
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Object description with fields
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ObjectDescribe"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/records/{objectName}:
+    parameters:
+      - name: objectName
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: List records for an object
+      operationId: listRecords
+      tags:
+        - records
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Paginated list of records
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  pagination:
+                    $ref: "#/components/schemas/PaginationMeta"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      summary: Create a record
+      operationId: createRecord
+      tags:
+        - records
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "201":
+          description: Record created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/records/{objectName}/{recordId}:
+    parameters:
+      - name: objectName
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: recordId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Get a record by ID
+      operationId: getRecord
+      tags:
+        - records
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Record data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      summary: Update a record
+      operationId: updateRecord
+      tags:
+        - records
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Record updated
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      summary: Delete a record
+      operationId: deleteRecord
+      tags:
+        - records
+      security:
+        - BearerAuth: []
+      responses:
+        "204":
+          description: Record deleted
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   # NOTE: Security endpoints (roles, permission-sets, profiles, users, groups,
   # sharing-rules) are registered manually via SecurityHandler.RegisterRoutes.
   # They are not included in OpenAPI codegen to avoid ServerInterface bloat.
@@ -1124,6 +1311,88 @@ components:
               type: string
             message:
               type: string
+
+    ObjectNavItem:
+      type: object
+      properties:
+        api_name:
+          type: string
+        label:
+          type: string
+        plural_label:
+          type: string
+        is_createable:
+          type: boolean
+        is_queryable:
+          type: boolean
+
+    ObjectDescribe:
+      type: object
+      properties:
+        api_name:
+          type: string
+        label:
+          type: string
+        plural_label:
+          type: string
+        is_createable:
+          type: boolean
+        is_updateable:
+          type: boolean
+        is_deleteable:
+          type: boolean
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/FieldDescribe"
+
+    FieldDescribe:
+      type: object
+      properties:
+        api_name:
+          type: string
+        label:
+          type: string
+        field_type:
+          type: string
+        field_subtype:
+          type: string
+        is_required:
+          type: boolean
+        is_read_only:
+          type: boolean
+        is_system_field:
+          type: boolean
+        sort_order:
+          type: integer
+        config:
+          type: object
+          properties:
+            max_length:
+              type: integer
+            precision:
+              type: integer
+            scale:
+              type: integer
+            default_value:
+              type: string
+            values:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  value:
+                    type: string
+                  label:
+                    type: string
+                  sort_order:
+                    type: integer
+                  is_default:
+                    type: boolean
+                  is_active:
+                    type: boolean
 
     PaginationMeta:
       type: object

@@ -56,15 +56,17 @@ class HttpClient {
   async request<T>(method: string, path: string, options?: {
     body?: unknown
     params?: Record<string, string | number | undefined>
+    skipCaseConversion?: boolean
   }): Promise<T> {
     const url = this.buildUrl(path, options?.params)
+    const skip = options?.skipCaseConversion ?? false
     const init: RequestInit = {
       method,
       headers: this.buildHeaders(),
     }
 
     if (options?.body) {
-      init.body = JSON.stringify(camelToSnake(options.body))
+      init.body = JSON.stringify(skip ? options.body : camelToSnake(options.body))
     }
 
     const response = await fetch(url, init)
@@ -87,7 +89,7 @@ class HttpClient {
               headers: this.buildHeaders(),
             }
             if (options?.body) {
-              retryInit.body = JSON.stringify(camelToSnake(options.body))
+              retryInit.body = JSON.stringify(skip ? options.body : camelToSnake(options.body))
             }
             const retryResponse = await fetch(url, retryInit)
             if (retryResponse.status === 204) return undefined as T
@@ -96,7 +98,7 @@ class HttpClient {
               const retryError = snakeToCamel<{ error: ApiError }>(retryJson)
               throw new HttpError(retryResponse.status, retryError.error)
             }
-            return snakeToCamel<T>(retryJson)
+            return skip ? (retryJson as T) : snakeToCamel<T>(retryJson)
           }
         } finally {
           this.isRefreshing = false
@@ -106,7 +108,7 @@ class HttpClient {
       throw new HttpError(response.status, apiError.error)
     }
 
-    return snakeToCamel<T>(json)
+    return skip ? (json as T) : snakeToCamel<T>(json)
   }
 
   get<T>(path: string, params?: Record<string, string | number | undefined>): Promise<T> {

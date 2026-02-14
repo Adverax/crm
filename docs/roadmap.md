@@ -19,7 +19,7 @@
 | Data Mutation (DML) | Insert, Update, Upsert, Delete, Undelete, Merge + triggers | INSERT/UPDATE/DELETE/UPSERT, OLS+FLS enforcement, RLS injection для UPDATE/DELETE, batch operations, functions | 60% SF |
 | Auth | OAuth 2.0, SAML, MFA, Connected Apps | JWT (access + refresh), login, password reset, rate limiting | JWT + refresh tokens |
 | Automation | Flow Builder, Triggers, Workflow Rules, Approval Processes | Не реализовано | Triggers + базовые Flows |
-| UI Framework | Lightning App Builder, LWC, Dynamic Forms | Vue.js admin для metadata + security + groups + sharing rules + OWD visibility + auth (login/logout/password reset) | Admin + Record UI |
+| UI Framework | Lightning App Builder, LWC, Dynamic Forms | Vue.js admin + metadata-driven CRM UI (AppLayout, dynamic record views, FieldRenderer) | Admin + Record UI |
 | APIs | REST, SOAP, Bulk, Streaming, Metadata, Tooling, GraphQL | REST admin endpoints (metadata + security + groups + sharing rules) | REST + Streaming |
 | Analytics | Reports, Dashboards, Einstein | Не реализовано | Базовые отчёты |
 | Integration | Platform Events, CDC, External Services | Не реализовано | CDC + webhooks |
@@ -273,29 +273,43 @@ Row-Level Security — кто видит какие записи.
 
 ---
 
-### Phase 7: Vue.js Frontend — Record UI ⬜
+### Phase 7: Generic CRUD + Vue.js Frontend ⬜
 
-Переход от admin-only к полноценному CRM-интерфейсу.
+Переход от admin-only к полноценному CRM-интерфейсу. Backend: generic CRUD endpoints + DML pipeline расширение. Frontend: metadata-driven UI.
 
-#### Phase 7a: Shell + Auth UI (частично в Phase 5 ✅)
+#### Phase 7a: Generic CRUD + Metadata-driven UI ✅
 
-- [x] Login page, forgot-password, reset-password pages (Phase 5)
-- [x] Auth store (Pinia): JWT management, auto-refresh, 401 interceptor (Phase 5)
-- [x] Protected routes (navigation guard) (Phase 5)
-- [ ] App shell: top nav, user menu, global search placeholder
+**Backend:**
+- [x] Generic CRUD endpoints (один набор handlers для всех объектов через SOQL/DML)
+- [x] Static defaults: инжект `FieldConfig.default_value` для отсутствующих полей при Create
+- [x] System fields injection: `owner_id`, `created_by_id`, `updated_by_id` (RecordService)
+- [x] Describe API: `GET /api/v1/describe` (список объектов), `GET /api/v1/describe/:objectName` (поля + metadata)
+- [x] OLS/FLS фильтрация в Describe API
 
-#### Phase 7b: Dynamic Record UI
+**Frontend:**
+- [x] AppLayout + AppSidebar (CRM-зона `/app/*`, навигация из describe API)
+- [x] Object list page (dynamic): SOQL-driven таблица для любого объекта (RecordListView)
+- [x] Record detail page (dynamic): поля из metadata + save/delete (RecordDetailView)
+- [x] Record create form (dynamic): поля из metadata, pre-fill defaults (RecordCreateView)
+- [x] FieldRenderer (type/subtype → input component) + FieldDisplay (read-only formatting)
+- [x] Переключение Admin ↔ CRM (ссылки в sidebar'ах)
+- [x] E2E тесты: 17 тестов (record list, create, detail, sidebar)
+- [x] Go unit тесты: RecordService 87%+ coverage
 
-- [ ] Object list page (dynamic): SOQL-driven таблица для любого объекта
-- [ ] Record detail page (dynamic): поля из metadata + FLS
-- [ ] Record create/edit form (dynamic): поля из metadata, validation из field config
+*Auth UI (login, forgot-password, auth store, guards) завершено в Phase 5.*
+
+#### Phase 7b: CEL Engine + Validation Rules + Dynamic Defaults
+
+**Backend (ADR-0019, ADR-0020):**
+- [ ] CEL engine интеграция (`cel-go`)
+- [ ] Validation Rules: таблица `metadata.validation_rules`, CEL-проверки в DML (Stage 4b)
+- [ ] Dynamic defaults: `FieldConfig.default_expr` (CEL), DML Stage 3 dynamic
+- [ ] DML pipeline extension: typed interfaces (`DefaultResolver`, `RuleValidator`)
+
+**Frontend:**
+- [ ] CEL-eval на клиенте (`cel-js`) для inline-валидации
 - [ ] Related lists: child objects на detail page (SOQL subqueries)
 - [ ] Inline edit: click-to-edit на detail page
-- [ ] Record owner display + manual sharing UI
-
-#### Phase 7c: Navigation & Search
-
-- [ ] App navigation: tabs для каждого объекта (из metadata, ordered)
 - [ ] List views: saved filters (мои записи, все записи, custom)
 - [ ] Global search (placeholder → SOSL в Phase 12)
 - [ ] Recent items
@@ -309,7 +323,7 @@ Row-Level Security — кто видит какие записи.
 | Home page с dashboards | Phase 8 |
 | Dynamic Forms (visibility rules) | Phase 9 |
 | Page Layouts per profile/record type | Phase 9 |
-| Mobile-responsive layout | Phase 7b (базовый) |
+| Mobile-responsive layout | Phase 7a (базовый) |
 
 ---
 
@@ -478,22 +492,22 @@ Event-driven архитектура для интеграций.
 
 ```
 Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ✅ ──→ Phase 4 ✅ ──→ Phase 5 ✅ ──→ Phase 6 ✅
-                                  │                │          │          │
-                                  │                ▼          ▼          ▼
-                                  │           Phase 10    Phase 13   Phase 7a
-                                  │           (formulas)  (automation)(auth UI)
-                                  │
-                                  ▼
-                              Phase 6 ──→ Phase 7b ──→ Phase 8
-                           (std objects)  (record UI)  (dashboards)
-                                                          │
-                                                          ▼
-                                            Phase 9 ──→ Phase 11
-                                          (adv meta)   (adv objects)
+                                                                                          │
+                                                                                          ▼
+                                                                                    Phase 7a ──→ Phase 7b ──→ Phase 8
+                                                                               (generic CRUD)  (CEL+valid.) (dashboards)
+                                                                                                    │           │
+                                                                                                    ▼           ▼
+                                                                                              Phase 10      Phase 9
+                                                                                             (formulas)   (adv meta)
+                                                                                                    │
+                                                                                                    ▼
+                                                                                              Phase 13
+                                                                                            (automation)
 
                               Phase 12 (SOSL) — независимый, после Phase 3
                               Phase 14 (CDC) — независимый, после Phase 4
-                              Phase 15 (Reports) — после Phase 3 + Phase 7
+                              Phase 15 (Reports) — после Phase 3 + Phase 7b
                               Phase N (ee/) — параллельно, после Phase 2
 ```
 

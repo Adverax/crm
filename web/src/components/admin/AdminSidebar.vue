@@ -93,6 +93,15 @@ async function onLogout() {
       </RouterLink>
     </div>
     <Separator />
+    <div class="p-2">
+      <RouterLink
+        to="/app"
+        class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+      >
+        CRM
+      </RouterLink>
+    </div>
+    <Separator />
     <nav class="flex-1 p-2">
       <ul class="space-y-1">
         <li v-for="item in topItems" :key="item.to">

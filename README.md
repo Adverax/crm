@@ -85,6 +85,15 @@ Start with a pre-built set of objects and fields for your domain — or build yo
 - **Sales CRM** — Account, Contact, Opportunity, Task (4 objects, 36 fields)
 - **Recruiting** — Position, Candidate, Application, Interview (4 objects, 28 fields)
 
+### Generic CRUD + Metadata-Driven UI
+
+One set of REST endpoints and Vue.js views serves **all objects** — no per-object code. The frontend renders forms, tables, and detail pages dynamically from metadata.
+
+- `GET /api/v1/describe` — object list for navigation (OLS-filtered)
+- `GET /api/v1/describe/:objectName` — fields and config (FLS-filtered)
+- `GET/POST/PUT/DELETE /api/v1/records/:objectName` — generic CRUD
+- Two UI zones: `/app/*` (CRM workspace) and `/admin/*` (administration)
+
 ### Table-per-Object Storage
 
 Each object gets a dedicated PostgreSQL table. This means:
@@ -204,9 +213,10 @@ make docker-reset     # Reset all data and restart
 | Phase 4 | Done | DML engine |
 | Phase 5 | Done | Auth module — JWT, login, password reset, rate limiting |
 | Phase 6 | Done | App Templates — Sales CRM & Recruiting (one-click object/field setup) |
-| Phase 7 | Next | Vue.js frontend — record UI, dynamic forms |
+| Phase 7a | Done | Generic CRUD + metadata-driven UI — dynamic record views, describe API |
+| Phase 7b | Next | CEL engine, validation rules, dynamic defaults |
 
-The platform is **fully functional** across 7 completed phases (18 ADRs). It can create objects via metadata engine or App Templates, manage permissions, enforce 3-layer security (OLS/FLS/RLS), query data through SOQL, perform all DML operations, and authenticate users via JWT.
+The platform is **fully functional** across 8 completed phases (20 ADRs). It can create objects via metadata engine or App Templates, manage permissions, enforce 3-layer security (OLS/FLS/RLS), query data through SOQL, perform all DML operations, authenticate users via JWT, and work with records through a dynamic metadata-driven UI.
 
 ---
 
@@ -226,8 +236,10 @@ Every significant decision is documented as an ADR in [`docs/adr/`](docs/adr/):
 | [0014](docs/adr/0014-licensing-and-business-model.md) | Open Core: AGPL v3 + proprietary ee/ |
 | [0017](docs/adr/0017-auth-module.md) | JWT auth: access + refresh tokens, bcrypt, rate limiting |
 | [0018](docs/adr/0018-app-templates.md) | App Templates: Go-embedded templates instead of hardcoded standard objects |
+| [0019](docs/adr/0019-declarative-business-logic.md) | Declarative business logic: validation rules, defaults, formulas (CEL) |
+| [0020](docs/adr/0020-dml-pipeline-extension.md) | DML pipeline extension: typed stages with Option pattern |
 
-[All 18 ADRs →](docs/adr/)
+[All 20 ADRs →](docs/adr/)
 
 ---
 

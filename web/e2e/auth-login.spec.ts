@@ -63,10 +63,10 @@ test.describe('Login page', () => {
     await expect(page).toHaveURL(/\/login/)
   })
 
-  test('redirects authenticated users from login to admin', async ({ page }) => {
+  test('redirects authenticated users from login to app', async ({ page }) => {
     await setupAllRoutes(page)
     await page.goto('/login')
-    await expect(page).toHaveURL(/\/admin/)
+    await expect(page).toHaveURL(/\/app/)
   })
 })
 

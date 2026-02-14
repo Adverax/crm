@@ -28,6 +28,31 @@ const router = createRouter({
       meta: { public: true },
     },
     {
+      path: '/app',
+      component: () => import('../layouts/AppLayout.vue'),
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: ':objectName/new',
+          name: 'record-create',
+          component: () => import('../views/app/RecordCreateView.vue'),
+          props: true,
+        },
+        {
+          path: ':objectName/:recordId',
+          name: 'record-detail',
+          component: () => import('../views/app/RecordDetailView.vue'),
+          props: true,
+        },
+        {
+          path: ':objectName',
+          name: 'record-list',
+          component: () => import('../views/app/RecordListView.vue'),
+          props: true,
+        },
+      ],
+    },
+    {
       path: '/admin',
       component: () => import('../layouts/AdminLayout.vue'),
       redirect: '/admin/metadata/objects',
@@ -211,7 +236,7 @@ router.beforeEach((to) => {
   if (to.name === 'login') {
     const token = localStorage.getItem('crm_access_token')
     if (token) {
-      return { path: '/admin' }
+      return { path: '/app' }
     }
   }
 })

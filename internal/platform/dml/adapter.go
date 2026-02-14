@@ -51,10 +51,10 @@ func (a *MetadataAdapter) buildObjectMeta(objDef metadata.ObjectDefinition, fiel
 		Name: "UpdatedAt", Column: "updated_at", Type: engine.FieldTypeDateTime, ReadOnly: true, HasDefault: true,
 	})
 	b.FieldFull(&engine.FieldMeta{
-		Name: "CreatedById", Column: "created_by_id", Type: engine.FieldTypeID, ReadOnly: true, Nullable: true, HasDefault: true,
+		Name: "CreatedById", Column: "created_by_id", Type: engine.FieldTypeID, Nullable: true, HasDefault: true,
 	})
 	b.FieldFull(&engine.FieldMeta{
-		Name: "UpdatedById", Column: "updated_by_id", Type: engine.FieldTypeID, ReadOnly: true, Nullable: true, HasDefault: true,
+		Name: "UpdatedById", Column: "updated_by_id", Type: engine.FieldTypeID, Nullable: true, HasDefault: true,
 	})
 
 	// User-defined fields.
@@ -106,7 +106,9 @@ func mapFieldType(ft metadata.FieldType, sub *metadata.FieldSubtype) engine.Fiel
 
 // systemWriteFieldNames lists fields that bypass FLS write checks.
 var systemWriteFieldNames = map[string]bool{
-	"OwnerId": true,
+	"OwnerId":     true,
+	"CreatedById": true,
+	"UpdatedById": true,
 }
 
 // WriteAccessControllerAdapter bridges OLS/FLS enforcers → engine.WriteAccessController.

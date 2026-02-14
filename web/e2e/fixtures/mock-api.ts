@@ -908,6 +908,164 @@ export async function setupTerritoryRoutes(page: Page) {
   })
 }
 
+// ─── Describe / Records mock data ─────────────────────────────
+
+export const mockDescribeList = [
+  {
+    api_name: 'Account',
+    label: 'Аккаунт',
+    plural_label: 'Аккаунты',
+    is_createable: true,
+    is_queryable: true,
+  },
+  {
+    api_name: 'Contact',
+    label: 'Контакт',
+    plural_label: 'Контакты',
+    is_createable: true,
+    is_queryable: true,
+  },
+]
+
+export const mockAccountDescribe = {
+  api_name: 'Account',
+  label: 'Аккаунт',
+  plural_label: 'Аккаунты',
+  is_createable: true,
+  is_updateable: true,
+  is_deleteable: true,
+  fields: [
+    {
+      api_name: 'Id',
+      label: 'ID',
+      field_type: 'text',
+      field_subtype: null,
+      is_required: false,
+      is_read_only: true,
+      is_system_field: true,
+      sort_order: -6,
+      config: {},
+    },
+    {
+      api_name: 'Name',
+      label: 'Название',
+      field_type: 'text',
+      field_subtype: 'plain',
+      is_required: true,
+      is_read_only: false,
+      is_system_field: false,
+      sort_order: 1,
+      config: { max_length: 255, default_value: null },
+    },
+    {
+      api_name: 'Industry',
+      label: 'Отрасль',
+      field_type: 'picklist',
+      field_subtype: 'single',
+      is_required: false,
+      is_read_only: false,
+      is_system_field: false,
+      sort_order: 2,
+      config: {
+        values: [
+          { id: 'v1', value: 'Technology', label: 'Технологии', sort_order: 1, is_default: false, is_active: true },
+          { id: 'v2', value: 'Finance', label: 'Финансы', sort_order: 2, is_default: false, is_active: true },
+        ],
+      },
+    },
+    {
+      api_name: 'Phone',
+      label: 'Телефон',
+      field_type: 'text',
+      field_subtype: 'phone',
+      is_required: false,
+      is_read_only: false,
+      is_system_field: false,
+      sort_order: 3,
+      config: {},
+    },
+  ],
+}
+
+export const mockRecords = [
+  {
+    Id: 'rec11111-1111-1111-1111-111111111111',
+    Name: 'Acme Corp',
+    Industry: 'Technology',
+    Phone: '+380441234567',
+  },
+  {
+    Id: 'rec22222-2222-2222-2222-222222222222',
+    Name: 'Globex Inc',
+    Industry: 'Finance',
+    Phone: '+380509876543',
+  },
+]
+
+export async function setupDescribeRoutes(page: Page) {
+  await page.route('**/api/v1/describe', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ json: { data: mockDescribeList } })
+    }
+    return route.continue()
+  })
+
+  await page.route('**/api/v1/describe/Account', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ json: { data: mockAccountDescribe } })
+    }
+    return route.continue()
+  })
+}
+
+export async function setupRecordRoutes(page: Page) {
+  // List records
+  await page.route('**/api/v1/records/Account?*', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({
+        json: {
+          data: mockRecords,
+          pagination: { page: 1, per_page: 20, total: 2, total_pages: 1 },
+        },
+      })
+    }
+    return route.continue()
+  })
+  await page.route('**/api/v1/records/Account', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({
+        json: {
+          data: mockRecords,
+          pagination: { page: 1, per_page: 20, total: 2, total_pages: 1 },
+        },
+      })
+    }
+    if (route.request().method() === 'POST') {
+      return route.fulfill({
+        status: 201,
+        json: { data: { id: 'rec33333-3333-3333-3333-333333333333' } },
+      })
+    }
+    return route.continue()
+  })
+
+  // Single record
+  for (const rec of mockRecords) {
+    await page.route(`**/api/v1/records/Account/${rec.Id}`, (route) => {
+      if (route.request().method() === 'GET') {
+        return route.fulfill({ json: { data: rec } })
+      }
+      if (route.request().method() === 'PUT') {
+        return route.fulfill({ json: { data: { success: true } } })
+      }
+      if (route.request().method() === 'DELETE') {
+        return route.fulfill({ status: 204 })
+      }
+      return route.continue()
+    })
+  }
+}
+
 export async function setupAllRoutes(page: Page) {
   await seedAuthToken(page)
   await setupAuthRoutes(page)
@@ -917,4 +1075,6 @@ export async function setupAllRoutes(page: Page) {
   await setupSharingRuleRoutes(page)
   await setupTemplateRoutes(page)
   await setupTerritoryRoutes(page)
+  await setupDescribeRoutes(page)
+  await setupRecordRoutes(page)
 }
