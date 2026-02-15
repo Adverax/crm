@@ -1,4 +1,4 @@
-# ADR-0023: Терминология исполняемой логики — Action, Command, Procedure, Scenario
+# ADR-0023: Терминология исполняемой логики — Action, Command, Procedure, Scenario, Function
 
 **Статус:** Принято
 **Дата:** 2026-02-15
@@ -124,14 +124,20 @@ Action = зонтичный термин. Все виды исполняемой
 
 ### Иерархия терминов
 
+Платформа разделяет **исполняемую логику** (действия с side effects) и **вычислительную логику** (чистые вычисления):
+
 ```
-Action (зонтичный термин)
-│
-├── type: navigate          → клиентская навигация (URL transition)
-├── type: field_update      → атомарный DML update (одно или несколько полей)
-├── type: procedure         → выполнить Procedure (синхронная цепочка commands)
-└── type: scenario          → запустить Scenario (асинхронный долгоживущий процесс)
+Исполняемая логика (Action hierarchy)          Вычислительная логика (CEL ecosystem)
+─────────────────────────────────────          ─────────────────────────────────────
+Action (зонтичный термин)                      CEL Expression (inline, одноразовое)
+│                                              │
+├── type: navigate    → URL transition         Function (именованное, reusable)
+├── type: field_update → атомарный DML           fn.discount(tier, amount)
+├── type: procedure   → Procedure (sync)         fn.is_high_value(amount)
+└── type: scenario    → Scenario (async)         Вызывается из любого CEL-контекста
 ```
+
+**Function** — ортогональна к Action hierarchy. Функции не выполняют действий — они вычисляют значения. Функции **вызываются внутри** CEL-выражений, которые используются на всех уровнях обеих иерархий.
 
 ### Глоссарий
 
@@ -142,6 +148,7 @@ Action (зонтичный термин)
 | **Procedure** | Именованный набор Commands, описанный декларативно (JSON + CEL). Собирается через Constructor UI или редактируется как JSON. Хранится как JSONB. Выполняется синхронно в рамках одного запроса. Поддерживает условную логику (`when`, `if/else`, `match`), rollback (Saga pattern), вызов других Procedures (`call`). Аналог хранимой процедуры, но безопасной (sandbox, лимиты) | Invocable Action / Autolaunched Flow | Нет (транзакция) |
 | **Scenario** | Долгоживущий бизнес-процесс, координирующий последовательность Steps с гарантиями durability (состояние переживает рестарт), consistency (откат при ошибках) и observability (полная история). Выполняется асинхронно. Поддерживает Signals (ожидание внешних событий), Timers (отложенные действия), Checkpoints | Screen Flow / Record-Triggered Flow | Да (PostgreSQL) |
 | **Step** | Единица работы внутри Scenario. Вызывает Procedure, inline Command, или встроенную операцию (`wait signal`, `wait timer`). Имеет input/output mapping, retry policy, rollback | Flow Step | Да (persisted) |
+| **Function** | Именованное чистое CEL-выражение с типизированными параметрами. Вызывается через `fn.*` namespace из любого CEL-контекста (validation rules, defaults, visibility, procedure input, scenario when). Нет side effects. Dual-stack: cel-go (backend) + cel-js (frontend). Не является Action — это вычислительная единица, ортогональная к Action hierarchy | Custom Formula Function | — |
 
 ### Mapping старых терминов
 
@@ -232,27 +239,29 @@ Action (зонтичный термин)
 }
 ```
 
-Procedure `send_proposal` (YAML):
-```yaml
-procedure: send_proposal
-
-commands:
-  - record.update:
-      object: Order
-      id: $.input.recordId
-      data:
-        status: '"proposal_sent"'
-        proposal_sent_at: $.now
-
-  - notification.email:
-      to: $.input.record.client_email
-      template: proposal
-      data:
-        order_number: $.input.record.order_number
-        total_amount: $.input.record.total_amount
-
-result:
-  status: '"proposal_sent"'
+Procedure `send_proposal` (JSON, ADR-0024):
+```json
+{
+  "name": "send_proposal",
+  "commands": [
+    {
+      "type": "record.update",
+      "object": "Order",
+      "id": "$.input.recordId",
+      "data": { "status": "\"proposal_sent\"", "proposal_sent_at": "$.now" }
+    },
+    {
+      "type": "notification.email",
+      "to": "$.input.record.client_email",
+      "template": "proposal",
+      "data": {
+        "order_number": "$.input.record.order_number",
+        "total_amount": "$.input.record.total_amount"
+      }
+    }
+  ],
+  "result": { "status": "\"proposal_sent\"" }
+}
 ```
 
 Доступен: Phase 13a (Procedure Engine).
@@ -277,17 +286,17 @@ result:
 
 Automation Rules используют ту же иерархию Action:
 
-```yaml
-# Automation Rule = триггер + Action
-automation_rule:
-  object: Order
-  trigger: "record.after_update"
-  condition: "new.status == 'paid' && old.status != 'paid'"
-  action:
-    type: scenario
-    scenario: order_fulfillment
-    input:
-      orderId: record.id
+```json
+{
+  "object": "Order",
+  "trigger": "record.after_update",
+  "condition": "new.status == 'paid' && old.status != 'paid'",
+  "action": {
+    "type": "scenario",
+    "scenario": "order_fulfillment",
+    "input": { "orderId": "record.id" }
+  }
+}
 ```
 
 Automation Rule — это не отдельная концепция, а **триггер, вызывающий Action**. Триггер определяет *когда*, Action определяет *что*.
@@ -307,27 +316,30 @@ Automation Rule — это не отдельная концепция, а **тр
 
 ### Инкрементальная реализация
 
-| Фаза | Что доступно | Action types |
-|------|-------------|-------------|
+| Фаза | Что доступно | Action types / CEL |
+|------|-------------|-------------------|
 | **Phase 9a** | Object View core | `navigate`, `field_update` |
+| **Phase 10** | Custom Functions (ADR-0026) | `fn.*` в любом CEL-контексте |
 | **Phase 13a** | Procedure Engine | + `procedure` |
 | **Phase 13b** | Scenario Engine | + `scenario` |
 | **Phase 13c** | Approval Processes | Scenario + built-in approval commands |
 
-Phase 9a стартует с `navigate` и `field_update` — они не требуют Procedure/Scenario Engine. Когда Engine появится, Object View получит новые типы actions **без изменения архитектуры**.
+Phase 9a стартует с `navigate` и `field_update` — они не требуют Procedure/Scenario Engine. Custom Functions (Phase 10) устраняют дублирование CEL-выражений. Когда Engine появится, Object View получит новые типы actions **без изменения архитектуры**.
 
 ### CEL как сквозной expression language
 
-Все уровни используют CEL (ADR-0019, Phase 7b):
+Все уровни используют CEL (ADR-0019, Phase 7b). Custom Functions (ADR-0026) устраняют дублирование CEL-выражений:
 
-| Уровень | Где CEL |
-|---------|---------|
-| **Object View** | `visibility_expr` — когда показывать кнопку |
-| **Procedure** | `when` — условная логика, `input.*` — маппинг данных, `transform` — вычисления |
-| **Scenario** | `when` — условное выполнение step, `input.*` — маппинг между steps |
-| **Automation Rule** | `condition` — триггер condition |
+| Уровень | Где CEL | Пример с Function |
+|---------|---------|-------------------|
+| **Object View** | `visibility_expr` — когда показывать кнопку | `fn.is_high_value(record.amount)` |
+| **Validation Rule** | `expression` — проверка при сохранении | `fn.discount(record.tier, record.amount) < 10000` |
+| **Default Expression** | `default_expr` — значение по умолчанию | `fn.discount(record.tier, record.amount)` |
+| **Procedure** | `when`, `input.*` — условия и маппинг | `fn.discount($.input.tier, $.input.amount)` |
+| **Scenario** | `when`, `input.*` — условия и маппинг | `fn.is_vip($.steps.order.tier)` |
+| **Automation Rule** | `condition` — триггер condition | `fn.needs_approval(new.amount, new.tier)` |
 
-Единый expression language от UI до backend — cel-go (backend) + cel-js (frontend).
+Единый expression language от UI до backend — cel-go (backend) + cel-js (frontend). Functions доступны на обеих сторонах (dual-stack, ADR-0026).
 
 ### Терминология в коде
 
@@ -335,9 +347,10 @@ Phase 9a стартует с `navigate` и `field_update` — они не тре
 |--------|-----------|-----------|-------------|
 | Action (definition) | `internal/platform/action` | `metadata.action_definitions` | `/api/v1/admin/actions` |
 | Procedure | `internal/platform/procedure` | `metadata.procedures` | `/api/v1/admin/procedures` |
-| Command | `internal/platform/procedure/command` | (inline in procedure YAML) | — |
+| Command | `internal/platform/procedure/command` | (inline in procedure JSON) | — |
 | Scenario | `internal/platform/scenario` | `metadata.scenarios` + `scenario_executions` | `/api/v1/admin/scenarios` |
 | Step | `internal/platform/scenario/step` | `scenario_step_history` | — |
+| Function | `internal/platform/function` | `metadata.functions` | `/api/v1/admin/functions` |
 
 ## Последствия
 
@@ -362,5 +375,6 @@ Phase 9a стартует с `navigate` и `field_update` — они не тре
 - **ADR-0020** — DML Pipeline: field_update action type выполняется через DML Engine
 - **ADR-0022** — Object View: actions config использует типизацию из этого ADR (navigate, field_update, procedure, scenario)
 
-- **ADR-0024** — Procedure Engine: декларативный YAML DSL для бизнес-логики. Терминологический маппинг: "Handler" → **Procedure**, "Action" → **Command**, "Action Type" → **Command Type**
-- **ADR-0025** — Scenario Engine: оркестрация долгоживущих бизнес-процессов. Терминологический маппинг: "Scenario" → **Scenario** (без изменений), "Step" → **Step** (без изменений), "Handler" (в контексте step) → **Procedure**
+- **ADR-0024** — Procedure Engine: JSON DSL + Constructor UI. Терминологический маппинг: "Handler" → **Procedure**, "Action" → **Command**, "Action Type" → **Command Type**
+- **ADR-0025** — Scenario Engine: JSON DSL + Constructor UI. Терминологический маппинг: "Scenario" → **Scenario** (без изменений), "Step" → **Step** (без изменений), "Handler" (в контексте step) → **Procedure**
+- **ADR-0026** — Custom Functions: именованные чистые CEL-выражения. **Function** — ортогональна к Action hierarchy (вычисления, а не действия). `fn.*` namespace, dual-stack (cel-go + cel-js)
