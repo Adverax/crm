@@ -1,85 +1,85 @@
-# ADR-0005: Референсные типы полей
+# ADR-0005: Reference Field Types
 
-**Статус:** Принято
-**Дата:** 2026-02-08
-**Участники:** @roman_myakotin
+**Status:** Accepted
+**Date:** 2026-02-08
+**Participants:** @roman_myakotin
 
-## Контекст
+## Context
 
-Metadata-driven CRM требует описания связей между объектами. Связи определяются
-через reference-поля в метаданных. Необходимо спроектировать:
-- Виды связей (subtypes в рамках type `reference`, см. ADR-0004)
-- Поведение при удалении parent-записи
-- Ограничения (глубина, циклы, self-reference)
-- Полиморфные ссылки (поле, указывающее на записи разных объектов)
+A metadata-driven CRM requires describing relationships between objects. Relationships are defined
+through reference fields in metadata. The following must be designed:
+- Relationship kinds (subtypes within the `reference` type, see ADR-0004)
+- Behavior when a parent record is deleted
+- Restrictions (depth, cycles, self-reference)
+- Polymorphic references (a field pointing to records of different objects)
 
-## Решение
+## Decision
 
-### Три subtype для type `reference`
+### Three subtypes for the `reference` type
 
-#### association — мягкая связь
+#### association — soft relationship
 
-Объекты связаны, но независимы.
+Objects are related but independent.
 
-| Аспект | Значение |
+| Aspect | Value |
 |--------|----------|
 | PG storage | `UUID` (nullable) |
-| FK constraint | да |
-| on_delete | `set_null` или `restrict` |
-| owner записи | собственный |
-| sharing/security | собственный |
-| reparenting | всегда |
-| self-reference | разрешён (например, Account.parent_account_id) |
-| max на объект | без ограничений |
+| FK constraint | yes |
+| on_delete | `set_null` or `restrict` |
+| record owner | own |
+| sharing/security | own |
+| reparenting | always |
+| self-reference | allowed (e.g. Account.parent_account_id) |
+| max per object | no limit |
 
-#### composition — жёсткая связь (lifecycle dependency)
+#### composition — hard relationship (lifecycle dependency)
 
-Child не существует без parent. Часть целого.
+The child does not exist without the parent. Part of a whole.
 
-| Аспект | Значение |
+| Aspect | Value |
 |--------|----------|
 | PG storage | `UUID NOT NULL` |
-| FK constraint | да |
-| on_delete | `cascade` или `restrict` |
-| owner записи | наследуется от parent |
-| sharing/security | наследуется от parent |
-| reparenting | по флагу `is_reparentable` (default: false) |
-| self-reference | **запрещён** (рекурсивный каскад) |
-| max на объект | не ограничено, но глубина цепочки ≤ 2 |
+| FK constraint | yes |
+| on_delete | `cascade` or `restrict` |
+| record owner | inherited from parent |
+| sharing/security | inherited from parent |
+| reparenting | controlled by `is_reparentable` flag (default: false) |
+| self-reference | **prohibited** (recursive cascade) |
+| max per object | unlimited, but chain depth <= 2 |
 
-#### polymorphic — ссылка на разные типы объектов
+#### polymorphic — reference to different object types
 
-Поле может указывать на записи разных объектов. Список допустимых
-объектов-целей хранится явно.
+A field can point to records of different objects. The list of allowed
+target objects is stored explicitly.
 
-| Аспект | Значение |
+| Aspect | Value |
 |--------|----------|
-| PG storage | два столбца: `VARCHAR(100)` + `UUID` |
-| FK constraint | **нет** (валидация в DML engine) |
-| on_delete | зависит от контекста, валидация в коде |
-| owner записи | собственный |
-| self-reference | разрешён |
-| max на объект | без ограничений |
+| PG storage | two columns: `VARCHAR(100)` + `UUID` |
+| FK constraint | **no** (validation in DML engine) |
+| on_delete | depends on context, validated in code |
+| record owner | own |
+| self-reference | allowed |
+| max per object | no limit |
 
-### Метаданные reference-поля
+### Reference field metadata
 
-Дополнительные атрибуты в `field_definitions` (помимо общих):
+Additional attributes in `field_definitions` (beyond the common ones):
 
 ```sql
--- Для association и composition:
+-- For association and composition:
 referenced_object_id UUID     REFERENCES object_definitions(id),
-relationship_name    VARCHAR(100),  -- имя обратной связи для SOQL
+relationship_name    VARCHAR(100),  -- reverse relationship name for SOQL
 on_delete            VARCHAR(20) NOT NULL DEFAULT 'set_null'
                      CHECK (on_delete IN ('set_null', 'cascade', 'restrict')),
 is_reparentable      BOOLEAN NOT NULL DEFAULT true,
 
--- Для polymorphic:
--- referenced_object_id = NULL (целей несколько)
--- relationship_name = имя обратной связи
--- on_delete = поведение определяется для каждой цели или по умолчанию
+-- For polymorphic:
+-- referenced_object_id = NULL (multiple targets)
+-- relationship_name = reverse relationship name
+-- on_delete = behavior defined per target or by default
 ```
 
-### Таблица polymorphic_targets
+### `polymorphic_targets` table
 
 ```sql
 CREATE TABLE polymorphic_targets (
@@ -91,48 +91,48 @@ CREATE TABLE polymorphic_targets (
 );
 ```
 
-Явный список допустимых объектов-целей для каждого polymorphic-поля.
-Без специальных флагов (`is_target_any`, `is_platform_managed`) —
-при необходимости добавляются позже.
+An explicit list of allowed target objects for each polymorphic field.
+No special flags (`is_target_any`, `is_platform_managed`) —
+they can be added later if needed.
 
-### Поведение при удалении (on_delete)
+### Delete behavior (on_delete)
 
-| on_delete | Описание | Доступен для |
+| on_delete | Description | Available for |
 |-----------|----------|-------------|
-| `set_null` | Обнулить ссылку у child-записей | association |
-| `cascade` | Удалить child-записи | composition |
-| `restrict` | Запретить удаление parent, если есть children | association, composition |
+| `set_null` | Set the reference to null on child records | association |
+| `cascade` | Delete child records | composition |
+| `restrict` | Prevent parent deletion if children exist | association, composition |
 
-### Ограничения
+### Restrictions
 
-| Ограничение | Значение | Обоснование |
+| Restriction | Value | Rationale |
 |-------------|----------|-------------|
-| Self-reference composition | **запрещён** | Рекурсивный каскад при удалении |
-| Глубина composition цепочки | **≤ 2** | A→B→C допустимо, A→B→C→D — нет. Ограничивает каскадную сложность |
-| Циклы в composition | **запрещены** | Metadata engine проверяет при создании поля |
-| Max composition на объект | без ограничений | Глубина цепочки уже ограничена |
+| Self-reference composition | **prohibited** | Recursive cascade on deletion |
+| Composition chain depth | **<= 2** | A->B->C is allowed, A->B->C->D is not. Limits cascading complexity |
+| Cycles in composition | **prohibited** | Metadata engine validates on field creation |
+| Max compositions per object | no limit | Chain depth is already restricted |
 
-### Хранение данных в таблицах объектов
+### Data storage in object tables
 
 ```sql
--- association (например, Contact.account_id):
+-- association (e.g. Contact.account_id):
 account_id UUID REFERENCES obj_account(id) ON DELETE SET NULL
 
--- composition (например, DealLineItem.deal_id):
+-- composition (e.g. DealLineItem.deal_id):
 deal_id UUID NOT NULL REFERENCES obj_deal(id) ON DELETE CASCADE
 
--- polymorphic (например, Task.what):
+-- polymorphic (e.g. Task.what):
 what_object_type VARCHAR(100) NOT NULL
 what_record_id   UUID         NOT NULL
 -- + composite index (what_object_type, what_record_id)
--- + DML-валидация: object_type ∈ polymorphic_targets
+-- + DML validation: object_type IN polymorphic_targets
 ```
 
-## Последствия
+## Consequences
 
-- Reference type имеет три subtype: `association`, `composition`, `polymorphic`
-- Metadata engine валидирует ограничения при создании reference-полей
-- DML engine проверяет referential integrity для polymorphic (нет FK)
-- Schema generator создаёт разные DDL в зависимости от subtype
-- Polymorphic targets — отдельная нормализованная таблица
-- Security inheritance (owner/sharing) для composition — Phase 2
+- The reference type has three subtypes: `association`, `composition`, `polymorphic`
+- The metadata engine validates restrictions when creating reference fields
+- The DML engine checks referential integrity for polymorphic references (no FK)
+- The schema generator creates different DDL depending on the subtype
+- Polymorphic targets are stored in a separate normalized table
+- Security inheritance (owner/sharing) for composition — Phase 2

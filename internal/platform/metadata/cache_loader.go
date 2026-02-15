@@ -157,6 +157,22 @@ func (l *PgCacheLoader) LoadAllValidationRules(ctx context.Context) ([]Validatio
 	return scanValidationRules(rows)
 }
 
+// LoadAllFunctions loads all custom functions from the database.
+func (l *PgCacheLoader) LoadAllFunctions(ctx context.Context) ([]Function, error) {
+	rows, err := l.pool.Query(ctx, `
+		SELECT id, name, description, params, return_type, body,
+			created_at, updated_at
+		FROM metadata.functions
+		ORDER BY name
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("pgCacheLoader.LoadAllFunctions: %w", err)
+	}
+	defer rows.Close()
+
+	return scanFunctions(rows)
+}
+
 // RefreshMaterializedView refreshes the relationship_registry materialized view concurrently.
 func (l *PgCacheLoader) RefreshMaterializedView(ctx context.Context) error {
 	_, err := l.pool.Exec(ctx, "REFRESH MATERIALIZED VIEW CONCURRENTLY metadata.relationship_registry")

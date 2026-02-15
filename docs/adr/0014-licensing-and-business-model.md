@@ -1,147 +1,147 @@
-# ADR-0014: Лицензирование и бизнес-модель
+# ADR-0014: Licensing and Business Model
 
-**Статус:** Принято
-**Дата:** 2026-02-08
-**Участники:** @roman_myakotin
+**Status:** Accepted
+**Date:** 2026-02-08
+**Participants:** @roman_myakotin
 
-## Контекст
+## Context
 
-Проект приближается к стадии публичного релиза. Необходимо определить:
-- Модель распространения (SaaS, open source, open core, source available)
-- Лицензию для кода
-- Границу между бесплатной и платной частями
-- Техническую организацию кода с разными лицензиями в одном репозитории
+The project is approaching the public release stage. The following must be determined:
+- Distribution model (SaaS, open source, open core, source available)
+- Code license
+- Boundary between free and paid components
+- Technical organization of differently-licensed code in a single repository
 
-Ключевые ограничения:
-- Минимальный бюджет — нет ресурсов на отдельную инфраструктуру для SaaS на старте
-- Security engine (OLS/FLS/RLS) глубоко интегрирован в ядро (SOQL, DML) — его нельзя вынести без серьёзного усложнения архитектуры
-- Целевая аудитория — B2B компании, где compliance и юридические риски критичны
+Key constraints:
+- Minimal budget — no resources for separate SaaS infrastructure at launch
+- The security engine (OLS/FLS/RLS) is deeply integrated into the core (SOQL, DML) — it cannot be extracted without significantly complicating the architecture
+- Target audience — B2B companies where compliance and legal risks are critical
 
-## Рассмотренные варианты
+## Considered Alternatives
 
-### Вариант A — Pure SaaS (закрытый код)
+### Option A — Pure SaaS (closed source)
 
-Полностью закрытый продукт, доступный только как облачный сервис.
+A fully closed product available only as a cloud service.
 
-Плюсы: полный контроль, простая монетизация, защита IP.
-Минусы: нужен бюджет на инфраструктуру с первого дня, нет community-эффекта, высокая конкуренция с Salesforce/Bitrix24/amoCRM без differentiation.
+Pros: full control, straightforward monetization, IP protection.
+Cons: infrastructure budget required from day one, no community effect, high competition with Salesforce/Bitrix24/amoCRM without differentiation.
 
-### Вариант B — Pure Open Source (AGPL)
+### Option B — Pure Open Source (AGPL)
 
-Весь код под AGPL v3. Монетизация через поддержку и консалтинг.
+All code under AGPL v3. Monetization through support and consulting.
 
-Плюсы: максимальное доверие, community contributions, быстрое adoption.
-Минусы: сложно монетизировать — support-модель масштабируется линейно с людьми. Конкурент может взять код и продавать hosted-версию (AGPL обязывает открыть код, но не запрещает коммерческое использование).
+Pros: maximum trust, community contributions, rapid adoption.
+Cons: hard to monetize — the support model scales linearly with people. A competitor can take the code and sell a hosted version (AGPL requires opening code but does not prohibit commercial use).
 
-### Вариант C — Open Core: AGPL + проприетарный `ee/` в одном репозитории (выбран)
+### Option C — Open Core: AGPL + Proprietary `ee/` in a Single Repository (chosen)
 
-Ядро (включая полный security engine) — AGPL v3. Enterprise add-ons — проприетарная лицензия в директории `ee/`. Один публичный репозиторий.
+The core (including the full security engine) is AGPL v3. Enterprise add-ons are under a proprietary license in the `ee/` directory. A single public repository.
 
-Плюсы: полнофункциональный self-hosted CRM привлекает пользователей; enterprise add-ons монетизируются через лицензии; AGPL защищает от hosted-конкурентов; proven модель (GitLab, Mattermost, Grafana); один repo — простая разработка и CI.
-Минусы: проприетарный код технически доступен (но защищён юридически); нужно аккуратно маркировать границу лицензий.
+Pros: a fully functional self-hosted CRM attracts users; enterprise add-ons are monetized through licenses; AGPL protects against hosted competitors; proven model (GitLab, Mattermost, Grafana); single repo — simple development and CI.
+Cons: proprietary code is technically accessible (but legally protected); the license boundary must be carefully marked.
 
-### Вариант D — Source Available (BSL / ELv2)
+### Option D — Source Available (BSL / ELv2)
 
-Весь код под Business Source License или Elastic License 2.0. Запрет на конкурирующий managed service.
+All code under Business Source License or Elastic License 2.0. Prohibition on competing managed services.
 
-Плюсы: простая защита от конкурентов, весь код виден.
-Минусы: не OSI-approved — community воспринимает негативно, меньше contributions, меньше доверия.
+Pros: simple protection against competitors, all code is visible.
+Cons: not OSI-approved — community perceives it negatively, fewer contributions, less trust.
 
-## Решение
+## Decision
 
-### Модель распространения: Open Core
+### Distribution Model: Open Core
 
-Один публичный репозиторий с двумя лицензиями:
+A single public repository with two licenses:
 
-| Область | Лицензия | Директория |
-|---------|----------|------------|
-| Ядро платформы | AGPL v3 | Всё кроме `ee/` |
+| Scope | License | Directory |
+|-------|---------|-----------|
+| Core platform | AGPL v3 | Everything outside `ee/` |
 | Enterprise add-ons | Adverax Commercial License | `ee/` |
 
-### Граница бесплатной и платной частей
+### Boundary Between Free and Paid Components
 
-**AGPL v3 (бесплатно, self-hosted):**
+**AGPL v3 (free, self-hosted):**
 
 Platform:
-- Metadata engine (custom objects ≤ 20, custom fields per object ≤ 50)
-- SOQL parser и executor
+- Metadata engine (custom objects <= 20, custom fields per object <= 50)
+- SOQL parser and executor
 - DML engine
 - Standard objects (contacts, accounts, deals, tasks)
-- REST API (≤ 1000 req/min)
+- REST API (<= 1000 req/min)
 - Vue.js frontend
 - Self-hosted deployment (Docker)
-- Webhooks (outbound, все события, retry 3x)
+- Webhooks (outbound, all events, retry 3x)
 - Data export (CSV)
 
 Security:
-- OLS + FLS полностью
-- RLS полностью (OWD, share tables, role hierarchy, sharing rules, manual sharing)
-- Groups (все 4 типа: personal, role, role_and_subordinates, public)
+- OLS + FLS fully included
+- RLS fully included (OWD, share tables, role hierarchy, sharing rules, manual sharing)
+- Groups (all 4 types: personal, role, role_and_subordinates, public)
 - Security caching (closure tables, effective caches)
 
 Auth:
 - JWT (access + refresh tokens)
 - Login, register, password reset
 - MFA (TOTP, WebAuthn)
-- Basic login history (лог входов, дата, IP, user-agent)
+- Basic login history (login log, date, IP, user-agent)
 
-**Adverax Commercial License (платно):**
+**Adverax Commercial License (paid):**
 
 Security & Access Control:
-- Territory management (территориальная иерархия, territory-based groups)
-- PermissionSetGroups (группировка permission sets)
-- Delegated administration (делегирование admin-прав по подразделениям)
+- Territory management (territorial hierarchy, territory-based groups)
+- PermissionSetGroups (permission set grouping)
+- Delegated administration (delegating admin rights by department)
 - IP whitelist / login restrictions
 - Advanced session management (force logout, session policies)
 
 Auth & Identity:
 - SSO / SAML 2.0
 - LDAP / Active Directory sync
-- OAuth2 provider (CRM как IdP)
+- OAuth2 provider (CRM as IdP)
 
 Compliance & Audit:
-- Audit Trail (полный лог всех изменений записей)
-- Field History Tracking (история изменений отдельных полей)
-- Data retention policies (автоочистка, GDPR compliance)
-- Security analytics (geo-аналитика входов, anomaly detection)
+- Audit Trail (full log of all record changes)
+- Field History Tracking (history of individual field changes)
+- Data retention policies (auto-cleanup, GDPR compliance)
+- Security analytics (login geo-analytics, anomaly detection)
 
 Automation:
-- Workflow rules (field update, email alert, создание записей)
-- Approval processes (цепочки согласования)
-- Scheduled jobs / batch processing (фоновая обработка)
+- Workflow rules (field update, email alert, record creation)
+- Approval processes (approval chains)
+- Scheduled jobs / batch processing (background processing)
 
 Analytics & Reporting:
-- Custom reports builder (визуальный конструктор отчётов)
-- Dashboards (настраиваемые дашборды, drag-and-drop)
-- Scheduled report delivery (отправка отчётов по email)
+- Custom reports builder (visual report designer)
+- Dashboards (configurable dashboards, drag-and-drop)
+- Scheduled report delivery (email report delivery)
 
 Platform:
-- Multi-org / multi-tenant режим
-- Sandbox environments (dev/staging копия организации)
-- Увеличенные лимиты: custom objects > 20, custom fields > 50, API > 1000 req/min
+- Multi-org / multi-tenant mode
+- Sandbox environments (dev/staging organization copy)
+- Increased limits: custom objects > 20, custom fields > 50, API > 1000 req/min
 
 Services:
 - Managed cloud hosting (SaaS)
 - Priority support + SLA
 - Professional services / onboarding
 
-**Обоснование границы:**
+**Boundary rationale:**
 
-- Security engine (OLS/FLS/RLS) глубоко интегрирован в SOQL/DML — разделение потребовало бы сложной plugin-архитектуры. Полный security в core.
-- MFA, webhooks, CSV export, basic login history — в core для доверия и привлечения пользователей. Security by default, no vendor lock-in.
-- Enterprise фичи — то, что нужно крупным компаниям: compliance (audit), advanced auth (SSO/LDAP), автоматизация, аналитика, территории.
-- Лимиты в free tier (20 objects, 50 fields, 1000 req/min) достаточны для малого/среднего бизнеса. Enterprise снимает ограничения.
+- The security engine (OLS/FLS/RLS) is deeply integrated into SOQL/DML — separation would require a complex plugin architecture. Full security stays in core.
+- MFA, webhooks, CSV export, basic login history are in core for trust and user attraction. Security by default, no vendor lock-in.
+- Enterprise features are what large companies need: compliance (audit), advanced auth (SSO/LDAP), automation, analytics, territories.
+- Limits in the free tier (20 objects, 50 fields, 1000 req/min) are sufficient for small/medium businesses. Enterprise removes the restrictions.
 
-### Структура репозитория
+### Repository Structure
 
-Директория `ee/` зеркалирует основную структуру проекта и содержит все слои enterprise-кода: Go-пакеты, Vue-компоненты, SQL-миграции, тесты.
+The `ee/` directory mirrors the main project structure and contains all layers of enterprise code: Go packages, Vue components, SQL migrations, tests.
 
 ```
 crm/
-├── LICENSE                            ← AGPL v3 (default для всего)
-├── internal/                          ← AGPL v3: ядро платформы
+├── LICENSE                            ← AGPL v3 (default for everything)
+├── internal/                          ← AGPL v3: core platform
 │   ├── platform/
-│   │   ├── security/                  ← полный RLS/OLS/FLS
+│   │   ├── security/                  ← full RLS/OLS/FLS
 │   │   ├── metadata/
 │   │   ├── soql/
 │   │   └── dml/
@@ -152,7 +152,7 @@ crm/
 ├── web/                               ← AGPL v3: core frontend
 │   └── src/
 ├── ee/                                ← Adverax Commercial License
-│   ├── LICENSE                        ← проприетарная лицензия
+│   ├── LICENSE                        ← proprietary license
 │   ├── internal/
 │   │   ├── platform/
 │   │   │   ├── territory/             ← Go: territory hierarchy, territory-based groups
@@ -161,34 +161,34 @@ crm/
 │   │   │   └── sso/                   ← Go: SSO / SAML / LDAP
 │   │   ├── handler/                   ← Go: enterprise API endpoints
 │   │   └── service/                   ← Go: enterprise business logic
-│   ├── migrations/                    ← SQL: enterprise-only таблицы
+│   ├── migrations/                    ← SQL: enterprise-only tables
 │   ├── sqlc/
 │   │   └── queries/                   ← SQL: enterprise queries
 │   ├── web/
 │   │   └── src/
-│   │       ├── views/                 ← Vue: enterprise страницы
-│   │       ├── components/            ← Vue: enterprise компоненты
+│   │       ├── views/                 ← Vue: enterprise pages
+│   │       ├── components/            ← Vue: enterprise components
 │   │       └── stores/                ← Vue: enterprise Pinia stores
 │   └── tests/
 │       └── pgtap/                     ← pgTAP: enterprise schema tests
 └── ...
 ```
 
-### Принцип интеграции: интерфейсы в ядре, реализации в `ee/`
+### Integration Principle: Interfaces in Core, Implementations in `ee/`
 
-Ядро определяет интерфейсы (extension points). Community edition использует default-реализации (no-op / заглушки). Enterprise edition подставляет полные реализации через build tags.
+The core defines interfaces (extension points). Community Edition uses default implementations (no-op / stubs). Enterprise Edition substitutes full implementations via build tags.
 
 ```go
-// internal/platform/security/rls/territory.go (ядро, AGPL)
-// Интерфейс для territory-based access resolution.
+// internal/platform/security/rls/territory.go (core, AGPL)
+// Interface for territory-based access resolution.
 type TerritoryResolver interface {
     ResolveTerritoryGroups(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
 }
 
-// internal/platform/security/rls/territory_default.go (ядро, AGPL)
+// internal/platform/security/rls/territory_default.go (core, AGPL)
 //go:build !enterprise
 
-// Default: territory не используется, возвращаем nil.
+// Default: territory is not used, returns nil.
 type noopTerritoryResolver struct{}
 
 func (r *noopTerritoryResolver) ResolveTerritoryGroups(_ context.Context, _ uuid.UUID) ([]uuid.UUID, error) {
@@ -197,7 +197,7 @@ func (r *noopTerritoryResolver) ResolveTerritoryGroups(_ context.Context, _ uuid
 ```
 
 ```go
-// ee/internal/platform/territory/resolver.go (enterprise, проприетарная)
+// ee/internal/platform/territory/resolver.go (enterprise, proprietary)
 //go:build enterprise
 
 // Copyright 2026 Adverax. All rights reserved.
@@ -206,24 +206,24 @@ func (r *noopTerritoryResolver) ResolveTerritoryGroups(_ context.Context, _ uuid
 type territoryResolver struct { ... }
 
 func (r *territoryResolver) ResolveTerritoryGroups(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
-    // Полная реализация: territory hierarchy, territory-based groups,
+    // Full implementation: territory hierarchy, territory-based groups,
     // effective_user_territory cache lookup.
 }
 ```
 
-Vue-компоненты подключаются аналогично — через dynamic imports с проверкой feature flag:
+Vue components are connected similarly — via dynamic imports with feature flag checking:
 
 ```typescript
-// web/src/router/index.ts (ядро, AGPL)
+// web/src/router/index.ts (core, AGPL)
 const routes = [
   ...coreRoutes,
-  // Enterprise routes загружаются динамически, если доступны
+  // Enterprise routes are loaded dynamically if available
   ...(import.meta.env.VITE_ENTERPRISE === 'true' ? enterpriseRoutes : []),
 ]
 ```
 
 ```typescript
-// ee/web/src/router/enterprise-routes.ts (enterprise, проприетарная)
+// ee/web/src/router/enterprise-routes.ts (enterprise, proprietary)
 export const enterpriseRoutes = [
   { path: '/admin/territories', component: () => import('../views/TerritoryManager.vue') },
   { path: '/admin/audit-log', component: () => import('../views/AuditLog.vue') },
@@ -231,7 +231,7 @@ export const enterpriseRoutes = [
 ]
 ```
 
-Enterprise-миграции запускаются отдельным migration path:
+Enterprise migrations are run via a separate migration path:
 
 ```makefile
 # Community Edition migrations
@@ -244,9 +244,9 @@ migrate-up-ee:
 	migrate -path ee/migrations/ -database $(DB_URL) up
 ```
 
-### Маркировка лицензий в коде
+### License Marking in Code
 
-Файлы в `ee/` содержат заголовок:
+Files in `ee/` contain the header:
 
 ```go
 // Copyright 2026 Adverax. All rights reserved.
@@ -255,16 +255,16 @@ migrate-up-ee:
 // Unauthorized use, copying, or distribution is prohibited.
 ```
 
-Файлы вне `ee/` опционально содержат:
+Files outside `ee/` optionally contain:
 
 ```go
 // Copyright 2026 Adverax.
 // Licensed under AGPL v3. See LICENSE for details.
 ```
 
-### Сборка
+### Build
 
-Enterprise features подключаются через Go build tags:
+Enterprise features are connected via Go build tags:
 
 ```go
 // ee/territory/manager.go
@@ -273,10 +273,10 @@ Enterprise features подключаются через Go build tags:
 package territory
 ```
 
-Два варианта сборки:
+Two build variants:
 
 ```makefile
-# Community Edition (по умолчанию)
+# Community Edition (default)
 build:
 	go build -o crm ./cmd/api
 
@@ -285,33 +285,33 @@ build-ee:
 	go build -tags enterprise -o crm-ee ./cmd/api
 ```
 
-### Юридическая защита
+### Legal Protection
 
-- **AGPL на ядро** — конкурент, хостящий модифицированную версию, обязан открыть весь свой код
-- **Проприетарная лицензия на `ee/`** — использование без оплаты = нарушение copyright
-- **B2B контекст** — целевые клиенты (компании) соблюдают лицензии из-за юридических рисков
-- **Прецеденты** — GitLab, Mattermost, Sourcegraph успешно используют эту модель годами
+- **AGPL on core** — a competitor hosting a modified version must open all of their code
+- **Proprietary license on `ee/`** — use without payment = copyright violation
+- **B2B context** — target clients (companies) comply with licenses due to legal risks
+- **Precedents** — GitLab, Mattermost, Sourcegraph have successfully used this model for years
 
-### Прецеденты в индустрии
+### Industry Precedents
 
-| Проект | Модель | Лицензия ядра | Enterprise |
-|--------|--------|---------------|------------|
-| GitLab | Open Core, один repo | MIT | `ee/` — проприетарная |
-| Mattermost | Open Core, один repo | MIT + Apache 2.0 | `enterprise/` — проприетарная |
-| Grafana | Open Core, один repo | AGPL v3 | Enterprise plugins — проприетарные |
-| Sourcegraph | Open Core, один repo | Apache 2.0 | `enterprise/` — проприетарная |
+| Project | Model | Core License | Enterprise |
+|---------|-------|--------------|------------|
+| GitLab | Open Core, single repo | MIT | `ee/` — proprietary |
+| Mattermost | Open Core, single repo | MIT + Apache 2.0 | `enterprise/` — proprietary |
+| Grafana | Open Core, single repo | AGPL v3 | Enterprise plugins — proprietary |
+| Sourcegraph | Open Core, single repo | Apache 2.0 | `enterprise/` — proprietary |
 
-## Последствия
+## Consequences
 
-- Весь security engine (OLS, FLS, RLS, groups, caching) реализуется в ядре под AGPL — без разделения
-- Директория `ee/` зеркалирует основную структуру: `ee/internal/`, `ee/migrations/`, `ee/sqlc/`, `ee/web/`, `ee/tests/`
-- Ядро определяет интерфейсы (extension points), community edition использует no-op заглушки (`//go:build !enterprise`), enterprise подставляет полные реализации (`//go:build enterprise`)
-- Vue enterprise-компоненты подключаются через dynamic imports и feature flag `VITE_ENTERPRISE`
-- Enterprise-миграции — отдельный migration path (`ee/migrations/`), запускается после core-миграций
-- Файл `LICENSE` (AGPL v3) — в корне репозитория
-- Файл `ee/LICENSE` (Adverax Commercial License) — в директории `ee/`
-- Build tag `enterprise` используется для условной компиляции Go enterprise-кода
-- Makefile получает targets: `build-ee`, `migrate-up-ee`, `test-pgtap-ee`
-- Текущая разработка (Phase 2: Security engine) не затрагивается — весь security идёт в ядро
-- Публичный релиз планируется после Phase 5-6 (auth + standard objects)
-- Первая enterprise-фича (territory management) реализуется на Phase N
+- The entire security engine (OLS, FLS, RLS, groups, caching) is implemented in the core under AGPL — no splitting
+- The `ee/` directory mirrors the main structure: `ee/internal/`, `ee/migrations/`, `ee/sqlc/`, `ee/web/`, `ee/tests/`
+- The core defines interfaces (extension points), Community Edition uses no-op stubs (`//go:build !enterprise`), Enterprise substitutes full implementations (`//go:build enterprise`)
+- Vue enterprise components are connected via dynamic imports and feature flag `VITE_ENTERPRISE`
+- Enterprise migrations use a separate migration path (`ee/migrations/`), run after core migrations
+- `LICENSE` file (AGPL v3) is in the repository root
+- `ee/LICENSE` file (Adverax Commercial License) is in the `ee/` directory
+- Build tag `enterprise` is used for conditional compilation of Go enterprise code
+- Makefile gets targets: `build-ee`, `migrate-up-ee`, `test-pgtap-ee`
+- Current development (Phase 2: Security engine) is not affected — all security goes into core
+- Public release is planned after Phase 5-6 (auth + standard objects)
+- First enterprise feature (territory management) is implemented in Phase N

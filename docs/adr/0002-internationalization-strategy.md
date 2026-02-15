@@ -1,76 +1,76 @@
-# ADR-0002: Стратегия интернационализации
+# ADR-0002: Internationalization Strategy
 
-**Статус:** Принято
-**Дата:** 2026-02-08
-**Участники:** @roman_myakotin
+**Status:** Accepted
+**Date:** 2026-02-08
+**Participants:** @roman_myakotin
 
-## Контекст
+## Context
 
-CRM-платформа ориентирована на enterprise-сегмент, где пользователи могут работать
-на разных языках. Интернационализация затрагивает два вида контента:
+The CRM platform targets the enterprise segment, where users may work in
+different languages. Internationalization affects two types of content:
 
-- **Динамический** — метаданные объектов, полей, picklist-значения, validation rules.
-  Создаётся администратором в runtime, хранится в БД, количество растёт.
-- **Статический** — кнопки, меню, системные ошибки, шаблоны уведомлений.
-  Создаётся разработчиком, деплоится с кодом, количество фиксировано.
+- **Dynamic** — object metadata, field metadata, picklist values, validation rules.
+  Created by administrators at runtime, stored in the database, quantity grows over time.
+- **Static** — buttons, menus, system errors, notification templates.
+  Created by developers, deployed with code, quantity is fixed.
 
-Нужен единый подход к i18n, который при этом учитывает разную природу контента.
+A unified approach to i18n is needed that accounts for the different nature of these content types.
 
-## Рассмотренные варианты
+## Considered Options
 
-### Вариант A: i18n-ключи везде
+### Option A: i18n keys everywhere
 
-Все строки (и в БД, и в UI) заменяются на ключи (`object.contact.label`),
-которые резолвятся через единый словарь.
+All strings (both in the database and in the UI) are replaced with keys (`object.contact.label`),
+which are resolved through a single dictionary.
 
-**Плюсы:**
-- Полная унификация
+**Pros:**
+- Full unification
 
-**Минусы:**
-- Без словаря пользователь видит ключи вместо текста
-- Усложняет админский UI — создание custom-объекта требует заполнения словаря
-- UI-строки в БД — лишние запросы на каждый рендер для данных, не меняющихся между деплоями
-- Жизненные циклы динамического и статического контента принципиально различны
+**Cons:**
+- Without the dictionary, users see keys instead of text
+- Complicates the admin UI — creating a custom object requires populating the dictionary
+- UI strings in the database — extra queries on every render for data that does not change between deploys
+- The lifecycles of dynamic and static content are fundamentally different
 
-### Вариант B: Прямые строки без i18n
+### Option B: Plain strings without i18n
 
-Все labels хранятся как обычные строки на одном языке.
+All labels are stored as plain strings in a single language.
 
-**Плюсы:**
-- Максимальная простота
+**Pros:**
+- Maximum simplicity
 
-**Минусы:**
-- Невозможна мультиязычность
-- Непригодно для enterprise с международными командами
+**Cons:**
+- Multilingual support is impossible
+- Unsuitable for enterprises with international teams
 
-### Вариант C: Default value + translation overlay (выбран)
+### Option C: Default value + translation overlay (chosen)
 
-Единый паттерн для всей платформы, но с двумя механизмами хранения:
+A unified pattern for the entire platform, but with two storage mechanisms:
 
-1. **Динамический контент** — default-значение inline в записи БД + полиморфная таблица `translations`
-2. **Статический контент** — JSON-файлы локалей (vue-i18n на фронте, embedded-файлы в Go-бинаре)
+1. **Dynamic content** — default value inline in the DB record + polymorphic `translations` table
+2. **Static content** — locale JSON files (vue-i18n on the frontend, embedded files in the Go binary)
 
-**Плюсы:**
-- Работает из коробки на default-языке — переводы опциональны
-- Fallback-цепочка: перевод → default → ключ — пользователь никогда не видит пустоту
-- Один паттерн, понятный и разработчикам, и администраторам
-- Динамический контент не тормозит UI-рендер
-- Статический контент версионируется в git
+**Pros:**
+- Works out of the box in the default language — translations are optional
+- Fallback chain: translation -> default -> key — the user never sees blank content
+- One pattern, clear to both developers and administrators
+- Dynamic content does not slow down UI rendering
+- Static content is version-controlled in git
 
-**Минусы:**
-- Два механизма хранения (БД + файлы), хотя концептуальный паттерн един
+**Cons:**
+- Two storage mechanisms (database + files), although the conceptual pattern is unified
 
-## Решение
+## Decision
 
-Принимаем **Вариант C** — единый паттерн «default value + optional translation», два хранилища.
+We adopt **Option C** — a unified "default value + optional translation" pattern with two storage backends.
 
-### Динамический контент — таблица `translations`
+### Dynamic content — `translations` table
 
 ```sql
 CREATE TABLE translations (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     resource_type   VARCHAR(100) NOT NULL,  -- 'ObjectDef', 'FieldDef', 'PicklistValue', ...
-    resource_id     UUID         NOT NULL,  -- ID ресурса
+    resource_id     UUID         NOT NULL,  -- Resource ID
     field_name      VARCHAR(100) NOT NULL,  -- 'label', 'plural_label', 'description', 'help_text'
     locale          VARCHAR(10)  NOT NULL,  -- 'en', 'ru', 'de', ...
     value           TEXT         NOT NULL,
@@ -80,39 +80,39 @@ CREATE TABLE translations (
 );
 ```
 
-Покрывает:
-- Метаданные объектов (`label`, `plural_label`, `description`)
-- Метаданные полей (`label`, `help_text`, `description`)
-- Значения picklist-ов
-- Сообщения validation rules
-- Названия layout-ов и страниц
+Covers:
+- Object metadata (`label`, `plural_label`, `description`)
+- Field metadata (`label`, `help_text`, `description`)
+- Picklist values
+- Validation rule messages
+- Layout and page names
 
-### Статический контент — файлы локалей
+### Static content — locale files
 
 ```
-web/src/locales/ru.json   ← default-язык
-web/src/locales/en.json   ← перевод
-internal/locales/ru.json  ← серверные сообщения (ошибки, уведомления)
+web/src/locales/ru.json   ← default language
+web/src/locales/en.json   ← translation
+internal/locales/ru.json  ← server-side messages (errors, notifications)
 internal/locales/en.json
 ```
 
-### Единый паттерн resolve
+### Unified resolve pattern
 
 ```
-1. Определить locale из контекста пользователя
-2. Искать перевод для locale
-3. Если нет — fallback на default value
-4. Если нет — вернуть ключ (только для статического контента)
+1. Determine locale from user context
+2. Look up translation for locale
+3. If not found — fall back to default value
+4. If not found — return key (only for static content)
 ```
 
-### Locale пользователя
+### User locale
 
-Хранится в профиле пользователя (`users.locale`). Передаётся в контексте каждого запроса.
+Stored in the user profile (`users.locale`). Passed in the context of every request.
 
-## Последствия
+## Consequences
 
-- Поля `label`, `plural_label`, `description`, `help_text` в таблицах метаданных хранят default-значение напрямую
-- Таблица `translations` создаётся при необходимости (не обязательна для MVP)
-- Frontend использует vue-i18n с JSON-файлами
-- Backend для системных сообщений использует embedded JSON-файлы
-- API метаданных возвращает resolved-значения с учётом locale из запроса
+- Fields `label`, `plural_label`, `description`, `help_text` in metadata tables store the default value directly
+- The `translations` table is created when needed (not required for MVP)
+- Frontend uses vue-i18n with JSON files
+- Backend uses embedded JSON files for system messages
+- The metadata API returns resolved values based on the locale from the request

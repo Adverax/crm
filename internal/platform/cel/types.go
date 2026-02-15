@@ -3,8 +3,12 @@ package cel
 import (
 	"time"
 
+	gocel "github.com/google/cel-go/cel"
 	"github.com/google/uuid"
 )
+
+// Env is a type alias for cel.Env to avoid import conflicts.
+type Env = gocel.Env
 
 // RecordMap is a type alias for record data used in CEL expressions.
 type RecordMap = map[string]any

@@ -1,79 +1,79 @@
 # ADR-0015: Territory Management
 
-**Статус:** Принято
-**Дата:** 2026-02-11
-**Участники:** @roman_myakotin
+**Status:** Accepted
+**Date:** 2026-02-11
+**Participants:** @roman_myakotin
 
-## Контекст
+## Context
 
-Territory Management — механизм назначения записей на территории (географические регионы,
-продуктовые направления, вертикали) для управления видимостью и доступом. Территории
-ортогональны role hierarchy: роли определяют "кто ты в организации", территории — "за
-какой участок отвечаешь".
+Territory Management is a mechanism for assigning records to territories (geographic regions,
+product lines, verticals) to manage visibility and access. Territories are orthogonal
+to role hierarchy: roles define "who you are in the organization", territories define "which
+area you are responsible for".
 
-Необходимо определить:
-- Архитектуру территориальных моделей (single model vs. multiple models)
-- Назначение пользователей и записей на территории
-- Механизм предоставления доступа через территории
-- Интеграцию с существующей security-моделью (groups, share tables, effective caches)
-- Границу между core (AGPL) и enterprise (ee/) кодом
+The following must be determined:
+- Architecture of territory models (single model vs. multiple models)
+- Assignment of users and records to territories
+- Mechanism for granting access through territories
+- Integration with the existing security model (groups, share tables, effective caches)
+- Boundary between core (AGPL) and enterprise (ee/) code
 
-Ключевые ограничения:
-- Single-tenant архитектура (без `tenant_id`, ADR-0007)
-- Территории — enterprise-функция (ADR-0014), весь код в `ee/`
-- Минимальные изменения в core: только расширение group_type + интерфейсы
-- Видимость через территории должна работать через existing share tables (ADR-0011, ADR-0013)
+Key constraints:
+- Single-tenant architecture (no `tenant_id`, ADR-0007)
+- Territories are an enterprise feature (ADR-0014), all code in `ee/`
+- Minimal changes in core: only group_type extension + interfaces
+- Visibility through territories must work via existing share tables (ADR-0011, ADR-0013)
 
-## Рассмотренные варианты
+## Considered Alternatives
 
-### Вариант A — Single Territory Model (отклонено)
+### Option A — Single Territory Model (rejected)
 
-Одна фиксированная иерархия территорий. Нет lifecycle, нет возможности подготовить
-новую структуру без влияния на production.
+One fixed territory hierarchy. No lifecycle, no ability to prepare
+a new structure without impacting production.
 
-Плюсы: простота реализации, нет complexity с активацией.
-Минусы: нет draft/test workflow, невозможна сезонная реструктуризация, нет A/B тестирования
-территориальных разбиений.
+Pros: simple implementation, no activation complexity.
+Cons: no draft/test workflow, seasonal restructuring is impossible, no A/B testing
+of territorial divisions.
 
-### Вариант B — Full Territory Models, ETM2-like (выбран)
+### Option B — Full Territory Models, ETM2-like (chosen)
 
-Несколько именованных моделей с lifecycle (`planning` → `active` → `archived`).
-Одна активная модель в любой момент. Модели в `planning` можно свободно редактировать.
+Multiple named models with lifecycle (`planning` → `active` → `archived`).
+One active model at any time. Models in `planning` can be freely edited.
 
-Плюсы: draft/test/activate workflow; сезонная реструктуризация; подготовка при M&A;
-A/B сравнение географического vs индустриального разбиения.
-Минусы: complexity активации (тяжёлая транзакция). Complexity локализована в activation
-service, не размазана по codebase.
+Pros: draft/test/activate workflow; seasonal restructuring; preparation for M&A;
+A/B comparison of geographic vs. industry-based division.
+Cons: activation complexity (heavy transaction). Complexity is localized in the activation
+service, not spread across the codebase.
 
-### Вариант C — Territory groups с типом `territory_and_subordinates` (отклонено)
+### Option C — Territory Groups with `territory_and_subordinates` Type (rejected)
 
-По аналогии с `role_and_subordinates` — создать два типа: `territory` и
-`territory_and_subordinates`. Hierarchy propagation через group membership.
+By analogy with `role_and_subordinates` — create two types: `territory` and
+`territory_and_subordinates`. Hierarchy propagation through group membership.
 
-Плюсы: полная аналогия с ролевой моделью.
-Минусы: невозможно обеспечить per-object access levels — группа предоставляет
-одинаковый уровень доступа ко всем объектам. Territory Object Defaults требуют
-разного access_level для разных объектов в одной территории. Share entries через
-ancestor walk решают эту задачу с per-object гранулярностью.
+Pros: full analogy with the role model.
+Cons: impossible to provide per-object access levels — a group grants
+the same level of access to all objects. Territory Object Defaults require
+different access_levels for different objects within the same territory. Share entries via
+ancestor walk solve this with per-object granularity.
 
-## Решение
+## Decision
 
-### Territory Models — lifecycle
+### Territory Models — Lifecycle
 
-Каждая модель имеет статус:
+Each model has a status:
 
-| Статус | Редактирование | Влияет на доступ | Переходы |
-|--------|---------------|------------------|----------|
-| `planning` | Полное (CRUD territories, rules, defaults) | Нет | → `active` |
-| `active` | Только assignment rules, record assignments | Да | → `archived` |
-| `archived` | Только чтение | Нет | — |
+| Status | Editing | Affects Access | Transitions |
+|--------|---------|----------------|-------------|
+| `planning` | Full (CRUD territories, rules, defaults) | No | → `active` |
+| `active` | Only assignment rules, record assignments | Yes | → `archived` |
+| `archived` | Read only | No | — |
 
-Инвариант: не более одной active модели в любой момент (enforced partial unique index).
+Invariant: at most one active model at any time (enforced by partial unique index).
 
-### SQL-схема
+### SQL Schema
 
-Все territory-таблицы — в схеме `ee` (enterprise namespace).
-Effective caches — в схеме `security` (общая конвенция, ADR-0012).
+All territory tables are in the `ee` schema (enterprise namespace).
+Effective caches are in the `security` schema (common convention, ADR-0012).
 
 #### ee.territory_models
 
@@ -91,7 +91,7 @@ CREATE TABLE ee.territory_models (
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Не более одной active модели
+-- At most one active model
 CREATE UNIQUE INDEX uq_territory_models_active
 ON ee.territory_models (status)
 WHERE status = 'active';
@@ -117,7 +117,7 @@ CREATE INDEX idx_territories_parent_id ON ee.territories (parent_id)
 WHERE parent_id IS NOT NULL;
 ```
 
-`parent_id` должен ссылаться на территорию в той же модели (enforced in service layer).
+`parent_id` must reference a territory in the same model (enforced in service layer).
 
 #### ee.territory_object_defaults
 
@@ -136,8 +136,8 @@ CREATE INDEX idx_territory_object_defaults_territory
 ON ee.territory_object_defaults (territory_id);
 ```
 
-Если у территории нет object_default для объекта — территория **не предоставляет** доступ
-к записям этого объекта (даже если записи назначены на территорию).
+If a territory has no object_default for an object, the territory **does not grant** access
+to records of that object (even if records are assigned to the territory).
 
 #### ee.user_territory_assignments
 
@@ -156,7 +156,7 @@ CREATE INDEX idx_user_territory_assignments_territory
 ON ee.user_territory_assignments (territory_id);
 ```
 
-M2M: пользователь может быть назначен на несколько территорий одновременно.
+M2M: a user can be assigned to multiple territories simultaneously.
 
 #### ee.record_territory_assignments
 
@@ -178,8 +178,8 @@ CREATE INDEX idx_record_territory_territory
 ON ee.record_territory_assignments (territory_id);
 ```
 
-`record_id` без FK — записи живут в разных `obj_{name}` таблицах (ADR-0007).
-`object_id` необходим для определения, какой object_default применять.
+`record_id` has no FK — records live in different `obj_{name}` tables (ADR-0007).
+`object_id` is required to determine which object_default to apply.
 
 #### ee.territory_assignment_rules
 
@@ -204,48 +204,48 @@ CREATE INDEX idx_territory_assignment_rules_object
 ON ee.territory_assignment_rules (object_id);
 ```
 
-Правила оцениваются по `rule_order` при create/update записи через DML engine.
-Первое совпавшее правило на территорию побеждает.
+Rules are evaluated by `rule_order` on record create/update via the DML engine.
+The first matching rule for a territory wins.
 
-### Механизм видимости — share entries через ancestor walk
+### Visibility Mechanism — Share Entries via Ancestor Walk
 
-Территориальная видимость реализуется через existing share tables (ADR-0011)
-и existing `effective_group_members` (ADR-0013). Отдельный RLS path не нужен.
+Territory visibility is implemented through existing share tables (ADR-0011)
+and existing `effective_group_members` (ADR-0013). A separate RLS path is not needed.
 
-#### Алгоритм генерации share entries
+#### Share Entry Generation Algorithm
 
-При назначении записи R (`object_id = O`) на территорию T:
+When assigning record R (`object_id = O`) to territory T:
 
-1. Построить цепочку предков: `[T, parent(T), grandparent(T), ..., root]`
-2. Для каждой территории T' в цепочке:
-   - Найти `territory_object_defaults` для `(T', O)` → `access_level`
-   - Если object_default **существует**: создать share entry
+1. Build the ancestor chain: `[T, parent(T), grandparent(T), ..., root]`
+2. For each territory T' in the chain:
+   - Find `territory_object_defaults` for `(T', O)` → `access_level`
+   - If object_default **exists**: create a share entry
      `(R, territory_group_T', access_level, reason='territory')`
-   - Если object_default **не существует**: пропустить (нет доступа через эту территорию)
+   - If object_default **does not exist**: skip (no access through this territory)
 
-#### Пример
+#### Example
 
 ```
 EMEA (object_default: Account → read)
 └── France (object_default: Account → read_write)
-    └── Paris (нет object_default для Account)
+    └── Paris (no object_default for Account)
 ```
 
-Запись Account #42 назначена на Paris:
+Record Account #42 assigned to Paris:
 
 | Share entry | grantee (territory group) | access_level |
 |-------------|--------------------------|--------------|
 | 1 | group(France) | read_write |
 | 2 | group(EMEA) | read |
 
-- Пользователь в Paris: **не видит** Account #42 через Paris (нет object_default).
-  Видит только если также назначен на France или EMEA.
-- Пользователь в France: видит с read_write (share entry 1).
-- Пользователь в EMEA: видит с read (share entry 2).
+- User in Paris: **does not see** Account #42 through Paris (no object_default).
+  Sees it only if also assigned to France or EMEA.
+- User in France: sees with read_write (share entry 1).
+- User in EMEA: sees with read (share entry 2).
 
-#### RLS WHERE clause
+#### RLS WHERE Clause
 
-Territory visibility проходит через existing share table path:
+Territory visibility goes through the existing share table path:
 
 ```sql
 WHERE (
@@ -267,34 +267,34 @@ WHERE (
 )
 ```
 
-Share entries с `reason='territory'` участвуют в общем resolution через
-`effective_group_members`. Не нужен отдельный JOIN для территорий.
+Share entries with `reason='territory'` participate in the unified resolution through
+`effective_group_members`. No separate JOIN for territories is needed.
 
-### Territory groups
+### Territory Groups
 
-Один новый тип группы: `territory`. Одна группа на территорию.
-Members — пользователи, напрямую назначенные на эту территорию.
+One new group type: `territory`. One group per territory.
+Members are users directly assigned to that territory.
 
-Тип `territory_and_subordinates` **не нужен** — hierarchy propagation
-обеспечивается share entries (ancestor walk), а не group membership.
-Это даёт per-object гранулярность доступа, которую группа обеспечить не может.
+The `territory_and_subordinates` type **is not needed** — hierarchy propagation
+is provided by share entries (ancestor walk), not group membership.
+This gives per-object access granularity that a group cannot provide.
 
 #### Auto-generation
 
-| Событие | Действие |
-|---------|----------|
-| Активация модели | Для каждой территории: создать Group `type='territory'`, `related_territory_id = T.id` |
-| Назначение user на территорию | Добавить в `group_members` территориальной группы |
-| Снятие user с территории | Удалить из `group_members` |
-| Архивация модели | Удалить все territory groups (CASCADE удалит group_members, share entries) |
+| Event | Action |
+|-------|--------|
+| Model activation | For each territory: create Group `type='territory'`, `related_territory_id = T.id` |
+| User assigned to territory | Add to `group_members` of the territory group |
+| User removed from territory | Remove from `group_members` |
+| Model archival | Delete all territory groups (CASCADE deletes group_members, share entries) |
 
-Все изменения → outbox event → пересчёт `effective_group_members` (ADR-0012).
+All changes → outbox event → recalculation of `effective_group_members` (ADR-0012).
 
-### Effective caches
+### Effective Caches
 
 #### security.effective_territory_hierarchy
 
-Closure table аналогичная `effective_role_hierarchy`:
+Closure table analogous to `effective_role_hierarchy`:
 
 ```sql
 CREATE TABLE security.effective_territory_hierarchy (
@@ -309,10 +309,10 @@ CREATE INDEX idx_eth_descendant
 ON security.effective_territory_hierarchy (descendant_territory_id);
 ```
 
-- Self entry: `(T, T, depth=0)` для каждой территории
+- Self entry: `(T, T, depth=0)` for each territory
 - Ancestor entries: `(parent, T, 1)`, `(grandparent, T, 2)`, ...
 
-Размер: O(territories * depth). Сотни-тысячи строк.
+Size: O(territories * depth). Hundreds to thousands of rows.
 
 #### security.effective_user_territory
 
@@ -328,21 +328,21 @@ CREATE INDEX idx_eut_user ON security.effective_user_territory (user_id);
 CREATE INDEX idx_eut_territory ON security.effective_user_territory (territory_id);
 ```
 
-Плоский список территорий пользователя (из `user_territory_assignments`).
+Flat list of a user's territories (from `user_territory_assignments`).
 
-Размер: O(users * avg_territories). Тысячи-десятки тысяч строк.
+Size: O(users * avg_territories). Thousands to tens of thousands of rows.
 
-#### Инвалидация (outbox events)
+#### Invalidation (outbox events)
 
-| Событие | Инвалидирует |
-|---------|-------------|
-| Изменение иерархии территорий | `effective_territory_hierarchy` |
-| Изменение user assignments | `effective_user_territory` + group memberships |
-| Изменение record assignments | Share entries для записи |
-| Изменение object_defaults | Share entries для всех записей территории |
-| Активация/архивация модели | Полный пересчёт всех territory caches |
+| Event | Invalidates |
+|-------|-------------|
+| Territory hierarchy change | `effective_territory_hierarchy` |
+| User assignment change | `effective_user_territory` + group memberships |
+| Record assignment change | Share entries for the record |
+| Object defaults change | Share entries for all records in the territory |
+| Model activation/archival | Full recalculation of all territory caches |
 
-### Алгоритм активации модели
+### Model Activation Algorithm
 
 ```
 ActivateModel(newModelID):
@@ -370,60 +370,55 @@ ActivateModel(newModelID):
   5. Emit outbox events
 ```
 
-Активация — тяжёлая операция. Для MVP: синхронно в одной транзакции.
-Оптимизация: background job с progress tracking.
+Activation is a heavy operation. For MVP: synchronous in a single transaction.
+Optimization: background job with progress tracking.
 
-### Stored functions — гибридный подход Go + PL/pgSQL
+### Stored Functions — Hybrid Go + PL/pgSQL Approach
 
-#### Проблема: round-trip overhead
+#### Problem: Round-trip Overhead
 
-Текущий паттерн вычисления effective caches в проекте — pure Go:
-рекурсивные вызовы в Go с отдельным запросом на каждый уровень вложенности,
-INSERT в цикле по одной строке. Для security engine (десятки ролей, сотни
-пользователей) это допустимо.
+The current pattern for computing effective caches in the project is pure Go:
+recursive calls in Go with a separate query for each nesting level,
+INSERT in a loop one row at a time. For the security engine (tens of roles, hundreds
+of users) this is acceptable.
 
-Territory management масштабируется иначе. Активация модели с 50 территориями,
-200 пользователями и 10K записями порождает ~50K round-trips в одной транзакции:
-создание групп (50), заполнение group_members (200), closure table (50 × depth),
+Territory management scales differently. Activating a model with 50 territories,
+200 users, and 10K records generates ~50K round-trips in a single transaction:
+creating groups (50), populating group_members (200), closure table (50 × depth),
 effective_user_territory (200), share entries (10K × depth ancestor walk ×
-проверка object_defaults × INSERT). При ~0.1ms/round-trip по loopback это 5 секунд
-**только на latency**, не считая execution time.
+checking object_defaults × INSERT). At ~0.1ms/round-trip over loopback this is 5 seconds
+**on latency alone**, not counting execution time.
 
-#### Рассмотренные варианты
+#### Considered Alternatives
 
-**Вариант A — Pure Go (как текущий security engine)**
+**Option A — Pure Go (like the current security engine)**
 
-Весь код — в Go. Для каждой операции отдельный SQL-запрос через sqlc.
+All code in Go. A separate SQL query for each operation via sqlc.
 
-Плюсы: единый стек, привычные unit-тесты, отладка в Go.
-Минусы: ~50K round-trips при активации; O(records × depth) запросов при генерации
-share entries; не масштабируется для production-объёмов.
+Pros: single stack, familiar unit tests, debugging in Go.
+Cons: ~50K round-trips on activation; O(records × depth) queries for share entry generation; does not scale for production volumes.
 
-**Вариант B — Pure PL/pgSQL (вся логика в stored procedures)**
+**Option B — Pure PL/pgSQL (all logic in stored procedures)**
 
-Вся бизнес-логика, включая validation и lifecycle, — в хранимых функциях.
+All business logic, including validation and lifecycle, in stored functions.
 
-Плюсы: ноль round-trips, максимальная производительность.
-Минусы: бизнес-логика в SQL сложна для тестирования, отладки и code review;
-дублирование validation между Go (API) и PL/pgSQL; нарушение convention проекта
-(handler → service → repository).
+Pros: zero round-trips, maximum performance.
+Cons: business logic in SQL is hard to test, debug, and code review; duplication of validation between Go (API) and PL/pgSQL; violates project convention (handler → service → repository).
 
-**Вариант C — Гибридный: PL/pgSQL для data-intensive ops, Go для бизнес-логики (выбран)**
+**Option C — Hybrid: PL/pgSQL for Data-intensive Ops, Go for Business Logic (chosen)**
 
-Три stored functions для операций с высоким round-trip overhead.
-Вся бизнес-логика, CRUD, validation, rule evaluation — в Go.
+Three stored functions for operations with high round-trip overhead.
+All business logic, CRUD, validation, rule evaluation remains in Go.
 
-Плюсы: ~50K round-trips → ~3 вызова функций для активации; recursive CTE —
-нативная сила PostgreSQL; бизнес-логика остаётся в Go (тестируемость, отладка);
-чёткое разделение ответственности.
-Минусы: два языка для territory engine; stored functions в миграциях (версионирование).
+Pros: ~50K round-trips → ~3 function calls for activation; recursive CTE is a native PostgreSQL strength; business logic stays in Go (testability, debugging); clear separation of responsibilities.
+Cons: two languages for the territory engine; stored functions in migrations (versioning).
 
-#### Stored functions (3 штуки)
+#### Stored Functions (3 total)
 
 ##### 1. `ee.rebuild_territory_hierarchy(p_model_id UUID)`
 
-Пересчитывает closure table `security.effective_territory_hierarchy` для модели.
-Использует recursive CTE вместо рекурсивных Go-вызовов.
+Recalculates the closure table `security.effective_territory_hierarchy` for a model.
+Uses recursive CTE instead of recursive Go calls.
 
 ```sql
 CREATE FUNCTION ee.rebuild_territory_hierarchy(p_model_id UUID)
@@ -454,15 +449,15 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
-**Вместо:** Go-код, загружающий все территории, строящий parent_map в памяти,
-обходящий вверх для каждого узла, и вставляющий строки по одной.
-**Выигрыш:** N × depth INSERT → 1 INSERT...SELECT. Ноль round-trips.
+**Instead of:** Go code that loads all territories, builds a parent_map in memory,
+walks up for each node, and inserts rows one at a time.
+**Benefit:** N × depth INSERT → 1 INSERT...SELECT. Zero round-trips.
 
 ##### 2. `ee.generate_record_share_entries(p_record_id UUID, p_object_id UUID, p_territory_id UUID, p_share_table TEXT)`
 
-Генерирует share entries для одной записи при назначении на территорию.
-Выполняет ancestor walk через closure table, проверяет object_defaults,
-создаёт share entries в одном вызове.
+Generates share entries for a single record when assigned to a territory.
+Performs ancestor walk through the closure table, checks object_defaults,
+and creates share entries in a single call.
 
 ```sql
 CREATE FUNCTION ee.generate_record_share_entries(
@@ -496,15 +491,15 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
-**Вместо:** Go-код с отдельными запросами: 1 SELECT ancestor chain, N SELECT
+**Instead of:** Go code with separate queries: 1 SELECT ancestor chain, N SELECT
 object_defaults, N INSERT share entries.
-**Выигрыш:** 2 × depth запросов на запись → 1 вызов функции.
-Для 10K записей: ~60K round-trips → ~10K вызовов.
+**Benefit:** 2 × depth queries per record → 1 function call.
+For 10K records: ~60K round-trips → ~10K calls.
 
 ##### 3. `ee.activate_territory_model(p_new_model_id UUID)`
 
-Полная оркестрация активации модели: архивация старой, создание групп,
-заполнение group_members, пересчёт всех caches, генерация share entries.
+Full orchestration of model activation: archiving the old one, creating groups,
+populating group_members, recalculating all caches, generating share entries.
 
 ```sql
 CREATE FUNCTION ee.activate_territory_model(p_new_model_id UUID)
@@ -617,30 +612,30 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
-**Вместо:** Go activation_service с ~50K round-trips.
-**Выигрыш:** 1 вызов `SELECT ee.activate_territory_model(id)` заменяет
-всю Go-оркестрацию. Вся работа — server-side, ноль network round-trips.
+**Instead of:** Go activation_service with ~50K round-trips.
+**Benefit:** 1 call to `SELECT ee.activate_territory_model(id)` replaces
+the entire Go orchestration. All work is server-side, zero network round-trips.
 
-#### Что остаётся в Go
+#### What Stays in Go
 
-| Операция | Причина |
-|----------|---------|
-| CRUD для всех 6 таблиц | Тривиальные запросы, sqlc справляется |
-| Validation (status transitions, parent same model) | Бизнес-логика, unit-тестируемая |
-| Assignment rule evaluation | Интерпретация метаданных полей, сложная criteria matching |
-| Outbox event dispatch | Существующий паттерн, orchestration |
+| Operation | Reason |
+|-----------|--------|
+| CRUD for all 6 tables | Trivial queries, sqlc handles them |
+| Validation (status transitions, parent same model) | Business logic, unit-testable |
+| Assignment rule evaluation | Field metadata interpretation, complex criteria matching |
+| Outbox event dispatch | Existing pattern, orchestration |
 | Service-level coordination | handler → service → repository |
-| Вызов stored functions | Go-сервис вызывает `SELECT ee.activate_territory_model($1)` через repository |
+| Calling stored functions | Go service calls `SELECT ee.activate_territory_model($1)` via repository |
 
-#### Тестирование stored functions
+#### Testing Stored Functions
 
-- **pgTAP** (`ee/tests/pgtap/functions/`): unit-тесты для каждой stored function
-  - `rebuild_territory_hierarchy_test.sql`: проверка closure table для дерева глубиной 1, 2, 3
-  - `generate_record_share_entries_test.sql`: проверка ancestor walk с/без object_defaults
-  - `activate_territory_model_test.sql`: full activation flow, архивация старой модели
-- **Go integration tests** (`//go:build integration`): end-to-end через repository → function → assert DB state
+- **pgTAP** (`ee/tests/pgtap/functions/`): unit tests for each stored function
+  - `rebuild_territory_hierarchy_test.sql`: closure table verification for trees of depth 1, 2, 3
+  - `generate_record_share_entries_test.sql`: ancestor walk verification with/without object_defaults
+  - `activate_territory_model_test.sql`: full activation flow, archiving old model
+- **Go integration tests** (`//go:build integration`): end-to-end via repository → function → assert DB state
 
-### Assignment Rules — интеграция с DML
+### Assignment Rules — DML Integration
 
 ```
 EvaluateAssignmentRules(objectID, recordID, recordFields):
@@ -656,17 +651,17 @@ EvaluateAssignmentRules(objectID, recordID, recordFields):
              - break (first matching rule per territory)
 ```
 
-Правила оцениваются синхронно на DML insert/update. Простые критерии для MVP.
+Rules are evaluated synchronously on DML insert/update. Simple criteria for MVP.
 
-### Минимальные изменения в core (AGPL)
+### Minimal Changes in Core (AGPL)
 
-1. **Migration**: расширить CHECK constraint в `iam.groups` — добавить `'territory'`
-2. **Type constant**: `GroupTypeTerritory = "territory"` в `internal/platform/security/types.go`
-3. **Validation**: обновить `ValidateCreateGroup` для приёма `territory`
-4. **Interface**: `TerritoryResolver` в rls package (noop implementation `//go:build !enterprise`)
-5. **Interface**: `TerritoryAssignmentEvaluator` в dml package (noop implementation)
-6. **Outbox worker**: обработка `territory_changed` event type (делегирует в enterprise через interface)
-7. **Share table DDL**: уже поддерживает `reason='territory'` — изменений не нужно
+1. **Migration**: extend CHECK constraint in `iam.groups` — add `'territory'`
+2. **Type constant**: `GroupTypeTerritory = "territory"` in `internal/platform/security/types.go`
+3. **Validation**: update `ValidateCreateGroup` to accept `territory`
+4. **Interface**: `TerritoryResolver` in rls package (noop implementation `//go:build !enterprise`)
+5. **Interface**: `TerritoryAssignmentEvaluator` in dml package (noop implementation)
+6. **Outbox worker**: handling of `territory_changed` event type (delegates to enterprise via interface)
+7. **Share table DDL**: already supports `reason='territory'` — no changes needed
 
 ```go
 // internal/platform/security/rls/territory.go (core, AGPL)
@@ -692,10 +687,10 @@ type TerritoryAssignmentEvaluator interface {
 }
 ```
 
-### Расширение groups для enterprise
+### Extending Groups for Enterprise
 
 ```sql
--- EE migration: добавить FK на территорию
+-- EE migration: add FK to territory
 ALTER TABLE iam.groups
   ADD COLUMN related_territory_id UUID REFERENCES ee.territories(id) ON DELETE CASCADE;
 
@@ -704,16 +699,16 @@ ON iam.groups (related_territory_id)
 WHERE related_territory_id IS NOT NULL;
 ```
 
-### Файловая структура ee/
+### ee/ File Structure
 
 ```
 ee/
 ├── internal/
 │   └── platform/
 │       └── territory/
-│           ├── types.go                        ← типы: TerritoryModel, Territory, etc.
+│           ├── types.go                        ← types: TerritoryModel, Territory, etc.
 │           ├── inputs.go                       ← input structs
-│           ├── validation.go                   ← валидация входных данных
+│           ├── validation.go                   ← input data validation
 │           ├── repository.go                   ← repository interfaces
 │           ├── pg_model_repo.go                ← PG: TerritoryModelRepository
 │           ├── pg_territory_repo.go            ← PG: TerritoryRepository
@@ -722,15 +717,15 @@ ee/
 │           ├── pg_record_assignment_repo.go    ← PG: RecordTerritoryAssignmentRepository
 │           ├── pg_assignment_rule_repo.go      ← PG: TerritoryAssignmentRuleRepository
 │           ├── pg_effective_repo.go            ← PG: TerritoryEffectiveCacheRepository
-│           ├── model_service.go                ← CRUD + lifecycle моделей
-│           ├── territory_service.go            ← CRUD территорий, hierarchy ops
-│           ├── object_default_service.go       ← управление object defaults
-│           ├── user_assignment_service.go      ← назначение пользователей
-│           ├── record_assignment_service.go    ← назначение записей
-│           ├── assignment_rule_service.go      ← CRUD правил
-│           ├── activation_service.go           ← логика активации (вызов stored function)
-│           ├── share_generator.go              ← генерация share entries (вызов stored function)
-│           ├── effective_computer.go           ← пересчёт closure table (вызов stored function)
+│           ├── model_service.go                ← CRUD + model lifecycle
+│           ├── territory_service.go            ← CRUD territories, hierarchy ops
+│           ├── object_default_service.go       ← object defaults management
+│           ├── user_assignment_service.go      ← user assignment
+│           ├── record_assignment_service.go    ← record assignment
+│           ├── assignment_rule_service.go      ← CRUD rules
+│           ├── activation_service.go           ← activation logic (stored function call)
+│           ├── share_generator.go              ← share entry generation (stored function call)
+│           ├── effective_computer.go           ← closure table recalculation (stored function call)
 │           ├── resolver.go                     ← TerritoryResolver implementation
 │           ├── evaluator.go                    ← TerritoryAssignmentEvaluator implementation
 │           ├── model_service_test.go
@@ -787,81 +782,81 @@ ee/
             └── territory-routes.ts
 ```
 
-### API endpoints
+### API Endpoints
 
 ```
-POST   /api/v1/admin/territory/models              — создать модель
-GET    /api/v1/admin/territory/models              — список моделей
-GET    /api/v1/admin/territory/models/:id          — получить модель
-PUT    /api/v1/admin/territory/models/:id          — обновить модель
-DELETE /api/v1/admin/territory/models/:id          — удалить модель (только planning)
-POST   /api/v1/admin/territory/models/:id/activate — активировать модель
+POST   /api/v1/admin/territory/models              — create model
+GET    /api/v1/admin/territory/models              — list models
+GET    /api/v1/admin/territory/models/:id          — get model
+PUT    /api/v1/admin/territory/models/:id          — update model
+DELETE /api/v1/admin/territory/models/:id          — delete model (planning only)
+POST   /api/v1/admin/territory/models/:id/activate — activate model
 
-POST   /api/v1/admin/territory/territories              — создать территорию
-GET    /api/v1/admin/territory/territories?model_id=    — список по модели
-GET    /api/v1/admin/territory/territories/:id          — получить территорию
-PUT    /api/v1/admin/territory/territories/:id          — обновить территорию
-DELETE /api/v1/admin/territory/territories/:id          — удалить территорию
+POST   /api/v1/admin/territory/territories              — create territory
+GET    /api/v1/admin/territory/territories?model_id=    — list by model
+GET    /api/v1/admin/territory/territories/:id          — get territory
+PUT    /api/v1/admin/territory/territories/:id          — update territory
+DELETE /api/v1/admin/territory/territories/:id          — delete territory
 
-POST   /api/v1/admin/territory/territories/:id/object-defaults        — задать object default
-GET    /api/v1/admin/territory/territories/:id/object-defaults        — список object defaults
-DELETE /api/v1/admin/territory/territories/:id/object-defaults/:objId — удалить
+POST   /api/v1/admin/territory/territories/:id/object-defaults        — set object default
+GET    /api/v1/admin/territory/territories/:id/object-defaults        — list object defaults
+DELETE /api/v1/admin/territory/territories/:id/object-defaults/:objId — delete
 
-POST   /api/v1/admin/territory/territories/:id/users                  — назначить пользователя
-GET    /api/v1/admin/territory/territories/:id/users                  — список пользователей
-DELETE /api/v1/admin/territory/territories/:id/users/:userId          — снять пользователя
+POST   /api/v1/admin/territory/territories/:id/users                  — assign user
+GET    /api/v1/admin/territory/territories/:id/users                  — list users
+DELETE /api/v1/admin/territory/territories/:id/users/:userId          — remove user
 
-POST   /api/v1/admin/territory/territories/:id/records                — назначить запись
-GET    /api/v1/admin/territory/territories/:id/records                — список записей
-DELETE /api/v1/admin/territory/territories/:id/records/:recordId      — снять запись
+POST   /api/v1/admin/territory/territories/:id/records                — assign record
+GET    /api/v1/admin/territory/territories/:id/records                — list records
+DELETE /api/v1/admin/territory/territories/:id/records/:recordId      — remove record
 
-POST   /api/v1/admin/territory/assignment-rules                       — создать правило
-GET    /api/v1/admin/territory/assignment-rules?territory_id=         — список правил
-PUT    /api/v1/admin/territory/assignment-rules/:id                   — обновить правило
-DELETE /api/v1/admin/territory/assignment-rules/:id                   — удалить правило
+POST   /api/v1/admin/territory/assignment-rules                       — create rule
+GET    /api/v1/admin/territory/assignment-rules?territory_id=         — list rules
+PUT    /api/v1/admin/territory/assignment-rules/:id                   — update rule
+DELETE /api/v1/admin/territory/assignment-rules/:id                   — delete rule
 ```
 
-### Фазы реализации
+### Implementation Phases
 
-**Фаза 1: Core Integration Points (минимальные AGPL-изменения)**
-- Core migration: `'territory'` в group_type CHECK
+**Phase 1: Core Integration Points (minimal AGPL changes)**
+- Core migration: `'territory'` in group_type CHECK
 - `GroupTypeTerritory` constant
 - Update `ValidateCreateGroup`
 - `TerritoryResolver` interface (noop default)
 - `TerritoryAssignmentEvaluator` interface (noop default)
-- `territory_changed` handler в outbox worker
+- `territory_changed` handler in outbox worker
 
-**Фаза 2: Enterprise Schema (ee/ migrations)**
-- 6 territory таблиц
-- Effective cache таблицы
-- `related_territory_id` column на `iam.groups`
+**Phase 2: Enterprise Schema (ee/ migrations)**
+- 6 territory tables
+- Effective cache tables
+- `related_territory_id` column on `iam.groups`
 - 3 stored functions: `rebuild_territory_hierarchy`, `generate_record_share_entries`, `activate_territory_model`
 
-**Фаза 3: Enterprise Backend**
+**Phase 3: Enterprise Backend**
 - Types, inputs, validation
-- Repository interfaces и PG implementations
+- Repository interfaces and PG implementations
 - Services (Model, Territory, ObjectDefault, UserAssignment, RecordAssignment, AssignmentRule)
-- Share generator, effective computer, activation service — вызовы stored functions через repository
-- Assignment rule evaluator (Go, синхронно на DML)
+- Share generator, effective computer, activation service — stored function calls via repository
+- Assignment rule evaluator (Go, synchronous on DML)
 
-**Фаза 4: Enterprise Handler + Routes**
+**Phase 4: Enterprise Handler + Routes**
 
-**Фаза 5: Enterprise Frontend** (Pinia store, model views, tree view, detail views)
+**Phase 5: Enterprise Frontend** (Pinia store, model views, tree view, detail views)
 
-**Фаза 6: Tests** (pgTAP, Go unit, E2E)
+**Phase 6: Tests** (pgTAP, Go unit, E2E)
 
-## Последствия
+## Consequences
 
-- Все territory-таблицы в схеме `ee` (enterprise namespace)
-- Effective caches в схеме `security` (общая конвенция, ADR-0012)
-- Единственное изменение в core: `'territory'` в group_type CHECK + интерфейсы с noop defaults
-- Share entries с `reason='territory'` используют unified enforcement через `effective_group_members` (ADR-0013)
-- Гибридный подход Go + PL/pgSQL: 3 stored functions для data-intensive операций (closure table, share generation, activation), вся бизнес-логика в Go
-- Активация модели выполняется одним вызовом `SELECT ee.activate_territory_model(id)` — ноль network round-trips
-- Stored functions тестируются через pgTAP (`ee/tests/pgtap/functions/`), Go-сервисы — unit-тестами
-- Assignment rules оцениваются синхронно на DML insert/update в Go; простые критерии для MVP
-- Territory groups auto-generated при активации модели, удаляются при архивации
-- Пересчёт share entries нужен при: назначении записи, изменении object_defaults, активации модели
-- Frontend: enterprise views через dynamic imports + `VITE_ENTERPRISE` flag
-- Build tag `//go:build enterprise` на всех Go файлах в `ee/`
-- Один тип группы `territory` (без `territory_and_subordinates`) — hierarchy propagation через share entries
+- All territory tables are in the `ee` schema (enterprise namespace)
+- Effective caches are in the `security` schema (common convention, ADR-0012)
+- The only change in core: `'territory'` in group_type CHECK + interfaces with noop defaults
+- Share entries with `reason='territory'` use unified enforcement through `effective_group_members` (ADR-0013)
+- Hybrid Go + PL/pgSQL approach: 3 stored functions for data-intensive operations (closure table, share generation, activation), all business logic in Go
+- Model activation is performed by a single call to `SELECT ee.activate_territory_model(id)` — zero network round-trips
+- Stored functions are tested via pgTAP (`ee/tests/pgtap/functions/`), Go services via unit tests
+- Assignment rules are evaluated synchronously on DML insert/update in Go; simple criteria for MVP
+- Territory groups are auto-generated on model activation, deleted on archival
+- Share entry recalculation is needed when: assigning a record, changing object_defaults, activating a model
+- Frontend: enterprise views via dynamic imports + `VITE_ENTERPRISE` flag
+- Build tag `//go:build enterprise` on all Go files in `ee/`
+- One group type `territory` (no `territory_and_subordinates`) — hierarchy propagation via share entries

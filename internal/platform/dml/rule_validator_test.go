@@ -35,6 +35,10 @@ func (m *mockCacheLoader) LoadAllValidationRules(_ context.Context) ([]metadata.
 	return m.rules, nil
 }
 
+func (m *mockCacheLoader) LoadAllFunctions(_ context.Context) ([]metadata.Function, error) {
+	return nil, nil
+}
+
 func (m *mockCacheLoader) RefreshMaterializedView(_ context.Context) error {
 	return nil
 }
@@ -179,7 +183,7 @@ func TestCELRuleValidator_ValidateRules(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cache := setupTestCache(t, objID, tt.rules)
-			validator, err := NewCELRuleValidator(cache)
+			validator, err := NewCELRuleValidator(cache, nil)
 			require.NoError(t, err)
 
 			obj := engine.NewObjectMeta("Account", "obj_account").Build()

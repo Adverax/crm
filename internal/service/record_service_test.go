@@ -510,3 +510,7 @@ func (s *stubCacheLoader) RefreshMaterializedView(_ context.Context) error {
 func (s *stubCacheLoader) LoadAllValidationRules(_ context.Context) ([]metadata.ValidationRule, error) {
 	return nil, nil
 }
+
+func (s *stubCacheLoader) LoadAllFunctions(_ context.Context) ([]metadata.Function, error) {
+	return nil, nil
+}

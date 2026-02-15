@@ -10,7 +10,7 @@ import (
 )
 
 func TestCELDefaultResolver_ResolveDefaults(t *testing.T) {
-	resolver, err := NewCELDefaultResolver()
+	resolver, err := NewCELDefaultResolver(nil)
 	require.NoError(t, err)
 
 	strPtr := func(s string) *string { return &s }

@@ -21,6 +21,7 @@ interface NavGroup {
 
 const topItems: NavItem[] = [
   { label: 'Объекты', to: '/admin/metadata/objects' },
+  { label: 'Функции', to: '/admin/metadata/functions' },
   { label: 'Шаблоны', to: '/admin/templates' },
 ]
 

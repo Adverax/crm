@@ -25,6 +25,10 @@ tags:
     description: Application template management
   - name: validation-rules
     description: Validation rule management
+  - name: functions
+    description: Custom function management
+  - name: cel
+    description: CEL expression validation
 
 paths:
   /healthz:
@@ -847,6 +851,140 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/v1/admin/functions:
+    get:
+      summary: List all custom functions
+      operationId: listFunctions
+      tags:
+        - functions
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of functions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Function"
+    post:
+      summary: Create a custom function
+      operationId: createFunction
+      tags:
+        - functions
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFunctionRequest"
+      responses:
+        "201":
+          description: Function created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Function"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/admin/functions/{functionId}:
+    parameters:
+      - $ref: "#/components/parameters/FunctionId"
+    get:
+      summary: Get a custom function by ID
+      operationId: getFunction
+      tags:
+        - functions
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Function details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Function"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      summary: Update a custom function
+      operationId: updateFunction
+      tags:
+        - functions
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFunctionRequest"
+      responses:
+        "200":
+          description: Function updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Function"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      summary: Delete a custom function
+      operationId: deleteFunction
+      tags:
+        - functions
+      security:
+        - BearerAuth: []
+      responses:
+        "204":
+          description: Function deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/admin/cel/validate:
+    post:
+      summary: Validate a CEL expression
+      operationId: validateCelExpression
+      tags:
+        - cel
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CelValidateRequest"
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CelValidateResponse"
+
   # NOTE: Security endpoints (roles, permission-sets, profiles, users, groups,
   # sharing-rules) are registered manually via SecurityHandler.RegisterRoutes.
   # They are not included in OpenAPI codegen to avoid ServerInterface bloat.
@@ -871,6 +1009,14 @@ components:
 
     RuleId:
       name: ruleId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    FunctionId:
+      name: functionId
       in: path
       required: true
       schema:
@@ -1773,6 +1919,143 @@ components:
           type: string
         message:
           type: string
+
+    Function:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        params:
+          type: array
+          items:
+            $ref: "#/components/schemas/FunctionParam"
+        return_type:
+          type: string
+          enum: [string, number, boolean, list, map, any]
+        body:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    FunctionParam:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [string, number, boolean, list, map, any]
+        description:
+          type: string
+
+    CreateFunctionRequest:
+      type: object
+      required:
+        - name
+        - body
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          pattern: "^[a-z][a-z0-9_]*$"
+        description:
+          type: string
+        params:
+          type: array
+          items:
+            $ref: "#/components/schemas/FunctionParam"
+        return_type:
+          type: string
+          enum: [string, number, boolean, list, map, any]
+        body:
+          type: string
+          maxLength: 4096
+
+    UpdateFunctionRequest:
+      type: object
+      required:
+        - body
+      properties:
+        description:
+          type: string
+        params:
+          type: array
+          items:
+            $ref: "#/components/schemas/FunctionParam"
+        return_type:
+          type: string
+          enum: [string, number, boolean, list, map, any]
+        body:
+          type: string
+          maxLength: 4096
+
+    CelValidateRequest:
+      type: object
+      required:
+        - expression
+        - context
+      properties:
+        expression:
+          type: string
+        context:
+          type: string
+          enum: [validation_rule, when_expression, default_expr, function_body, visibility_expr]
+        object_api_name:
+          type: string
+        params:
+          type: array
+          items:
+            $ref: "#/components/schemas/CelParamDef"
+
+    CelParamDef:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+
+    CelValidateResponse:
+      type: object
+      required:
+        - valid
+      properties:
+        valid:
+          type: boolean
+        return_type:
+          type: string
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/CelValidateError"
+
+    CelValidateError:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+        line:
+          type: integer
+        column:
+          type: integer
 
     ErrorResponse:
       type: object

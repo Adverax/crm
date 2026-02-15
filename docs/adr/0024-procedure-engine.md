@@ -1,141 +1,141 @@
-# ADR-0024: Procedure Engine — декларативный DSL для бизнес-логики
+# ADR-0024: Procedure Engine — Declarative DSL for Business Logic
 
-**Статус:** Принято
-**Дата:** 2026-02-15
-**Участники:** @roman_myakotin
+**Status:** Accepted
+**Date:** 2026-02-15
+**Participants:** @roman_myakotin
 
-## Контекст
+## Context
 
-### Проблема: бизнес-логика требует разработчиков
+### Problem: business logic requires developers
 
-Платформа metadata-driven (ADR-0003, ADR-0007): объекты, поля, валидация, defaults определяются декларативно. Security (OLS/FLS/RLS — ADR-0009..0012) и DML Pipeline (ADR-0020) обеспечивают безопасный доступ к данным. Однако **процедурная бизнес-логика** — цепочки действий, интеграции, условные уведомления — по-прежнему требует Go-кода:
+The platform is metadata-driven (ADR-0003, ADR-0007): objects, fields, validation, defaults are defined declaratively. Security (OLS/FLS/RLS — ADR-0009..0012) and DML Pipeline (ADR-0020) provide secure data access. However, **procedural business logic** — action chains, integrations, conditional notifications — still requires Go code:
 
-| Что есть (декларативно) | Чего нет |
+| What exists (declaratively) | What is missing |
 |---|---|
-| Валидация полей (Validation Rules, ADR-0019) | Цепочка операций: создать запись → отправить email → вызвать API |
-| Динамические дефолты (Default Expressions) | Условная логика: если сумма > 10K → запрос одобрения |
-| Кнопки на карточке (Object View, ADR-0022) | Компенсационные действия: откат при ошибке (Saga) |
-| Типы Action (ADR-0023: navigate, field_update) | Синхронные и асинхронные процессы |
+| Field validation (Validation Rules, ADR-0019) | Action chains: create record -> send email -> call API |
+| Dynamic defaults (Default Expressions) | Conditional logic: if amount > 10K -> request approval |
+| Buttons on the record card (Object View, ADR-0022) | Compensating actions: rollback on error (Saga) |
+| Action types (ADR-0023: navigate, field_update) | Synchronous and asynchronous processes |
 
-Каждое изменение бизнес-процесса (новое уведомление, интеграция с внешней системой, условие маршрутизации) требует цикла разработки: код → review → deploy. Типовые изменения занимают 2-5 дней вместо 15 минут.
+Every business process change (new notification, external system integration, routing condition) requires a development cycle: code -> review -> deploy. Typical changes take 2-5 days instead of 15 minutes.
 
-### Терминология (ADR-0023)
+### Terminology (ADR-0023)
 
-Данный ADR использует терминологию, установленную в ADR-0023:
+This ADR uses the terminology established in ADR-0023:
 
-| Термин | Определение |
-|--------|-------------|
-| **Procedure** | Именованный набор Commands, описанный декларативно (JSON + CEL). Выполняется синхронно |
-| **Command** | Атомарная операция внутри Procedure: `record.create`, `notification.email`, `integration.http` |
-| **Command Type** | Категория command: `record.*`, `notification.*`, `integration.*`, `compute.*`, `flow.*`, `wait.*` |
-| **Action** | Зонтичный термин; Procedure — один из action types (`type: procedure`) |
+| Term | Definition |
+|------|-----------|
+| **Procedure** | Named set of Commands, described declaratively (JSON + CEL). Executed synchronously |
+| **Command** | Atomic operation inside a Procedure: `record.create`, `notification.email`, `integration.http` |
+| **Command Type** | Category of command: `record.*`, `notification.*`, `integration.*`, `compute.*`, `flow.*`, `wait.*` |
+| **Action** | Umbrella term; Procedure is one of the action types (`type: procedure`) |
 
-### Индустриальный контекст
+### Industry Context
 
-| Платформа | Декларативная логика | Expression Language | Sandbox | UI |
-|-----------|---------------------|-----------------------|---------|-----|
+| Platform | Declarative logic | Expression Language | Sandbox | UI |
+|----------|-------------------|---------------------|---------|-----|
 | **Salesforce** | Flow Builder (visual) + Apex (code) | Formula | Partial (Apex limits) | Drag-and-drop builder |
-| **Dynamics 365** | Power Automate (low-code) | Power Fx | Да | Visual + form builder |
+| **Dynamics 365** | Power Automate (low-code) | Power Fx | Yes | Visual + form builder |
 | **ServiceNow** | Workflow Designer | JavaScript (scoped) | Partial | Form-based constructor |
-| **Zapier/n8n** | Visual workflow | JS / expressions | Нет | Visual node editor |
+| **Zapier/n8n** | Visual workflow | JS / expressions | No | Visual node editor |
 
-Все платформы предоставляют визуальный интерфейс для построения бизнес-логики. Администраторы не пишут код — они собирают процедуры из готовых блоков через UI. Текстовый формат (JSON/YAML) — внутреннее представление, а не пользовательский интерфейс.
+All platforms provide a visual interface for building business logic. Administrators do not write code — they assemble procedures from ready-made blocks through UI. The text format (JSON/YAML) is an internal representation, not a user interface.
 
-### Требования
+### Requirements
 
-1. Администраторы создают и изменяют процедурную логику через **визуальный конструктор** без знания DSL
-2. Безопасность by design: нет циклов, произвольного кода, файлового I/O
-3. CEL как единый expression language (уже используется в Phase 7b для validation rules и defaults)
-4. **JSON** как формат хранения — нативная поддержка Go, PostgreSQL (JSONB), TypeScript
-5. Компенсационные действия (Saga pattern) для распределённых операций
-6. Вызов одних процедур из других с контролем глубины
-7. Полная observability: логирование, метрики, tracing каждого command
-8. Dry-run и декларативные тесты без побочных эффектов
+1. Administrators create and modify procedural logic through a **visual constructor** without knowledge of DSL
+2. Security by design: no loops, arbitrary code, file I/O
+3. CEL as the unified expression language (already used in Phase 7b for validation rules and defaults)
+4. **JSON** as the storage format — native support in Go, PostgreSQL (JSONB), TypeScript
+5. Compensating actions (Saga pattern) for distributed operations
+6. Calling one procedure from another with depth control
+7. Full observability: logging, metrics, tracing of every command
+8. Dry-run and declarative tests without side effects
 
-## Рассмотренные варианты
+## Considered Options
 
-### Вариант A — Императивный Go-код per business rule (status quo)
+### Option A — Imperative Go Code per Business Rule (status quo)
 
-Каждое бизнес-правило реализуется как Go-функция в service layer. Новые правила добавляются через цикл разработки.
+Each business rule is implemented as a Go function in the service layer. New rules are added through a development cycle.
 
-**Плюсы:**
-- Полный контроль и максимальная производительность
+**Pros:**
+- Full control and maximum performance
 - Compile-time type safety
-- Знакомый подход для Go-разработчиков
+- Familiar approach for Go developers
 
-**Минусы:**
-- Каждое изменение требует разработчика (2-5 дней вместо 15 минут)
-- Администраторы полностью зависят от команды разработки
-- Нет стандартизации: каждый разработчик пишет по-своему
-- Сложность аудита: нужно читать Go-код, чтобы понять бизнес-логику
+**Cons:**
+- Every change requires a developer (2-5 days instead of 15 minutes)
+- Administrators are entirely dependent on the development team
+- No standardization: each developer writes differently
+- Audit complexity: need to read Go code to understand business logic
 
-### Вариант B — Встроенный скриптовый движок (JavaScript/Starlark sandbox)
+### Option B — Embedded Scripting Engine (JavaScript/Starlark sandbox)
 
-Предоставить администраторам sandbox-среду для написания скриптов на знакомом языке.
+Provide administrators with a sandbox environment for writing scripts in a familiar language.
 
-**Плюсы:**
-- Максимальная гибкость выражений
-- JavaScript знаком многим администраторам
-- Starlark (Google) — sandbox by design, детерминистичный
+**Pros:**
+- Maximum expression flexibility
+- JavaScript is familiar to many administrators
+- Starlark (Google) — sandbox by design, deterministic
 
-**Минусы:**
-- Два expression language: CEL (validation, defaults) + JS/Starlark (procedures)
-- JavaScript sandbox (V8/QuickJS) тяжёлый, сложно ограничить полностью
-- Скрипты сложнее анализировать статически, чем JSON-структуры
-- Безопасность: даже в sandbox возможны timing attacks, resource exhaustion
+**Cons:**
+- Two expression languages: CEL (validation, defaults) + JS/Starlark (procedures)
+- JavaScript sandbox (V8/QuickJS) is heavy, hard to fully restrict
+- Scripts are harder to analyze statically than JSON structures
+- Security: even in a sandbox, timing attacks and resource exhaustion are possible
 
-### Вариант C — JSON DSL + Constructor UI + CEL (выбран)
+### Option C — JSON DSL + Constructor UI + CEL (chosen)
 
-Процедурная логика хранится как JSON (JSONB в PostgreSQL). Администратор собирает процедуру через **form-based Constructor** — выбирает command type из списка, заполняет параметры, строит выражения через Expression Builder. JSON генерируется конструктором автоматически. Power users могут редактировать JSON напрямую.
+Procedural logic is stored as JSON (JSONB in PostgreSQL). The administrator assembles a procedure through a **form-based Constructor** — selects command type from a list, fills in parameters, builds expressions through Expression Builder. JSON is generated by the constructor automatically. Power users can edit JSON directly.
 
-**Плюсы:**
-- **Constructor-first**: нулевой порог входа для администраторов — не нужно знать JSON/DSL
-- **JSON нативен** для всего стека: `encoding/json` (Go), JSONB (PostgreSQL), TypeScript — без дополнительных парсеров
-- **JSONB в PostgreSQL**: индексация, GIN-индексы, jsonpath-запросы, partial updates
-- Переиспользование CEL — единый expression language от UI до backend
-- Безопасность by design: фиксированный набор command types, нет циклов
-- Статический анализ: JSON-schema позволяет валидировать procedure при сохранении
-- Расширяемость: новые command types добавляются в Go, сразу доступны в Constructor
-- Dry-run и декларативные тесты из коробки
+**Pros:**
+- **Constructor-first**: zero entry barrier for administrators — no need to know JSON/DSL
+- **JSON is native** to the entire stack: `encoding/json` (Go), JSONB (PostgreSQL), TypeScript — no additional parsers
+- **JSONB in PostgreSQL**: indexing, GIN indexes, jsonpath queries, partial updates
+- Reuse of CEL — unified expression language from UI to backend
+- Security by design: fixed set of command types, no loops
+- Static analysis: JSON schema allows validating procedure on save
+- Extensibility: new command types are added in Go, immediately available in Constructor
+- Dry-run and declarative tests out of the box
 
-**Минусы:**
-- Ограниченная гибкость: невозможно выразить произвольный алгоритм
-- JSON менее читаем для человека, чем YAML — но администратор работает через Constructor, а не читает JSON
-- Для нестандартных сценариев нужен новый command type в Go
+**Cons:**
+- Limited flexibility: cannot express arbitrary algorithms
+- JSON is less readable for humans than YAML — but the administrator works through Constructor, not reading JSON
+- For non-standard scenarios, a new command type in Go is needed
 
-### Вариант D — Visual Flow Builder (drag-and-drop граф)
+### Option D — Visual Flow Builder (drag-and-drop graph)
 
-Графический редактор потоков, аналог Salesforce Flow Builder или n8n.
+Graphical flow editor, analogous to Salesforce Flow Builder or n8n.
 
-**Плюсы:**
-- Наглядность: визуальная диаграмма процесса
-- Популярный подход в enterprise CRM
+**Pros:**
+- Visual clarity: visual process diagram
+- Popular approach in enterprise CRM
 
-**Минусы:**
-- Сложность версионирования: визуальная модель хранится как JSON-граф, diff нечитаем
-- Merge conflicts практически неразрешимы
-- Значительные инвестиции во frontend (canvas editor, node rendering, edge routing)
-- Overkill для линейных процедур (80% случаев — последовательные commands)
-- Form-based Constructor проще реализовать и покрывает те же кейсы
-- Visual Builder может быть добавлен поверх JSON DSL как альтернативный UI в будущем
+**Cons:**
+- Versioning complexity: visual model is stored as a JSON graph, diff is unreadable
+- Merge conflicts are practically unresolvable
+- Significant frontend investment (canvas editor, node rendering, edge routing)
+- Overkill for linear procedures (80% of cases — sequential commands)
+- Form-based Constructor is simpler to implement and covers the same cases
+- Visual Builder can be added on top of JSON DSL as an alternative UI in the future
 
-## Решение
+## Decision
 
-**Выбран вариант C: JSON DSL + Constructor UI + CEL.**
+**Option C chosen: JSON DSL + Constructor UI + CEL.**
 
-Procedure Engine — runtime для выполнения именованных Procedures, описанных в JSON. Администратор собирает процедуры через **Constructor UI**. JSON — внутреннее представление (IR), хранится как JSONB в PostgreSQL. CEL — единый expression language.
+Procedure Engine is a runtime for executing named Procedures described in JSON. The administrator assembles procedures through the **Constructor UI**. JSON is the internal representation (IR), stored as JSONB in PostgreSQL. CEL is the unified expression language.
 
-### Архитектура: Constructor → JSON → Engine
+### Architecture: Constructor -> JSON -> Engine
 
 ```
-Администратор → Constructor UI → JSON (JSONB) → Procedure Engine
-                                      ↑
-Power user → Raw JSON editor ─────────┘
+Administrator -> Constructor UI -> JSON (JSONB) -> Procedure Engine
+                                      ^
+Power user -> Raw JSON editor ---------+
 ```
 
-Constructor UI — **основной** интерфейс. Raw JSON editor — для power users и отладки. Администратору не нужно знать ни JSON-структуру, ни CEL-синтаксис — конструктор предоставляет формы, dropdown'ы и expression builder.
+Constructor UI is the **primary** interface. Raw JSON editor is for power users and debugging. The administrator does not need to know either the JSON structure or CEL syntax — the constructor provides forms, dropdowns, and expression builder.
 
-### Структура Procedure
+### Procedure Structure
 
 ```json
 {
@@ -165,87 +165,87 @@ Constructor UI — **основной** интерфейс. Raw JSON editor — 
 }
 ```
 
-Procedure состоит из:
-- **name** — уникальный идентификатор (snake_case)
-- **commands** — упорядоченный список commands
-- **result** — CEL-маппинг, формирующий возвращаемое значение
+A Procedure consists of:
+- **name** — unique identifier (snake_case)
+- **commands** — ordered list of commands
+- **result** — CEL mapping that forms the return value
 
 ### Constructor UI
 
 #### Procedure Constructor
 
-Form-based интерфейс для построения процедур:
+Form-based interface for building procedures:
 
-1. **Добавление command**: кнопка "+" → выбор command type из categorized dropdown:
-   - Данные: Создать запись, Обновить запись, Удалить запись, Найти записи
-   - Уведомления: Email, SMS, Push
-   - Интеграции: HTTP запрос, Webhook
-   - Логика: Вычисление, Валидация, Ошибка
-   - Поток: Вызвать процедуру, Запустить сценарий
+1. **Adding a command**: "+" button -> select command type from a categorized dropdown:
+   - Data: Create record, Update record, Delete record, Find records
+   - Notifications: Email, SMS, Push
+   - Integrations: HTTP request, Webhook
+   - Logic: Transform, Validate, Error
+   - Flow: Call procedure, Start scenario
 
-2. **Настройка command**: форма с полями, соответствующими command type:
-   - Dropdown для выбора объекта (для `record.*`)
-   - Field mapping table: поле → значение/выражение
-   - CEL expression через Expression Builder (кнопка `fx`)
-   - Toggle для `optional`, `as` (сохранить результат)
+2. **Configuring a command**: form with fields corresponding to the command type:
+   - Dropdown for object selection (for `record.*`)
+   - Field mapping table: field -> value/expression
+   - CEL expression via Expression Builder (`fx` button)
+   - Toggle for `optional`, `as` (save result)
 
-3. **Условная логика**: toggle "Условие" → Expression Builder для `when`
-   - `if/else`: визуальный блок с двумя ветками
-   - `match`: список case → команды
+3. **Conditional logic**: "Condition" toggle -> Expression Builder for `when`
+   - `if/else`: visual block with two branches
+   - `match`: list of cases -> commands
 
-4. **Rollback**: toggle "Откат при ошибке" → форма для компенсационного command
+4. **Rollback**: "Rollback on error" toggle -> form for the compensating command
 
-5. **Порядок**: drag-and-drop для переупорядочивания commands
+5. **Ordering**: drag-and-drop for reordering commands
 
-6. **Preview**: сгенерированный JSON (read-only) + dry-run
+6. **Preview**: generated JSON (read-only) + dry-run
 
-#### Expression Builder (конструктор выражений)
+#### Expression Builder
 
-Визуальный конструктор CEL-выражений, применимый во всех подсистемах платформы (Procedure, Validation Rules, Default Expressions, Object View `visibility_expr`, Scenario `when`):
+Visual CEL expression constructor, applicable across all platform subsystems (Procedure, Validation Rules, Default Expressions, Object View `visibility_expr`, Scenario `when`):
 
-1. **Field picker**: дерево доступных переменных
-   - `$.input.*` — входные параметры
-   - `$.user.*` — текущий пользователь (id, role, profile)
-   - `$.<step>.*` — результаты предыдущих commands
-   - `$.now` — текущее время
-   - Контекстные поля: `record.*` (для validation rules), `old.*`/`new.*` (для automation)
+1. **Field picker**: tree of available variables
+   - `$.input.*` — input parameters
+   - `$.user.*` — current user (id, role, profile)
+   - `$.<step>.*` — results of previous commands
+   - `$.now` — current time
+   - Context fields: `record.*` (for validation rules), `old.*`/`new.*` (for automation)
 
-2. **Operator picker**: типизированные операторы
-   - Сравнение: `=`, `!=`, `>`, `<`, `>=`, `<=`
-   - Логика: `И`, `ИЛИ`, `НЕ`
-   - Строки: `содержит`, `начинается с`, `заканчивается на`
-   - Списки: `в списке`, `не в списке`
-   - Null: `пусто`, `не пусто`
+2. **Operator picker**: typed operators
+   - Comparison: `=`, `!=`, `>`, `<`, `>=`, `<=`
+   - Logic: `AND`, `OR`, `NOT`
+   - Strings: `contains`, `starts with`, `ends with`
+   - Lists: `in list`, `not in list`
+   - Null: `is empty`, `is not empty`
 
-3. **Function picker**: каталог функций с описаниями
-   - Строковые: `UPPER()`, `LOWER()`, `TRIM()`, `CONCAT()`
-   - Числовые: `ABS()`, `ROUND()`, `CEIL()`, `FLOOR()`
-   - Дата/время: `now()`, `duration()`
-   - Коллекции: `size()`, `has()`
-   - Каждая функция с описанием, типами параметров и примером
+3. **Function picker**: catalog of functions with descriptions
+   - String: `UPPER()`, `LOWER()`, `TRIM()`, `CONCAT()`
+   - Numeric: `ABS()`, `ROUND()`, `CEIL()`, `FLOOR()`
+   - Date/time: `now()`, `duration()`
+   - Collections: `size()`, `has()`
+   - Each function with description, parameter types, and example
 
-4. **Live preview**: результат выражения на sample data в реальном времени
+4. **Live preview**: expression result on sample data in real time
 
-5. **Валидация**: синтаксическая проверка CEL при вводе, подсветка ошибок
+5. **Validation**: syntactic CEL check on input, error highlighting
 
-6. **Двойной режим**: визуальный конструктор ↔ текстовый CEL (toggle для power users)
+6. **Dual mode**: visual constructor <-> text CEL (toggle for power users)
 
 ### Command Types
 
-| Command Type | Prefix | Commands | Описание |
-|-------------|--------|----------|----------|
-| **record** | `record.*` | `create`, `update`, `delete`, `get`, `query` | CRUD через DML Engine с OLS/FLS/RLS |
-| **notification** | `notification.*` | `email`, `sms`, `push` | Уведомления через шаблоны |
-| **integration** | `integration.*` | `http` | HTTP-вызовы внешних API (method в параметрах) |
-| **compute** | `compute.*` | `transform`, `validate`, `aggregate`, `fail` | Вычисления и валидация |
-| **flow** | `flow.*` | `call` (procedure), `start` (scenario) | Вызов procedure / запуск scenario |
-| **wait** | `wait.*` | `signal`, `timer`, `until` | Ожидание сигнала, паузы, времени |
+| Command Type | Prefix | Commands | Description |
+|-------------|--------|----------|-------------|
+| **record** | `record.*` | `create`, `update`, `delete`, `get`, `query` | CRUD via DML Engine with OLS/FLS/RLS |
+| **notification** | `notification.*` | `email`, `sms`, `push` | Notifications via templates |
+| **integration** | `integration.*` | `http` | HTTP calls to external APIs (method in parameters) |
+| **compute** | `compute.*` | `transform`, `validate`, `aggregate`, `fail` | Computations and validation |
+| **flow** | `flow.*` | `call` (procedure), `start` (scenario) | Invoke procedure / start scenario |
+| **wait** | `wait.*` | `signal`, `timer`, `until` | Wait for signal, pause, time |
 
-Все `record.*` commands выполняются через DML Engine (ADR-0020) с полным enforcement OLS/FLS/RLS. Procedure не может обойти security-слои.
+All `record.*` commands are executed through DML Engine (ADR-0020) with full OLS/FLS/RLS enforcement. A Procedure cannot bypass the security layers.
 
-### JSON-схема Command
+### Command JSON Schema
 
-Каждый command — JSON-объект с обязательным полем `type` и параметрами, специфичными для command type:
+Each command is a JSON object with a required `type` field and parameters specific to the command type:
 
 ```json
 {
@@ -266,36 +266,36 @@ Form-based интерфейс для построения процедур:
 }
 ```
 
-Общие поля (для всех command types):
-- `type` — command type (обязательный)
-- `as` — имя переменной для сохранения результата
-- `optional` — не прерывать при ошибке (ошибка → `$.warnings`)
-- `when` — CEL-условие выполнения
-- `rollback` — компенсационный command (Saga)
-- `retry` — политика повторов
+Common fields (for all command types):
+- `type` — command type (required)
+- `as` — variable name for saving the result
+- `optional` — do not abort on error (error -> `$.warnings`)
+- `when` — CEL execution condition
+- `rollback` — compensating command (Saga)
+- `retry` — retry policy
 
-### Контекст и переменные
+### Context and Variables
 
-Все значения в procedure — CEL expressions (строки, начинающиеся с `$`). Контекст накапливается по мере выполнения commands:
+All values in a procedure are CEL expressions (strings starting with `$`). The context accumulates as commands execute:
 
-| Переменная | Описание | Пример |
-|------------|----------|--------|
-| `$.input` | Входные параметры procedure | `$.input.email` |
-| `$.user` | Текущий пользователь | `$.user.id`, `$.user.role` |
-| `$.now` | Текущее время UTC | `$.now` |
-| `$.secrets` | **Deprecated** — заменён Named Credentials (ADR-0028). `integration.http` использует `credential` field | — |
-| `$.<name>` | Результат command с `as: name` | `$.account.id` |
-| `$.warnings` | Массив ошибок optional commands | `$.warnings` |
-| `$.error` | Текущая ошибка (в rollback-блоке) | `$.error.code` |
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `$.input` | Procedure input parameters | `$.input.email` |
+| `$.user` | Current user | `$.user.id`, `$.user.role` |
+| `$.now` | Current UTC time | `$.now` |
+| `$.secrets` | **Deprecated** — replaced by Named Credentials (ADR-0028). `integration.http` uses the `credential` field | — |
+| `$.<name>` | Result of a command with `as: name` | `$.account.id` |
+| `$.warnings` | Array of errors from optional commands | `$.warnings` |
+| `$.error` | Current error (in rollback block) | `$.error.code` |
 
-Результат command сохраняется через `as` и доступен всем последующим commands до конца procedure.
+The result of a command is saved via `as` and is available to all subsequent commands until the end of the procedure.
 
-### Условная логика
+### Conditional Logic
 
-Три формы условного выполнения:
+Three forms of conditional execution:
 
 ```json
-// when — условное выполнение одного command
+// when — conditional execution of a single command
 {
   "type": "notification.email",
   "to": "$.input.email",
@@ -303,7 +303,7 @@ Form-based интерфейс для построения процедур:
   "when": "$.input.sendWelcome"
 }
 
-// if/else — ветвление
+// if/else — branching
 {
   "type": "flow.if",
   "condition": "$.input.amount > 10000",
@@ -323,7 +323,7 @@ Form-based интерфейс для построения процедур:
   ]
 }
 
-// match — множественный выбор
+// match — multiple choice
 {
   "type": "flow.match",
   "expression": "$.input.priority",
@@ -341,11 +341,11 @@ Form-based интерфейс для построения процедур:
 }
 ```
 
-В Constructor UI: `if/else` — визуальный блок с двумя ветками; `match` — список вариантов с кнопкой "Добавить вариант".
+In the Constructor UI: `if/else` is a visual block with two branches; `match` is a list of variants with an "Add variant" button.
 
-### Обработка ошибок
+### Error Handling
 
-#### Структурированная ошибка
+#### Structured Error
 
 ```json
 {
@@ -357,11 +357,11 @@ Form-based интерфейс для построения процедур:
 }
 ```
 
-Категории: `validation_*`, `not_found_*`, `permission_*`, `external_*`, `timeout_*`, `limit_*`, `internal_*`.
+Categories: `validation_*`, `not_found_*`, `permission_*`, `external_*`, `timeout_*`, `limit_*`, `internal_*`.
 
-#### Rollback (Saga pattern)
+#### Rollback (Saga Pattern)
 
-Компенсационные actions выполняются в порядке LIFO при ошибке в последующих commands:
+Compensating actions are executed in LIFO order when an error occurs in subsequent commands:
 
 ```json
 {
@@ -400,7 +400,7 @@ Form-based интерфейс для построения процедур:
 }
 ```
 
-Ошибка в email → rollback payment → rollback order (LIFO). Rollback регистрируется только для успешно выполненных commands. В rollback-блоке доступен `$.error`.
+Error in email -> rollback payment -> rollback order (LIFO). Rollback is registered only for successfully executed commands. `$.error` is available in the rollback block.
 
 #### try/catch, retry
 
@@ -441,83 +441,83 @@ Form-based интерфейс для построения процедур:
 }
 ```
 
-### Семантика call и start
+### Semantics of call and start
 
-| Аспект | `call` (procedure) | `start` (scenario) |
+| Aspect | `call` (procedure) | `start` (scenario) |
 |--------|-------------------|-------------------|
-| Выполнение | Синхронное | Асинхронное (fire-and-forget) |
-| Результат | Полный result вызванной procedure | Только `executionId` |
-| Ошибки | Всплывают в вызывающую procedure | Не влияют на вызывающую procedure |
-| Rollback | Каскадный | Независимый |
-| Контекст | `$.user`, `$.secrets` наследуются | `$.user` копируется |
-| Глубина | Максимум 3 уровня вложенности | Без ограничений (независимый процесс) |
+| Execution | Synchronous | Asynchronous (fire-and-forget) |
+| Result | Full result of the called procedure | Only `executionId` |
+| Errors | Bubble up to the calling procedure | Do not affect the calling procedure |
+| Rollback | Cascading | Independent |
+| Context | `$.user`, `$.secrets` are inherited | `$.user` is copied |
+| Depth | Maximum 3 levels of nesting | No limit (independent process) |
 
-Защита от циклов: платформа отслеживает стек вызовов и предотвращает циклические зависимости (`proc_a → proc_b → proc_a` = ошибка `circular_procedure_call`).
+Cycle protection: the platform tracks the call stack and prevents circular dependencies (`proc_a -> proc_b -> proc_a` = error `circular_procedure_call`).
 
-### Лимиты
+### Limits
 
-| Параметр | Лимит | Описание |
-|----------|-------|----------|
-| Время выполнения | 30 секунд | Максимальное время на всю procedure (без wait) |
-| Количество commands | 50 | Суммарно с вызванными procedures |
-| Вложенность call | 3 уровня | procedure → procedure → procedure |
-| Вложенность if/match | 5 уровней | Максимальная глубина условий |
-| Размер JSON | 64 KB | Максимальный размер определения procedure |
-| Размер input | 1 MB | Входные данные |
-| Размер context | 10 MB | Накопленный контекст |
-| HTTP timeout | 10 секунд | На один HTTP-запрос |
-| HTTP запросов | 10 | Максимум в одной procedure |
-| Уведомлений | 10 | Максимум email/sms/push в одной procedure |
-| Retry attempts | 3 | Максимум попыток |
+| Parameter | Limit | Description |
+|-----------|-------|-------------|
+| Execution time | 30 seconds | Maximum time for the entire procedure (excluding wait) |
+| Number of commands | 50 | Total including called procedures |
+| call nesting | 3 levels | procedure -> procedure -> procedure |
+| if/match nesting | 5 levels | Maximum condition depth |
+| JSON size | 64 KB | Maximum procedure definition size |
+| Input size | 1 MB | Input data |
+| Context size | 10 MB | Accumulated context |
+| HTTP timeout | 10 seconds | Per single HTTP request |
+| HTTP requests | 10 | Maximum in a single procedure |
+| Notifications | 10 | Maximum email/sms/push in a single procedure |
+| Retry attempts | 3 | Maximum attempts |
 
-При превышении лимита procedure завершается с типизированной ошибкой (`limit_exceeded_*`).
+When a limit is exceeded, the procedure terminates with a typed error (`limit_exceeded_*`).
 
-### Security sandbox
+### Security Sandbox
 
-| Угроза | Защита |
-|--------|--------|
-| Бесконечные циклы | Циклы отсутствуют в DSL by design |
-| Произвольный код | Только фиксированные command types |
-| Доступ к файловой системе | Нет I/O-операций |
-| Неконтролируемые HTTP | Только через `integration.http`, с лимитами |
-| Обход RLS/FLS/OLS | Все `record.*` commands выполняются через DML Engine |
-| Утечка секретов | `$.secrets` доступен только в runtime, маскируется в логах |
-| Ресурсоёмкие операции | Жёсткие лимиты (таймаут, количество commands, размер данных) |
-| Циклические вызовы | Отслеживание стека вызовов, защита от рекурсии |
+| Threat | Protection |
+|--------|-----------|
+| Infinite loops | Loops are absent in the DSL by design |
+| Arbitrary code | Only fixed command types |
+| File system access | No I/O operations |
+| Uncontrolled HTTP | Only through `integration.http`, with limits |
+| RLS/FLS/OLS bypass | All `record.*` commands execute through DML Engine |
+| Secret leakage | `$.secrets` is available only at runtime, masked in logs |
+| Resource-intensive operations | Strict limits (timeout, command count, data size) |
+| Circular calls | Call stack tracking, recursion protection |
 
-### Хранение и версионирование
+### Storage and Versioning
 
-Procedures хранятся в PostgreSQL как **JSONB** (таблица `metadata.procedures`):
+Procedures are stored in PostgreSQL as **JSONB** (table `metadata.procedures`):
 
-| Решение | Обоснование |
-|---------|-------------|
-| JSONB | Нативный тип PostgreSQL: индексация, jsonpath-запросы, partial updates, валидация |
-| БД вместо файлов | Hot-reload без перезапуска; inline procedures в scenario steps; целостность ссылок |
-| Snapshot-версионирование | При старте Scenario фиксируются версии всех используемых procedures |
+| Decision | Rationale |
+|----------|-----------|
+| JSONB | Native PostgreSQL type: indexing, jsonpath queries, partial updates, validation |
+| DB instead of files | Hot-reload without restart; inline procedures in scenario steps; referential integrity |
+| Snapshot versioning | When starting a Scenario, versions of all used procedures are captured |
 
-Snapshot-подход гарантирует предсказуемость: нет изменений mid-execution. Новый запуск scenario использует актуальные версии.
+The snapshot approach guarantees predictability: no changes mid-execution. A new scenario run uses the current versions.
 
 ### Observability
 
-Каждый command — явная единица работы, логируется автоматически:
+Each command is an explicit unit of work, logged automatically:
 
-| Компонент | Реализация |
-|-----------|------------|
-| **Logging** | Structured JSON; маскирование sensitive-полей (password, token, secret, key) |
+| Component | Implementation |
+|-----------|---------------|
+| **Logging** | Structured JSON; masking of sensitive fields (password, token, secret, key) |
 | **Metrics** | Prometheus: `procedure_executions_total`, `procedure_duration_seconds`, `command_executions_total`, `command_duration_seconds` |
-| **Tracing** | OpenTelemetry: span per procedure + child spans per command; `trace_id` propagation в HTTP headers |
+| **Tracing** | OpenTelemetry: span per procedure + child spans per command; `trace_id` propagation in HTTP headers |
 
-### Тестирование
+### Testing
 
-| Метод | Описание |
-|-------|----------|
-| **Dry-run** | Выполнение без побочных эффектов; `record.create` возвращает fake ID, `notification.*` логирует без отправки |
-| **Декларативные тесты** | Input, mocks, expected result и expected commands в JSON-файле |
-| **Snapshot testing** | Сравнение результата с сохранённым snapshot |
+| Method | Description |
+|--------|-------------|
+| **Dry-run** | Execution without side effects; `record.create` returns a fake ID, `notification.*` logs without sending |
+| **Declarative tests** | Input, mocks, expected result, and expected commands in a JSON file |
+| **Snapshot testing** | Comparing the result with a saved snapshot |
 
 ```json
 {
-  "name": "create_order создаёт заказ и отправляет email",
+  "name": "create_order creates an order and sends email",
   "procedure": "create_order",
   "input": {
     "customerId": "cust_123",
@@ -539,19 +539,19 @@ Snapshot-подход гарантирует предсказуемость: н�
 }
 ```
 
-### Результат выполнения
+### Execution Result
 
-Procedure возвращает `ProcedureResult`:
+A Procedure returns `ProcedureResult`:
 
 ```json
-// Успех
+// Success
 {
   "success": true,
   "result": { "accountId": "acc_123" },
   "error": null
 }
 
-// Ошибка
+// Error
 {
   "success": false,
   "result": null,
@@ -563,50 +563,50 @@ Procedure возвращает `ProcedureResult`:
 }
 ```
 
-### Эволюционный путь
+### Evolutionary Path
 
 ```
-Этап 1: Procedure Engine (MVP)
-  ├── JSON DSL + Constructor UI + Expression Builder
-  └── Базовые command types: record, notification, integration, compute, flow
+Stage 1: Procedure Engine (MVP)
+  +-- JSON DSL + Constructor UI + Expression Builder
+  +-- Basic command types: record, notification, integration, compute, flow
 
-Этап 2: Расширенные command types
-  └── Новые типы по мере потребностей (batch, aggregate, approval)
+Stage 2: Extended command types
+  +-- New types as needs arise (batch, aggregate, approval)
 
-Этап 3: Visual Flow Builder (опционально)
-  └── Drag-and-drop граф поверх JSON для сложных ветвлений
+Stage 3: Visual Flow Builder (optional)
+  +-- Drag-and-drop graph on top of JSON for complex branching
 
-Этап 4: Marketplace commands
-  └── Готовые интеграции (Slack, Stripe, 1C, Telegram)
+Stage 4: Marketplace commands
+  +-- Ready-made integrations (Slack, Stripe, 1C, Telegram)
 ```
 
-## Последствия
+## Consequences
 
-### Позитивные
+### Positive
 
-- **Constructor-first** — нулевой порог входа: администратор собирает процедуру через формы и dropdown'ы, не изучая DSL
-- **Expression Builder** — единый визуальный конструктор CEL-выражений для всех подсистем платформы (procedures, validation rules, defaults, visibility)
-- **JSON нативен для стека** — `encoding/json` (Go), JSONB (PostgreSQL), TypeScript — без дополнительных парсеров и зависимостей
-- **JSONB в PostgreSQL** — индексация, jsonpath-запросы, partial updates; возможность анализировать procedures SQL-запросами
-- **Безопасность by design** — sandbox без циклов, произвольного кода и файлового I/O; жёсткие лимиты; OLS/FLS/RLS enforcement
-- **Тестируемость** — dry-run, декларативные JSON-тесты, snapshot testing
-- **Observability** — structured logging, Prometheus metrics, OpenTelemetry tracing для каждого command
-- **Saga pattern** — LIFO rollback для компенсационных действий при распределённых операциях
-- **Расширяемость** — новые command types добавляются в Go один раз, сразу доступны в Constructor
+- **Constructor-first** — zero entry barrier: the administrator assembles a procedure through forms and dropdowns, without learning DSL
+- **Expression Builder** — unified visual CEL expression constructor for all platform subsystems (procedures, validation rules, defaults, visibility)
+- **JSON is native to the stack** — `encoding/json` (Go), JSONB (PostgreSQL), TypeScript — no additional parsers or dependencies
+- **JSONB in PostgreSQL** — indexing, jsonpath queries, partial updates; ability to analyze procedures with SQL queries
+- **Security by design** — sandbox without loops, arbitrary code, or file I/O; strict limits; OLS/FLS/RLS enforcement
+- **Testability** — dry-run, declarative JSON tests, snapshot testing
+- **Observability** — structured logging, Prometheus metrics, OpenTelemetry tracing for each command
+- **Saga pattern** — LIFO rollback for compensating actions in distributed operations
+- **Extensibility** — new command types are added in Go once, immediately available in Constructor
 
-### Негативные
+### Negative
 
-- **Ограниченная гибкость** — невозможно выразить произвольный алгоритм; для нестандартных сценариев нужен новый command type в Go
-- **Constructor — инвестиция во frontend** — form-based UI для каждого command type требует разработки Vue-компонентов
-- **Expression Builder — сложность реализации** — визуальный конструктор CEL с live preview, autocomplete, валидацией
-- **JSON менее читаем** — для power users, работающих с raw JSON, менее наглядно чем YAML — компенсируется Constructor UI
-- **Зависимость от CEL** — cel-go/cel-js становятся критической зависимостью платформы (но уже приняты в ADR-0019)
+- **Limited flexibility** — cannot express arbitrary algorithms; for non-standard scenarios, a new command type in Go is needed
+- **Constructor is a frontend investment** — form-based UI for each command type requires developing Vue components
+- **Expression Builder — implementation complexity** — visual CEL constructor with live preview, autocomplete, validation
+- **JSON is less readable** — for power users working with raw JSON, it is less visual than YAML — compensated by Constructor UI
+- **Dependency on CEL** — cel-go/cel-js become a critical platform dependency (but already adopted in ADR-0019)
 
-## Связанные ADR
+## Related ADRs
 
-- **ADR-0019** — Декларативная бизнес-логика: CEL как expression language, validation rules, подсистемы поведенческой логики. Procedure Engine реализует процедурный слой, дополняющий декларативный. Expression Builder переиспользуется во всех подсистемах
-- **ADR-0020** — DML Pipeline Extension: все `record.*` commands выполняются через DML Engine с typed stages (defaults → validate → compute → execute)
-- **ADR-0022** — Object View: action type `procedure` в конфигурации кнопок вызывает Procedure Engine
-- **ADR-0023** — Action terminology: устанавливает терминологию (Procedure, Command, Command Type), используемую в данном ADR
-- **ADR-0028** — Named Credentials: `integration.http` command использует `credential` field для безопасной аутентификации. Заменяет `$.secrets` namespace
-- **ADR-0029** — Versioning: Procedure definition хранится в `procedure_versions`, не inline. Draft/Published lifecycle. Scenario фиксирует version при старте
+- **ADR-0019** — Declarative business logic: CEL as expression language, validation rules, behavioral logic subsystems. Procedure Engine implements the procedural layer, complementing the declarative one. Expression Builder is reused across all subsystems
+- **ADR-0020** — DML Pipeline Extension: all `record.*` commands execute through DML Engine with typed stages (defaults -> validate -> compute -> execute)
+- **ADR-0022** — Object View: action type `procedure` in button configuration invokes Procedure Engine
+- **ADR-0023** — Action terminology: establishes the terminology (Procedure, Command, Command Type) used in this ADR
+- **ADR-0028** — Named Credentials: `integration.http` command uses the `credential` field for secure authentication. Replaces the `$.secrets` namespace
+- **ADR-0029** — Versioning: Procedure definition is stored in `procedure_versions`, not inline. Draft/Published lifecycle. Scenario captures the version at start

@@ -1,75 +1,75 @@
-# ADR-0017: Auth Module — JWT-аутентификация
+# ADR-0017: Auth Module — JWT Authentication
 
-**Статус:** Принято
-**Дата:** 2026-02-13
-**Участники:** @roman_myakotin
+**Status:** Accepted
+**Date:** 2026-02-13
+**Participants:** @roman_myakotin
 
-## Контекст
+## Context
 
-Phase 0–4 завершены: metadata engine, security (OLS/FLS/RLS), SOQL, DML. Все запросы аутентифицируются через DevAuth middleware (заголовок `X-Dev-User-Id`), что подходит только для разработки. Phase 5 заменяет DevAuth на полноценную JWT-аутентификацию.
+Phases 0–4 are complete: metadata engine, security (OLS/FLS/RLS), SOQL, DML. All requests are authenticated via DevAuth middleware (`X-Dev-User-Id` header), which is only suitable for development. Phase 5 replaces DevAuth with full JWT authentication.
 
-Требования:
-1. Аутентификация через username + password
-2. Stateless access tokens (JWT) для API-запросов
-3. Refresh tokens для продления сессии без повторного ввода пароля
-4. Password reset flow (забыли пароль)
-5. Rate limiting на login endpoint для защиты от brute-force
-6. Совместимость с существующим security engine (UserContext → SOQL/DML)
+Requirements:
+1. Authentication via username + password
+2. Stateless access tokens (JWT) for API requests
+3. Refresh tokens for session renewal without re-entering the password
+4. Password reset flow (forgot password)
+5. Rate limiting on the login endpoint for brute-force protection
+6. Compatibility with the existing security engine (UserContext -> SOQL/DML)
 
-## Рассмотренные варианты
+## Options Considered
 
-### Вариант A — Session-based auth (server-side sessions)
+### Option A — Session-based auth (server-side sessions)
 
-Классические HTTP-сессии: session ID в cookie, данные сессии в Redis/DB.
+Classic HTTP sessions: session ID in a cookie, session data in Redis/DB.
 
-**Плюсы:**
-- Простая инвалидация (удалить сессию на сервере)
-- Нет проблемы с размером токена
+**Pros:**
+- Simple invalidation (delete session on the server)
+- No token size issues
 
-**Минусы:**
-- Stateful — требует shared storage для сессий
-- Каждый запрос → lookup в Redis/DB
-- Не подходит для API-first платформы (mobile, integrations)
-- CSRF-защита для cookie-based auth
+**Cons:**
+- Stateful — requires shared storage for sessions
+- Every request -> lookup in Redis/DB
+- Not suitable for an API-first platform (mobile, integrations)
+- CSRF protection required for cookie-based auth
 
-### Вариант B — JWT access + refresh tokens (выбран)
+### Option B — JWT access + refresh tokens (chosen)
 
-Short-lived JWT access token (15 min) + long-lived refresh token (7 days) в БД.
+Short-lived JWT access token (15 min) + long-lived refresh token (7 days) in the DB.
 
-**Плюсы:**
-- Stateless access tokens — нет lookup на каждый запрос
-- Все нужные данные (UserID, ProfileID, RoleID) в claims — совместимость с UserContext
-- API-first: удобно для SPA, mobile, integrations
-- Стандартный подход для enterprise API
+**Pros:**
+- Stateless access tokens — no lookup on every request
+- All required data (UserID, ProfileID, RoleID) in claims — compatible with UserContext
+- API-first: convenient for SPA, mobile, integrations
+- Standard approach for enterprise APIs
 
-**Минусы:**
-- Нельзя мгновенно инвалидировать access token (ждём 15 min expiry)
-- Refresh token требует хранения в БД
+**Cons:**
+- Cannot instantly invalidate an access token (wait for 15 min expiry)
+- Refresh token requires DB storage
 
-### Вариант C — OAuth 2.0 / OIDC
+### Option C — OAuth 2.0 / OIDC
 
-Полноценный OAuth 2.0 authorization server.
+Full OAuth 2.0 authorization server.
 
-**Плюсы:**
-- Стандарт индустрии
-- Поддержка SSO, federated identity
+**Pros:**
+- Industry standard
+- SSO support, federated identity
 
-**Минусы:**
-- Огромная сложность для MVP
-- Требует authorization server (Keycloak, Hydra)
-- Overkill для single-tenant self-hosted CRM
+**Cons:**
+- Enormous complexity for MVP
+- Requires an authorization server (Keycloak, Hydra)
+- Overkill for a single-tenant self-hosted CRM
 
-## Решение
+## Decision
 
-**Выбран Вариант B — JWT access + refresh tokens.**
+**Option B chosen — JWT access + refresh tokens.**
 
-### Детали реализации
+### Implementation Details
 
-#### Токены
-- **Access token**: JWT, подписан HMAC-SHA256, TTL = 15 минут
-- **Refresh token**: crypto/rand 32 bytes → hex string, TTL = 7 дней
-- **Refresh token storage**: SHA-256 hash в таблице `iam.refresh_tokens`. Raw token знает только клиент.
-- **Token rotation**: при refresh старый token удаляется, выдаётся новый (предотвращает replay)
+#### Tokens
+- **Access token**: JWT, signed with HMAC-SHA256, TTL = 15 minutes
+- **Refresh token**: crypto/rand 32 bytes -> hex string, TTL = 7 days
+- **Refresh token storage**: SHA-256 hash in the `iam.refresh_tokens` table. Only the client knows the raw token.
+- **Token rotation**: on refresh the old token is deleted and a new one is issued (prevents replay)
 
 #### JWT Claims
 ```json
@@ -82,61 +82,61 @@ Short-lived JWT access token (15 min) + long-lived refresh token (7 days) в Б�
 }
 ```
 
-Claims содержат все поля для `security.UserContext` — middleware создаёт UserContext из JWT без обращения к БД.
+Claims contain all fields for `security.UserContext` — middleware creates UserContext from JWT without a DB call.
 
-#### Пароли
-- **Хеширование**: bcrypt, cost = 12
-- **Хранение**: колонка `password_hash VARCHAR(255)` в `iam.users`
-- **Пустой hash** (`''`) означает "пароль не задан" — login отклоняется
+#### Passwords
+- **Hashing**: bcrypt, cost = 12
+- **Storage**: `password_hash VARCHAR(255)` column in `iam.users`
+- **Empty hash** (`''`) means "password not set" — login is rejected
 
-#### Регистрация
-- **Admin-only**: администратор создаёт пользователя через существующий CRUD (`POST /admin/security/users`), затем задаёт пароль через `PUT /admin/security/users/:id/password`
-- **Self-registration отсутствует** — нетипично для enterprise CRM
-- **Начальный пароль admin**: env variable `ADMIN_INITIAL_PASSWORD`, устанавливается при первом запуске
+#### Registration
+- **Admin-only**: the administrator creates a user via the existing CRUD (`POST /admin/security/users`), then sets the password via `PUT /admin/security/users/:id/password`
+- **No self-registration** — atypical for enterprise CRM
+- **Initial admin password**: env variable `ADMIN_INITIAL_PASSWORD`, set on first launch
 
 #### Password Reset
-- Таблица `iam.password_reset_tokens`: одноразовый token, TTL = 1 час
-- `POST /auth/forgot-password` — всегда возвращает 200 (не раскрывает существование email)
-- `POST /auth/reset-password` — проверяет token, устанавливает новый пароль, инвалидирует все refresh tokens (force re-login)
-- Email sender — interface. Для dev: console-реализация (логирует URL). Для production: SMTP-реализация (подключается позже)
+- Table `iam.password_reset_tokens`: one-time token, TTL = 1 hour
+- `POST /auth/forgot-password` — always returns 200 (does not reveal whether the email exists)
+- `POST /auth/reset-password` — validates the token, sets a new password, invalidates all refresh tokens (force re-login)
+- Email sender — interface. For dev: console implementation (logs URL). For production: SMTP implementation (connected later)
 
 #### Rate Limiting
 - In-memory sliding window per IP
-- 5 попыток за 15 минут
-- Достаточно для single-tenant (ADR-0016)
-- При необходимости заменяется на Redis-based
+- 5 attempts per 15 minutes
+- Sufficient for single-tenant (ADR-0016)
+- Can be replaced with Redis-based if needed
 
-#### Blacklisting access tokens
-- **Не реализуется.** Access token short-lived (15 min), истекает естественно
-- При logout удаляется только refresh token
-- При password reset удаляются все refresh tokens пользователя
+#### Access Token Blacklisting
+- **Not implemented.** Access tokens are short-lived (15 min), they expire naturally
+- On logout only the refresh token is deleted
+- On password reset all of the user's refresh tokens are deleted
 
 ### Endpoints
 
-| Method | Path | Auth | Описание |
-|--------|------|------|----------|
-| POST | `/api/v1/auth/login` | Нет | Вход: username + password → token pair |
-| POST | `/api/v1/auth/refresh` | Нет | Обновление: refresh_token → новый token pair |
-| POST | `/api/v1/auth/forgot-password` | Нет | Запрос сброса пароля по email |
-| POST | `/api/v1/auth/reset-password` | Нет | Сброс пароля по token |
-| POST | `/api/v1/auth/logout` | JWT | Выход: удаляет refresh token |
-| GET | `/api/v1/auth/me` | JWT | Текущий пользователь |
-| PUT | `/api/v1/admin/security/users/:id/password` | JWT | Установка пароля (admin) |
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/v1/auth/login` | No | Login: username + password -> token pair |
+| POST | `/api/v1/auth/refresh` | No | Refresh: refresh_token -> new token pair |
+| POST | `/api/v1/auth/forgot-password` | No | Request password reset by email |
+| POST | `/api/v1/auth/reset-password` | No | Reset password by token |
+| POST | `/api/v1/auth/logout` | JWT | Logout: deletes refresh token |
+| GET | `/api/v1/auth/me` | JWT | Current user |
+| PUT | `/api/v1/admin/security/users/:id/password` | JWT | Set password (admin) |
 
-### Совместимость с security engine
+### Compatibility with Security Engine
 
-JWT middleware создаёт `security.UserContext{UserID, ProfileID, RoleID}` из claims и устанавливает его в Gin + standard context — точно как DevAuth. SOQL/DML engines не требуют изменений.
+JWT middleware creates `security.UserContext{UserID, ProfileID, RoleID}` from claims and sets it in Gin + standard context — exactly like DevAuth. SOQL/DML engines require no changes.
 
-## Последствия
+## Consequences
 
-- DevAuth middleware заменяется на JWTAuth. DevAuth может быть сохранён для тестов (`MODE=dev`)
-- Все существующие endpoints получают JWT-защиту
-- Frontend получает login page, token management, route guards
-- Email infrastructure (SMTP) — заглушка для MVP, реальная реализация при необходимости
-- OAuth/OIDC (SSO) — future work, в `ee/` (ADR-0014)
+- DevAuth middleware is replaced by JWTAuth. DevAuth can be preserved for tests (`MODE=dev`)
+- All existing endpoints get JWT protection
+- Frontend gets a login page, token management, route guards
+- Email infrastructure (SMTP) — stub for MVP, real implementation when needed
+- OAuth/OIDC (SSO) — future work, in `ee/` (ADR-0014)
 
-## Связанные решения
+## Related Decisions
 
-- [ADR-0009: Security architecture](0009-security-architecture-overview.md) — 3-слойная безопасность, UserContext
-- [ADR-0014: Open Core](0014-licensing-and-business-model.md) — SSO в ee/
-- [ADR-0016: Single-tenant](0016-single-tenant-architecture.md) — in-memory rate limiting достаточен
+- [ADR-0009: Security architecture](0009-security-architecture-overview.md) — 3-layer security, UserContext
+- [ADR-0014: Open Core](0014-licensing-and-business-model.md) — SSO in ee/
+- [ADR-0016: Single-tenant](0016-single-tenant-architecture.md) — in-memory rate limiting is sufficient

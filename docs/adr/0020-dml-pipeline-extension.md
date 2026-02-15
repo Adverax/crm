@@ -1,154 +1,154 @@
-# ADR-0020: Расширение DML Pipeline (typed stages)
+# ADR-0020: DML Pipeline Extension (Typed Stages)
 
-**Статус:** Принято
-**Дата:** 2026-02-14
-**Участники:** @roman_myakotin
+**Status:** Accepted
+**Date:** 2026-02-14
+**Participants:** @roman_myakotin
 
-## Контекст
+## Context
 
-DML Engine (Phase 4) реализует 4-stage pipeline:
+The DML Engine (Phase 4) implements a 4-stage pipeline:
 
 ```
 parse → validate → compile → execute
 ```
 
-Где `validate` выполняет: проверку существования полей, required-fields check, type-compatibility, FLS (writable fields). Этого достаточно для структурной валидации, но недостаточно для поведенческой логики, определённой в ADR-0019:
+Where `validate` performs: field existence check, required-fields check, type-compatibility, FLS (writable fields). This is sufficient for structural validation but insufficient for the behavioral logic defined in ADR-0019:
 
-| Подсистема (ADR-0019) | Что требуется от DML | Текущий статус |
+| Subsystem (ADR-0019) | What is required from DML | Current status |
 |---|---|---|
-| Default Expressions | Инжект недостающих полей до валидации | Отсутствует. `DefaultValue` используется только для boolean DDL; DML не инжектит |
-| Validation Rules | CEL-проверки после defaults | Отсутствует. Только required + type |
-| Computed Fields (stored) | Пересчёт производных значений до compile | Отсутствует |
-| Automation Rules | Реактивная логика после execute | Отсутствует |
+| Default Expressions | Inject missing fields before validation | Missing. `DefaultValue` is only used for boolean DDL; DML does not inject |
+| Validation Rules | CEL checks after defaults | Missing. Only required + type |
+| Computed Fields (stored) | Recompute derived values before compile | Missing |
+| Automation Rules | Reactive logic after execute | Missing |
 
-Pipeline необходимо расширить для интеграции этих подсистем.
+The pipeline needs to be extended to integrate these subsystems.
 
-### Требования к расширению
+### Requirements for Extension
 
-1. **Чёткий порядок выполнения** — каждый stage имеет определённое место в pipeline, нет неоднозначностей
-2. **Typed interfaces** — каждый stage = interface с конкретной сигнатурой, не arbitrary callback
-3. **Инкрементальность** — stages добавляются по дорожной карте ADR-0019, не все сразу
-4. **Effective ruleset** — pipeline принимает контекст вызова (metadata / Object View / Layout) для каскадного слияния правил (ADR-0019)
-5. **Тестируемость** — каждый stage тестируется изолированно через mock
+1. **Clear execution order** — each stage has a defined place in the pipeline, no ambiguity
+2. **Typed interfaces** — each stage = interface with a specific signature, not an arbitrary callback
+3. **Incrementality** — stages are added according to the ADR-0019 roadmap, not all at once
+4. **Effective ruleset** — pipeline accepts the calling context (metadata / Object View / Layout) for cascading rule merging (ADR-0019)
+5. **Testability** — each stage is tested in isolation via mock
 
-## Рассмотренные варианты
+## Options Considered
 
-### Вариант A — Generic hooks (middleware pattern)
+### Option A — Generic hooks (middleware pattern)
 
-Произвольные callback'и, регистрируемые на события (before insert, after update):
+Arbitrary callbacks registered on events (before insert, after update):
 
 ```go
 engine.Before("insert", func(ctx context.Context, record Record) error { ... })
 engine.After("update", func(ctx context.Context, old, new Record) error { ... })
 ```
 
-**Плюсы:**
-- Максимальная гибкость
-- Знакомый паттерн (Express middleware, Gin handlers)
+**Pros:**
+- Maximum flexibility
+- Familiar pattern (Express middleware, Gin handlers)
 
-**Минусы:**
-- Нет гарантий порядка выполнения между hooks
-- Arbitrary code — трудно тестировать, отлаживать
-- «Какой hook сломал запись?» — классическая проблема Salesforce (35+ шагов в order of execution)
-- Нарушает декларативный принцип платформы
-- Hooks могут конфликтовать друг с другом
+**Cons:**
+- No execution order guarantees between hooks
+- Arbitrary code — hard to test, debug
+- "Which hook broke the record?" — a classic Salesforce problem (35+ steps in the order of execution)
+- Violates the platform's declarative principle
+- Hooks can conflict with each other
 
-### Вариант B — Typed pipeline stages (выбран)
+### Option B — Typed pipeline stages (chosen)
 
-Фиксированный набор stages с typed interfaces. Каждый stage отвечает за одну задачу, имеет определённое место в pipeline.
+A fixed set of stages with typed interfaces. Each stage is responsible for one task and has a defined place in the pipeline.
 
-**Плюсы:**
-- Чёткий, предсказуемый порядок выполнения
-- Каждый stage = typed interface → compile-time safety, легко тестировать
-- Декларативные подсистемы (CEL) подключаются через эти interfaces
-- Нет проблемы «hook A конфликтует с hook B»
-- Простота отладки: каждый stage можно логировать отдельно
+**Pros:**
+- Clear, predictable execution order
+- Each stage = typed interface -> compile-time safety, easy to test
+- Declarative subsystems (CEL) plug in through these interfaces
+- No "hook A conflicts with hook B" problem
+- Simple debugging: each stage can be logged separately
 
-**Минусы:**
-- Менее гибко, чем arbitrary hooks
-- Для нестандартных сценариев нужен custom handler на уровне Automation Rules, не внутри pipeline
+**Cons:**
+- Less flexible than arbitrary hooks
+- For non-standard scenarios, a custom handler at the Automation Rules level is needed, not inside the pipeline
 
-### Вариант C — Salesforce-style order of execution
+### Option C — Salesforce-style order of execution
 
-Фиксированный порядок из 10+ шагов с чётким описанием каждого:
+A fixed order of 10+ steps with a clear description of each:
 
-**Плюсы:**
-- Проверен в production (Salesforce)
+**Pros:**
+- Proven in production (Salesforce)
 
-**Минусы:**
-- Salesforce order of execution — 35+ шагов, печально известная проблема
-- Triggers могут вызывать рекурсию (trigger → DML → trigger)
-- Чрезмерная сложность для нашей платформы
+**Cons:**
+- Salesforce order of execution — 35+ steps, a notoriously known problem
+- Triggers can cause recursion (trigger -> DML -> trigger)
+- Excessive complexity for our platform
 
-## Решение
+## Decision
 
-**Выбран вариант B: Typed pipeline stages.**
+**Option B chosen: Typed pipeline stages.**
 
-### Расширенный pipeline
+### Extended Pipeline
 
 ```
 ┌──────────────────────────────────────────────────────────┐
 │                     DML Pipeline                          │
 │                                                          │
-│  1. PARSE            ← AST из DML-выражения             │
-│     Существующий parser (Participle)                     │
+│  1. PARSE            ← AST from DML expression           │
+│     Existing parser (Participle)                         │
 │                                                          │
-│  2. RESOLVE          ← загрузка метаданных + контекста   │
+│  2. RESOLVE          ← load metadata + context           │
 │     ├─ ObjectMeta + FieldMeta (MetadataProvider)         │
-│     └─ Effective ruleset (каскад ADR-0019)               │
+│     └─ Effective ruleset (cascade per ADR-0019)          │
 │                                                          │
-│  3. DEFAULTS         ← инжект недостающих полей          │
+│  3. DEFAULTS         ← inject missing fields             │
 │     ├─ static: FieldConfig.default_value                 │
 │     └─ dynamic: FieldConfig.default_expr (CEL)           │
-│     Только для INSERT. Только для полей, отсутствующих   │
-│     в statement. Каскад: metadata → OV → Layout.         │
+│     Only for INSERT. Only for fields absent              │
+│     from the statement. Cascade: metadata → OV → Layout. │
 │                                                          │
 │  4. VALIDATE                                             │
 │     a) Metadata constraints: required, type, unique      │
 │     b) Validation Rules: CEL expressions (AND)           │
 │     c) FLS: writable fields check                        │
-│     Каскад: metadata_rules AND ov_rules AND layout_rules │
+│     Cascade: metadata_rules AND ov_rules AND layout_rules │
 │                                                          │
-│  5. COMPUTE          ← пересчёт stored computed fields   │
-│     CEL expressions из FieldConfig.formula_expr          │
-│     Только для полей с field_type="formula" + stored     │
-│     Добавляет вычисленные значения в statement           │
+│  5. COMPUTE          ← recompute stored computed fields  │
+│     CEL expressions from FieldConfig.formula_expr        │
+│     Only for fields with field_type="formula" + stored   │
+│     Adds computed values to the statement                │
 │                                                          │
-│  6. COMPILE          ← генерация SQL                     │
-│     Существующий compiler (параметризованный SQL)        │
+│  6. COMPILE          ← SQL generation                    │
+│     Existing compiler (parameterized SQL)                │
 │                                                          │
 │  7. EXECUTE          ← pgx                               │
-│     Существующий executor + RLS injection                │
+│     Existing executor + RLS injection                    │
 │                                                          │
-│  8. POST-EXECUTE     ← реактивная логика (будущее)       │
+│  8. POST-EXECUTE     ← reactive logic (future)           │
 │     Automation Rules: trigger conditions (CEL)           │
 │     → Handler (sync) / Scenario (async)                  │
-│     Выполняется после успешного execute, до commit       │
-│     или после commit (в зависимости от типа action)      │
+│     Runs after successful execute, before commit         │
+│     or after commit (depending on the action type)       │
 │                                                          │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### Stages и операции
+### Stages and Operations
 
-Не все stages применяются ко всем DML-операциям:
+Not all stages apply to all DML operations:
 
 | Stage | INSERT | UPDATE | DELETE | UPSERT |
 |---|---|---|---|---|
-| 1. Parse | Да | Да | Да | Да |
-| 2. Resolve | Да | Да | Да | Да |
-| 3. Defaults | Да | Условно (default_on=update) | Нет | Да (insert-часть) |
-| 4a. Metadata validate | Да | Да | Нет | Да |
-| 4b. Validation Rules | Да | Да | Условно | Да |
-| 4c. FLS | Да | Да | Да | Да |
-| 5. Compute | Да | Да | Нет | Да |
-| 6. Compile | Да | Да | Да | Да |
-| 7. Execute | Да | Да | Да | Да |
-| 8. Post-execute | Да | Да | Да | Да |
+| 1. Parse | Yes | Yes | Yes | Yes |
+| 2. Resolve | Yes | Yes | Yes | Yes |
+| 3. Defaults | Yes | Conditional (default_on=update) | No | Yes (insert part) |
+| 4a. Metadata validate | Yes | Yes | No | Yes |
+| 4b. Validation Rules | Yes | Yes | Conditional | Yes |
+| 4c. FLS | Yes | Yes | Yes | Yes |
+| 5. Compute | Yes | Yes | No | Yes |
+| 6. Compile | Yes | Yes | Yes | Yes |
+| 7. Execute | Yes | Yes | Yes | Yes |
+| 8. Post-execute | Yes | Yes | Yes | Yes |
 
-### Typed interfaces
+### Typed Interfaces
 
-Каждый новый stage — interface, подключаемый через Option pattern (как существующие `WithMetadata`, `WithExecutor`):
+Each new stage is an interface, plugged in via the Option pattern (like the existing `WithMetadata`, `WithExecutor`):
 
 ```go
 // Stage 3: Default injection
@@ -172,14 +172,14 @@ type PostExecutor interface {
 }
 ```
 
-Подключение через Options:
+Plugged in via Options:
 
 ```go
 engine := dml.NewEngine(
     dml.WithMetadata(metadataAdapter),
     dml.WithWriteAccessController(flsEnforcer),
     dml.WithExecutor(rlsExecutor),
-    // Новые stages:
+    // New stages:
     dml.WithDefaultResolver(celDefaultResolver),
     dml.WithRuleValidator(celRuleValidator),
     dml.WithComputeEngine(celComputeEngine),
@@ -187,20 +187,20 @@ engine := dml.NewEngine(
 )
 ```
 
-Каждый stage опционален. Если interface не предоставлен, stage пропускается. Это обеспечивает инкрементальное добавление по дорожной карте ADR-0019.
+Each stage is optional. If the interface is not provided, the stage is skipped. This enables incremental addition per the ADR-0019 roadmap.
 
-### Execution context
+### Execution Context
 
-DML Engine принимает контекст вызова, определяющий effective ruleset (каскад из ADR-0019):
+The DML Engine accepts a calling context that determines the effective ruleset (cascade from ADR-0019):
 
 ```go
 type ExecutionContext struct {
-    ObjectViewID *uuid.UUID  // nil = raw DML (только metadata rules)
-    LayoutID     *uuid.UUID  // nil = без layout-level rules
+    ObjectViewID *uuid.UUID  // nil = raw DML (metadata rules only)
+    LayoutID     *uuid.UUID  // nil = no layout-level rules
 }
 ```
 
-Resolve stage использует контекст для каскадного слияния:
+The Resolve stage uses the context for cascading merge:
 
 ```
 // Validation: additive (AND)
@@ -212,7 +212,7 @@ if ctx.LayoutID != nil {
     effective_rules = append(effective_rules, layout_rules...)
 }
 
-// Defaults: replace (последний побеждает)
+// Defaults: replace (last wins)
 effective_defaults = metadata_defaults
 if ctx.ObjectViewID != nil {
     effective_defaults = merge(effective_defaults, ov_defaults)
@@ -222,88 +222,88 @@ if ctx.LayoutID != nil {
 }
 ```
 
-При вызове без контекста (raw DML, import, integration) применяются только metadata-level правила — минимальный гарантированный уровень защиты.
+When called without context (raw DML, import, integration) only metadata-level rules apply — the minimum guaranteed level of protection.
 
-### Validation Rules: переменные в CEL-среде
+### Validation Rules: Variables in the CEL Environment
 
-| Переменная | Тип | Доступность | Описание |
+| Variable | Type | Availability | Description |
 |---|---|---|---|
-| `record` | map | INSERT, UPDATE, UPSERT | Текущие значения полей (после defaults) |
-| `old` | map | UPDATE | Предыдущие значения (до изменения) |
-| `user` | map | Всегда | Текущий пользователь (`id`, `profile_id`, `role_id`) |
-| `now` | timestamp | Всегда | Текущее время UTC |
+| `record` | map | INSERT, UPDATE, UPSERT | Current field values (after defaults) |
+| `old` | map | UPDATE | Previous values (before change) |
+| `user` | map | Always | Current user (`id`, `profile_id`, `role_id`) |
+| `now` | timestamp | Always | Current UTC time |
 
-Для INSERT: `old` = nil. Validation rules с `old` в выражении автоматически пропускаются при INSERT.
+For INSERT: `old` = nil. Validation rules with `old` in the expression are automatically skipped on INSERT.
 
-### Default Expressions: порядок применения
+### Default Expressions: Application Order
 
-1. Определяются поля, отсутствующие в DML-statement
-2. Для каждого отсутствующего поля проверяется наличие default:
-   - Сначала `default_value` (статический) — приоритет ниже
-   - Затем `default_expr` (CEL) — перекрывает статический
-   - Каскад: Layout > Object View > Metadata
-3. Если `default_on` не соответствует текущей операции — пропуск
-4. CEL-выражение вычисляется с переменными `record`, `user`, `now`
-5. Результат добавляется в `record` до этапа validate
+1. Determine fields absent from the DML statement
+2. For each absent field, check for a default:
+   - First `default_value` (static) — lower priority
+   - Then `default_expr` (CEL) — overrides static
+   - Cascade: Layout > Object View > Metadata
+3. If `default_on` does not match the current operation — skip
+4. CEL expression is evaluated with variables `record`, `user`, `now`
+5. Result is added to `record` before the validate step
 
-### Ошибки
+### Errors
 
-Каждый stage возвращает типизированные ошибки:
+Each stage returns typed errors:
 
-| Stage | Код ошибки | HTTP | Описание |
+| Stage | Error code | HTTP | Description |
 |---|---|---|---|
-| Defaults | `default_eval_error` | 500 | Ошибка вычисления CEL-выражения default |
-| Validation (metadata) | `missing_required_field` | 400 | Отсутствует обязательное поле |
-| Validation (metadata) | `type_mismatch` | 400 | Несовместимый тип значения |
-| Validation (rules) | `validation_rule_failed` | 400 | Не пройдена CEL-валидация (code из rule) |
-| Validation (rules) | `rule_eval_error` | 500 | Ошибка вычисления CEL-выражения rule |
-| Compute | `compute_eval_error` | 500 | Ошибка вычисления computed field |
-| Post-execute | `automation_error` | 500 | Ошибка в automation rule |
+| Defaults | `default_eval_error` | 500 | Error evaluating a default CEL expression |
+| Validation (metadata) | `missing_required_field` | 400 | Required field is missing |
+| Validation (metadata) | `type_mismatch` | 400 | Incompatible value type |
+| Validation (rules) | `validation_rule_failed` | 400 | CEL validation failed (code from rule) |
+| Validation (rules) | `rule_eval_error` | 500 | Error evaluating a rule CEL expression |
+| Compute | `compute_eval_error` | 500 | Error computing a computed field |
+| Post-execute | `automation_error` | 500 | Error in an automation rule |
 
-Validation rules с `severity: warning` НЕ блокируют выполнение — собираются в `Result.Warnings`.
+Validation rules with `severity: warning` do NOT block execution — they are collected in `Result.Warnings`.
 
-### Нерекурсивность
+### Non-Recursion
 
-Automation Rules (post-execute) могут выполнять DML-операции над другими объектами. Для предотвращения рекурсии:
+Automation Rules (post-execute) can perform DML operations on other objects. To prevent recursion:
 
-- Automation Rules НЕ могут модифицировать объект, вызвавший trigger
-- Максимальная глубина вложенности DML-вызовов из automation: 2 (аналог Salesforce trigger depth limit)
-- DML-вызовы из automation выполняются с `ExecutionContext = nil` (только metadata rules)
+- Automation Rules CANNOT modify the object that triggered them
+- Maximum DML call nesting depth from automation: 2 (analogous to Salesforce trigger depth limit)
+- DML calls from automation execute with `ExecutionContext = nil` (metadata rules only)
 
-## Дорожная карта
+## Roadmap
 
-Stages добавляются инкрементально, в соответствии с ADR-0019:
+Stages are added incrementally, in accordance with ADR-0019:
 
-| Phase | Добавляемые stages | Зависимости |
+| Phase | Stages added | Dependencies |
 |---|---|---|
-| **7a** | 3. Defaults (только static `default_value`) | — |
+| **7a** | 3. Defaults (static `default_value` only) | — |
 | **7b** | 3. Defaults (dynamic `default_expr`) + 4b. Validation Rules | CEL engine (cel-go) |
-| **N+1** | 5. Compute | CEL engine (уже есть после 7b) |
-| **N+2** | 2. Resolve (каскад) + 8. Post-execute | Object View storage, Automation Rules |
+| **N+1** | 5. Compute | CEL engine (already available after 7b) |
+| **N+2** | 2. Resolve (cascade) + 8. Post-execute | Object View storage, Automation Rules |
 
-**Phase 7a** — static defaults: инжект `FieldConfig.default_value` для отсутствующих полей + системные поля (`owner_id`, `created_by_id`, `created_at`, `updated_at`). Без CEL. Pipeline расширяется Stage 3 в минимальном варианте.
+**Phase 7a** — static defaults: injection of `FieldConfig.default_value` for missing fields + system fields (`owner_id`, `created_by_id`, `created_at`, `updated_at`). No CEL. Pipeline is extended with Stage 3 in a minimal variant.
 
-**Phase 7b** — CEL engine: `cel-go` интеграция, `default_expr`, таблица `metadata.validation_rules`, Stage 4b. Validation Rules и dynamic defaults используют общий CEL runtime.
+**Phase 7b** — CEL engine: `cel-go` integration, `default_expr`, table `metadata.validation_rules`, Stage 4b. Validation Rules and dynamic defaults use a shared CEL runtime.
 
-## Последствия
+## Consequences
 
-### Позитивные
+### Positive
 
-- Предсказуемый порядок выполнения — нет «какой hook сломал запись?»
-- Каждый stage тестируется изолированно через interface mock
-- Опциональность stages через Option pattern — инкрементальное добавление
-- Нерекурсивность automation гарантирована (depth limit)
-- Декларативный подход сохранён (CEL, не arbitrary Go-код в pipeline)
-- Ошибки типизированы и привязаны к конкретному stage
+- Predictable execution order — no "which hook broke the record?"
+- Each stage is tested in isolation via interface mock
+- Stage optionality via the Option pattern — incremental addition
+- Non-recursion of automation is guaranteed (depth limit)
+- Declarative approach preserved (CEL, not arbitrary Go code in the pipeline)
+- Errors are typed and tied to a specific stage
 
-### Негативные
+### Negative
 
-- Менее гибко, чем generic hooks — edge cases решаются через Automation Rules (Go handler), а не через pipeline injection
-- Фиксированный порядок stages — нельзя вставить кастомный stage «между validate и compute»
-- CEL dependency для stages 3, 4b, 5 (но это решение из ADR-0019)
+- Less flexible than generic hooks — edge cases are solved via Automation Rules (Go handler), not via pipeline injection
+- Fixed stage order — cannot insert a custom stage "between validate and compute"
+- CEL dependency for stages 3, 4b, 5 (but this is a decision from ADR-0019)
 
-### Связанные ADR
+### Related ADRs
 
-- ADR-0019 — Декларативная бизнес-логика (определяет подсистемы и каскад; данный ADR определяет точки интеграции в DML)
-- ADR-0004 — Field type/subtype (расширяется formula type для stage 5)
-- ADR-0009 — Security architecture (FLS остаётся в stage 4c, не смешивается с validation rules)
+- ADR-0019 — Declarative business logic (defines subsystems and cascade; this ADR defines integration points in DML)
+- ADR-0004 — Field type/subtype (extended with formula type for stage 5)
+- ADR-0009 — Security architecture (FLS remains in stage 4c, not mixed with validation rules)

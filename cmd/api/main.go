@@ -19,6 +19,7 @@ import (
 	"github.com/adverax/crm/internal/modules/auth"
 	"github.com/adverax/crm/internal/pkg/config"
 	"github.com/adverax/crm/internal/pkg/database"
+	celengine "github.com/adverax/crm/internal/platform/cel"
 	"github.com/adverax/crm/internal/platform/dml"
 	dmlengine "github.com/adverax/crm/internal/platform/dml/engine"
 	"github.com/adverax/crm/internal/platform/metadata"
@@ -118,6 +119,8 @@ func setupRouter(pool *pgxpool.Pool, cfg config.Config) *gin.Engine {
 
 	validationRuleRepo := metadata.NewPgValidationRuleRepository(pool)
 	validationRuleService := metadata.NewValidationRuleService(pool, validationRuleRepo, metadataCache)
+
+	functionRepo := metadata.NewPgFunctionRepository(pool)
 
 	metadataHandler := handler.NewMetadataHandler(objectService, fieldService, validationRuleService)
 
@@ -225,12 +228,19 @@ func setupRouter(pool *pgxpool.Pool, cfg config.Config) *gin.Engine {
 	dmlMetadataAdapter := dml.NewMetadataAdapter(metadataCache)
 	dmlAccessAdapter := dml.NewWriteAccessControllerAdapter(metadataCache, olsEnforcer, flsEnforcer)
 
-	celDefaultResolver, err := dml.NewCELDefaultResolver()
+	// Build custom function registry from cache
+	fnRegistry, err := buildFunctionRegistry(metadataCache)
+	if err != nil {
+		slog.Error("failed to build function registry", "error", err)
+		os.Exit(1)
+	}
+
+	celDefaultResolver, err := dml.NewCELDefaultResolver(fnRegistry)
 	if err != nil {
 		slog.Error("failed to create CEL default resolver", "error", err)
 		os.Exit(1)
 	}
-	celRuleValidator, err := dml.NewCELRuleValidator(metadataCache)
+	celRuleValidator, err := dml.NewCELRuleValidator(metadataCache, fnRegistry)
 	if err != nil {
 		slog.Error("failed to create CEL rule validator", "error", err)
 		os.Exit(1)
@@ -244,6 +254,32 @@ func setupRouter(pool *pgxpool.Pool, cfg config.Config) *gin.Engine {
 	)
 	dmlExecutor := dml.NewRLSExecutor(pool, metadataCache, rlsEnforcer)
 	dmlService := dml.NewDMLService(dmlEngine, dmlExecutor)
+
+	// CEL validation handler
+	celHandler := handler.NewCELHandler(metadataCache, fnRegistry)
+	celHandler.RegisterRoutes(adminGroup)
+
+	// Create function service with onChange callback to rebuild CEL environments
+	functionService := metadata.NewFunctionService(pool, functionRepo, metadataCache,
+		func(_ context.Context) error {
+			newRegistry, err := buildFunctionRegistry(metadataCache)
+			if err != nil {
+				return err
+			}
+			if err := celRuleValidator.RebuildEnv(newRegistry); err != nil {
+				return err
+			}
+			if err := celDefaultResolver.RebuildEnv(newRegistry); err != nil {
+				return err
+			}
+			celHandler.SetRegistry(newRegistry)
+			return nil
+		},
+	)
+
+	// Function handler
+	functionHandler := handler.NewFunctionHandler(functionService)
+	functionHandler.RegisterRoutes(adminGroup)
 
 	// --- Query/Data API ---
 	queryHandler := handler.NewQueryHandler(soqlService, dmlService)
@@ -355,4 +391,23 @@ func parseLogLevel(level string) slog.Level {
 	default:
 		return slog.LevelInfo
 	}
+}
+
+// buildFunctionRegistry converts cached Functions into CEL FunctionDefs and builds a registry.
+func buildFunctionRegistry(cache *metadata.MetadataCache) (*celengine.FunctionRegistry, error) {
+	functions := cache.GetFunctions()
+	defs := make([]celengine.FunctionDef, 0, len(functions))
+	for _, fn := range functions {
+		params := make([]celengine.ParamDef, len(fn.Params))
+		for i, p := range fn.Params {
+			params[i] = celengine.ParamDef{Name: p.Name, Type: p.Type}
+		}
+		defs = append(defs, celengine.FunctionDef{
+			Name:       fn.Name,
+			Params:     params,
+			ReturnType: fn.ReturnType,
+			Body:       fn.Body,
+		})
+	}
+	return celengine.NewFunctionRegistry(defs)
 }

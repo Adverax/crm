@@ -1,17 +1,17 @@
-# ADR-0026: Custom Functions — именованные чистые вычисления
+# ADR-0026: Custom Functions — Named Pure Computations
 
-**Статус:** Принято
-**Дата:** 2026-02-15
-**Участники:** @roman_myakotin
+**Status:** Accepted
+**Date:** 2026-02-15
+**Participants:** @roman_myakotin
 
-## Контекст
+## Context
 
-### Проблема: дублирование CEL-выражений
+### Problem: Duplication of CEL Expressions
 
-Платформа использует CEL (Common Expression Language) как единый expression language (ADR-0019) во множестве подсистем:
+The platform uses CEL (Common Expression Language) as the unified expression language (ADR-0019) across multiple subsystems:
 
-| Подсистема | Где CEL | Пример |
-|------------|---------|--------|
+| Subsystem | Where CEL is Used | Example |
+|-----------|-------------------|---------|
 | Validation Rules (Phase 7b) | `expression` | `record.amount > 0 && record.amount < 1000000` |
 | Default Expressions (Phase 7b) | `default_expr` | `record.tier == "gold" ? record.amount * 0.2 : 0` |
 | Object View (ADR-0022) | `visibility_expr` | `record.status == "draft" && record.amount > 10000` |
@@ -20,13 +20,13 @@
 | Automation Rules (ADR-0019) | `condition` | `new.status == "paid" && old.status != "paid"` |
 | Dynamic Forms (Phase 9c) | field visibility | `record.type == "enterprise"` |
 
-Когда одна и та же вычислительная логика нужна в нескольких местах, администратор **дублирует CEL-выражение**:
+When the same computational logic is needed in multiple places, the administrator **duplicates the CEL expression**:
 
 ```
-// Validation rule для Order:
+// Validation rule for Order:
 record.tier == "gold" ? record.amount * 0.2 : record.tier == "silver" ? record.amount * 0.1 : 0
 
-// Default expression для discount_amount:
+// Default expression for discount_amount:
 record.tier == "gold" ? record.amount * 0.2 : record.tier == "silver" ? record.amount * 0.1 : 0
 
 // Procedure input:
@@ -36,124 +36,124 @@ $.input.tier == "gold" ? $.input.amount * 0.2 : $.input.tier == "silver" ? $.inp
 (record.tier == "gold" ? record.amount * 0.2 : record.tier == "silver" ? record.amount * 0.1 : 0) > 5000
 ```
 
-Одно и то же выражение — 4 копии. При изменении бизнес-правила (добавление tier "platinum") нужно найти и обновить все копии. Это:
-- **Ненадёжно** — легко пропустить одну из копий
-- **Непрактично** — сложные выражения становятся нечитаемыми при встраивании
-- **Противоречит DRY** — фундаментальный принцип разработки
+One and the same expression — 4 copies. When a business rule changes (adding a "platinum" tier), all copies must be found and updated. This is:
+- **Unreliable** — easy to miss one of the copies
+- **Impractical** — complex expressions become unreadable when inlined
+- **Violates DRY** — a fundamental development principle
 
-### Procedure не решает проблему
+### Procedure Does Not Solve the Problem
 
-Procedure (ADR-0024) — это набор Commands с side effects (CRUD, email, HTTP). Для чистых вычислений Procedure — overkill:
+Procedure (ADR-0024) is a set of Commands with side effects (CRUD, email, HTTP). For pure computations, Procedure is overkill:
 
-| Аспект | Function (нужно) | Procedure (есть) |
-|--------|-----------------|------------------|
-| Назначение | Вычислить значение | Выполнить действия |
-| Side effects | Нет | Да (CRUD, email, HTTP) |
-| Вызов | Inline из любого CEL | `flow.call` из Procedure |
-| Возврат | Значение (any) | ProcedureResult |
-| Rollback | Не нужен | Saga pattern |
-| Где доступна | Везде, где есть CEL | Только как action |
+| Aspect | Function (needed) | Procedure (existing) |
+|--------|-------------------|----------------------|
+| Purpose | Compute a value | Execute actions |
+| Side effects | None | Yes (CRUD, email, HTTP) |
+| Invocation | Inline from any CEL | `flow.call` from Procedure |
+| Return | Value (any) | ProcedureResult |
+| Rollback | Not needed | Saga pattern |
+| Where available | Everywhere CEL exists | Only as an action |
 
-Функция `fn.discount(tier, amount)` вызывается **внутри** CEL-выражения. Procedure вызывается **вместо** CEL-выражения. Это разные уровни абстракции.
+The function `fn.discount(tier, amount)` is called **inside** a CEL expression. A Procedure is called **instead of** a CEL expression. These are different levels of abstraction.
 
 ### Dual-stack: cel-go + cel-js
 
-CEL уже работает на двух сторонах (ADR-0019):
+CEL already works on both sides (ADR-0019):
 - **Backend**: cel-go — validation rules, defaults, procedure/scenario engine
 - **Frontend**: cel-js — Object View `visibility_expr`, Dynamic Forms field visibility
 
-Custom Functions должны быть доступны на **обеих сторонах**. Поскольку Functions — чистые выражения без side effects, они портабельны между cel-go и cel-js без адаптаций.
+Custom Functions must be available on **both sides**. Since Functions are pure expressions without side effects, they are portable between cel-go and cel-js without adaptation.
 
-## Рассмотренные варианты
+## Considered Options
 
-### Вариант A — Копипаст CEL-выражений (status quo)
+### Option A — Copy-Paste CEL Expressions (status quo)
 
-Администратор дублирует одинаковые CEL-выражения во всех местах использования.
+The administrator duplicates identical CEL expressions in all usage locations.
 
-**Плюсы:**
-- Нет новых абстракций
-- Каждое выражение самодостаточно (видно всю логику в одном месте)
+**Pros:**
+- No new abstractions
+- Each expression is self-contained (full logic visible in one place)
 
-**Минусы:**
-- Нарушение DRY: одно изменение → обновление N мест
-- Ошибки: легко пропустить одну из копий
-- Нечитаемость: сложные выражения inline — тяжело поддерживать
-- Масштабирование: чем больше подсистем используют CEL, тем больше дублирования
+**Cons:**
+- DRY violation: one change requires updating N locations
+- Errors: easy to miss one of the copies
+- Unreadability: complex inline expressions are hard to maintain
+- Scaling: the more subsystems use CEL, the more duplication
 
-### Вариант B — Custom Functions как именованные CEL-выражения (выбран)
+### Option B — Custom Functions as Named CEL Expressions (chosen)
 
-Администратор определяет именованную функцию с типизированными параметрами. Тело функции — CEL-выражение. Функция доступна из любого CEL-контекста через namespace `fn.*`.
+The administrator defines a named function with typed parameters. The function body is a CEL expression. The function is available from any CEL context through the `fn.*` namespace.
 
-**Плюсы:**
-- DRY: одно определение — множество использований
-- Единый механизм: Functions работают везде, где есть CEL (backend + frontend)
-- Декомпозиция: сложная логика разбивается на понятные именованные блоки
-- Тестируемость: функцию можно протестировать изолированно
-- Чистота: нет side effects — безопасно, предсказуемо, кэшируемо
-- Минимальная реализация: расширение существующего CEL Environment, не новый engine
+**Pros:**
+- DRY: one definition — many usages
+- Unified mechanism: Functions work everywhere CEL exists (backend + frontend)
+- Decomposition: complex logic is broken into understandable named blocks
+- Testability: a function can be tested in isolation
+- Purity: no side effects — safe, predictable, cacheable
+- Minimal implementation: extension of the existing CEL Environment, not a new engine
 
-**Минусы:**
-- Новая абстракция: администратору нужно понять концепцию "функция"
-- Отладка: при ошибке в выражении нужно проверить и вызывающий код, и тело функции
-- Зависимости: удаление/изменение функции может сломать использующие её выражения
+**Cons:**
+- New abstraction: the administrator needs to understand the concept of a "function"
+- Debugging: when an error occurs, both the calling code and the function body need to be checked
+- Dependencies: deleting/modifying a function can break expressions that use it
 
-### Вариант C — Macro expansion (шаблонные подстановки)
+### Option C — Macro Expansion (template substitutions)
 
-Вместо runtime-функций — шаблоны, которые подставляются (expand) в CEL-выражение при компиляции.
+Instead of runtime functions — templates that are expanded into the CEL expression at compilation time.
 
-**Плюсы:**
-- Прозрачность: администратор видит итоговое "развёрнутое" выражение
-- Нет runtime overhead: всё раскрывается на этапе компиляции
+**Pros:**
+- Transparency: the administrator sees the final "expanded" expression
+- No runtime overhead: everything is expanded at compilation time
 
-**Минусы:**
-- Нет параметров (или сложная подстановка): `${discount}` с заменой аргументов — по сути самодельный template engine
-- Ошибки в развёрнутом выражении трудно соотнести с исходным шаблоном
-- Нет type checking на этапе определения макроса
-- Не работает на frontend (cel-js не знает о макросах)
+**Cons:**
+- No parameters (or complex substitution): `${discount}` with argument replacement is essentially a homegrown template engine
+- Errors in the expanded expression are hard to correlate with the original template
+- No type checking at the time of macro definition
+- Does not work on frontend (cel-js is unaware of macros)
 
-### Вариант D — Computed Fields вместо Functions
+### Option D — Computed Fields Instead of Functions
 
-Вычисляемые поля (Formula Fields, Phase 10) могут покрыть часть кейсов: `discount_amount = tier == "gold" ? amount * 0.2 : ...`.
+Computed fields (Formula Fields, Phase 10) could cover some use cases: `discount_amount = tier == "gold" ? amount * 0.2 : ...`.
 
-**Плюсы:**
-- Уже запланированы (Phase 10)
-- Привязаны к объекту — естественная точка доступа
+**Pros:**
+- Already planned (Phase 10)
+- Bound to an object — a natural access point
 
-**Минусы:**
-- Привязаны к конкретному объекту — нельзя переиспользовать между объектами
-- Нельзя передать произвольные параметры (только поля текущей записи)
-- Не работают в Procedure/Scenario (другой контекст: `$.input.*`, а не `record.*`)
-- Дублирование: одна и та же формула на разных объектах
+**Cons:**
+- Bound to a specific object — cannot be reused across objects
+- Cannot pass arbitrary parameters (only fields of the current record)
+- Do not work in Procedure/Scenario (different context: `$.input.*`, not `record.*`)
+- Duplication: the same formula on different objects
 
-## Решение
+## Decision
 
-**Выбран вариант B: Custom Functions как именованные CEL-выражения.**
+**Option B chosen: Custom Functions as named CEL expressions.**
 
-### Определение Function
+### Function Definition
 
-Function хранится в `metadata.functions` как JSONB:
+A Function is stored in `metadata.functions` as JSONB:
 
 ```json
 {
   "name": "discount",
-  "description": "Рассчитать скидку по уровню клиента",
+  "description": "Calculate discount by customer tier",
   "params": [
-    { "name": "tier", "type": "string", "description": "Уровень клиента" },
-    { "name": "amount", "type": "number", "description": "Сумма заказа" }
+    { "name": "tier", "type": "string", "description": "Customer tier" },
+    { "name": "amount", "type": "number", "description": "Order amount" }
   ],
   "return_type": "number",
   "body": "tier == \"gold\" ? amount * 0.2 : tier == \"silver\" ? amount * 0.1 : 0"
 }
 ```
 
-- **name** — уникальный идентификатор (snake_case), вызывается как `fn.name()`
-- **params** — типизированные параметры (string, number, boolean, list, map, any)
-- **return_type** — тип возвращаемого значения (для type checking)
-- **body** — CEL-выражение; параметры доступны как переменные по имени
+- **name** — unique identifier (snake_case), invoked as `fn.name()`
+- **params** — typed parameters (string, number, boolean, list, map, any)
+- **return_type** — return value type (for type checking)
+- **body** — CEL expression; parameters are accessible as variables by name
 
-### Вызов из CEL
+### Invocation from CEL
 
-Все Functions доступны через namespace `fn.*` в любом CEL-контексте:
+All Functions are available through the `fn.*` namespace in any CEL context:
 
 ```
 // Validation rule
@@ -171,134 +171,134 @@ fn.discount(record.tier, record.amount) > 5000
 // Scenario when
 fn.discount($.steps.order.tier, $.steps.order.amount) > 10000
 
-// Composition: функция вызывает функцию
+// Composition: function calls function
 fn.total_with_tax(fn.discount(record.tier, record.amount), record.tax_rate)
 ```
 
-Namespace `fn.*` отделяет пользовательские функции от встроенных (`size()`, `has()`, `matches()`), исключая конфликты имён.
+The `fn.*` namespace separates user-defined functions from built-in ones (`size()`, `has()`, `matches()`), eliminating name conflicts.
 
-### Dual-stack: загрузка в cel-go и cel-js
+### Dual-stack: Loading into cel-go and cel-js
 
 ```
 metadata.functions (PostgreSQL JSONB)
-        │
-        ├──→ Backend startup / cache invalidation
-        │    └── cel-go: env.RegisterFunction("fn.discount", ...)
-        │        → Validation Rules, Defaults, Procedure, Scenario
-        │
-        └──→ GET /api/v1/describe (Describe API)
-             └── response.functions: [{ name, params, body }]
-                 └── cel-js: env.registerFunction("fn.discount", ...)
-                     → visibility_expr, Dynamic Forms
+        |
+        +---> Backend startup / cache invalidation
+        |    +-- cel-go: env.RegisterFunction("fn.discount", ...)
+        |        -> Validation Rules, Defaults, Procedure, Scenario
+        |
+        +---> GET /api/v1/describe (Describe API)
+             +-- response.functions: [{ name, params, body }]
+                 +-- cel-js: env.registerFunction("fn.discount", ...)
+                     -> visibility_expr, Dynamic Forms
 ```
 
-**Backend**: Functions загружаются в cel-go Environment при старте и при инвалидации кэша (outbox pattern, ADR-0012).
+**Backend**: Functions are loaded into the cel-go Environment at startup and upon cache invalidation (outbox pattern, ADR-0012).
 
-**Frontend**: Describe API отдаёт определения функций. cel-js регистрирует их как custom functions. `visibility_expr: "fn.discount(record.tier, record.amount) > 5000"` вычисляется **мгновенно в браузере** без round-trip на сервер.
+**Frontend**: The Describe API returns function definitions. cel-js registers them as custom functions. `visibility_expr: "fn.discount(record.tier, record.amount) > 5000"` is evaluated **instantly in the browser** without a round-trip to the server.
 
 ### Constructor UI
 
-В Expression Builder (ADR-0024) Functions появляются как категория:
+In the Expression Builder (ADR-0024), Functions appear as a category:
 
-1. **Function picker**: раздел "Пользовательские функции" в каталоге функций Expression Builder
-   - Каждая функция с описанием, типами параметров, примером использования
-   - Автоподстановка: выбрал `fn.discount` → шаблон `fn.discount(tier, amount)` с placeholder'ами
+1. **Function picker**: a "Custom Functions" section in the Expression Builder's function catalog
+   - Each function with description, parameter types, usage example
+   - Auto-completion: selecting `fn.discount` inserts the template `fn.discount(tier, amount)` with placeholders
 
-2. **Function Constructor**: отдельная admin-страница для создания/редактирования функций
-   - Имя + описание
-   - Параметры: name + type + description (drag-and-drop для порядка)
-   - Тело: Expression Builder (тот же компонент) с параметрами в field picker
-   - Live preview: тестовые значения параметров → результат в реальном времени
-   - Валидация: type checking тела при сохранении
+2. **Function Constructor**: a dedicated admin page for creating/editing functions
+   - Name + description
+   - Parameters: name + type + description (drag-and-drop for ordering)
+   - Body: Expression Builder (the same component) with parameters in the field picker
+   - Live preview: test parameter values produce results in real time
+   - Validation: type checking of the body upon saving
 
-3. **Dependency view**: где используется функция (список validation rules, defaults, procedures, Object Views)
+3. **Dependency view**: where the function is used (list of validation rules, defaults, procedures, Object Views)
 
-### Ограничения
+### Limits
 
-| Параметр | Лимит | Обоснование |
-|----------|-------|-------------|
-| Размер тела | 4 KB | Функция — компактное выражение, не программа |
-| Время выполнения | 100 ms | Вызывается inline, не должна блокировать |
-| Вложенность | 3 уровня | `fn.a()` → `fn.b()` → `fn.c()` → stop |
-| Параметры | 10 max | Больше — это уже Procedure |
-| Рекурсия | Запрещена | Отслеживание call stack, ошибка `recursive_function_call` |
-| Количество функций | 200 | Per-instance; предотвращение раздувания namespace |
+| Parameter | Limit | Rationale |
+|-----------|-------|-----------|
+| Body size | 4 KB | A function is a compact expression, not a program |
+| Execution time | 100 ms | Called inline, must not block |
+| Nesting | 3 levels | `fn.a()` -> `fn.b()` -> `fn.c()` -> stop |
+| Parameters | 10 max | More than that is a Procedure |
+| Recursion | Forbidden | Call stack tracking, `recursive_function_call` error |
+| Number of functions | 200 | Per instance; prevents namespace bloat |
 
 ### Safety
 
-| Угроза | Защита |
-|--------|--------|
-| Бесконечная рекурсия | Запрещена: call stack tracking, статический анализ при сохранении |
-| Circular dependencies | Граф зависимостей проверяется при сохранении (`fn.a` → `fn.b` → `fn.a` = ошибка) |
-| Side effects | Невозможны: CEL — чистый expression language, нет I/O в grammar |
-| Deletion с зависимостями | Запрет удаления: dependency view показывает использования; `DELETE` → 409 Conflict |
-| Rename | Каскадное обновление: найти все CEL-выражения с `fn.old_name` → заменить |
-| Resource exhaustion | Лимиты: 100ms timeout, 4KB body, 3 уровня вложенности |
+| Threat | Protection |
+|--------|------------|
+| Infinite recursion | Forbidden: call stack tracking, static analysis on save |
+| Circular dependencies | Dependency graph checked on save (`fn.a` -> `fn.b` -> `fn.a` = error) |
+| Side effects | Impossible: CEL is a pure expression language, no I/O in grammar |
+| Deletion with dependencies | Deletion blocked: dependency view shows usages; `DELETE` -> 409 Conflict |
+| Rename | Cascading update: find all CEL expressions with `fn.old_name` -> replace |
+| Resource exhaustion | Limits: 100ms timeout, 4KB body, 3 nesting levels |
 
-### Хранение
+### Storage
 
-Таблица `metadata.functions`:
+Table `metadata.functions`:
 
-| Колонка | Тип | Описание |
-|---------|-----|----------|
-| id | UUID PK | Уникальный ID |
-| name | VARCHAR UNIQUE | Имя функции (snake_case) |
-| description | TEXT | Описание назначения |
-| params | JSONB | Массив параметров `[{name, type, description}]` |
-| return_type | VARCHAR | Тип возвращаемого значения |
-| body | TEXT | CEL-выражение |
-| created_at | TIMESTAMPTZ | Время создания |
-| updated_at | TIMESTAMPTZ | Время обновления |
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID PK | Unique ID |
+| name | VARCHAR UNIQUE | Function name (snake_case) |
+| description | TEXT | Purpose description |
+| params | JSONB | Parameter array `[{name, type, description}]` |
+| return_type | VARCHAR | Return value type |
+| body | TEXT | CEL expression |
+| created_at | TIMESTAMPTZ | Creation time |
+| updated_at | TIMESTAMPTZ | Update time |
 
 ### API
 
-| Метод | Endpoint | Описание |
-|-------|----------|----------|
-| GET | `/api/v1/admin/functions` | Список функций |
-| POST | `/api/v1/admin/functions` | Создать функцию |
-| GET | `/api/v1/admin/functions/:id` | Получить функцию |
-| PUT | `/api/v1/admin/functions/:id` | Обновить функцию |
-| DELETE | `/api/v1/admin/functions/:id` | Удалить (409 если есть зависимости) |
-| POST | `/api/v1/admin/functions/:id/test` | Тест: input → result |
-| GET | `/api/v1/admin/functions/:id/dependencies` | Где используется |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/admin/functions` | List functions |
+| POST | `/api/v1/admin/functions` | Create function |
+| GET | `/api/v1/admin/functions/:id` | Get function |
+| PUT | `/api/v1/admin/functions/:id` | Update function |
+| DELETE | `/api/v1/admin/functions/:id` | Delete (409 if dependencies exist) |
+| POST | `/api/v1/admin/functions/:id/test` | Test: input -> result |
+| GET | `/api/v1/admin/functions/:id/dependencies` | Where it is used |
 
-### Отношение к Formula Fields (Phase 10)
+### Relationship with Formula Fields (Phase 10)
 
-Formula Fields и Custom Functions — разные инструменты:
+Formula Fields and Custom Functions are different tools:
 
-| Аспект | Formula Field | Custom Function |
+| Aspect | Formula Field | Custom Function |
 |--------|--------------|-----------------|
-| Привязка | К конкретному объекту и полю | Глобальная, без привязки |
-| Контекст | `record.*` (поля текущей записи) | Произвольные параметры |
-| Результат | Значение поля (хранится/вычисляется) | Значение, возвращённое в CEL |
-| Reuse | Нет (per object) | Да (anywhere in CEL) |
-| Где доступен | SOQL SELECT, record display | Любое CEL-выражение |
+| Binding | To a specific object and field | Global, no binding |
+| Context | `record.*` (current record fields) | Arbitrary parameters |
+| Result | Field value (stored/computed) | Value returned in CEL |
+| Reuse | No (per object) | Yes (anywhere in CEL) |
+| Where available | SOQL SELECT, record display | Any CEL expression |
 
-Formula Field **может вызывать** Custom Function: `fn.discount(tier, amount)` как часть формулы поля. Но Formula Field привязан к объекту, а Function — нет.
+A Formula Field **can call** a Custom Function: `fn.discount(tier, amount)` as part of a field formula. But a Formula Field is bound to an object, while a Function is not.
 
-## Последствия
+## Consequences
 
-### Позитивные
+### Positive
 
-- **DRY** — одно определение, множество использований; изменение в одном месте
-- **Dual-stack** — одна и та же функция работает на backend (cel-go) и frontend (cel-js) без адаптаций
-- **Минимальная реализация** — расширение существующего CEL Environment; не новый engine, не новый runtime
-- **Декомпозиция** — сложная логика разбивается на именованные, тестируемые блоки
-- **Безопасность** — чистые выражения, нет side effects, нет I/O; защита от рекурсии и circular deps
-- **Мгновенная оценка на frontend** — `visibility_expr` с `fn.*` вычисляется в браузере без round-trip
-- **Интеграция с Expression Builder** — функции появляются в каталоге; автоподстановка параметров
-- **Dependency tracking** — платформа знает, где используется каждая функция; защита от удаления
+- **DRY** — one definition, many usages; change in one place
+- **Dual-stack** — the same function works on backend (cel-go) and frontend (cel-js) without adaptation
+- **Minimal implementation** — extension of the existing CEL Environment; not a new engine, not a new runtime
+- **Decomposition** — complex logic is broken into named, testable blocks
+- **Safety** — pure expressions, no side effects, no I/O; protection against recursion and circular deps
+- **Instant evaluation on frontend** — `visibility_expr` with `fn.*` is evaluated in the browser without a round-trip
+- **Integration with Expression Builder** — functions appear in the catalog; auto-completion of parameters
+- **Dependency tracking** — the platform knows where each function is used; protection against deletion
 
-### Негативные
+### Negative
 
-- **Новая абстракция** — администратору нужно понять концепцию "функция" (Constructor UI снижает порог)
-- **Два уровня отладки** — ошибка может быть в вызывающем выражении или в теле функции
-- **Синхронизация frontend/backend** — при обновлении функции нужно инвалидировать кэш cel-js (Describe API refetch)
-- **Каскадные ошибки** — изменение типа параметра может сломать вызывающие выражения (защита: type checking при сохранении)
+- **New abstraction** — the administrator needs to understand the concept of a "function" (Constructor UI lowers the barrier)
+- **Two levels of debugging** — the error may be in the calling expression or in the function body
+- **Frontend/backend synchronization** — when a function is updated, the cel-js cache needs to be invalidated (Describe API refetch)
+- **Cascading errors** — changing a parameter type can break calling expressions (protection: type checking on save)
 
-## Связанные ADR
+## Related ADRs
 
-- **ADR-0019** — Декларативная бизнес-логика: CEL как единый expression language. Functions расширяют CEL Environment пользовательскими вычислениями
-- **ADR-0022** — Object View: `visibility_expr` может вызывать Functions для сложной логики видимости
-- **ADR-0024** — Procedure Engine: CEL expressions в `when`, `input.*` могут вызывать Functions; Expression Builder показывает Functions в каталоге
-- **ADR-0025** — Scenario Engine: CEL expressions в `when`, `input.*` могут вызывать Functions
+- **ADR-0019** — Declarative business logic: CEL as the unified expression language. Functions extend the CEL Environment with user-defined computations
+- **ADR-0022** — Object View: `visibility_expr` can call Functions for complex visibility logic
+- **ADR-0024** — Procedure Engine: CEL expressions in `when`, `input.*` can call Functions; Expression Builder shows Functions in the catalog
+- **ADR-0025** — Scenario Engine: CEL expressions in `when`, `input.*` can call Functions

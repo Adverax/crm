@@ -1,167 +1,167 @@
-# ADR-0029: Стратегия версирования скриптовых сущностей
+# ADR-0029: Versioning Strategy for Scripted Entities
 
-**Статус:** Принято
-**Дата:** 2026-02-15
-**Участники:** @roman_myakotin
+**Status:** Accepted
+**Date:** 2026-02-15
+**Participants:** @roman_myakotin
 
-## Контекст
+## Context
 
-### Проблема: изменение живых скриптовых сущностей
+### Problem: Modifying Live Scripted Entities
 
-Платформа содержит несколько типов сущностей с исполняемой логикой:
+The platform contains several entity types with executable logic:
 
-| Сущность | DSL | Вызывается из | Long-running? |
-|----------|-----|---------------|---------------|
-| Procedure (ADR-0024) | JSON + CEL | Scenario, Automation Rules, UI actions | Нет (секунды) |
-| Scenario (ADR-0025) | JSON + CEL | Triggers, manual start | **Да** (минуты-дни) |
-| Custom Function (ADR-0026) | CEL-выражение | Любой CEL-контекст (inline) | Нет |
-| Validation Rule | CEL-выражение | DML pipeline (inline) | Нет |
-| Automation Rule | Trigger config | DML pipeline | Нет |
-| Object View (ADR-0022) | Config JSONB | Describe API | Нет |
-| Layout (ADR-0027) | Config JSONB | Describe API | Нет |
-| Named Credential (ADR-0028) | Config | Procedure (integration.http) | Нет |
+| Entity | DSL | Called from | Long-running? |
+|--------|-----|-------------|---------------|
+| Procedure (ADR-0024) | JSON + CEL | Scenario, Automation Rules, UI actions | No (seconds) |
+| Scenario (ADR-0025) | JSON + CEL | Triggers, manual start | **Yes** (minutes-days) |
+| Custom Function (ADR-0026) | CEL expression | Any CEL context (inline) | No |
+| Validation Rule | CEL expression | DML pipeline (inline) | No |
+| Automation Rule | Trigger config | DML pipeline | No |
+| Object View (ADR-0022) | Config JSONB | Describe API | No |
+| Layout (ADR-0027) | Config JSONB | Describe API | No |
+| Named Credential (ADR-0028) | Config | Procedure (integration.http) | No |
 
-Когда admin изменяет Procedure, возникают три проблемы:
+When an admin modifies a Procedure, three problems arise:
 
 **1. Mid-flight consistency**
-Scenario запущен и ждёт сигнала (дни). Пока ждёт — admin обновил Procedure. На следующем шаге Scenario вызовет новую версию с другим контрактом → сбой.
+A Scenario is running and waiting for a signal (days). While waiting, the admin updated the Procedure. On the next step the Scenario will call the new version with a different contract, causing a failure.
 
 **2. Unsafe deployment**
-Save = live. Ошибка в Procedure → сразу в production. Нет возможности протестировать (dry-run) перед публикацией.
+Save = live. An error in a Procedure goes straight to production. There is no way to test (dry-run) before publishing.
 
 **3. No rollback**
-После публикации ошибочной версии — только ручное редактирование. Нет одной кнопки "откатить".
+After publishing an erroneous version — only manual editing. No one-button "rollback".
 
-### Не все сущности равны
+### Not All Entities Are Equal
 
-Проблемы **не одинаково критичны** для разных типов сущностей:
+The problems are **not equally critical** for different entity types:
 
-| Проблема | Procedure | Scenario | Function | VR / AR / OV / Layout / Credential |
-|----------|-----------|----------|----------|-------------------------------------|
-| Mid-flight | Низкий риск (синхронный, секунды) | **Высокий** (async, дни) | Нет (inline) | Нет |
-| Unsafe deploy | **Да** (сложный JSON DSL) | **Да** (сложный JSON DSL) | Низкий (одно CEL-выражение, test endpoint) | Нет (простая конфигурация) |
-| No rollback | **Да** | **Да** | Низкий (правка одной строки) | Нет |
+| Problem | Procedure | Scenario | Function | VR / AR / OV / Layout / Credential |
+|---------|-----------|----------|----------|-------------------------------------|
+| Mid-flight | Low risk (synchronous, seconds) | **High** (async, days) | None (inline) | None |
+| Unsafe deploy | **Yes** (complex JSON DSL) | **Yes** (complex JSON DSL) | Low (single CEL expression, test endpoint) | None (simple configuration) |
+| No rollback | **Yes** | **Yes** | Low (editing a single line) | None |
 
-**Вывод:** Полное версирование нужно только Procedure и Scenario. Остальные сущности — либо слишком просты (CEL-выражение), либо являются конфигурацией (OV, Layout, Credential).
+**Conclusion:** Full versioning is needed only for Procedure and Scenario. Other entities are either too simple (CEL expression) or are configuration (OV, Layout, Credential).
 
-## Рассмотренные варианты
+## Considered Options
 
-### Вариант A — Без версирования
+### Option A — No Versioning
 
-Save = live для всех сущностей. Scenario snapshots definition (JSONB copy) при старте.
+Save = live for all entities. Scenario snapshots the definition (JSONB copy) at start.
 
-**Плюсы:**
-- Максимальная простота: одна таблица per entity
-- Нет дополнительной логики (draft/publish, version resolution)
+**Pros:**
+- Maximum simplicity: one table per entity
+- No additional logic (draft/publish, version resolution)
 
-**Минусы:**
-- Нет тестирования перед публикацией: ошибка в Procedure → сразу production
-- Нет истории изменений: кто что менял — неизвестно
-- Нет rollback: только ручное редактирование назад
-- JSONB snapshot тяжёлый: дублирование полного definition в каждом Scenario run
+**Cons:**
+- No testing before publishing: an error in a Procedure goes straight to production
+- No change history: who changed what is unknown
+- No rollback: only manual editing back
+- JSONB snapshot is heavy: duplicating the full definition in each Scenario run
 
-### Вариант B — Draft/Published без semver (выбран)
+### Option B — Draft/Published Without Semver (chosen)
 
-Два состояния для Procedure и Scenario. Один draft (editable, testable), один published (immutable, live). Простой auto-increment version counter (1, 2, 3...). Остальные сущности — без версирования.
+Two states for Procedure and Scenario. One draft (editable, testable), one published (immutable, live). A simple auto-increment version counter (1, 2, 3...). Other entities — no versioning.
 
-**Плюсы:**
-- Тестирование перед публикацией (dry-run на draft)
-- Rollback к предыдущей published версии — одна операция
-- История изменений (кто, когда, что)
-- Scenario snapshot = FK на version_id (не JSONB copy)
-- Salesforce-aligned: Flows используют exactly этот подход (active/inactive versions)
-- Дифференциация: сложность только там, где оправдана
-- Cognitive load для admin минимален: "Сохранить черновик" → "Опубликовать"
+**Pros:**
+- Testing before publishing (dry-run on draft)
+- Rollback to previous published version — a single operation
+- Change history (who, when, what)
+- Scenario snapshot = FK to version_id (not JSONB copy)
+- Salesforce-aligned: Flows use exactly this approach (active/inactive versions)
+- Differentiation: complexity only where justified
+- Cognitive load for admin is minimal: "Save draft" -> "Publish"
 
-**Минусы:**
-- Дополнительная таблица `_versions` для Procedure и Scenario
-- Два указателя (draft_version_id, published_version_id) вместо inline definition
-- Логика publish/rollback в service layer
+**Cons:**
+- Additional `_versions` table for Procedure and Scenario
+- Two pointers (draft_version_id, published_version_id) instead of inline definition
+- Publish/rollback logic in the service layer
 
-### Вариант C — Full Semver (MAJOR.MINOR.PATCH)
+### Option C — Full Semver (MAJOR.MINOR.PATCH)
 
-Семантическое версирование с version constraints (`^2.0`, `~2.3`), backward compatibility validation, 4 статуса (draft/published/deprecated/archived), retention policy, snapshot tables.
+Semantic versioning with version constraints (`^2.0`, `~2.3`), backward compatibility validation, 4 statuses (draft/published/deprecated/archived), retention policy, snapshot tables.
 
-**Плюсы:**
-- Granular control: Scenario может зафиксировать `^2.0` и получать только совместимые обновления
+**Pros:**
+- Granular control: a Scenario can pin `^2.0` and receive only compatible updates
 - Enterprise-grade: maximum safety
 
-**Минусы:**
-- Огромная сложность: semver parser, constraint matcher, compatibility checker, 4 статуса, retention policy, snapshot tables
-- YAGNI: один admin управляет и Procedures, и Scenarios — он знает, что меняет
-- Cognitive load: admin должен понимать semver, breaking changes, constraints
-- Ни одна CRM-платформа не использует semver для бизнес-логики (Salesforce Flows, Dynamics Power Automate, HubSpot Workflows — все используют active/inactive)
-- Version constraints (`^2.0`) предполагают независимую эволюцию потребителей — в нашей single-tenant CRM admin контролирует обе стороны
-- Backward compatibility validation требует формализации input/output schema — дополнительный слой сложности
+**Cons:**
+- Enormous complexity: semver parser, constraint matcher, compatibility checker, 4 statuses, retention policy, snapshot tables
+- YAGNI: one admin manages both Procedures and Scenarios — they know what they are changing
+- Cognitive load: admin must understand semver, breaking changes, constraints
+- No CRM platform uses semver for business logic (Salesforce Flows, Dynamics Power Automate, HubSpot Workflows — all use active/inactive)
+- Version constraints (`^2.0`) assume independent evolution of consumers — in our single-tenant CRM the admin controls both sides
+- Backward compatibility validation requires formalizing input/output schema — an additional layer of complexity
 
-### Вариант D — Immutable + Latest
+### Option D — Immutable + Latest
 
-Каждое сохранение создаёт новую immutable версию. Текущая = latest. Нет draft.
+Each save creates a new immutable version. Current = latest. No draft.
 
-**Плюсы:**
-- Полная история (каждое сохранение сохранено)
-- Простая модель: write-only, no state transitions
+**Pros:**
+- Full history (every save is preserved)
+- Simple model: write-only, no state transitions
 
-**Минусы:**
-- Нет draft/dry-run: каждое сохранение — сразу live
-- Раздувание данных: десятки versions per entity при частом редактировании
-- Нет явного "момента публикации" — всё автоматически live
+**Cons:**
+- No draft/dry-run: each save is immediately live
+- Data bloat: dozens of versions per entity with frequent editing
+- No explicit "publish moment" — everything is automatically live
 
-## Решение
+## Decision
 
-**Выбран вариант B: Draft/Published с дифференциацией по типу сущности.**
+**Option B chosen: Draft/Published with differentiation by entity type.**
 
-### Дифференциация
+### Differentiation
 
-| Сущность | Версирование | Обоснование |
-|----------|-------------|-------------|
-| **Procedure** | Draft/Published | Сложный JSON DSL; dry-run нужен; вызывается из Scenario |
-| **Scenario** | Draft/Published | Сложный JSON DSL; long-running; snapshot version при старте |
-| **Custom Function** | Нет | Одно CEL-выражение; test endpoint при сохранении; dependency check защищает от breaking changes |
-| **Validation Rule** | Нет | CEL-выражение, immediate apply; ошибка → DML возвращает ошибку |
-| **Automation Rule** | Нет | Trigger config; Procedure, которую вызывает, имеет свой draft/published |
-| **Object View** | Нет | Конфигурация представления, не логика |
-| **Layout** | Нет | Конфигурация презентации |
-| **Named Credential** | Нет | Конфигурация подключения |
+| Entity | Versioning | Rationale |
+|--------|------------|-----------|
+| **Procedure** | Draft/Published | Complex JSON DSL; dry-run needed; called from Scenario |
+| **Scenario** | Draft/Published | Complex JSON DSL; long-running; snapshot version at start |
+| **Custom Function** | None | Single CEL expression; test endpoint on save; dependency check protects against breaking changes |
+| **Validation Rule** | None | CEL expression, immediate apply; error -> DML returns error |
+| **Automation Rule** | None | Trigger config; the Procedure it calls has its own draft/published |
+| **Object View** | None | Presentation configuration, not logic |
+| **Layout** | None | Presentation configuration |
+| **Named Credential** | None | Connection configuration |
 
-### Модель Draft/Published
+### Draft/Published Model
 
 ```
               Save draft             Publish
-    ┌───────────────────┐    ┌──────────────────┐
-    │                   ▼    │                  ▼
-    │              ┌─────────┴┐           ┌──────────┐
-    └──────────────│  draft   │──────────▶│published │
-     (re-save)     │(editable) │  Publish   │(immutable)│
-                   └──────────┘           └──────────┘
-                        │                      │
-                        │                      │ (при новом Publish →
-                        │                      │  предыдущий published
-                   Delete draft                │  получает статус
-                        │                      │  "superseded")
-                        ▼                      ▼
-                   (удалён)              ┌───────────┐
-                                        │superseded │
-                                        │(read-only) │
-                                        └───────────┘
+    +-------------------+    +------------------+
+    |                   v    |                  v
+    |              +----+----++           +----------+
+    +--------------|  draft   |---------->|published |
+     (re-save)     |(editable) |  Publish   |(immutable)|
+                   +----------+           +----------+
+                        |                      |
+                        |                      | (on new Publish ->
+                        |                      |  previous published
+                   Delete draft                |  gets status
+                        |                      |  "superseded")
+                        v                      v
+                   (deleted)              +-----------+
+                                         |superseded |
+                                         |(read-only) |
+                                         +-----------+
 ```
 
-**Три статуса:**
+**Three statuses:**
 
-| Статус | Описание | Исполняемый? | Редактируемый? |
-|--------|----------|-------------|----------------|
-| `draft` | Черновик, в работе | Только dry-run | Да |
-| `published` | Активная версия | Да | Нет |
-| `superseded` | Предыдущая версия (заменена) | Нет (кроме running Scenario instances) | Нет |
+| Status | Description | Executable? | Editable? |
+|--------|-------------|-------------|-----------|
+| `draft` | Work in progress | Dry-run only | Yes |
+| `published` | Active version | Yes | No |
+| `superseded` | Previous version (replaced) | No (except running Scenario instances) | No |
 
-Нет `deprecated` и `archived` из варианта C — три статуса покрывают все потребности.
+No `deprecated` or `archived` from Option C — three statuses cover all needs.
 
-### Хранение
+### Storage
 
 **Procedure:**
 
 ```sql
--- Метаданные Procedure (без definition)
+-- Procedure metadata (without definition)
 CREATE TABLE metadata.procedures (
     id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code                 VARCHAR(100) UNIQUE NOT NULL,
@@ -173,23 +173,23 @@ CREATE TABLE metadata.procedures (
     updated_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Версии Procedure (definition живёт здесь)
+-- Procedure versions (definition lives here)
 CREATE TABLE metadata.procedure_versions (
     id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     procedure_id   UUID NOT NULL REFERENCES metadata.procedures(id) ON DELETE CASCADE,
     version        INT NOT NULL,               -- auto-increment per procedure (1, 2, 3...)
     definition     JSONB NOT NULL,             -- JSON DSL
     status         VARCHAR(20) NOT NULL DEFAULT 'draft',  -- draft | published | superseded
-    change_summary TEXT,                       -- что изменилось
-    created_by     UUID,                       -- кто создал
+    change_summary TEXT,                       -- what changed
+    created_by     UUID,                       -- who created
     created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-    published_at   TIMESTAMPTZ,               -- когда опубликовано (NULL для draft)
+    published_at   TIMESTAMPTZ,               -- when published (NULL for draft)
     CONSTRAINT procedure_versions_unique UNIQUE (procedure_id, version),
     CONSTRAINT procedure_versions_status_check CHECK (status IN ('draft', 'published', 'superseded'))
 );
 ```
 
-**Scenario — аналогично:**
+**Scenario — analogous:**
 
 ```sql
 CREATE TABLE metadata.scenarios (
@@ -218,10 +218,10 @@ CREATE TABLE metadata.scenario_versions (
 );
 ```
 
-**Scenario Run snapshot (для mid-flight consistency):**
+**Scenario Run snapshot (for mid-flight consistency):**
 
 ```sql
--- Scenario run хранит FK на конкретные версии Procedures
+-- Scenario run stores FK to specific Procedure versions
 CREATE TABLE metadata.scenario_run_snapshots (
     scenario_run_id       UUID NOT NULL,
     procedure_id          UUID NOT NULL,
@@ -230,67 +230,67 @@ CREATE TABLE metadata.scenario_run_snapshots (
 );
 ```
 
-При старте Scenario run:
-1. Для каждого `flow.call` в definition — resolve `published_version_id` текущей Procedure
-2. Записать в `scenario_run_snapshots`
-3. При исполнении шага — использовать зафиксированную version, не текущую published
+When a Scenario run starts:
+1. For each `flow.call` in the definition — resolve the current Procedure's `published_version_id`
+2. Write to `scenario_run_snapshots`
+3. During step execution — use the pinned version, not the current published one
 
-### Версия — auto-increment integer
+### Version — Auto-increment Integer
 
 ```
-Version 1 → draft → published
-Version 2 → draft → published (Version 1 → superseded)
-Version 3 → draft → published (Version 2 → superseded)
+Version 1 -> draft -> published
+Version 2 -> draft -> published (Version 1 -> superseded)
+Version 3 -> draft -> published (Version 2 -> superseded)
 ```
 
-Нет semver (MAJOR.MINOR.PATCH). Нет version constraints (`^2.0`). Простой инкремент, понятный любому admin.
+No semver (MAJOR.MINOR.PATCH). No version constraints (`^2.0`). A simple increment, understandable to any admin.
 
 ### Workflow
 
-#### Создание новой Procedure
+#### Creating a New Procedure
 
 ```
-1. Admin создаёт Procedure → Version 1 (draft)
-2. Admin редактирует draft (save N раз — тот же draft, не новая version)
-3. Admin тестирует: dry-run на draft
-4. Admin публикует → Version 1 (published)
-   → procedures.published_version_id = version_1.id
-   → procedures.draft_version_id = NULL
+1. Admin creates Procedure -> Version 1 (draft)
+2. Admin edits draft (save N times — same draft, not a new version)
+3. Admin tests: dry-run on draft
+4. Admin publishes -> Version 1 (published)
+   -> procedures.published_version_id = version_1.id
+   -> procedures.draft_version_id = NULL
 ```
 
-#### Обновление существующей
+#### Updating an Existing One
 
 ```
-1. Admin нажимает "Редактировать" → Version 2 (draft) создаётся как копия Version 1
-2. Admin вносит изменения в draft
-3. Admin тестирует: dry-run на draft
-4. Admin публикует → Version 2 (published), Version 1 (superseded)
-   → procedures.published_version_id = version_2.id
-   → procedures.draft_version_id = NULL
+1. Admin clicks "Edit" -> Version 2 (draft) is created as a copy of Version 1
+2. Admin makes changes to the draft
+3. Admin tests: dry-run on draft
+4. Admin publishes -> Version 2 (published), Version 1 (superseded)
+   -> procedures.published_version_id = version_2.id
+   -> procedures.draft_version_id = NULL
 ```
 
 #### Rollback
 
 ```
-1. Admin нажимает "Откатить" на Procedure
-2. Текущий published (Version 3) → superseded
-3. Предыдущий superseded (Version 2) → published
-   → procedures.published_version_id = version_2.id
-4. UI показывает: "Откачено к версии 2"
+1. Admin clicks "Rollback" on Procedure
+2. Current published (Version 3) -> superseded
+3. Previous superseded (Version 2) -> published
+   -> procedures.published_version_id = version_2.id
+4. UI shows: "Rolled back to version 2"
 ```
 
-#### Удаление draft
+#### Deleting a Draft
 
 ```
-1. Admin нажимает "Отменить черновик"
-2. Draft version удаляется
+1. Admin clicks "Discard draft"
+2. Draft version is deleted
 3. procedures.draft_version_id = NULL
-4. Published version остаётся активной
+4. Published version remains active
 ```
 
-### Сущности БЕЗ версирования
+### Entities WITHOUT Versioning
 
-Для сущностей без версирования (Function, Validation Rule, Automation Rule, OV, Layout, Credential) — definition хранится **inline** в основной таблице:
+For entities without versioning (Function, Validation Rule, Automation Rule, OV, Layout, Credential) — the definition is stored **inline** in the main table:
 
 ```sql
 -- Function: definition inline
@@ -299,7 +299,7 @@ CREATE TABLE metadata.functions (
     name        VARCHAR(100) UNIQUE NOT NULL,
     params      JSONB NOT NULL,
     return_type VARCHAR(20) NOT NULL,
-    body        TEXT NOT NULL,              -- CEL expression, прямо в таблице
+    body        TEXT NOT NULL,              -- CEL expression, directly in the table
     ...
 );
 
@@ -307,99 +307,99 @@ CREATE TABLE metadata.functions (
 CREATE TABLE metadata.validation_rules (
     id          UUID PRIMARY KEY,
     object_id   UUID NOT NULL,
-    expression  TEXT NOT NULL,              -- CEL expression, прямо в таблице
+    expression  TEXT NOT NULL,              -- CEL expression, directly in the table
     ...
 );
 ```
 
-Save = live. Защита от ошибок:
-- **Function**: dependency check + type validation при сохранении; test endpoint
-- **Validation Rule**: CEL compilation check при сохранении
-- **OV / Layout**: preview в admin UI перед сохранением
+Save = live. Protection against errors:
+- **Function**: dependency check + type validation on save; test endpoint
+- **Validation Rule**: CEL compilation check on save
+- **OV / Layout**: preview in admin UI before saving
 - **Credential**: test connection endpoint
 
-### Constructor UI интеграция
+### Constructor UI Integration
 
-**Для Procedure/Scenario (с версирование):**
-
-```
-┌───────────────────────────────────────────┐
-│  Procedure: create_order                   │
-│                                           │
-│  Published: Version 3 (2026-02-15)       │
-│  Status: ● Published                      │
-│                                           │
-│  [Редактировать]  [История]  [Откатить]  │
-│                                           │
-│  ─── Draft (если есть) ───               │
-│  Version 4 (draft)                       │
-│  [Тестировать]  [Опубликовать]  [Удалить] │
-│                                           │
-│  ─── История версий ───                  │
-│  v3  published  2026-02-15  "Добавлен webhook"  │
-│  v2  superseded 2026-02-14  "Новое поле email"  │
-│  v1  superseded 2026-02-13  "Первая версия"     │
-└───────────────────────────────────────────┘
-```
-
-**Для Function (без версирования):**
+**For Procedure/Scenario (with versioning):**
 
 ```
-┌───────────────────────────────────────────┐
-│  Function: discount                       │
-│                                           │
-│  [Редактировать]  [Тестировать]  [Удалить]│
-│                                           │
-│  Нет истории версий — save = live         │
-└───────────────────────────────────────────┘
++-------------------------------------------+
+|  Procedure: create_order                   |
+|                                           |
+|  Published: Version 3 (2026-02-15)       |
+|  Status: * Published                      |
+|                                           |
+|  [Edit]  [History]  [Rollback]            |
+|                                           |
+|  --- Draft (if exists) ---               |
+|  Version 4 (draft)                       |
+|  [Test]  [Publish]  [Delete]              |
+|                                           |
+|  --- Version History ---                  |
+|  v3  published  2026-02-15  "Added webhook"       |
+|  v2  superseded 2026-02-14  "New email field"     |
+|  v1  superseded 2026-02-13  "First version"       |
++-------------------------------------------+
+```
+
+**For Function (without versioning):**
+
+```
++-------------------------------------------+
+|  Function: discount                       |
+|                                           |
+|  [Edit]  [Test]  [Delete]                 |
+|                                           |
+|  No version history — save = live         |
++-------------------------------------------+
 ```
 
 ### Retention
 
-| Статус | Хранение |
-|--------|----------|
-| draft | До публикации или явного удаления |
-| published | Бессрочно (текущая active version) |
-| superseded | Последние 10 версий; старше — auto-delete |
+| Status | Retention |
+|--------|-----------|
+| draft | Until published or explicitly deleted |
+| published | Indefinitely (current active version) |
+| superseded | Last 10 versions; older ones — auto-delete |
 
-Auto-delete superseded versions старше 10 — предотвращает раздувание таблицы при частом редактировании. 10 версий достаточно для анализа истории и rollback.
+Auto-deleting superseded versions beyond 10 prevents table bloat during frequent editing. 10 versions are sufficient for history analysis and rollback.
 
-## Последствия
+## Consequences
 
-### Позитивные
+### Positive
 
-- **Safe deployment** — draft + dry-run перед публикацией для сложных DSL (Procedure, Scenario)
-- **Rollback** — одна операция для возврата к предыдущей версии
-- **Mid-flight safety** — running Scenario instances используют зафиксированные версии Procedures
-- **История изменений** — кто, когда, что изменил (change_summary)
-- **Минимальная сложность** — три статуса, auto-increment integer, нет semver
-- **Дифференциация** — версирование только там, где оправдано; простые сущности не усложняются
-- **Salesforce-aligned** — Flows используют exactly этот подход (active/inactive versions)
-- **Admin-friendly** — "Сохранить черновик" → "Опубликовать" вместо "Выберите MAJOR/MINOR/PATCH"
+- **Safe deployment** — draft + dry-run before publishing for complex DSLs (Procedure, Scenario)
+- **Rollback** — a single operation to revert to the previous version
+- **Mid-flight safety** — running Scenario instances use pinned Procedure versions
+- **Change history** — who, when, what changed (change_summary)
+- **Minimal complexity** — three statuses, auto-increment integer, no semver
+- **Differentiation** — versioning only where justified; simple entities are not overcomplicated
+- **Salesforce-aligned** — Flows use exactly this approach (active/inactive versions)
+- **Admin-friendly** — "Save draft" -> "Publish" instead of "Choose MAJOR/MINOR/PATCH"
 
-### Негативные
+### Negative
 
-- **Дополнительные таблицы** — `procedure_versions`, `scenario_versions`, `scenario_run_snapshots`
-- **Два указателя** — `draft_version_id` + `published_version_id` вместо inline definition
-- **Publish workflow** — admin должен явно опубликовать; save ≠ live (может быть непривычно)
-- **Нет granular constraints** — Scenario не может зафиксировать "любая 2.x версия Procedure"; только latest published или snapshot at start
+- **Additional tables** — `procedure_versions`, `scenario_versions`, `scenario_run_snapshots`
+- **Two pointers** — `draft_version_id` + `published_version_id` instead of inline definition
+- **Publish workflow** — admin must explicitly publish; save != live (may be unfamiliar)
+- **No granular constraints** — a Scenario cannot pin "any 2.x version of Procedure"; only latest published or snapshot at start
 
-### Что сознательно НЕ реализуем
+### What We Consciously Do NOT Implement
 
-| Фича | Причина отказа |
-|------|----------------|
-| Semver (MAJOR.MINOR.PATCH) | YAGNI; один admin контролирует обе стороны; ни одна CRM так не делает |
-| Version constraints (`^2.0`) | Предполагают независимую эволюцию потребителей; в single-tenant CRM нерелевантно |
-| Backward compatibility validation | Требует формализации input/output schema; dependency check при сохранении достаточен |
-| 4+ статуса (deprecated, archived) | Три статуса покрывают все потребности |
-| Версирование Functions/VR/AR/OV/Layout | Простые сущности; save = live + защита при сохранении (type check, dependency check, test endpoint) |
-| JSONB snapshot в Scenario run | Тяжело; FK на version_id достаточен + superseded versions защищены от удаления |
+| Feature | Reason for Rejection |
+|---------|----------------------|
+| Semver (MAJOR.MINOR.PATCH) | YAGNI; one admin controls both sides; no CRM does this |
+| Version constraints (`^2.0`) | Assumes independent evolution of consumers; irrelevant in single-tenant CRM |
+| Backward compatibility validation | Requires formalizing input/output schema; dependency check on save is sufficient |
+| 4+ statuses (deprecated, archived) | Three statuses cover all needs |
+| Versioning Functions/VR/AR/OV/Layout | Simple entities; save = live + protection on save (type check, dependency check, test endpoint) |
+| JSONB snapshot in Scenario run | Heavy; FK to version_id is sufficient + superseded versions are protected from deletion |
 
-## Связанные ADR
+## Related ADRs
 
-- **ADR-0024** — Procedure Engine: Procedure definition хранится в `procedure_versions.definition`, не в `procedures` напрямую
-- **ADR-0025** — Scenario Engine: аналогично; `scenario_run_snapshots` фиксирует versions Procedures при старте
-- **ADR-0026** — Custom Functions: без версирования; dependency check + test endpoint при сохранении
-- **ADR-0019** — Декларативная бизнес-логика: Validation Rules, Automation Rules — без версирования (CEL inline, immediate apply)
-- **ADR-0022** — Object View: без версирования (конфигурация, не логика)
-- **ADR-0027** — Layout: без версирования (конфигурация презентации)
+- **ADR-0024** — Procedure Engine: Procedure definition is stored in `procedure_versions.definition`, not directly in `procedures`
+- **ADR-0025** — Scenario Engine: analogous; `scenario_run_snapshots` pins Procedure versions at start
+- **ADR-0026** — Custom Functions: no versioning; dependency check + test endpoint on save
+- **ADR-0019** — Declarative business logic: Validation Rules, Automation Rules — no versioning (CEL inline, immediate apply)
+- **ADR-0022** — Object View: no versioning (configuration, not logic)
+- **ADR-0027** — Layout: no versioning (presentation configuration)

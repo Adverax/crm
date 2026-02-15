@@ -1,21 +1,21 @@
-# ADR-0004: Иерархия type/subtype для типизации полей
+# ADR-0004: Type/Subtype Hierarchy for Field Typing
 
-**Статус:** Принято
-**Дата:** 2026-02-08
-**Участники:** @roman_myakotin
+**Status:** Accepted
+**Date:** 2026-02-08
+**Participants:** @roman_myakotin
 
-## Контекст
+## Context
 
-Metadata-driven CRM поддерживает разнообразные типы полей: текст, числа, даты, ссылки,
-списки выбора и т.д. Необходимо выбрать способ типизации, который обеспечит:
-- Единообразную логику хранения в PostgreSQL
-- Расширяемость без изменения базовой инфраструктуры
-- Чёткое разделение storage-логики и семантики/валидации
-- Простоту реализации UI-компонентов
+A metadata-driven CRM supports a variety of field types: text, numbers, dates, references,
+picklists, etc. A typing approach is needed that ensures:
+- Uniform storage logic in PostgreSQL
+- Extensibility without changes to the base infrastructure
+- Clear separation of storage logic and semantics/validation
+- Simplicity in implementing UI components
 
-## Рассмотренные варианты
+## Considered Options
 
-### Вариант A: Плоский enum типов
+### Option A: Flat type enum
 
 ```
 field_type: text | textarea | rich_text | email | phone | url |
@@ -24,76 +24,76 @@ field_type: text | textarea | rich_text | email | phone | url |
             picklist | multipicklist | association | composition
 ```
 
-**Плюсы:**
-- Просто — одно поле, один enum
-- Однозначный маппинг тип → поведение
+**Pros:**
+- Simple — one field, one enum
+- Unambiguous type -> behavior mapping
 
-**Минусы:**
-- Каждый новый тип (например, `ip_address`, `rating`) расширяет enum
-- Дублирование логики: `text`, `email`, `phone`, `url` хранятся одинаково (VARCHAR),
-  но обрабатываются как разные типы — нужны отдельные ветки в каждом switch/case
-- Нет группировки — валидатор, SOQL-оператор, UI-компонент не могут обработать
-  "все строковые типы" одним блоком
+**Cons:**
+- Every new type (e.g. `ip_address`, `rating`) expands the enum
+- Logic duplication: `text`, `email`, `phone`, `url` are stored identically (VARCHAR),
+  but processed as different types — requiring separate branches in every switch/case
+- No grouping — the validator, SOQL operator, and UI component cannot handle
+  "all string types" in a single block
 
-### Вариант B: Иерархия type/subtype (выбран)
+### Option B: Type/subtype hierarchy (chosen)
 
 ```
 field_type:    text | number | boolean | datetime | picklist | reference
-field_subtype: зависит от type (nullable для boolean)
+field_subtype: depends on type (nullable for boolean)
 ```
 
-`type` определяет storage (как хранить в PG), `subtype` определяет семантику
-(как валидировать и рендерить).
+`type` defines storage (how to store in PG), `subtype` defines semantics
+(how to validate and render).
 
-**Плюсы:**
-- Чёткое разделение: storage concern (type) vs semantic concern (subtype)
-- Код организуется по типам: один handler для всех `text/*`, один для всех `number/*`
-- Расширяемость: новый `text/ip_address` — это subtype + валидатор, без изменения storage
-- UI: base-компонент по `type`, модификация поведения по `subtype`
+**Pros:**
+- Clear separation: storage concern (type) vs semantic concern (subtype)
+- Code is organized by type: one handler for all `text/*`, one for all `number/*`
+- Extensibility: a new `text/ip_address` is just a subtype + validator, no storage changes
+- UI: base component by `type`, behavior modification by `subtype`
 
-**Минусы:**
-- Два поля вместо одного в метаданных
-- Нужна валидация допустимых комбинаций type+subtype
+**Cons:**
+- Two fields instead of one in metadata
+- Requires validation of allowed type+subtype combinations
 
-## Решение
+## Decision
 
-Используем иерархию **type/subtype**. В таблице `field_definitions`:
+We use a **type/subtype** hierarchy. In the `field_definitions` table:
 
 ```sql
-field_type    VARCHAR(20) NOT NULL,  -- базовый тип: storage concern
-field_subtype VARCHAR(20),           -- семантика: nullable (не обязателен для boolean)
+field_type    VARCHAR(20) NOT NULL,  -- base type: storage concern
+field_subtype VARCHAR(20),           -- semantics: nullable (not required for boolean)
 ```
 
-### Полный реестр type/subtype
+### Full type/subtype registry
 
-#### text → VARCHAR / TEXT
+#### text -> VARCHAR / TEXT
 
-| subtype | PG storage | max_length | Валидация | UI |
+| subtype | PG storage | max_length | Validation | UI |
 |---------|-----------|-----------|-----------|-----|
-| `plain` | VARCHAR(n) | 1–255 | — | text input |
+| `plain` | VARCHAR(n) | 1-255 | — | text input |
 | `area` | TEXT | — | — | textarea |
 | `rich` | TEXT | — | HTML sanitize | rich editor |
 | `email` | VARCHAR(255) | 255 | email format | mailto link |
 | `phone` | VARCHAR(40) | 40 | phone format | tel link |
 | `url` | VARCHAR(2048) | 2048 | URL format | clickable link |
 
-#### number → NUMERIC
+#### number -> NUMERIC
 
 | subtype | PG storage | precision/scale | UI |
 |---------|-----------|----------------|-----|
-| `integer` | NUMERIC(18,0) | настраиваемый | number input |
-| `decimal` | NUMERIC(p,s) | настраиваемый | number input |
-| `currency` | NUMERIC(18,2) | фиксированный | с символом валюты |
-| `percent` | NUMERIC(5,2) | фиксированный | с символом % |
+| `integer` | NUMERIC(18,0) | configurable | number input |
+| `decimal` | NUMERIC(p,s) | configurable | number input |
+| `currency` | NUMERIC(18,2) | fixed | with currency symbol |
+| `percent` | NUMERIC(5,2) | fixed | with % symbol |
 | `auto_number` | sequence + format | — | display only, read-only |
 
-#### boolean → BOOLEAN
+#### boolean -> BOOLEAN
 
-| subtype | Описание |
+| subtype | Description |
 |---------|----------|
-| NULL | subtype не требуется |
+| NULL | subtype is not required |
 
-#### datetime → DATE / TIMESTAMPTZ / TIME
+#### datetime -> DATE / TIMESTAMPTZ / TIME
 
 | subtype | PG storage | UI |
 |---------|-----------|-----|
@@ -101,40 +101,40 @@ field_subtype VARCHAR(20),           -- семантика: nullable (не об�
 | `datetime` | TIMESTAMPTZ | datetime picker |
 | `time` | TIME | time picker |
 
-#### picklist → VARCHAR / VARCHAR[]
+#### picklist -> VARCHAR / VARCHAR[]
 
 | subtype | PG storage | UI |
 |---------|-----------|-----|
 | `single` | VARCHAR(255) | dropdown / radio |
 | `multi` | VARCHAR(255)[] | multi-select / checkboxes |
 
-#### reference → UUID FK
+#### reference -> UUID FK
 
-| subtype | nullable | ON DELETE | owner записи | UI |
+| subtype | nullable | ON DELETE | record owner | UI |
 |---------|----------|-----------|-------------|-----|
-| `association` | yes | SET NULL | собственный | search/select, очищаемое |
-| `composition` | no | CASCADE | наследуется от parent | search/select, обязательное |
+| `association` | yes | SET NULL | own | search/select, clearable |
+| `composition` | no | CASCADE | inherited from parent | search/select, required |
 
-Терминология взята из UML/DDD вместо Salesforce-специфичных `lookup`/`master_detail`:
-- **association** — объекты связаны, но независимы. Удаление parent не уничтожает child.
-- **composition** — lifecycle dependency. Child не существует без parent.
+Terminology is taken from UML/DDD instead of Salesforce-specific `lookup`/`master_detail`:
+- **association** — objects are related but independent. Deleting the parent does not destroy the child.
+- **composition** — lifecycle dependency. The child does not exist without the parent.
 
-Hierarchical relationship (self-referencing, например User → User для org chart)
-не выделяется в отдельный subtype — это `association` с `referenced_object = self`
-и валидацией циклов в DML engine.
+Hierarchical relationship (self-referencing, e.g. User -> User for org chart)
+is not a separate subtype — it is an `association` with `referenced_object = self`
+and cycle validation in the DML engine.
 
-Детализация reference-типов (каскады, наследование, ограничения) — ADR-0005.
+Details on reference types (cascades, inheritance, restrictions) — ADR-0005.
 
-### Валидация допустимых комбинаций
+### Validation of allowed combinations
 
-Metadata engine при создании/обновлении поля проверяет, что пара (type, subtype)
-входит в реестр допустимых комбинаций. Недопустимые комбинации отклоняются.
+The metadata engine validates that the (type, subtype) pair is in the registry of allowed
+combinations when creating/updating a field. Invalid combinations are rejected.
 
-### Таблица `field_definitions`
+### `field_definitions` table
 
 ```sql
 CREATE TABLE field_definitions (
-    -- Идентификация
+    -- Identification
     id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     object_id            UUID         NOT NULL REFERENCES object_definitions(id),
     api_name             VARCHAR(100) NOT NULL,
@@ -142,21 +142,21 @@ CREATE TABLE field_definitions (
     description          TEXT         NOT NULL DEFAULT '',
     help_text            TEXT         NOT NULL DEFAULT '',
 
-    -- Типизация
+    -- Typing
     field_type           VARCHAR(20)  NOT NULL,
     field_subtype        VARCHAR(20),
 
-    -- Reference-связь (прямая колонка для FK constraint)
+    -- Reference link (direct column for FK constraint)
     referenced_object_id UUID         REFERENCES object_definitions(id),
 
-    -- Структурные constraints
+    -- Structural constraints
     is_required          BOOLEAN      NOT NULL DEFAULT false,
     is_unique            BOOLEAN      NOT NULL DEFAULT false,
 
-    -- Type-specific параметры (JSONB вместо множества nullable-колонок)
+    -- Type-specific parameters (JSONB instead of many nullable columns)
     config               JSONB        NOT NULL DEFAULT '{}',
 
-    -- Классификация
+    -- Classification
     is_system_field      BOOLEAN      NOT NULL DEFAULT false,
     is_custom            BOOLEAN      NOT NULL DEFAULT false,
     is_platform_managed  BOOLEAN      NOT NULL DEFAULT false,
@@ -170,19 +170,19 @@ CREATE TABLE field_definitions (
 );
 ```
 
-#### Хранение type-specific параметров: отдельные колонки vs JSONB config
+#### Storing type-specific parameters: separate columns vs JSONB config
 
-**Проблема:** Type-specific атрибуты (`max_length`, `precision`, `scale`, `relationship_name`,
-`on_delete`, `is_reparentable`, `auto_number_format` и т.д.) заполняются только для своего типа.
-При ~8 nullable-колонках у поля `text/email` 7 из 9 будут NULL. Каждый новый атрибут = миграция.
+**Problem:** Type-specific attributes (`max_length`, `precision`, `scale`, `relationship_name`,
+`on_delete`, `is_reparentable`, `auto_number_format`, etc.) are only populated for their own type.
+With ~8 nullable columns, a `text/email` field would have 7 out of 9 as NULL. Each new attribute requires a migration.
 
-**Решение:** Единая колонка `config JSONB`. Metadata engine при создании/обновлении поля
-валидирует содержимое config по JSON-схеме, зависящей от `(field_type, field_subtype)`.
+**Solution:** A single `config JSONB` column. The metadata engine validates the config content
+against a JSON schema that depends on `(field_type, field_subtype)` when creating/updating a field.
 
-**Исключение:** `referenced_object_id` остаётся прямой колонкой — FK constraint на
-`object_definitions` обеспечивает целостность на уровне БД.
+**Exception:** `referenced_object_id` remains a direct column — the FK constraint on
+`object_definitions` ensures integrity at the database level.
 
-#### Содержимое config по типам
+#### Config content by type
 
 | type/subtype | config |
 |---|---|
@@ -196,43 +196,43 @@ CREATE TABLE field_definitions (
 | number/auto_number | `{"format": "INV-{0000}", "start_value": 1}` |
 | boolean | `{"default_value": "false"}` |
 | datetime/* | `{"default_value": ""}` |
-| picklist/single | `{"values": [...], "default_value": ""}` — см. раздел Picklist values |
-| picklist/multi | `{"values": [...], "default_value": []}` — см. раздел Picklist values |
+| picklist/single | `{"values": [...], "default_value": ""}` — see Picklist values section |
+| picklist/multi | `{"values": [...], "default_value": []}` — see Picklist values section |
 | reference/association | `{"relationship_name": "Contacts", "on_delete": "set_null"}` |
 | reference/composition | `{"relationship_name": "LineItems", "on_delete": "cascade", "is_reparentable": false}` |
 | reference/polymorphic | `{"relationship_name": "Activities"}` |
 
 ### Picklist values
 
-Picklist-значения хранятся в `config.values[]` — и для локальных, и для глобальных picklists.
-Единообразный паттерн: metadata engine всегда читает значения из config, не из отдельной таблицы.
+Picklist values are stored in `config.values[]` — for both local and global picklists.
+A uniform pattern: the metadata engine always reads values from config, not from a separate table.
 
-#### Формат values в config
+#### Values format in config
 
 ```jsonc
 {
-  // Ссылка на глобальный picklist (null для локального)
+  // Reference to global picklist (null for local)
   "picklist_id": "uuid-or-null",
-  // Значения — всегда здесь, независимо от источника
+  // Values are always here, regardless of source
   "values": [
-    {"id": "uuid1", "value": "new", "label": "Новая", "sort_order": 1, "is_default": true, "is_active": true},
-    {"id": "uuid2", "value": "in_progress", "label": "В работе", "sort_order": 2, "is_default": false, "is_active": true},
-    {"id": "uuid3", "value": "closed", "label": "Закрыта", "sort_order": 3, "is_default": false, "is_active": true}
+    {"id": "uuid1", "value": "new", "label": "New", "sort_order": 1, "is_default": true, "is_active": true},
+    {"id": "uuid2", "value": "in_progress", "label": "In Progress", "sort_order": 2, "is_default": false, "is_active": true},
+    {"id": "uuid3", "value": "closed", "label": "Closed", "sort_order": 3, "is_default": false, "is_active": true}
   ],
   "default_value": "new"
 }
 ```
 
-Каждое значение имеет `id` (UUID) — используется как `resource_id` в таблице `translations`
-(`resource_type = 'PicklistValue'`) для i18n.
+Each value has an `id` (UUID) — used as `resource_id` in the `translations` table
+(`resource_type = 'PicklistValue'`) for i18n.
 
-`is_active` необходим для picklist-значений: деактивированное значение не показывается
-в dropdown для новых записей, но существующие записи сохраняют его. Удаление значения
-сломало бы данные.
+`is_active` is necessary for picklist values: a deactivated value is not shown
+in the dropdown for new records, but existing records retain it. Deleting a value
+would break data.
 
-#### Глобальные picklists (Global Value Sets)
+#### Global picklists (Global Value Sets)
 
-Переиспользуемые наборы значений. Хранятся в отдельных таблицах:
+Reusable value sets. Stored in separate tables:
 
 ```sql
 CREATE TABLE picklist_definitions (
@@ -258,39 +258,39 @@ CREATE TABLE picklist_values (
 );
 ```
 
-#### Синхронизация глобальных picklists в config
+#### Synchronizing global picklists into config
 
-При обновлении глобального picklist:
-1. Обновить `picklist_values` в таблице
-2. Найти все `field_definitions` где `config->>'picklist_id' = :id`
-3. Перезаписать `config.values` актуальными данными из `picklist_values`
+When updating a global picklist:
+1. Update `picklist_values` in the table
+2. Find all `field_definitions` where `config->>'picklist_id' = :id`
+3. Overwrite `config.values` with the current data from `picklist_values`
 
-Синхронизация происходит при admin-операциях (редко). Runtime-чтение всегда из config.
+Synchronization occurs during admin operations (infrequently). Runtime reads always come from config.
 
-Если `config.picklist_id` заполнен — поле привязано к глобальному picklist, значения
-полностью синхронизируются. Локальные отклонения не допускаются. Чтобы отклониться —
-отвязать от глобального (обнулить `picklist_id`), дальше управлять локально.
+If `config.picklist_id` is populated — the field is bound to a global picklist and values
+are fully synchronized. Local deviations are not allowed. To deviate — unbind from
+the global picklist (set `picklist_id` to null), then manage locally.
 
-#### Отложено
+#### Deferred
 
-- Зависимые picklists (dependent picklists) — не нужны для MVP
-- Цвет/иконка значения — не нужны для MVP
+- Dependent picklists — not needed for MVP
+- Value color/icon — not needed for MVP
 
-## Последствия
+## Consequences
 
-- `field_definitions` содержит `field_type` + `field_subtype` (nullable) + `config` (JSONB)
-- `referenced_object_id` — прямая колонка с FK для целостности
-- Type-specific параметры в `config` — без миграций при добавлении новых атрибутов
-- Metadata engine валидирует config по JSON-схеме для каждой комбинации type+subtype
-- Структурные constraints (`is_required`, `is_unique`) — прямые колонки (влияют на DDL)
-- Бизнес-валидация (CEL-выражения) — отдельная сущность Validation Rules (отложена)
-- Валидаторы, SOQL-операторы, DML-обработчики организованы по `field_type`
-- Добавление нового subtype — регистрация + валидатор, без миграций и изменения core
-- UI-компоненты: base по `type`, поведение по `subtype`
-- `boolean` не имеет subtype (`field_subtype = NULL`)
-- Reference subtypes: `association`, `composition`, `polymorphic` (детали в ADR-0005)
-- Hierarchical — не отдельный subtype, а `association` с self-reference
-- i18n для `label`, `description`, `help_text` — через таблицу `translations` (ADR-0002)
-- Picklist values всегда в `config.values[]` — единообразное чтение
-- Глобальные picklists: таблицы `picklist_definitions` + `picklist_values`, sync в config
-- Зависимые picklists и цвет — отложены
+- `field_definitions` contains `field_type` + `field_subtype` (nullable) + `config` (JSONB)
+- `referenced_object_id` — a direct column with FK for integrity
+- Type-specific parameters in `config` — no migrations when adding new attributes
+- The metadata engine validates config against a JSON schema for each type+subtype combination
+- Structural constraints (`is_required`, `is_unique`) — direct columns (they affect DDL)
+- Business validation (CEL expressions) — a separate Validation Rules entity (deferred)
+- Validators, SOQL operators, and DML handlers are organized by `field_type`
+- Adding a new subtype — registration + validator, no migrations or core changes
+- UI components: base by `type`, behavior by `subtype`
+- `boolean` has no subtype (`field_subtype = NULL`)
+- Reference subtypes: `association`, `composition`, `polymorphic` (details in ADR-0005)
+- Hierarchical is not a separate subtype — it is an `association` with self-reference
+- i18n for `label`, `description`, `help_text` — via the `translations` table (ADR-0002)
+- Picklist values are always in `config.values[]` — uniform reads
+- Global picklists: `picklist_definitions` + `picklist_values` tables, synced into config
+- Dependent picklists and colors — deferred

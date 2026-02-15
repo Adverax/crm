@@ -59,7 +59,7 @@ test.describe('Validation rule create page', () => {
     await page.goto(`/admin/metadata/objects/${objectId}/rules/new`)
     await expect(page.locator('[data-testid="field-api-name"]')).toBeVisible()
     await expect(page.locator('[data-testid="field-label"]')).toBeVisible()
-    await expect(page.locator('[data-testid="field-expression"]')).toBeVisible()
+    await expect(page.locator('[data-testid="expression-builder"]').first()).toBeVisible()
     await expect(page.locator('[data-testid="field-error-message"]')).toBeVisible()
   })
 
@@ -80,7 +80,12 @@ test.describe('Validation rule create page', () => {
 
     await page.locator('[data-testid="field-api-name"]').fill('test_rule')
     await page.locator('[data-testid="field-label"]').fill('Test Rule')
-    await page.locator('[data-testid="field-expression"]').fill('size(record.Name) > 0')
+
+    // Type into CodeMirror editor (ExpressionBuilder)
+    const editor = page.locator('[data-testid="codemirror-editor"] .cm-content').first()
+    await editor.click()
+    await page.keyboard.type('size(record.Name) > 0')
+
     await page.locator('[data-testid="field-error-message"]').fill('Name is required')
 
     const requestPromise = page.waitForRequest(
@@ -123,7 +128,7 @@ test.describe('Validation rule detail page', () => {
   test('has editable form fields', async ({ page }) => {
     await page.goto(`/admin/metadata/objects/${objectId}/rules/${rule.id}`)
     await expect(page.locator('[data-testid="field-label"]')).toBeVisible()
-    await expect(page.locator('[data-testid="field-expression"]')).toBeVisible()
+    await expect(page.locator('[data-testid="expression-builder"]').first()).toBeVisible()
     await expect(page.locator('[data-testid="field-error-message"]')).toBeVisible()
   })
 

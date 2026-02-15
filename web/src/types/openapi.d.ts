@@ -414,6 +414,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/functions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all custom functions */
+        get: operations["listFunctions"];
+        put?: never;
+        /** Create a custom function */
+        post: operations["createFunction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/functions/{functionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                functionId: components["parameters"]["FunctionId"];
+            };
+            cookie?: never;
+        };
+        /** Get a custom function by ID */
+        get: operations["getFunction"];
+        /** Update a custom function */
+        put: operations["updateFunction"];
+        post?: never;
+        /** Delete a custom function */
+        delete: operations["deleteFunction"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/cel/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validate a CEL expression */
+        post: operations["validateCelExpression"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -814,6 +870,62 @@ export interface components {
             code: string;
             message: string;
         };
+        Function: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            description?: string;
+            params?: components["schemas"]["FunctionParam"][];
+            /** @enum {string} */
+            return_type?: "string" | "number" | "boolean" | "list" | "map" | "any";
+            body?: string;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        FunctionParam: {
+            name: string;
+            /** @enum {string} */
+            type: "string" | "number" | "boolean" | "list" | "map" | "any";
+            description?: string;
+        };
+        CreateFunctionRequest: {
+            name: string;
+            description?: string;
+            params?: components["schemas"]["FunctionParam"][];
+            /** @enum {string} */
+            return_type?: "string" | "number" | "boolean" | "list" | "map" | "any";
+            body: string;
+        };
+        UpdateFunctionRequest: {
+            description?: string;
+            params?: components["schemas"]["FunctionParam"][];
+            /** @enum {string} */
+            return_type?: "string" | "number" | "boolean" | "list" | "map" | "any";
+            body: string;
+        };
+        CelValidateRequest: {
+            expression: string;
+            /** @enum {string} */
+            context: "validation_rule" | "when_expression" | "default_expr" | "function_body" | "visibility_expr";
+            object_api_name?: string;
+            params?: components["schemas"]["CelParamDef"][];
+        };
+        CelParamDef: {
+            name: string;
+            type: string;
+        };
+        CelValidateResponse: {
+            valid: boolean;
+            return_type?: string;
+            errors?: components["schemas"]["CelValidateError"][];
+        };
+        CelValidateError: {
+            message: string;
+            line?: number;
+            column?: number;
+        };
         ErrorResponse: {
             error: components["schemas"]["ErrorBody"];
         };
@@ -878,6 +990,7 @@ export interface components {
         ObjectId: string;
         FieldId: string;
         RuleId: string;
+        FunctionId: string;
         Page: number;
         PerPage: number;
     };
@@ -1790,6 +1903,157 @@ export interface operations {
                 content?: never;
             };
             404: components["responses"]["NotFound"];
+        };
+    };
+    listFunctions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of functions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["Function"][];
+                    };
+                };
+            };
+        };
+    };
+    createFunction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateFunctionRequest"];
+            };
+        };
+        responses: {
+            /** @description Function created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["Function"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getFunction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                functionId: components["parameters"]["FunctionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Function details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["Function"];
+                    };
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateFunction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                functionId: components["parameters"]["FunctionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateFunctionRequest"];
+            };
+        };
+        responses: {
+            /** @description Function updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["Function"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteFunction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                functionId: components["parameters"]["FunctionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Function deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    validateCelExpression: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CelValidateRequest"];
+            };
+        };
+        responses: {
+            /** @description Validation result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CelValidateResponse"];
+                };
+            };
         };
     };
 }

@@ -16,9 +16,10 @@ type CELRuleValidator struct {
 	celCache *celengine.ProgramCache
 }
 
-// NewCELRuleValidator creates a new CELRuleValidator.
-func NewCELRuleValidator(cache *metadata.MetadataCache) (*CELRuleValidator, error) {
-	env, err := celengine.StandardEnv()
+// NewCELRuleValidator creates a new CELRuleValidator with an optional FunctionRegistry.
+// If registry is nil, a plain StandardEnv is used.
+func NewCELRuleValidator(cache *metadata.MetadataCache, registry *celengine.FunctionRegistry) (*CELRuleValidator, error) {
+	env, err := buildStandardEnv(registry)
 	if err != nil {
 		return nil, fmt.Errorf("newCELRuleValidator: %w", err)
 	}
@@ -26,6 +27,23 @@ func NewCELRuleValidator(cache *metadata.MetadataCache) (*CELRuleValidator, erro
 		cache:    cache,
 		celCache: celengine.NewProgramCache(env),
 	}, nil
+}
+
+// RebuildEnv rebuilds the CEL environment with an updated FunctionRegistry.
+func (v *CELRuleValidator) RebuildEnv(registry *celengine.FunctionRegistry) error {
+	env, err := buildStandardEnv(registry)
+	if err != nil {
+		return fmt.Errorf("celRuleValidator.RebuildEnv: %w", err)
+	}
+	v.celCache.Reset(env)
+	return nil
+}
+
+func buildStandardEnv(registry *celengine.FunctionRegistry) (*celengine.Env, error) {
+	if registry != nil {
+		return celengine.StandardEnvWithFunctions(registry)
+	}
+	return celengine.StandardEnv()
 }
 
 // ValidateRules implements engine.RuleValidator.

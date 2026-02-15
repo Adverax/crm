@@ -82,6 +82,10 @@ func (s *stubDescribeCacheLoader) LoadAllValidationRules(_ context.Context) ([]m
 	return nil, nil
 }
 
+func (s *stubDescribeCacheLoader) LoadAllFunctions(_ context.Context) ([]metadata.Function, error) {
+	return nil, nil
+}
+
 func buildDescribeTestCache(objID uuid.UUID, apiName, tableName string) *metadata.MetadataCache {
 	fieldID := uuid.New()
 	loader := &stubDescribeCacheLoader{

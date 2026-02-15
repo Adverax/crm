@@ -991,6 +991,77 @@ export async function setupValidationRuleRoutes(page: Page) {
   }
 }
 
+// ─── Functions mock data ─────────────────────────────────────
+
+export const mockFunctions = [
+  {
+    id: 'fn111111-1111-1111-1111-111111111111',
+    name: 'discount',
+    description: 'Рассчитывает скидку по сумме',
+    params: [
+      { name: 'amount', type: 'number', description: 'Сумма' },
+    ],
+    return_type: 'number',
+    body: 'amount > 1000 ? amount * 0.1 : 0.0',
+    created_at: '2026-02-15T10:00:00Z',
+    updated_at: '2026-02-15T10:00:00Z',
+  },
+  {
+    id: 'fn222222-2222-2222-2222-222222222222',
+    name: 'is_premium',
+    description: 'Проверяет премиум-статус',
+    params: [
+      { name: 'total', type: 'number', description: 'Общая сумма' },
+      { name: 'count', type: 'number', description: 'Количество заказов' },
+    ],
+    return_type: 'boolean',
+    body: 'total > 10000 && count > 5',
+    created_at: '2026-02-15T11:00:00Z',
+    updated_at: '2026-02-15T11:00:00Z',
+  },
+]
+
+export async function setupFunctionRoutes(page: Page) {
+  await page.route('**/api/v1/admin/functions?*', (route) => {
+    route.fulfill({ json: singleResponse(mockFunctions) })
+  })
+  await page.route('**/api/v1/admin/functions', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ json: singleResponse(mockFunctions) })
+    }
+    if (route.request().method() === 'POST') {
+      return route.fulfill({
+        json: singleResponse({ ...mockFunctions[0], id: 'new-function-id' }),
+      })
+    }
+    return route.continue()
+  })
+  for (const fn of mockFunctions) {
+    await page.route(`**/api/v1/admin/functions/${fn.id}`, (route) => {
+      if (route.request().method() === 'GET') {
+        return route.fulfill({ json: singleResponse(fn) })
+      }
+      if (route.request().method() === 'PUT') {
+        return route.fulfill({ json: singleResponse(fn) })
+      }
+      if (route.request().method() === 'DELETE') {
+        return route.fulfill({ status: 204 })
+      }
+      return route.continue()
+    })
+  }
+
+  // CEL validate endpoint
+  await page.route('**/api/v1/admin/cel/validate', (route) => {
+    if (route.request().method() === 'POST') {
+      return route.fulfill({
+        json: { valid: true, return_type: 'bool' },
+      })
+    }
+    return route.continue()
+  })
+}
+
 // ─── Describe / Records mock data ─────────────────────────────
 
 export const mockDescribeList = [
@@ -1159,6 +1230,7 @@ export async function setupAllRoutes(page: Page) {
   await setupTemplateRoutes(page)
   await setupTerritoryRoutes(page)
   await setupValidationRuleRoutes(page)
+  await setupFunctionRoutes(page)
   await setupDescribeRoutes(page)
   await setupRecordRoutes(page)
 }

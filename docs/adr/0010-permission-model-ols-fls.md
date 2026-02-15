@@ -1,37 +1,37 @@
-# ADR-0010: Модель permissions — OLS/FLS
+# ADR-0010: Permission Model — OLS/FLS
 
-**Статус:** Принято
-**Дата:** 2026-02-08
-**Участники:** @roman_myakotin
+**Status:** Accepted
+**Date:** 2026-02-08
+**Participants:** @roman_myakotin
 
-## Контекст
+## Context
 
-Необходимо определить как хранятся и вычисляются Object-Level Security (OLS) и
-Field-Level Security (FLS). Ключевой вопрос: Profile и PermissionSet имеют одинаковую
-структуру permissions — хранить их раздельно или унифицировать?
+It is necessary to determine how Object-Level Security (OLS) and
+Field-Level Security (FLS) are stored and computed. The key question: Profile and PermissionSet
+have the same permissions structure — should they be stored separately or unified?
 
-## Рассмотренные варианты
+## Options Considered
 
-### Вариант A — Profile = special PermissionSet (выбран)
+### Option A — Profile = Special PermissionSet (chosen)
 
-Profile содержит `base_permission_set_id` — ссылка на PermissionSet.
-OLS/FLS хранятся **только** в таблицах PermissionSet.
-Одна точка правды, один enforcement path.
+Profile contains `base_permission_set_id` — a reference to a PermissionSet.
+OLS/FLS are stored **only** in PermissionSet tables.
+Single source of truth, single enforcement path.
 
-Плюсы: нет дублирования логики, единый механизм вычисления.
-Минусы: чуть менее очевидная ментальная модель для админа.
+Pros: no logic duplication, unified computation mechanism.
+Cons: slightly less obvious mental model for the admin.
 
-### Вариант B — раздельное хранение
+### Option B — Separate Storage
 
-Profile имеет свои `ProfileObjectPermissions` / `ProfileFieldPermissions`.
-PermissionSet имеет свои `ObjectPermissions` / `FieldPermissions`.
+Profile has its own `ProfileObjectPermissions` / `ProfileFieldPermissions`.
+PermissionSet has its own `ObjectPermissions` / `FieldPermissions`.
 
-Плюсы: явное разделение baseline и additive.
-Минусы: две таблицы с одинаковой структурой, два пути в коде, двойная поддержка.
+Pros: explicit separation of baseline and additive.
+Cons: two tables with identical structure, two code paths, double maintenance.
 
-## Решение
+## Decision
 
-### Profile как special PermissionSet
+### Profile as a Special PermissionSet
 
 ```
 Profile
@@ -54,11 +54,11 @@ PermissionSet
   +updated_at   TIMESTAMPTZ
 ```
 
-- `ps_type = 'grant'` — расширяет права (default)
-- `ps_type = 'deny'` — глобально подавляет права
+- `ps_type = 'grant'` — extends permissions (default)
+- `ps_type = 'deny'` — globally suppresses permissions
 
-Profile — отдельная сущность (назначается пользователю, обязателен),
-его permissions живут в привязанном PermissionSet (всегда `ps_type = 'grant'`).
+Profile is a separate entity (assigned to a user, mandatory),
+its permissions reside in the linked PermissionSet (always `ps_type = 'grant'`).
 
 ### OLS — Object Permissions
 
@@ -73,14 +73,14 @@ ObjectPermissions
 
 Bitmask `permissions`:
 
-| Бит | Значение | Операция |
-|-----|----------|----------|
-| 1   | 0x01     | Read     |
-| 2   | 0x02     | Create   |
-| 4   | 0x04     | Update   |
-| 8   | 0x08     | Delete   |
+| Bit | Value | Operation |
+|-----|-------|-----------|
+| 1   | 0x01  | Read      |
+| 2   | 0x02  | Create    |
+| 4   | 0x04  | Update    |
+| 8   | 0x08  | Delete    |
 
-Примеры: `1` = Read only, `3` = Read + Create, `15` = Full CRUD.
+Examples: `1` = Read only, `3` = Read + Create, `15` = Full CRUD.
 
 ### FLS — Field Permissions
 
@@ -95,14 +95,14 @@ FieldPermissions
 
 Bitmask `permissions`:
 
-| Бит | Значение | Операция |
-|-----|----------|----------|
-| 1   | 0x01     | Read     |
-| 2   | 0x02     | Write    |
+| Bit | Value | Operation |
+|-----|-------|-----------|
+| 1   | 0x01  | Read      |
+| 2   | 0x02  | Write     |
 
-Примеры: `0` = Hidden, `1` = Read only, `3` = Read + Write.
+Examples: `0` = Hidden, `1` = Read only, `3` = Read + Write.
 
-### Назначение PermissionSet пользователям
+### Assigning PermissionSets to Users
 
 ```
 PermissionSetToUser
@@ -112,27 +112,27 @@ PermissionSetToUser
   +UNIQUE (permission_set_id, user_id)
 ```
 
-### Вычисление effective permissions
+### Computing Effective Permissions
 
-**Effective OLS** для пользователя на объект:
+**Effective OLS** for a user on an object:
 
 ```
--- Шаг 1: собрать все grant PS (profile base + назначенные grant PS)
+-- Step 1: collect all grant PS (profile base + assigned grant PS)
 grants = profile.base_ps.permissions[object]
        | grant_ps1.permissions[object]
        | grant_ps2.permissions[object]
        | ...
 
--- Шаг 2: собрать все deny PS
+-- Step 2: collect all deny PS
 denies = deny_ps1.permissions[object]
        | deny_ps2.permissions[object]
        | ...
 
--- Шаг 3: deny побеждает grant
+-- Step 3: deny wins over grant
 effective_ols(user, object) = grants & ~denies
 ```
 
-**Effective FLS** — аналогично:
+**Effective FLS** — analogously:
 
 ```
 grants = OR(all grant PS field_permissions[field])
@@ -140,10 +140,10 @@ denies = OR(all deny PS field_permissions[field])
 effective_fls(user, field) = grants & ~denies
 ```
 
-Если поле не упомянуто ни в одном grant PS — доступ `0` (Hidden).
-Deny PS на поле, которое не в grant — не имеет эффекта.
+If a field is not mentioned in any grant PS — access is `0` (Hidden).
+A Deny PS on a field that is not in any grant — has no effect.
 
-**Пример:**
+**Example:**
 
 ```
 Profile base PS:       Account = 15 (CRUD)
@@ -155,17 +155,17 @@ denies  = 8             (0b1000)
 effective = 15 & ~8 = 7 (0b0111) → Read + Create + Update, NO Delete
 ```
 
-### Кэширование
+### Caching
 
-Effective permissions кэшируются в таблицах `effective_ols`, `effective_fls`,
-`effective_field_lists` (см. ADR-0012). Инвалидация через outbox pattern.
+Effective permissions are cached in `effective_ols`, `effective_fls`,
+`effective_field_lists` tables (see ADR-0012). Invalidation via the outbox pattern.
 
-## Последствия
+## Consequences
 
-- Profile и PermissionSet используют общие таблицы `ObjectPermissions` / `FieldPermissions`
-- Единый enforcement path: собрать grant PS → OR, собрать deny PS → OR, результат = `grants & ~denies`
-- Bitmask-кодирование позволяет эффективное вычисление и хранение
-- Deny PS глобально подавляет права из любого источника (ADR-0009)
-- Deny применяется только к OLS/FLS; RLS (sharing) остаётся строго аддитивным
-- PermissionSetGroup (контейнер PS) — отложен до Phase 2b
-- Назначение PS на группы (`PermissionSetToGroup`) — отложено до Phase 2b
+- Profile and PermissionSet use shared tables `ObjectPermissions` / `FieldPermissions`
+- Single enforcement path: collect grant PS → OR, collect deny PS → OR, result = `grants & ~denies`
+- Bitmask encoding enables efficient computation and storage
+- Deny PS globally suppresses permissions from any source (ADR-0009)
+- Deny applies only to OLS/FLS; RLS (sharing) remains strictly additive
+- PermissionSetGroup (PS container) — deferred to Phase 2b
+- Assigning PS to groups (`PermissionSetToGroup`) — deferred to Phase 2b

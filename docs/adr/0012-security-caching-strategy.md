@@ -1,25 +1,25 @@
-# ADR-0012: Стратегия кэширования безопасности
+# ADR-0012: Security Caching Strategy
 
-**Статус:** Принято
-**Дата:** 2026-02-08
-**Участники:** @roman_myakotin
+**Status:** Accepted
+**Date:** 2026-02-08
+**Participants:** @roman_myakotin
 
-## Контекст
+## Context
 
-Security enforcement выполняется при каждом запросе к данным. Вычисление прав
-на лету (recursive CTE по иерархиям, JOIN через все PermissionSet) создаёт
-неприемлемую нагрузку. Необходим слой кэширования с гарантированной консистентностью.
+Security enforcement is performed on every data request. Computing permissions
+on the fly (recursive CTEs over hierarchies, JOINs across all PermissionSets) creates
+unacceptable load. A caching layer with guaranteed consistency is needed.
 
-Ключевые требования:
-- Быстрый lookup при SOQL/DML (O(1) или один JOIN)
-- Корректная инвалидация при изменении прав, ролей, групп
-- Размер кэшей должен быть управляемым (не O(users × records))
+Key requirements:
+- Fast lookup during SOQL/DML (O(1) or a single JOIN)
+- Correct invalidation when permissions, roles, or groups change
+- Cache sizes must be manageable (not O(users × records))
 
-## Решение
+## Decision
 
-### Closure Tables — иерархии
+### Closure Tables — Hierarchies
 
-Хранят все пары (ancestor, descendant) для быстрых иерархических запросов.
+Store all (ancestor, descendant) pairs for fast hierarchical queries.
 
 #### effective_role_hierarchy
 
@@ -32,7 +32,7 @@ CREATE TABLE security.effective_role_hierarchy (
 );
 ```
 
-Размер: O(roles²) в worst case, реально O(roles × depth). Десятки-сотни строк.
+Size: O(roles^2) in the worst case, realistically O(roles × depth). Tens to hundreds of rows.
 
 #### effective_territory_hierarchy
 
@@ -45,7 +45,7 @@ CREATE TABLE security.effective_territory_hierarchy (
 );
 ```
 
-Размер: O(territories × depth). Сотни-тысячи строк.
+Size: O(territories × depth). Hundreds to thousands of rows.
 
 #### effective_object_hierarchy
 
@@ -58,8 +58,8 @@ CREATE TABLE security.effective_object_hierarchy (
 );
 ```
 
-Для `controlled_by_parent` OWD — быстрый поиск parent-chain.
-Размер: O(objects × depth). Десятки строк.
+For `controlled_by_parent` OWD — fast parent-chain lookup.
+Size: O(objects × depth). Tens of rows.
 
 ### Flattened Group Membership
 
@@ -72,8 +72,8 @@ CREATE TABLE security.effective_group_members (
 );
 ```
 
-Раскрывает nested groups в плоский список `(group, user)`.
-Размер: O(groups × avg_members). Тысячи-десятки тысяч строк.
+Flattens nested groups into a flat `(group, user)` list.
+Size: O(groups × avg_members). Thousands to tens of thousands of rows.
 
 ### Effective Visible Owners
 
@@ -92,10 +92,10 @@ CREATE INDEX ix_evo_owner ON security.effective_visible_owner (visible_owner_id)
 ```
 
 Pre-materialized JOIN: `effective_role_hierarchy × users`.
-Пользователь A видит записи пользователя B, если роль A — предок роли B.
+User A can see records of user B if A's role is an ancestor of B's role.
 Permissions = 1 (Read only, ADR-0011).
 
-Размер: O(users × avg_subordinates). Десятки тысяч строк.
+Size: O(users × avg_subordinates). Tens of thousands of rows.
 
 ### Effective User Territories
 
@@ -113,10 +113,10 @@ INCLUDE (territory_id, permissions);
 CREATE INDEX ix_eut_territory ON security.effective_user_territory (territory_id);
 ```
 
-Все территории пользователя (прямые + транзитивные по иерархии)
-с агрегированными permissions от `territory_object_default`.
+All territories for a user (direct + transitive via hierarchy)
+with aggregated permissions from `territory_object_default`.
 
-Размер: O(users × avg_territories). Тысячи-десятки тысяч строк.
+Size: O(users × avg_territories). Thousands to tens of thousands of rows.
 
 ### Effective OLS / FLS
 
@@ -148,15 +148,15 @@ CREATE TABLE security.effective_field_lists (
 ```
 
 `effective_ols`: `(OR all grant PS) & ~(OR all deny PS)` (ADR-0010).
-Размер: O(users × objects). Тысячи строк.
+Size: O(users × objects). Thousands of rows.
 
 `effective_fls`: `(OR all grant PS) & ~(OR all deny PS)` (ADR-0010).
-Размер: O(users × fields). Десятки-сотни тысяч строк.
+Size: O(users × fields). Tens to hundreds of thousands of rows.
 
-`effective_field_lists`: pre-computed списки полей для API.
-Размер: O(users × objects × 2). Тысячи строк.
+`effective_field_lists`: pre-computed field lists for the API.
+Size: O(users × objects × 2). Thousands of rows.
 
-### Outbox Pattern — инвалидация кэшей
+### Outbox Pattern — Cache Invalidation
 
 ```sql
 CREATE TABLE security.security_outbox (
@@ -174,7 +174,7 @@ ON security.security_outbox (created_at)
 WHERE processed_at IS NULL;
 ```
 
-Triggers на source-таблицы пишут events в outbox. Worker обрабатывает:
+Triggers on source tables write events to the outbox. A worker processes them:
 
 ```sql
 SELECT * FROM security.security_outbox
@@ -184,8 +184,8 @@ FOR UPDATE SKIP LOCKED
 LIMIT 1;
 ```
 
-| Событие | Инвалидирует |
-|---------|-------------|
+| Event | Invalidates |
+|-------|-------------|
 | `user_changed` (profile/role) | effective_ols, effective_fls, effective_visible_owner |
 | `role_changed` (parent) | effective_role_hierarchy, effective_visible_owner |
 | `group_changed` (members) | effective_group_members |
@@ -193,45 +193,45 @@ LIMIT 1;
 | `territory_changed` (parent/model) | effective_territory_hierarchy, effective_user_territory |
 | `object_changed` (visibility/parent) | effective_object_hierarchy |
 
-### Сводка размеров кэшей
+### Cache Size Summary
 
-| Кэш | Размер | Инвалидация |
-|------|--------|-------------|
-| effective_role_hierarchy | O(roles × depth) | Редко (структура ролей) |
-| effective_territory_hierarchy | O(territories × depth) | Редко (структура территорий) |
-| effective_object_hierarchy | O(objects × depth) | Редко (metadata change) |
-| effective_group_members | O(groups × members) | При изменении членства |
-| effective_visible_owner | O(users × subordinates) | При изменении ролей/юзеров |
-| effective_user_territory | O(users × territories) | При изменении territory assignments |
-| effective_ols | O(users × objects) | При изменении PS/profiles |
-| effective_fls | O(users × fields) | При изменении PS/profiles |
-| effective_field_lists | O(users × objects × 2) | При изменении FLS |
+| Cache | Size | Invalidation |
+|-------|------|--------------|
+| effective_role_hierarchy | O(roles × depth) | Rare (role structure changes) |
+| effective_territory_hierarchy | O(territories × depth) | Rare (territory structure changes) |
+| effective_object_hierarchy | O(objects × depth) | Rare (metadata changes) |
+| effective_group_members | O(groups × members) | On membership changes |
+| effective_visible_owner | O(users × subordinates) | On role/user changes |
+| effective_user_territory | O(users × territories) | On territory assignment changes |
+| effective_ols | O(users × objects) | On PS/profile changes |
+| effective_fls | O(users × fields) | On PS/profile changes |
+| effective_field_lists | O(users × objects × 2) | On FLS changes |
 
-Ни один кэш не имеет размер O(users × records) — это ключевое отличие
-от отклонённого подхода `effective_rls` (ADR-0011).
+No cache has a size of O(users × records) — this is the key difference
+from the rejected `effective_rls` approach (ADR-0011).
 
-## Рассмотренные варианты
+## Considered Alternatives
 
-### In-memory cache в Go (отклонено для permission caches)
+### In-memory Cache in Go (rejected for permission caches)
 
-OLS/FLS можно было бы кэшировать в памяти Go-процесса.
-Но: multi-instance deployment требует distributed invalidation (Redis pub/sub, etc.).
-PostgreSQL-таблицы — single source of truth, работают для любого deployment.
+OLS/FLS could have been cached in Go process memory.
+However: multi-instance deployment requires distributed invalidation (Redis pub/sub, etc.).
+PostgreSQL tables serve as a single source of truth, working for any deployment.
 
-Closure tables и effective_* — в PostgreSQL. Горячие данные (текущий пользователь)
-могут дополнительно кэшироваться в Redis или in-memory с коротким TTL.
+Closure tables and effective_* are stored in PostgreSQL. Hot data (current user)
+can additionally be cached in Redis or in-memory with a short TTL.
 
-### Materialized Views (отклонено)
+### Materialized Views (rejected)
 
-PostgreSQL materialized views не поддерживают инкрементальное обновление.
-`REFRESH MATERIALIZED VIEW` полностью пересоздаёт view. Outbox + таблицы
-позволяют точечное обновление затронутых строк.
+PostgreSQL materialized views do not support incremental refresh.
+`REFRESH MATERIALIZED VIEW` fully recreates the view. Outbox + tables
+allow targeted updates of affected rows.
 
-## Последствия
+## Consequences
 
-- Все кэши — PostgreSQL таблицы в схеме `security`
-- Инвалидация через outbox pattern (eventual consistency, обычно < 1 сек)
-- Worker обрабатывает events последовательно с `FOR UPDATE SKIP LOCKED`
-- При cold start — полный пересчёт всех кэшей
-- Горячий кэш в Redis/memory — опциональная оптимизация поверх PG-таблиц
-- Мониторинг: алерт если outbox queue > threshold
+- All caches are PostgreSQL tables in the `security` schema
+- Invalidation via outbox pattern (eventual consistency, typically < 1 second)
+- Worker processes events sequentially with `FOR UPDATE SKIP LOCKED`
+- On cold start — full recalculation of all caches
+- Hot cache in Redis/memory — optional optimization on top of PG tables
+- Monitoring: alert if outbox queue > threshold

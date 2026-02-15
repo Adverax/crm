@@ -1,27 +1,27 @@
-# ADR-0006: Реестр связей как кэш, а не отдельная таблица
+# ADR-0006: Relationship Registry as Cache, Not a Separate Table
 
-**Статус:** Принято
-**Дата:** 2026-02-08
-**Участники:** @roman_myakotin
+**Status:** Accepted
+**Date:** 2026-02-08
+**Participants:** @roman_myakotin
 
-## Контекст
+## Context
 
-Reference-поля в `field_definitions` (ADR-0004, ADR-0005) неявно определяют связи
-между объектами. Например, поле `Contact.account_id` типа `reference/association`
-создаёт связь Account → Contacts.
+Reference fields in `field_definitions` (ADR-0004, ADR-0005) implicitly define relationships
+between objects. For example, a `Contact.account_id` field of type `reference/association`
+creates an Account → Contacts relationship.
 
-Для работы платформы необходима **навигация по связям**:
-- SOQL: `SELECT (SELECT Name FROM Contacts) FROM Account` — обратная связь
-- Admin UI: "Покажи все связи объекта Account"
-- Каскадный анализ: "Что удалится при удалении Account?"
-- Junction-обнаружение: объект с 2+ composition = junction
+The platform requires **relationship navigation** for:
+- SOQL: `SELECT (SELECT Name FROM Contacts) FROM Account` — reverse relationship
+- Admin UI: "Show all relationships of the Account object"
+- Cascade analysis: "What will be deleted when Account is deleted?"
+- Junction detection: an object with 2+ composition = junction
 
-Вопрос: нужна ли отдельная таблица `relationship_definitions` или связи
-можно получить из существующих метаданных?
+The question: is a separate `relationship_definitions` table needed, or can relationships
+be derived from existing metadata?
 
-## Рассмотренные варианты
+## Options Considered
 
-### Вариант A: Отдельная таблица relationship_definitions
+### Option A: Separate relationship_definitions Table
 
 ```sql
 CREATE TABLE relationship_definitions (
@@ -35,46 +35,46 @@ CREATE TABLE relationship_definitions (
 );
 ```
 
-**Плюсы:**
-- Быстрые прямые запросы по parent/child
-- Удобная навигация по графу связей
+**Pros:**
+- Fast direct queries by parent/child
+- Convenient graph navigation
 
-**Минусы:**
-- Денормализация: вся информация уже есть в `field_definitions` + `polymorphic_targets`
-- Два источника правды → необходимость синхронизации при каждом изменении поля
-- Рассинхронизация = баги в SOQL-резолве и каскадах
+**Cons:**
+- Denormalization: all information already exists in `field_definitions` + `polymorphic_targets`
+- Two sources of truth → synchronization required on every field change
+- Desynchronization = bugs in SOQL resolution and cascades
 
-### Вариант B: Без реестра — всё из field_definitions
+### Option B: No Registry — Everything from field_definitions
 
-**Плюсы:**
-- Один источник правды, нет синхронизации
+**Pros:**
+- Single source of truth, no synchronization
 
-**Минусы:**
-- Обратные запросы ("все дети Account") требуют scan по `field_definitions` всех объектов
-- SOQL-резолв обратных связей медленнее
+**Cons:**
+- Reverse queries ("all children of Account") require scanning `field_definitions` across all objects
+- SOQL resolution of reverse relationships is slower
 
-### Вариант C: Кэш в памяти, построенный из field_definitions (выбран)
+### Option C: In-Memory Cache Built from field_definitions (chosen)
 
-Relationship graph **вычисляется** из `field_definitions` + `polymorphic_targets`
-и хранится в in-memory кэше. Инвалидируется при изменении метаданных.
+The relationship graph is **computed** from `field_definitions` + `polymorphic_targets`
+and stored in an in-memory cache. Invalidated on metadata changes.
 
-**Плюсы:**
-- Один источник правды (field_definitions) — нет рассинхронизации
-- Быстрый доступ: O(1) lookup по (object_id, relationship_name)
-- Метаданные меняются редко (admin-операции), читаются на каждый SOQL/DML — кэш идеален
-- Кэширование метаданных неизбежно для производительности — relationship graph становится
-  частью общего metadata cache, а не отдельной подсистемой
+**Pros:**
+- Single source of truth (field_definitions) — no desynchronization
+- Fast access: O(1) lookup by (object_id, relationship_name)
+- Metadata changes rarely (admin operations), reads on every SOQL/DML — cache is ideal
+- Metadata caching is inevitable for performance — the relationship graph becomes
+  part of the general metadata cache, not a separate subsystem
 
-**Минусы:**
-- Нужен механизм инвалидации кэша при изменении метаданных
-- При холодном старте — построение графа из БД (одноразовая операция)
+**Cons:**
+- Cache invalidation mechanism needed on metadata changes
+- Cold start requires building the graph from DB (one-time operation)
 
-## Решение
+## Decision
 
-Принимаем **Вариант C**. Никакой отдельной таблицы. Relationship graph — часть
-in-memory metadata cache.
+We adopt **Option C**. No separate table. The relationship graph is part of
+the in-memory metadata cache.
 
-### Структура кэша
+### Cache Structure
 
 ```
 MetadataCache
@@ -85,52 +85,52 @@ MetadataCache
     └── reverse:  map[object_id][relationship_name] → RelationshipInfo
 ```
 
-`RelationshipInfo` содержит:
-- `parent_object_id` — родительский объект
-- `child_object_id` — дочерний объект
-- `child_field_id` — поле-ссылка
-- `relationship_name` — имя связи (для SOQL)
+`RelationshipInfo` contains:
+- `parent_object_id` — parent object
+- `child_object_id` — child object
+- `child_field_id` — reference field
+- `relationship_name` — relationship name (for SOQL)
 - `relationship_type` — association / composition / polymorphic
 - `on_delete` — set_null / cascade / restrict
 
-### Построение кэша
+### Cache Construction
 
-При старте приложения (или инвалидации):
+On application startup (or invalidation):
 
-1. Загрузить все `field_definitions` с `field_type = 'reference'`
-2. Загрузить все `polymorphic_targets`
-3. Построить forward map: `(child_object, field) → parent_object`
-4. Построить reverse map: `(parent_object, relationship_name) → child_object + field`
-5. Для polymorphic: одна запись в reverse map для каждого target-объекта
+1. Load all `field_definitions` with `field_type = 'reference'`
+2. Load all `polymorphic_targets`
+3. Build forward map: `(child_object, field) → parent_object`
+4. Build reverse map: `(parent_object, relationship_name) → child_object + field`
+5. For polymorphic: one entry in the reverse map for each target object
 
-### Инвалидация
+### Invalidation
 
-- Любое изменение в `field_definitions` (CREATE/UPDATE/DELETE reference-поля) → rebuild
-- Любое изменение в `polymorphic_targets` → rebuild
-- Изменение `object_definitions` (DELETE объекта) → rebuild
-- Метаданные меняются редко, полный rebuild допустим (десятки/сотни объектов)
+- Any change in `field_definitions` (CREATE/UPDATE/DELETE reference field) → rebuild
+- Any change in `polymorphic_targets` → rebuild
+- Change in `object_definitions` (DELETE object) → rebuild
+- Metadata changes rarely, full rebuild is acceptable (tens/hundreds of objects)
 
-### Использование
+### Usage
 
 ```
 // SOQL: SELECT (SELECT Name FROM Contacts) FROM Account
-// Резолв "Contacts":
+// Resolving "Contacts":
 rel := cache.relationships.reverse["Account"]["Contacts"]
 // → {child_object: "Contact", child_field: "account_id", type: "association"}
 
-// Каскадный анализ при удалении Account:
+// Cascade analysis when deleting Account:
 children := cache.relationships.reverse["Account"]
 // → filter by on_delete == "cascade"
 
-// Все связи объекта (для Admin UI):
-forward := cache.relationships.forward["Contact"]   // куда ссылается
-reverse := cache.relationships.reverse["Contact"]   // кто ссылается на него
+// All relationships of an object (for Admin UI):
+forward := cache.relationships.forward["Contact"]   // what it references
+reverse := cache.relationships.reverse["Contact"]   // what references it
 ```
 
-## Последствия
+## Consequences
 
-- Нет таблицы `relationship_definitions` — один источник правды
-- Metadata cache — обязательный компонент платформы (не опциональная оптимизация)
-- SOQL engine, DML engine, Admin UI работают с кэшем, не с прямыми запросами к field_definitions
-- Инвалидация кэша при любом изменении метаданных
-- В кластерной конфигурации — инвалидация через pub/sub (Redis, PG NOTIFY) — проектируется позже
+- No `relationship_definitions` table — single source of truth
+- Metadata cache is a mandatory platform component (not an optional optimization)
+- SOQL engine, DML engine, Admin UI work with the cache, not with direct queries to field_definitions
+- Cache invalidation on any metadata change
+- In a clustered configuration — invalidation via pub/sub (Redis, PG NOTIFY) — to be designed later

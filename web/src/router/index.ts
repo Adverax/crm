@@ -93,6 +93,23 @@ const router = createRouter({
           component: () => import('../views/admin/metadata/ValidationRuleDetailView.vue'),
           props: true,
         },
+        // Custom Functions
+        {
+          path: 'metadata/functions',
+          name: 'admin-functions',
+          component: () => import('../views/admin/metadata/FunctionListView.vue'),
+        },
+        {
+          path: 'metadata/functions/new',
+          name: 'admin-function-create',
+          component: () => import('../views/admin/metadata/FunctionCreateView.vue'),
+        },
+        {
+          path: 'metadata/functions/:functionId',
+          name: 'admin-function-detail',
+          component: () => import('../views/admin/metadata/FunctionDetailView.vue'),
+          props: true,
+        },
         // Templates
         {
           path: 'templates',

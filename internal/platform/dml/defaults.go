@@ -19,15 +19,33 @@ type CELDefaultResolver struct {
 	celCache *celengine.ProgramCache
 }
 
-// NewCELDefaultResolver creates a new CELDefaultResolver.
-func NewCELDefaultResolver() (*CELDefaultResolver, error) {
-	env, err := celengine.DefaultEnv()
+// NewCELDefaultResolver creates a new CELDefaultResolver with an optional FunctionRegistry.
+// If registry is nil, a plain DefaultEnv is used.
+func NewCELDefaultResolver(registry *celengine.FunctionRegistry) (*CELDefaultResolver, error) {
+	env, err := buildDefaultEnv(registry)
 	if err != nil {
 		return nil, fmt.Errorf("newCELDefaultResolver: %w", err)
 	}
 	return &CELDefaultResolver{
 		celCache: celengine.NewProgramCache(env),
 	}, nil
+}
+
+// RebuildEnv rebuilds the CEL environment with an updated FunctionRegistry.
+func (r *CELDefaultResolver) RebuildEnv(registry *celengine.FunctionRegistry) error {
+	env, err := buildDefaultEnv(registry)
+	if err != nil {
+		return fmt.Errorf("celDefaultResolver.RebuildEnv: %w", err)
+	}
+	r.celCache.Reset(env)
+	return nil
+}
+
+func buildDefaultEnv(registry *celengine.FunctionRegistry) (*celengine.Env, error) {
+	if registry != nil {
+		return celengine.DefaultEnvWithFunctions(registry)
+	}
+	return celengine.DefaultEnv()
 }
 
 // ResolveDefaults implements engine.DefaultResolver.

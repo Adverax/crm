@@ -1,67 +1,67 @@
-# ADR-0001: UUID как идентификатор записей
+# ADR-0001: UUID as Record Identifier
 
-**Статус:** Принято
-**Дата:** 2026-02-08
-**Участники:** @roman_myakotin
+**Status:** Accepted
+**Date:** 2026-02-08
+**Participants:** @roman_myakotin
 
-## Контекст
+## Context
 
-Платформа CRM с metadata-driven архитектурой требует единого формата идентификаторов записей.
-Необходимо выбрать формат, который обеспечит:
-- Уникальность в рамках всей системы
-- Непредсказуемость (защита от IDOR-атак)
-- Производительность при индексации и join-операциях
-- Поддержку полиморфных ссылок (запись может ссылаться на объекты разных типов)
+A CRM platform with metadata-driven architecture requires a uniform identifier format for records.
+The chosen format must provide:
+- System-wide uniqueness
+- Unpredictability (protection against IDOR attacks)
+- Performance for indexing and join operations
+- Support for polymorphic references (a record may reference objects of different types)
 
-## Рассмотренные варианты
+## Considered Options
 
-### Вариант A: Составной ID с key_prefix (как в Salesforce)
+### Option A: Composite ID with key_prefix (Salesforce-style)
 
-Формат: `{3 символа prefix}{16 символов random}`, например `001a1B2c3D4e5F6g7`.
+Format: `{3-character prefix}{16 random characters}`, e.g. `001a1B2c3D4e5F6g7`.
 
-Префикс кодирует тип объекта — по ID можно определить, что `001...` это Account.
+The prefix encodes the object type — from the ID you can determine that `001...` is an Account.
 
-**Плюсы:**
-- Полиморфная ссылка одним полем — тип объекта закодирован в самом ID
-- Удобство отладки — тип виден сразу
-- URL-роутинг без указания типа: `/record/001xxxx`
+**Pros:**
+- Polymorphic reference with a single field — the object type is encoded in the ID itself
+- Debugging convenience — the type is immediately visible
+- URL routing without specifying the type: `/record/001xxxx`
 
-**Минусы:**
-- Строковый PK (19 символов) — деградация индексов и join-ов по сравнению с нативным UUID (16 байт)
-- FK constraints невозможны для полиморфных ссылок — валидация только в коде
-- Нужен реестр префиксов, генератор уникальных ID, обработка коллизий
-- Исторический паттерн Salesforce (1999), не обусловленный современными реалиями
+**Cons:**
+- String PK (19 characters) — index and join degradation compared to native UUID (16 bytes)
+- FK constraints are impossible for polymorphic references — validation only in code
+- Requires a prefix registry, unique ID generator, collision handling
+- A historical Salesforce pattern (1999), not justified by modern requirements
 
-### Вариант B: UUID v4 (выбран)
+### Option B: UUID v4 (chosen)
 
-Нативный PostgreSQL тип `uuid`. Для полиморфных ссылок используется явная пара полей.
+Native PostgreSQL `uuid` type. For polymorphic references, an explicit pair of fields is used.
 
-**Плюсы:**
-- Нативная поддержка PostgreSQL: тип `uuid` = 16 байт, оптимизированный B-tree
-- Непредсказуемость из коробки — защита от перебора
-- FK constraints работают для прямых (не-полиморфных) ссылок
-- Нет дополнительной инфраструктуры — стандартный `gen_random_uuid()`
-- Совместимость с экосистемой (ORM, клиенты, инструменты)
+**Pros:**
+- Native PostgreSQL support: `uuid` type = 16 bytes, optimized B-tree
+- Built-in unpredictability — protection against enumeration
+- FK constraints work for direct (non-polymorphic) references
+- No additional infrastructure — standard `gen_random_uuid()`
+- Ecosystem compatibility (ORMs, clients, tools)
 
-**Минусы:**
-- Полиморфная ссылка требует двух полей вместо одного
+**Cons:**
+- Polymorphic reference requires two fields instead of one
 
-## Решение
+## Decision
 
-Используем **UUID v4** как первичный ключ всех записей.
+We use **UUID v4** as the primary key for all records.
 
-Для полиморфных ссылок (Activities, Notes, Feed) — явная пара полей:
+For polymorphic references (Activities, Notes, Feed) — an explicit pair of fields:
 
 ```sql
-related_object_type  VARCHAR(100) NOT NULL  -- API-имя объекта: 'Account', 'Contact'
-related_record_id    UUID         NOT NULL  -- UUID записи
+related_object_type  VARCHAR(100) NOT NULL  -- Object API name: 'Account', 'Contact'
+related_record_id    UUID         NOT NULL  -- Record UUID
 ```
 
-Составной индекс `(related_object_type, related_record_id)` обеспечивает быстрый поиск.
+A composite index `(related_object_type, related_record_id)` ensures fast lookups.
 
-## Последствия
+## Consequences
 
-- Все таблицы используют `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`
-- Системные поля `owner_id`, `created_by`, `updated_by` — тип `UUID` с FK на `users.id`
-- Полиморфные таблицы (activities, notes, attachments, feed) содержат пару `(object_type, record_id)`
-- SOQL-движок при резолве полиморфных полей выполняет lookup по `object_type`
+- All tables use `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`
+- System fields `owner_id`, `created_by`, `updated_by` — type `UUID` with FK to `users.id`
+- Polymorphic tables (activities, notes, attachments, feed) contain the pair `(object_type, record_id)`
+- The SOQL engine performs a lookup by `object_type` when resolving polymorphic fields

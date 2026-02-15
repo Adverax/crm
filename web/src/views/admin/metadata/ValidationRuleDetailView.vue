@@ -3,8 +3,10 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { validationRulesApi } from '@/api/validationRules'
 import { useToast } from '@/composables/useToast'
+import { http } from '@/api/http'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
+import ExpressionBuilder from '@/components/admin/expression-builder/ExpressionBuilder.vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -25,6 +27,19 @@ const props = defineProps<{
   objectId: string
   ruleId: string
 }>()
+
+const objectApiName = ref('')
+
+onMounted(async () => {
+  try {
+    const resp = await http.get<{ data: { api_name: string } }>(
+      `/api/v1/admin/metadata/objects/${props.objectId}`,
+    )
+    objectApiName.value = resp.data.api_name
+  } catch {
+    // object api name won't be available for field picker
+  }
+})
 
 const router = useRouter()
 const toast = useToast()
@@ -168,12 +183,11 @@ const breadcrumbs = computed(() => [
             </div>
 
             <div class="space-y-2">
-              <Label for="expression">CEL-выражение</Label>
-              <Textarea
-                id="expression"
+              <Label>CEL-выражение</Label>
+              <ExpressionBuilder
                 v-model="form.expression"
-                rows="3"
-                required
+                context="validation_rule"
+                :object-api-name="objectApiName || undefined"
                 data-testid="field-expression"
               />
             </div>
@@ -208,11 +222,12 @@ const breadcrumbs = computed(() => [
             </div>
 
             <div class="space-y-2">
-              <Label for="when_expression">Условие применения (CEL, необязательно)</Label>
-              <Textarea
-                id="when_expression"
+              <Label>Условие применения (CEL, необязательно)</Label>
+              <ExpressionBuilder
                 v-model="form.whenExpression"
-                rows="2"
+                context="when_expression"
+                :object-api-name="objectApiName || undefined"
+                height="80px"
               />
             </div>
 

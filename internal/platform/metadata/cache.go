@@ -14,6 +14,7 @@ type CacheLoader interface {
 	LoadAllFields(ctx context.Context) ([]FieldDefinition, error)
 	LoadRelationships(ctx context.Context) ([]RelationshipInfo, error)
 	LoadAllValidationRules(ctx context.Context) ([]ValidationRule, error)
+	LoadAllFunctions(ctx context.Context) ([]Function, error)
 	RefreshMaterializedView(ctx context.Context) error
 }
 
@@ -34,6 +35,9 @@ type MetadataCache struct {
 	// Validation rules
 	validationRulesByObjectID map[uuid.UUID][]ValidationRule
 
+	// Custom functions
+	functionsByName map[string]Function
+
 	loader CacheLoader
 	loaded bool
 }
@@ -48,6 +52,7 @@ func NewMetadataCache(loader CacheLoader) *MetadataCache {
 		forwardRels:               make(map[uuid.UUID][]RelationshipInfo),
 		reverseRels:               make(map[uuid.UUID][]RelationshipInfo),
 		validationRulesByObjectID: make(map[uuid.UUID][]ValidationRule),
+		functionsByName:           make(map[string]Function),
 		loader:                    loader,
 	}
 }
@@ -72,6 +77,11 @@ func (c *MetadataCache) Load(ctx context.Context) error {
 	rules, err := c.loader.LoadAllValidationRules(ctx)
 	if err != nil {
 		return fmt.Errorf("metadataCache.Load: validation rules: %w", err)
+	}
+
+	functions, err := c.loader.LoadAllFunctions(ctx)
+	if err != nil {
+		return fmt.Errorf("metadataCache.Load: functions: %w", err)
 	}
 
 	c.mu.Lock()
@@ -103,6 +113,11 @@ func (c *MetadataCache) Load(ctx context.Context) error {
 	c.validationRulesByObjectID = make(map[uuid.UUID][]ValidationRule)
 	for _, rule := range rules {
 		c.validationRulesByObjectID[rule.ObjectID] = append(c.validationRulesByObjectID[rule.ObjectID], rule)
+	}
+
+	c.functionsByName = make(map[string]Function, len(functions))
+	for _, fn := range functions {
+		c.functionsByName[fn.Name] = fn
 	}
 
 	c.loaded = true
@@ -193,6 +208,42 @@ func (c *MetadataCache) LoadValidationRules(ctx context.Context) error {
 	c.validationRulesByObjectID = make(map[uuid.UUID][]ValidationRule)
 	for _, rule := range rules {
 		c.validationRulesByObjectID[rule.ObjectID] = append(c.validationRulesByObjectID[rule.ObjectID], rule)
+	}
+	return nil
+}
+
+// GetFunctions returns all cached custom functions.
+func (c *MetadataCache) GetFunctions() []Function {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	result := make([]Function, 0, len(c.functionsByName))
+	for _, fn := range c.functionsByName {
+		result = append(result, fn)
+	}
+	return result
+}
+
+// GetFunctionByName returns a custom function by name from cache.
+func (c *MetadataCache) GetFunctionByName(name string) (Function, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	fn, ok := c.functionsByName[name]
+	return fn, ok
+}
+
+// LoadFunctions reloads only custom functions into the cache.
+func (c *MetadataCache) LoadFunctions(ctx context.Context) error {
+	functions, err := c.loader.LoadAllFunctions(ctx)
+	if err != nil {
+		return fmt.Errorf("metadataCache.LoadFunctions: %w", err)
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.functionsByName = make(map[string]Function, len(functions))
+	for _, fn := range functions {
+		c.functionsByName[fn.Name] = fn
 	}
 	return nil
 }

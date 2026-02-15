@@ -1,148 +1,148 @@
-# ADR-0019: Декларативная бизнес-логика объектов
+# ADR-0019: Declarative Business Logic for Objects
 
-**Статус:** Принято
-**Дата:** 2026-02-14
-**Участники:** @roman_myakotin
+**Status:** Accepted
+**Date:** 2026-02-14
+**Participants:** @roman_myakotin
 
-## Контекст
+## Context
 
-Платформа metadata-driven (ADR-0003, ADR-0007): объекты определяются через метаданные, хранятся в реальных PG-таблицах `obj_{api_name}`, SOQL/DML обеспечивают чтение/запись с security (OLS/FLS/RLS — ADR-0009..0012).
+The platform is metadata-driven (ADR-0003, ADR-0007): objects are defined through metadata, stored in real PG tables `obj_{api_name}`, SOQL/DML provides read/write with security (OLS/FLS/RLS — ADR-0009..0012).
 
-Текущая метадатная модель покрывает **структуру хранения**: типы полей, обязательность, уникальность, ссылки (ADR-0004, ADR-0005). Однако поведенческая логика — бизнес-правила, вычисляемые поля, динамические дефолты — отсутствует:
+The current metadata model covers **storage structure**: field types, required fields, uniqueness, references (ADR-0004, ADR-0005). However, behavioral logic — business rules, computed fields, dynamic defaults — is missing:
 
-| Что есть (metadata) | Чего нет |
+| What exists (metadata) | What is missing |
 |---|---|
-| Тип поля (text, number, boolean) | Кросс-полевая валидация (`close_date > created_at`) |
-| `is_required` flag | Условная обязательность (`feedback required when status=completed`) |
-| `default_value` как статическая строка | Динамические дефолты (`owner_id = current_user.id`) |
-| — | Вычисляемые поля для отображения (`full_name = first + last`) |
-| — | Единые правила для frontend и backend |
+| Field type (text, number, boolean) | Cross-field validation (`close_date > created_at`) |
+| `is_required` flag | Conditional required (`feedback required when status=completed`) |
+| `default_value` as a static string | Dynamic defaults (`owner_id = current_user.id`) |
+| — | Computed display fields (`full_name = first + last`) |
+| — | Unified rules for frontend and backend |
 
-### Ограничения текущего DML Engine
+### Current DML Engine Limitations
 
-1. **`DefaultValue`** — `*string` в `FieldConfig` JSONB. На уровне DDL используется только для boolean. DML Engine не инжектит значения — только пропускает required-check когда `HasDefault=true`
-2. **Pipeline** (parse → validate → compile → execute) не имеет хуков: нет pre-insert, post-update, нет trigger-системы
-3. **Валидация** ограничена: required-fields + type-compatibility. Кросс-полевая валидация невозможна
+1. **`DefaultValue`** — `*string` in `FieldConfig` JSONB. At the DDL level it is only used for booleans. DML Engine does not inject values — it only skips the required-check when `HasDefault=true`
+2. **Pipeline** (parse -> validate -> compile -> execute) has no hooks: no pre-insert, post-update, no trigger system
+3. **Validation** is limited: required-fields + type-compatibility. Cross-field validation is impossible
 
-### Потребности платформы
+### Platform Needs
 
-Для metadata-driven CRM недостаточно описывать только схему хранения. Платформа нуждается в **декларативном слое поведенческой логики**, который:
+For a metadata-driven CRM it is not enough to describe only the storage schema. The platform needs a **declarative behavioral logic layer** that:
 
-1. Определяет бизнес-правила (валидация) декларативно, без кода per-object
-2. Вычисляет производные значения (formula fields) на основе выражений
-3. Устанавливает динамические значения по умолчанию
-4. Работает одинаково на backend и frontend (единый expression language)
-5. Позволяет разным контекстам (формам, API-endpoint'ам) иметь разные наборы правил
-6. Гарантирует минимальный уровень data integrity независимо от контекста вызова
+1. Defines business rules (validation) declaratively, without per-object code
+2. Computes derived values (formula fields) based on expressions
+3. Sets dynamic default values
+4. Works identically on backend and frontend (unified expression language)
+5. Allows different contexts (forms, API endpoints) to have different rule sets
+6. Guarantees a minimum level of data integrity regardless of the calling context
 
-### Индустриальный контекст
+### Industry Context
 
-Все крупные CRM-платформы разделяют поведенческую логику на независимые подсистемы:
+All major CRM platforms split behavioral logic into independent subsystems:
 
-| Платформа | Validation | Computed Fields | Automation | Queries |
+| Platform | Validation | Computed Fields | Automation | Queries |
 |-----------|-----------|-----------------|------------|---------|
 | **Salesforce** | Validation Rules | Formula Fields | Flow / Apex Triggers | SOQL |
 | **Dynamics 365** | Business Rules | Calculated Fields | Power Automate | FetchXML |
 | **HubSpot** | Property Rules | Calculated Properties | Workflows | — |
 | **Zoho CRM** | Validation Rules | Formula Fields | Workflows | — |
 
-Ни одна не объединяет всё в монолитный объект. Каждая подсистема имеет свой жизненный цикл, хранение и модель расширения.
+None of them combine everything into a monolithic object. Each subsystem has its own lifecycle, storage, and extension model.
 
-## Рассмотренные варианты
+## Options Considered
 
-### Вариант A — Монолитный декларативный объект
+### Option A — Monolithic Declarative Object
 
-Один YAML/JSON-документ на объект, описывающий всё: запросы, вычисляемые поля, валидацию, дефолты, мутации, автоматизацию.
+A single YAML/JSON document per object describing everything: queries, computed fields, validation, defaults, mutations, automation.
 
-**Плюсы:**
-- Единая абстракция — вся логика объекта в одном месте
-- Максимальная декларативность
+**Pros:**
+- Single abstraction — all object logic in one place
+- Maximum declarativeness
 
-**Минусы:**
-- God object (7+ ответственностей): загрузка данных, трансформация, валидация, персистенция, автоматизация
-- Смешивает per-object логику (validation — должна работать всегда) и per-view логику (queries — зависят от UI-контекста)
-- Блокирует Phase 7a: требует CEL engine, executor, storage, YAML parser, dependency resolver — месяцы работы
-- Не соответствует индустриальному паттерну
+**Cons:**
+- God object (7+ responsibilities): data loading, transformation, validation, persistence, automation
+- Mixes per-object logic (validation — must always work) with per-view logic (queries — depend on UI context)
+- Blocks Phase 7a: requires CEL engine, executor, storage, YAML parser, dependency resolver — months of work
+- Does not match the industry pattern
 
-### Вариант B — Декомпозиция на подсистемы с трёхуровневым каскадом (выбран)
+### Option B — Decomposition into Subsystems with a Three-Level Cascade (chosen)
 
-Разбить поведенческую логику на независимые подсистемы (Validation Rules, Default Expressions, Formula Fields, Object View, Automation Rules). Связать уровни (Metadata → Object View → Layout) каскадной моделью наследования.
+Split behavioral logic into independent subsystems (Validation Rules, Default Expressions, Formula Fields, Object View, Automation Rules). Connect levels (Metadata -> Object View -> Layout) with a cascading inheritance model.
 
-**Плюсы:**
-- Каждая подсистема независимо полезна и тестируема
-- Инкрементальная реализация — не блокирует текущую фазу
-- Переиспользование (validation rules работают при любом способе записи: API, import, integration)
-- Каскад с наследованием — DRY + гибкость
-- Соответствует индустриальному паттерну (Salesforce, Dynamics)
+**Pros:**
+- Each subsystem is independently useful and testable
+- Incremental implementation — does not block the current phase
+- Reusability (validation rules work with any write method: API, import, integration)
+- Cascade with inheritance — DRY + flexibility
+- Matches the industry pattern (Salesforce, Dynamics)
 
-**Минусы:**
-- Нет единого документа для всей логики объекта
-- Больше отдельных ADR (каждая подсистема = отдельное решение)
-- Композиционный слой (Object View) откладывается
+**Cons:**
+- No single document for all object logic
+- More separate ADRs (each subsystem = a separate decision)
+- Composition layer (Object View) is deferred
 
-### Вариант C — Отложить полностью
+### Option C — Defer Entirely
 
-Построить Phase 7a без абстракций, хардкодить логику per-object.
+Build Phase 7a without abstractions, hardcode logic per-object.
 
-**Плюсы:**
-- Быстрая доставка Phase 7a
+**Pros:**
+- Fast delivery of Phase 7a
 
-**Минусы:**
-- Технический долг при росте количества объектов
-- Дублирование validation на frontend/backend
-- Рефакторинг позже будет дороже
-- Противоречит metadata-driven архитектуре платформы
+**Cons:**
+- Technical debt as the number of objects grows
+- Validation duplication on frontend/backend
+- Refactoring later will be more expensive
+- Contradicts the platform's metadata-driven architecture
 
-### Вариант D — Минимальные расширения метаданных
+### Option D — Minimal Metadata Extensions
 
-Расширить `FieldConfig` для static defaults и simple validation без expression engine.
+Extend `FieldConfig` for static defaults and simple validation without an expression engine.
 
-**Плюсы:**
-- Быстрая доставка, минимальные изменения
+**Pros:**
+- Fast delivery, minimal changes
 
-**Минусы:**
-- Static defaults недостаточны для динамических значений (`owner_id = current_user.id`)
-- Кросс-полевая валидация невозможна без expression engine
-- Дублирование логики на frontend
+**Cons:**
+- Static defaults are insufficient for dynamic values (`owner_id = current_user.id`)
+- Cross-field validation is impossible without an expression engine
+- Logic duplication on the frontend
 
-## Решение
+## Decision
 
-**Выбран вариант B: Декомпозиция на независимые подсистемы с трёхуровневым каскадом.**
+**Option B chosen: Decomposition into independent subsystems with a three-level cascade.**
 
-### Трёхуровневый каскад
+### Three-Level Cascade
 
-Правила и настройки определяются на трёх уровнях. Каждый последующий уровень **наследует** правила предыдущего:
+Rules and settings are defined at three levels. Each subsequent level **inherits** rules from the previous one:
 
 ```
 Metadata (base)
-   ↓ наследует
+   ↓ inherits
 Object View (business context)
-   ↓ наследует
+   ↓ inherits
 Layout (presentation)
 ```
 
-#### Семантика каскада по типам
+#### Cascade Semantics by Type
 
-| Аспект | Metadata → Object View | Object View → Layout | Механизм |
+| Aspect | Metadata -> Object View | Object View -> Layout | Mechanism |
 |--------|------------------------|----------------------|----------|
-| **Validation** | Additive (AND) | Additive (AND) | Только добавление новых правил |
-| **Defaults** | Replace | Replace | Последний уровень побеждает |
-| **Formula Fields** | Inherit (read-only) | Inherit (read-only) | Не перекрываются |
-| **Field visibility** | N/A | Override | Layout скрывает/показывает |
+| **Validation** | Additive (AND) | Additive (AND) | New rules can only be added |
+| **Defaults** | Replace | Replace | Last level wins |
+| **Formula Fields** | Inherit (read-only) | Inherit (read-only) | Cannot be overridden |
+| **Field visibility** | N/A | Override | Layout hides/shows |
 
-#### Validation: аддитивная модель (только ужесточение)
+#### Validation: Additive Model (tightening only)
 
-Validation rules на каждом уровне каскада могут только **добавляться**, но никогда не удаляться и не заменяться. Итоговый набор — конъюнкция (AND) всех правил:
+Validation rules at each cascade level can only be **added**, never removed or replaced. The effective set is a conjunction (AND) of all rules:
 
 ```
 effective_validation = metadata_rules AND object_view_rules AND layout_rules
 ```
 
-Это математически гарантирует ужесточение: добавление любого нового условия через AND сужает множество допустимых значений.
+This mathematically guarantees tightening: adding any new condition via AND narrows the set of valid values.
 
-**Почему не разрешаем ослабление?** Программная верификация того, что одно CEL-выражение «строже» другого, сводится к задаче theorem proving: ∀ input: A(input)=true → B(input)=true. Для произвольных выражений это неразрешимо. Даже для ограниченного подмножества потребовался бы SMT-солвер — overkill для CRM. Аддитивная модель устраняет проблему: верификация не нужна, AND гарантирует ужесточение автоматически.
+**Why not allow loosening?** Programmatic verification that one CEL expression is "stricter" than another reduces to a theorem proving problem: for all input: A(input)=true -> B(input)=true. For arbitrary expressions this is undecidable. Even for a restricted subset an SMT solver would be required — overkill for a CRM. The additive model eliminates the problem: no verification is needed, AND guarantees tightening automatically.
 
-**Пример каскада:**
+**Cascade example:**
 
 ```yaml
 # Metadata (universal invariant):
@@ -155,49 +155,49 @@ effective_validation = metadata_rules AND object_view_rules AND layout_rules
 - expr: 'has(discount)'           # field required on this form
 
 # Effective: discount <= 50 AND discount <= 20 AND has(discount)
-# = discount обязателен И не более 20%
+# = discount is required AND no more than 20%
 ```
 
-**Следствие для проектирования правил:** если валидация может отличаться в разных контекстах — она принадлежит **Object View**, а не metadata. В metadata — только универсальные инварианты, нарушение которых = повреждение данных.
+**Consequence for rule design:** if validation can differ across contexts, it belongs in **Object View**, not metadata. In metadata — only universal invariants whose violation = data corruption.
 
-| Где определять | Критерий | Примеры |
+| Where to define | Criterion | Examples |
 |---|---|---|
-| **Metadata** | Универсальный инвариант, нарушение = повреждение данных | `amount >= 0`, FK integrity, type safety |
-| **Object View** | Бизнес-контекст, может различаться между view | Формат телефона, условная обязательность, `discount <= N` |
-| **Layout** | UI-специфичное ужесточение | Обязательность поля на конкретной форме |
+| **Metadata** | Universal invariant, violation = data corruption | `amount >= 0`, FK integrity, type safety |
+| **Object View** | Business context, may differ between views | Phone format, conditional required, `discount <= N` |
+| **Layout** | UI-specific tightening | Field required on a specific form |
 
-#### Defaults: замена (последний уровень побеждает)
+#### Defaults: Replace (last level wins)
 
-Default — «какое значение подставить, если не указано». Замена безопасна: итоговая валидация всё равно проверит корректность значения.
+A default is "what value to substitute if not provided". Replacement is safe: the final validation will still check the value's correctness.
 
 ```yaml
 # Metadata:       status default = "new"
-# Object View:    status default = "draft"      ← заменяет
-# Layout:         (не переопределяет)
+# Object View:    status default = "draft"      ← replaces
+# Layout:         (does not override)
 # Effective:      "draft"
 ```
 
-### Подсистемы
+### Subsystems
 
-Поведенческая логика разбивается на **6 независимых подсистем**:
+Behavioral logic is split into **6 independent subsystems**:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  GLOBAL (cross-cutting)                                          │
-│  Доступны на всех уровнях каскада, на backend и frontend         │
+│  Available at all cascade levels, on backend and frontend        │
 │                                                                  │
 │  ┌───────────────────────────────────────────────────────────┐   │
 │  │  Custom Functions (ADR-0026)                               │   │
-│  │  Именованные чистые CEL-выражения: fn.discount(tier, amt) │   │
-│  │  Dual-stack: cel-go + cel-js. Нет side effects.           │   │
-│  │  Вызываются из любого CEL-контекста ниже.                 │   │
+│  │  Named pure CEL expressions: fn.discount(tier, amt)       │   │
+│  │  Dual-stack: cel-go + cel-js. No side effects.            │   │
+│  │  Callable from any CEL context below.                     │   │
 │  └───────────────────────────────────────────────────────────┘   │
 └──────────────────────────────┬──────────────────────────────────┘
-                               │ доступны как fn.*
+                               │ available as fn.*
                                ▼
 ┌─────────────────────────────────────────────────────────┐
 │              PER-OBJECT (metadata level)                 │
-│   Базовые правила, наследуемые всеми Object View/Layout│
+│   Base rules, inherited by all Object Views/Layouts     │
 │                                                         │
 │  ┌───────────────┐  ┌──────────────┐  ┌──────────────┐  │
 │  │  Validation   │  │   Default    │  │   Formula    │  │
@@ -208,12 +208,12 @@ Default — «какое значение подставить, если не у
 │  │  in metadata  │  │  in metadata │  │  in metadata │  │
 │  └───────────────┘  └──────────────┘  └──────────────┘  │
 └──────────────────────────┬──────────────────────────────┘
-                           │ наследует (additive validation,
+                           │ inherits (additive validation,
                            │            replace defaults)
                            ▼
 ┌─────────────────────────────────────────────────────────┐
 │           PER-VIEW (Object View level)                   │
-│   Бизнес-контекст: конкретный UI-экран или API-endpoint │
+│   Business context: specific UI screen or API endpoint  │
 │                                                         │
 │  ┌───────────────┐  ┌──────────────┐  ┌──────────────┐  │
 │  │  + Validation │  │  + Default   │  │  Queries     │  │
@@ -224,12 +224,12 @@ Default — «какое значение подставить, если не у
 │  │  Fields (CEL) │  │  (DML)       │                    │
 │  └───────────────┘  └──────────────┘                    │
 └──────────────────────────┬──────────────────────────────┘
-                           │ наследует (additive validation,
+                           │ inherits (additive validation,
                            │            replace defaults)
                            ▼
 ┌─────────────────────────────────────────────────────────┐
 │           PER-LAYOUT (Layout level)                      │
-│   Презентация: визуальное расположение и UI-правила     │
+│   Presentation: visual arrangement and UI rules         │
 │                                                         │
 │  ┌───────────────┐  ┌──────────────┐  ┌──────────────┐  │
 │  │  + Validation │  │  + Default   │  │  Field       │  │
@@ -241,32 +241,32 @@ Default — «какое значение подставить, если не у
 
 #### 1. Validation Rules (per-object, metadata level)
 
-CEL-выражения, проверяющие данные перед записью. Хранятся в metadata schema, применяются DML Engine при любой операции.
+CEL expressions that validate data before writes. Stored in the metadata schema, applied by the DML Engine on every operation.
 
 ```
 metadata.validation_rules (object_id, expr, message, code, severity, when_expr, sort_order)
 ```
 
-- Интеграция: DML Engine (validate step)
-- Оценка: CEL runtime (cel-go backend, cel-js frontend)
-- Переменные: `record` (текущие значения), `old` (предыдущие при update), `user`, `now`
+- Integration: DML Engine (validate step)
+- Evaluation: CEL runtime (cel-go backend, cel-js frontend)
+- Variables: `record` (current values), `old` (previous values on update), `user`, `now`
 
 #### 2. Default Expressions (per-field, metadata level)
 
-CEL-выражения для вычисления значений по умолчанию. Расширение существующего `FieldConfig.DefaultValue` до динамических выражений.
+CEL expressions for computing default values. Extension of the existing `FieldConfig.DefaultValue` to dynamic expressions.
 
 ```
 field_definitions.config.default_expr — CEL expression (nullable)
 field_definitions.config.default_on   — "create" | "update" | "create,update"
 ```
 
-- Интеграция: DML Engine (pre-validate step, инжект missing fields)
-- Переменные: `record`, `user`, `now`
-- Статические дефолты (`"draft"`, `true`) остаются как `default_value`
+- Integration: DML Engine (pre-validate step, missing field injection)
+- Variables: `record`, `user`, `now`
+- Static defaults (`"draft"`, `true`) remain as `default_value`
 
 #### 3. Formula Fields (per-field, metadata level, read-only)
 
-CEL-выражения для вычисляемых полей, не хранящихся в БД. Вычисляются при чтении. Аналог Salesforce Formula Fields.
+CEL expressions for computed fields that are not stored in the DB. Computed at read time. Analogous to Salesforce Formula Fields.
 
 ```
 field_definitions.config.formula_expr — CEL expression (nullable)
@@ -274,88 +274,88 @@ field_definitions.field_type = "formula"
 field_definitions.field_subtype = "string" | "number" | "boolean" | "datetime"
 ```
 
-- Интеграция: SOQL Executor (post-fetch computation)
-- Переменные: `record` (все поля текущей записи)
-- Frontend: вычисляются локально по тому же CEL
+- Integration: SOQL Executor (post-fetch computation)
+- Variables: `record` (all fields of the current record)
+- Frontend: computed locally using the same CEL
 
-#### 4. Object View (per-view, будущее)
+#### 4. Object View (per-view, future)
 
-Композиционный слой для конкретного UI-экрана или API-endpoint. Наследует validation и defaults из metadata (additive / replace). Содержит собственные компоненты:
+Composition layer for a specific UI screen or API endpoint. Inherits validation and defaults from metadata (additive / replace). Contains its own components:
 
-- Queries — именованные SOQL-запросы с cross-references
-- Virtual Fields — view-specific вычисляемые поля (CEL)
-- Mutations — оркестрация DML-операций (foreach, sync)
-- Validation overrides — дополнительные правила (additive only)
-- Default overrides — альтернативные дефолты (replace)
+- Queries — named SOQL queries with cross-references
+- Virtual Fields — view-specific computed fields (CEL)
+- Mutations — DML operation orchestration (foreach, sync)
+- Validation overrides — additional rules (additive only)
+- Default overrides — alternative defaults (replace)
 
-**Архитектурная роль: адаптер bounded context (DDD).** Один и тот же объект (например `Order`) обслуживает разные бизнес-роли: менеджер по продажам, кладовщик, руководитель. Каждая роль работает в своём bounded context — со своим набором полей, действий, related lists и sidebar. Object View, привязанный к профилю (`profile_id`), адаптирует единые данные к контексту конкретной роли без дублирования кода. OLS/FLS/RLS контролируют *доступ к данным*, Object View контролирует *представление данных*. При этом Object View только сужает видимость (FLS intersection), но не расширяет доступ.
+**Architectural role: bounded context adapter (DDD).** The same object (e.g. `Order`) serves different business roles: sales manager, warehouse worker, manager. Each role operates in its own bounded context — with its own set of fields, actions, related lists, and sidebar. Object View, bound to a profile (`profile_id`), adapts unified data to the context of a specific role without code duplication. OLS/FLS/RLS controls *data access*, Object View controls *data presentation*. At the same time, Object View only narrows visibility (FLS intersection), but does not expand access.
 
-Детализация: [ADR-0022](0022-object-view-bounded-context.md) — структура config, resolution logic, sidebar/dashboard per profile, примеры role-based UI.
+Details: [ADR-0022](0022-object-view-bounded-context.md) — config structure, resolution logic, sidebar/dashboard per profile, role-based UI examples.
 
-#### 5. Automation Rules (per-object, будущее)
+#### 5. Automation Rules (per-object, future)
 
-Реактивная логика: «когда произошло X, выполни Y». Аналог Salesforce Flow / Process Builder.
+Reactive logic: "when X happens, do Y". Analogous to Salesforce Flow / Process Builder.
 
-- Trigger condition — CEL-выражение (`new.Stage == "Closed Won" && old.Stage != "Closed Won"`)
-- Action — ссылка на Procedure (синхронная, ADR-0024) или Scenario (асинхронный, ADR-0025)
-- Терминология: ADR-0023
+- Trigger condition — CEL expression (`new.Stage == "Closed Won" && old.Stage != "Closed Won"`)
+- Action — reference to a Procedure (synchronous, ADR-0024) or Scenario (asynchronous, ADR-0025)
+- Terminology: ADR-0023
 
-Отдельный ADR при необходимости.
+Separate ADR if needed.
 
 #### 6. Custom Functions (global, cross-cutting, ADR-0026)
 
-Именованные чистые CEL-выражения с типизированными параметрами. Устраняют дублирование CEL-логики между подсистемами.
+Named pure CEL expressions with typed parameters. Eliminate CEL logic duplication across subsystems.
 
 ```
 metadata.functions (name, params JSONB, return_type, body TEXT)
 ```
 
-- **Чистые**: нет side effects — только вычисления, без CRUD/IO
-- **Глобальные**: не привязаны к объекту, вызываются из любого CEL-контекста через `fn.*` namespace
-- **Dual-stack**: загружаются в cel-go (backend) и cel-js (frontend) — одинаковое поведение
-- **Reusable**: одно определение → использование в validation rules, defaults, formulas, visibility, procedure/scenario input
-- **Composable**: `fn.total(fn.discount(tier, amount), tax_rate)` — функции вызывают друг друга (max 3 уровня)
+- **Pure**: no side effects — only computations, no CRUD/IO
+- **Global**: not bound to an object, callable from any CEL context via `fn.*` namespace
+- **Dual-stack**: loaded into cel-go (backend) and cel-js (frontend) — identical behavior
+- **Reusable**: one definition -> use in validation rules, defaults, formulas, visibility, procedure/scenario input
+- **Composable**: `fn.total(fn.discount(tier, amount), tax_rate)` — functions can call each other (max 3 levels)
 
-Отличие от Formula Fields: Formula Field привязан к объекту и полю; Function глобальна и принимает произвольные параметры.
+Difference from Formula Fields: a Formula Field is bound to an object and a field; a Function is global and accepts arbitrary parameters.
 
-Детализация: [ADR-0026](0026-custom-functions.md).
+Details: [ADR-0026](0026-custom-functions.md).
 
-### Execution context: DML Engine
+### Execution Context: DML Engine
 
-DML Engine при выполнении операции получает **effective ruleset** — результат каскадного слияния правил в зависимости от контекста вызова:
+When performing an operation, the DML Engine receives an **effective ruleset** — the result of cascading rule merging depending on the calling context:
 
 ```
-Вызов без Object View (raw DML, import, integration):
+Call without Object View (raw DML, import, integration):
   effective_validation = metadata_rules
   effective_defaults   = metadata_defaults
 
-Вызов через Object View (UI form, specific API endpoint):
+Call through Object View (UI form, specific API endpoint):
   effective_validation = metadata_rules AND object_view_rules
   effective_defaults   = merge(metadata_defaults, object_view_defaults)
 
-Вызов через Layout:
+Call through Layout:
   effective_validation = metadata_rules AND object_view_rules AND layout_rules
   effective_defaults   = merge(metadata_defaults, object_view_defaults, layout_defaults)
 ```
 
-«Голый» DML (без Object View) всегда применяет metadata-level правила — минимальный гарантированный уровень защиты data integrity.
+"Bare" DML (without Object View) always applies metadata-level rules — the minimum guaranteed level of data integrity protection.
 
-### CEL как expression language
+### CEL as the Expression Language
 
-Для всех выражений (validation, defaults, formulas, virtual fields) используется CEL — Common Expression Language (Google).
+CEL — Common Expression Language (Google) — is used for all expressions (validation, defaults, formulas, virtual fields).
 
-| Критерий | CEL | Альтернативы |
+| Criterion | CEL | Alternatives |
 |----------|-----|-------------|
 | Go runtime | `cel-go` (official) | Expr, Govaluate |
-| JS runtime | `cel-js` | Только CEL имеет оба |
-| Безопасность | Sandboxed, no side effects | Expr — аналогично, Govaluate — нет |
-| Типизация | Static type checking | Expr — runtime only |
-| Стандарт | Google, K8s, Firebase | Нет |
-| Синтаксис | C-like, понятный | Expr — похожий |
+| JS runtime | `cel-js` | Only CEL has both |
+| Security | Sandboxed, no side effects | Expr — similar, Govaluate — no |
+| Typing | Static type checking | Expr — runtime only |
+| Standard | Google, K8s, Firebase | None |
+| Syntax | C-like, intuitive | Expr — similar |
 
-CEL-интеграция вводится при реализации Validation Rules (Phase 7b).
+CEL integration is introduced with the implementation of Validation Rules (Phase 7b).
 
-### Дорожная карта
+### Roadmap
 
 ```
 Phase 7a                  Phase 7b                Phase 10                Phase 9a/9b
@@ -368,45 +368,45 @@ Generic CRUD          CEL engine (cel-go)   Custom Functions          Object Vie
                                             + SOQL integration
 ```
 
-**Phase 7a.** Generic metadata-driven REST endpoints: один набор handlers обслуживает все объекты через SOQL (чтение) и DML (запись). Frontend рендерит формы по метаданным. Валидация: required + type constraints (уже в DML Engine). Static defaults: инжект `FieldConfig.default_value` для отсутствующих полей. Системные поля (`owner_id`, `created_by_id`, `created_at`, `updated_at`). Без CEL.
+**Phase 7a.** Generic metadata-driven REST endpoints: a single set of handlers serves all objects via SOQL (reads) and DML (writes). Frontend renders forms from metadata. Validation: required + type constraints (already in DML Engine). Static defaults: injection of `FieldConfig.default_value` for missing fields. System fields (`owner_id`, `created_by_id`, `created_at`, `updated_at`). No CEL.
 
-**Phase 7b — CEL + Validation Rules + Dynamic Defaults.** Интеграция `cel-go`. Таблица `metadata.validation_rules`. Расширение `FieldConfig` для `default_expr`. Интеграция в DML pipeline (Stage 3 dynamic + Stage 4b). Frontend-библиотека для CEL-eval (`cel-js`).
+**Phase 7b — CEL + Validation Rules + Dynamic Defaults.** Integration of `cel-go`. Table `metadata.validation_rules`. Extension of `FieldConfig` for `default_expr`. Integration into the DML pipeline (Stage 3 dynamic + Stage 4b). Frontend library for CEL evaluation (`cel-js`).
 
-**Phase 10 — Custom Functions + Formula Fields.** Custom Functions (ADR-0026): глобальные именованные CEL-выражения с `fn.*` namespace, dual-stack (cel-go + cel-js), Function Constructor + интеграция в Expression Builder. Formula Fields: `field_type = "formula"`, CEL-выражение в config, SOQL executor вычисляет после fetch, frontend вычисляет локально. Formula Fields могут вызывать Custom Functions.
+**Phase 10 — Custom Functions + Formula Fields.** Custom Functions (ADR-0026): global named CEL expressions with `fn.*` namespace, dual-stack (cel-go + cel-js), Function Constructor + Expression Builder integration. Formula Fields: `field_type = "formula"`, CEL expression in config, SOQL executor computes after fetch, frontend computes locally. Formula Fields can call Custom Functions.
 
-**Phase 9a/9b — Object Views + Automation + Layout cascade.** Полная композиция с трёхуровневым каскадом. Каскадный мержинг (metadata + Object View + Layout). ADR-0022 (Object View), ADR-0023 (терминология Action), ADR-0024 (Procedure Engine), ADR-0025 (Scenario Engine).
+**Phase 9a/9b — Object Views + Automation + Layout Cascade.** Full composition with the three-level cascade. Cascading merge (metadata + Object View + Layout). ADR-0022 (Object View), ADR-0023 (Action terminology), ADR-0024 (Procedure Engine), ADR-0025 (Scenario Engine).
 
-## Последствия
+## Consequences
 
-### Позитивные
+### Positive
 
-- Phase 7a не блокируется — generic CRUD endpoints строятся на существующей инфраструктуре (SOQL + DML + MetadataCache)
-- Каждая подсистема независимо полезна и тестируема
-- Трёхуровневый каскад (Metadata → Object View → Layout) обеспечивает DRY + гибкость
-- Аддитивная модель validation гарантирует ужесточение без программной верификации выражений
-- Validation Rules работают при любом способе записи (API, import, integration)
-- «Голый» DML без Object View всё равно защищён metadata-level правилами
-- Инкрементальная доставка ценности
-- Соответствие индустриальному паттерну (Salesforce, Dynamics, Zoho)
+- Phase 7a is not blocked — generic CRUD endpoints are built on existing infrastructure (SOQL + DML + MetadataCache)
+- Each subsystem is independently useful and testable
+- Three-level cascade (Metadata -> Object View -> Layout) provides DRY + flexibility
+- Additive validation model guarantees tightening without programmatic expression verification
+- Validation Rules work with any write method (API, import, integration)
+- "Bare" DML without Object View is still protected by metadata-level rules
+- Incremental value delivery
+- Matches the industry pattern (Salesforce, Dynamics, Zoho)
 
-### Негативные
+### Negative
 
-- Нет единого документа для всей логики объекта (сознательный trade-off в пользу SoC)
-- Больше ADR (каждая подсистема = отдельное архитектурное решение)
-- Композиционный слой (Object View + Layout cascade) откладывается до Phase N+2
-- Аддитивная модель validation не позволяет ослабить правило — если правило может различаться в контекстах, его нужно изначально размещать в Object View, а не в metadata
+- No single document for all object logic (deliberate trade-off in favor of SoC)
+- More ADRs (each subsystem = a separate architectural decision)
+- Composition layer (Object View + Layout cascade) is deferred to Phase N+2
+- Additive validation model does not allow loosening a rule — if a rule can differ across contexts, it should be placed in Object View from the start, not in metadata
 
-### Связанные ADR
+### Related ADRs
 
-- ADR-0003 — Object metadata structure (расширяется validation rules и default expressions)
-- ADR-0004 — Field type/subtype hierarchy (расширяется formula type)
-- ADR-0007 — Table-per-object storage (generic CRUD работает с `obj_{api_name}` таблицами)
-- ADR-0009..0012 — Security layers (validation rules дополняют, но не заменяют OLS/FLS/RLS)
-- ADR-0018 — App Templates (создают schema; подсистемы из этого ADR определяют поведение)
-- ADR-0020 — DML Pipeline Extension (typed stages — точки интеграции подсистем в DML Engine)
-- ADR-0022 — Object View как адаптер bounded context (детализация подсистемы 4: role-based UI, config schema, resolution logic)
-- ADR-0023 — Action terminology: единая иерархия Action → Command → Procedure → Scenario + Function (ортогональна)
-- ADR-0024 — Procedure Engine: JSON DSL + Constructor UI для синхронной бизнес-логики (Mutations → Action type: procedure)
-- ADR-0025 — Scenario Engine: JSON DSL + Constructor UI для асинхронных долгоживущих процессов
-- ADR-0026 — Custom Functions (детализация подсистемы 6: fn.* namespace, dual-stack, ограничения, Constructor UI)
-- ADR-0027 — Layout + Form (третий уровень каскада: Layout определяет presentation поверх Object View, Form = computed merge для фронтенда)
+- ADR-0003 — Object metadata structure (extended with validation rules and default expressions)
+- ADR-0004 — Field type/subtype hierarchy (extended with formula type)
+- ADR-0007 — Table-per-object storage (generic CRUD works with `obj_{api_name}` tables)
+- ADR-0009..0012 — Security layers (validation rules supplement but do not replace OLS/FLS/RLS)
+- ADR-0018 — App Templates (create schema; subsystems from this ADR define behavior)
+- ADR-0020 — DML Pipeline Extension (typed stages — subsystem integration points in DML Engine)
+- ADR-0022 — Object View as bounded context adapter (details for subsystem 4: role-based UI, config schema, resolution logic)
+- ADR-0023 — Action terminology: unified hierarchy Action -> Command -> Procedure -> Scenario + Function (orthogonal)
+- ADR-0024 — Procedure Engine: JSON DSL + Constructor UI for synchronous business logic (Mutations -> Action type: procedure)
+- ADR-0025 — Scenario Engine: JSON DSL + Constructor UI for asynchronous long-running processes
+- ADR-0026 — Custom Functions (details for subsystem 6: fn.* namespace, dual-stack, constraints, Constructor UI)
+- ADR-0027 — Layout + Form (third cascade level: Layout defines presentation on top of Object View, Form = computed merge for frontend)

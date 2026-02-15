@@ -1,220 +1,220 @@
-# ADR-0022: Object View — адаптер bounded context через role-based UI
+# ADR-0022: Object View — Bounded Context Adapter via Role-based UI
 
-**Статус:** Принято
-**Дата:** 2026-02-15
-**Участники:** @roman_myakotin
+**Status:** Accepted
+**Date:** 2026-02-15
+**Participants:** @roman_myakotin
 
-## Контекст
+## Context
 
-### Проблема: единые данные — разные контексты
+### Problem: same data — different contexts
 
-Платформа metadata-driven: один объект (например `Order`) обслуживает разные бизнес-роли. Каждая роль работает в своём **bounded context** (термин DDD) — со своей ментальной моделью, набором полей, действий и связанных объектов:
+The platform is metadata-driven: a single object (e.g. `Order`) serves different business roles. Each role operates within its own **bounded context** (DDD term) — with its own mental model, set of fields, actions, and related objects:
 
-| Аспект | Sales Rep | Кладовщик | Руководитель |
-|--------|-----------|-----------|--------------|
-| Фокус | Клиент, сделка, продажа | Отгрузка, склад, перемещение | Выручка, маржа, конверсия |
-| Поля | client_name, products, discount, total_amount | warehouse, shipping_status, tracking, packages | margin, cost_price, revenue, conversion |
-| Действия | send_proposal, create_task | mark_shipped, print_label | export_report, reassign |
+| Aspect | Sales Rep | Warehouse Worker | Manager |
+|--------|-----------|------------------|---------|
+| Focus | Client, deal, sale | Shipping, warehouse, movement | Revenue, margin, conversion |
+| Fields | client_name, products, discount, total_amount | warehouse, shipping_status, tracking, packages | margin, cost_price, revenue, conversion |
+| Actions | send_proposal, create_task | mark_shipped, print_label | export_report, reassign |
 | Related | Activities, Files | InventoryMovements | Reports, Subordinate deals |
 | Sidebar | Accounts, Contacts, Deals, Tasks | Orders, Warehouses, Shipments | Dashboard, Reports, Users |
 
-Сегодня OLS/FLS/RLS (ADR-0009..0012) контролируют **доступ к данным**, но не **представление**:
+Today OLS/FLS/RLS (ADR-0009..0012) control **data access**, but not **presentation**:
 
-| Слой | Что решает | Чего не хватает |
-|------|-----------|-----------------|
-| OLS | Какие объекты видит профиль | Какие секции/действия показать |
-| FLS | Какие поля доступны | В каком порядке, как сгруппировать |
-| RLS | Какие записи видимы | Какие related lists показать |
+| Layer | What it decides | What is missing |
+|-------|----------------|-----------------|
+| OLS | Which objects a profile can see | Which sections/actions to show |
+| FLS | Which fields are accessible | In what order, how to group them |
+| RLS | Which records are visible | Which related lists to show |
 
-Результат: все пользователи видят одинаковую форму со всеми доступными (по FLS) полями в порядке `sort_order` из metadata. Это создаёт:
+Result: all users see the same form with all available (per FLS) fields in the `sort_order` from metadata. This creates:
 
-1. **Когнитивную перегрузку** — 30+ полей на форме, когда роли нужно 8-10
-2. **Невозможность role-specific workflow** — кладовщик не может иметь кнопку "Отгрузить" без кастомного кода
-3. **Монолитный UI** — один layout для всех, вместо bounded context per role
-4. **Барьер для CRM+ERP сценариев** — невозможно дать складской роли "ERP-подобный" интерфейс на тех же объектах
+1. **Cognitive overload** — 30+ fields on a form when a role needs 8-10
+2. **No role-specific workflow** — a warehouse worker cannot have a "Ship" button without custom code
+3. **Monolithic UI** — one layout for everyone, instead of a bounded context per role
+4. **Barrier for CRM+ERP scenarios** — impossible to give a warehouse role an "ERP-like" interface on the same objects
 
-### Связь с ADR-0019
+### Relationship with ADR-0019
 
-ADR-0019 определил Object View как 4-ю подсистему декларативной бизнес-логики с трёхуровневым каскадом `Metadata → Object View → Layout`. Однако ADR-0019 фокусировался на семантике каскада (additive validation, replace defaults) и не детализировал:
+ADR-0019 defined Object View as the 4th subsystem of declarative business logic with a three-level cascade `Metadata -> Object View -> Layout`. However, ADR-0019 focused on cascade semantics (additive validation, replace defaults) and did not detail:
 
-- Привязку Object View к профилю/роли (bounded context adapter)
-- Структуру секций, действий, related lists
+- Binding Object View to profile/role (bounded context adapter)
+- Structure of sections, actions, related lists
 - Sidebar per profile
 - Dashboard per role
-- Механизм fallback при отсутствии view
+- Fallback mechanism when no view exists
 
-Данный ADR детализирует Object View как **полноценный адаптер bounded context**, превращающий единые данные в role-specific UI без дублирования кода.
+This ADR details Object View as a **full-fledged bounded context adapter**, transforming unified data into role-specific UI without code duplication.
 
-### Индустриальный контекст
+### Industry Context
 
-| Платформа | Механизм | Привязка |
-|-----------|----------|----------|
+| Platform | Mechanism | Binding |
+|----------|-----------|---------|
 | **Salesforce** | Page Layouts + Record Types + App | Profile + Record Type |
 | **Dynamics 365** | Forms + Views + App Modules | Security Role + App |
 | **ServiceNow** | UI Policies + UI Actions + Views | Role |
 | **HubSpot** | Record Customization + Views | Team + Pipeline |
 
-Все enterprise-платформы решают задачу bounded context через привязку представления к роли/профилю. Это не опциональная фича — это фундамент масштабируемого UI.
+All enterprise platforms solve the bounded context challenge by binding presentation to a role/profile. This is not an optional feature — it is the foundation of scalable UI.
 
-## Рассмотренные варианты
+## Considered Options
 
-### Вариант A — Хардкод views per role в frontend
+### Option A — Hardcoded views per role in frontend
 
-Отдельные Vue-компоненты для каждой роли: `OrderSalesView.vue`, `OrderWarehouseView.vue`.
+Separate Vue components for each role: `OrderSalesView.vue`, `OrderWarehouseView.vue`.
 
-**Плюсы:**
-- Быстрая реализация для 2-3 ролей
-- Полная свобода в вёрстке
+**Pros:**
+- Quick implementation for 2-3 roles
+- Full freedom in layout
 
-**Минусы:**
-- Не масштабируется: N объектов × M ролей = N×M компонентов
-- Противоречит metadata-driven архитектуре
-- Custom objects не получают role-based views
-- Код дублируется между views
+**Cons:**
+- Does not scale: N objects x M roles = NxM components
+- Contradicts the metadata-driven architecture
+- Custom objects do not get role-based views
+- Code is duplicated across views
 
-### Вариант B — Object View как metadata-driven configuration (выбран)
+### Option B — Object View as metadata-driven configuration (chosen)
 
-Object View — JSON-конфигурация в metadata, привязанная к `(object, profile)`. Frontend рендерит UI по конфигурации. Fallback: нет Object View → все FLS-доступные поля в порядке `sort_order`.
+Object View — a JSON configuration in metadata, bound to `(object, profile)`. The frontend renders UI based on the configuration. Fallback: no Object View -> all FLS-accessible fields in `sort_order`.
 
-**Плюсы:**
-- Масштабируется на любое количество объектов и ролей
-- Администратор настраивает через UI без кода
-- Custom objects получают role-based views автоматически
-- Единый рендерер — один компонент обрабатывает любой Object View
-- Вписывается в трёхуровневый каскад ADR-0019
-- Наследует security: Object View не может показать поле, запрещённое FLS
+**Pros:**
+- Scales to any number of objects and roles
+- Administrator configures through UI without code
+- Custom objects get role-based views automatically
+- Single renderer — one component handles any Object View
+- Fits into the three-level cascade of ADR-0019
+- Inherits security: Object View cannot show a field forbidden by FLS
 
-**Минусы:**
-- Требует нового metadata storage + Admin UI
-- Декларативная конфигурация ограничена — сложные кастомизации невозможны без кода
-- Дополнительный запрос к metadata при загрузке формы
+**Cons:**
+- Requires new metadata storage + Admin UI
+- Declarative configuration is limited — complex customizations are impossible without code
+- Additional metadata request when loading a form
 
-### Вариант C — Layout Builder (drag-and-drop)
+### Option C — Layout Builder (drag-and-drop)
 
-Визуальный конструктор форм с drag-and-drop (как Salesforce Lightning App Builder).
+Visual form builder with drag-and-drop (like Salesforce Lightning App Builder).
 
-**Плюсы:**
-- Максимальная гибкость для администратора
-- Визуальная настройка без знания JSON/конфигов
+**Pros:**
+- Maximum flexibility for the administrator
+- Visual configuration without knowledge of JSON/configs
 
-**Минусы:**
-- Огромная сложность реализации (6+ месяцев)
-- Не нужен на текущем этапе (80/20: JSON config покрывает 90% кейсов)
-- Может быть добавлен поверх варианта B позже (Builder = visual editor для того же JSON)
+**Cons:**
+- Enormous implementation complexity (6+ months)
+- Not needed at the current stage (80/20: JSON config covers 90% of cases)
+- Can be added on top of Option B later (Builder = visual editor for the same JSON)
 
-### Вариант D — Profile-specific CSS/visibility rules
+### Option D — Profile-specific CSS/visibility rules
 
-Скрывать/показывать элементы через CSS-классы или visibility rules на frontend.
+Hide/show elements through CSS classes or visibility rules on the frontend.
 
-**Плюсы:**
-- Минимальные изменения backend
-- Быстрая реализация
+**Pros:**
+- Minimal backend changes
+- Quick implementation
 
-**Минусы:**
-- Security through obscurity — данные всё равно приходят в payload
-- Нет группировки полей в секции
-- Нет role-specific действий и related lists
-- Не масштабируется
+**Cons:**
+- Security through obscurity — data still arrives in the payload
+- No grouping of fields into sections
+- No role-specific actions and related lists
+- Does not scale
 
-## Решение
+## Decision
 
-**Выбран вариант B: Object View как metadata-driven configuration с привязкой к профилю.**
+**Option B chosen: Object View as metadata-driven configuration bound to profile.**
 
-### Концептуальная модель
+### Conceptual Model
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Пользователь логинится                    │
-│                           │                                  │
-│                     JWT → Profile + Role                      │
-│                           │                                  │
-│              ┌────────────┼────────────────┐                 │
-│              ▼            ▼                ▼                  │
-│         ┌─────────┐  ┌─────────┐   ┌──────────────┐         │
-│         │   OLS   │  │ Object  │   │   Dashboard  │         │
-│         │ фильтр  │  │  View   │   │  per profile │         │
-│         │ sidebar │  │ resolve │   │              │         │
-│         └────┬────┘  └────┬────┘   └──────┬───────┘         │
-│              │            │               │                  │
-│              ▼            ▼               ▼                  │
-│         Sidebar      Record Form      Home Page              │
-│        (только       (секции,         (виджеты               │
-│         доступные    порядок,          роли)                  │
-│         объекты)     действия)                                │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+|                     User logs in                              |
+|                           |                                  |
+|                     JWT -> Profile + Role                      |
+|                           |                                  |
+|              +------------+----------------+                 |
+|              v            v                v                  |
+|         +---------+  +---------+   +--------------+         |
+|         |   OLS   |  | Object  |   |   Dashboard  |         |
+|         | filter  |  |  View   |   |  per profile |         |
+|         | sidebar |  | resolve |   |              |         |
+|         +----+----+  +----+----+   +------+-------+         |
+|              |            |               |                  |
+|              v            v               v                  |
+|         Sidebar      Record Form      Home Page              |
+|        (only         (sections,       (role                  |
+|         accessible   order,           widgets)               |
+|         objects)     actions)                                 |
++-------------------------------------------------------------+
 ```
 
-### Структура Object View
+### Object View Structure
 
-Object View — запись в metadata, описывающая как отображать объект для конкретного профиля:
+Object View — a record in metadata describing how to display an object for a specific profile:
 
 ```
 metadata.object_views
-├── id               UUID PK
-├── object_id        FK → object_definitions.id
-├── profile_id       FK → iam.profiles.id (nullable — default view)
-├── api_name         VARCHAR UNIQUE (e.g. "order_sales", "order_warehouse")
-├── label            VARCHAR
-├── description      TEXT
-├── is_default       BOOLEAN (fallback view для профиля без specific view)
-├── config           JSONB (см. ниже)
-├── created_at       TIMESTAMPTZ
-└── updated_at       TIMESTAMPTZ
++-- id               UUID PK
++-- object_id        FK -> object_definitions.id
++-- profile_id       FK -> iam.profiles.id (nullable — default view)
++-- api_name         VARCHAR UNIQUE (e.g. "order_sales", "order_warehouse")
++-- label            VARCHAR
++-- description      TEXT
++-- is_default       BOOLEAN (fallback view for a profile without a specific view)
++-- config           JSONB (see below)
++-- created_at       TIMESTAMPTZ
++-- updated_at       TIMESTAMPTZ
 
-UNIQUE(object_id, profile_id)  — один view на пару (объект, профиль)
+UNIQUE(object_id, profile_id)  — one view per (object, profile) pair
 ```
 
 ### Config JSON Schema
 
 ```jsonc
 {
-  // Секции формы — группировка полей
+  // Form sections — field grouping
   "sections": [
     {
       "key": "client_info",
-      "label": "Информация о клиенте",
-      "columns": 2,                    // 1 или 2 колонки
-      "collapsed": false,              // свёрнута по умолчанию
+      "label": "Client Information",
+      "columns": 2,                    // 1 or 2 columns
+      "collapsed": false,              // collapsed by default
       "fields": [
-        "client_name",                 // api_name поля
+        "client_name",                 // field api_name
         "contact_phone",
         "deal"                         // reference field
       ]
     },
     {
       "key": "products",
-      "label": "Товары",
+      "label": "Products",
       "columns": 1,
       "fields": ["products", "total_amount", "discount"]
     }
   ],
 
-  // Highlight panel — ключевые поля вверху карточки (Compact Layout)
+  // Highlight panel — key fields at the top of the record card (Compact Layout)
   "highlight_fields": ["order_number", "status", "total_amount"],
 
-  // Действия (кнопки) на карточке записи
+  // Actions (buttons) on the record card
   "actions": [
     {
       "key": "send_proposal",
-      "label": "Отправить предложение",
+      "label": "Send Proposal",
       "type": "primary",                // primary | secondary | danger
       "icon": "mail",
-      "visibility_expr": "record.status == 'draft'"  // CEL — когда показывать
+      "visibility_expr": "record.status == 'draft'"  // CEL — when to show
     },
     {
       "key": "mark_shipped",
-      "label": "Отгрузить",
+      "label": "Ship",
       "type": "primary",
       "icon": "truck",
       "visibility_expr": "record.status == 'confirmed'"
     }
   ],
 
-  // Related Lists — дочерние объекты внизу карточки
+  // Related Lists — child objects at the bottom of the record card
   "related_lists": [
     {
       "object": "Activity",
-      "label": "Активности",
+      "label": "Activities",
       "fields": ["subject", "type", "due_date", "status"],
       "filter": "WhatId = :recordId",
       "sort": "due_date DESC",
@@ -222,137 +222,137 @@ UNIQUE(object_id, profile_id)  — один view на пару (объект, п
     }
   ],
 
-  // List View — какие колонки показывать в таблице списка
+  // List View — which columns to show in the list table
   "list_fields": ["order_number", "client_name", "status", "total_amount", "created_at"],
 
-  // Сортировка по умолчанию в списке
+  // Default sort in the list
   "list_default_sort": "created_at DESC",
 
-  // Фильтры по умолчанию в списке
+  // Default filters in the list
   "list_default_filter": "owner_id = :currentUserId"
 }
 ```
 
-### Правила разрешения (Resolution Rules)
+### Resolution Rules
 
-При открытии записи объекта `X` пользователем с профилем `P`:
-
-```
-1. Ищем object_views WHERE object_id = X AND profile_id = P
-   → Найден? Используем.
-
-2. Ищем object_views WHERE object_id = X AND is_default = true
-   → Найден? Используем.
-
-3. Fallback: авто-генерация из metadata
-   → sections: одна секция "Детали" со всеми FLS-доступными полями
-   → highlight_fields: первые 3 поля
-   → actions: стандартные (Save, Delete)
-   → related_lists: все дочерние объекты (composition/association)
-   → list_fields: первые 5 полей
-```
-
-Fallback гарантирует, что **система работает без единого Object View** — текущее поведение сохраняется. Object View — необязательное улучшение.
-
-### Взаимодействие с Security
-
-Object View **не расширяет** доступ — он только **сужает представление**:
+When opening a record of object `X` by a user with profile `P`:
 
 ```
-Видимые поля = Object View fields ∩ FLS-доступные поля
+1. Look for object_views WHERE object_id = X AND profile_id = P
+   -> Found? Use it.
+
+2. Look for object_views WHERE object_id = X AND is_default = true
+   -> Found? Use it.
+
+3. Fallback: auto-generate from metadata
+   -> sections: one section "Details" with all FLS-accessible fields
+   -> highlight_fields: first 3 fields
+   -> actions: standard (Save, Delete)
+   -> related_lists: all child objects (composition/association)
+   -> list_fields: first 5 fields
 ```
 
-Если Object View включает поле, запрещённое FLS — поле не отображается (FLS побеждает).
-Если FLS разрешает поле, но Object View его не включает — поле не отображается (View сужает).
+The fallback guarantees that **the system works without a single Object View** — current behavior is preserved. Object View is an optional enhancement.
+
+### Interaction with Security
+
+Object View **does not expand** access — it only **narrows the presentation**:
 
 ```
-┌──────────────────────────────────────────┐
-│             FLS-доступные поля            │
-│  ┌────────────────────────────────────┐  │
-│  │     Object View fields            │  │
-│  │  ┌──────────────────────────┐     │  │
-│  │  │  Отображаемые поля      │     │  │
-│  │  │  (пересечение)          │     │  │
-│  │  └──────────────────────────┘     │  │
-│  └────────────────────────────────────┘  │
-└──────────────────────────────────────────┘
+Visible fields = Object View fields ∩ FLS-accessible fields
 ```
 
-Действия (actions) проходят аналогичную проверку:
-- `send_proposal` требует OLS Update на Order → если нет — кнопка скрыта
-- `delete` требует OLS Delete → если нет — кнопка скрыта
+If Object View includes a field forbidden by FLS — the field is not displayed (FLS wins).
+If FLS allows a field but Object View does not include it — the field is not displayed (View narrows).
 
-### Интеграция с каскадом ADR-0019
+```
++------------------------------------------+
+|             FLS-accessible fields         |
+|  +------------------------------------+  |
+|  |     Object View fields            |  |
+|  |  +--------------------------+     |  |
+|  |  |  Displayed fields       |     |  |
+|  |  |  (intersection)         |     |  |
+|  |  +--------------------------+     |  |
+|  +------------------------------------+  |
++------------------------------------------+
+```
 
-Object View занимает второй уровень каскада:
+Actions undergo an analogous check:
+- `send_proposal` requires OLS Update on Order -> if absent — button is hidden
+- `delete` requires OLS Delete -> if absent — button is hidden
+
+### Integration with ADR-0019 Cascade
+
+Object View occupies the second level of the cascade:
 
 ```
 Metadata (base)
-   ↓ additive validation, inherit defaults
-Object View (bounded context)        ← ЭТОТ ADR
-   ↓ additive validation, replace defaults, override visibility
+   | additive validation, inherit defaults
+Object View (bounded context)        <- THIS ADR
+   | additive validation, replace defaults, override visibility
 Layout (presentation, future)
 ```
 
-| Аспект | Metadata → Object View | Механизм |
+| Aspect | Metadata -> Object View | Mechanism |
 |--------|------------------------|----------|
-| **Validation Rules** | Additive (AND) | OV добавляет правила, не удаляет metadata-уровень |
-| **Default Expressions** | Replace | OV может переопределить default для поля |
-| **Field visibility** | Restrict | OV показывает subset полей из metadata |
-| **Actions** | Define | OV определяет доступные действия |
-| **Related Lists** | Define | OV определяет дочерние объекты для отображения |
+| **Validation Rules** | Additive (AND) | OV adds rules, does not remove metadata-level ones |
+| **Default Expressions** | Replace | OV can override the default for a field |
+| **Field visibility** | Restrict | OV shows a subset of fields from metadata |
+| **Actions** | Define | OV defines available actions |
+| **Related Lists** | Define | OV defines child objects for display |
 
 ### Sidebar per Profile
 
-OLS уже фильтрует объекты по профилю. Object View дополняет:
+OLS already filters objects by profile. Object View supplements:
 
 ```
 metadata.profile_navigation
-├── id               UUID PK
-├── profile_id       FK → iam.profiles.id
-├── config           JSONB
-├── created_at       TIMESTAMPTZ
-└── updated_at       TIMESTAMPTZ
++-- id               UUID PK
++-- profile_id       FK -> iam.profiles.id
++-- config           JSONB
++-- created_at       TIMESTAMPTZ
++-- updated_at       TIMESTAMPTZ
 
 config = {
   "groups": [
     {
-      "label": "Продажи",
-      "items": ["Account", "Contact", "Opportunity"]  // api_name объектов
+      "label": "Sales",
+      "items": ["Account", "Contact", "Opportunity"]  // object api_names
     },
     {
-      "label": "Документы",
+      "label": "Documents",
       "items": ["Order", "Contract", "Quote"]
     }
   ]
 }
 ```
 
-Fallback: нет записи в `profile_navigation` → sidebar из OLS-доступных объектов в алфавитном порядке (текущее поведение).
+Fallback: no record in `profile_navigation` -> sidebar from OLS-accessible objects in alphabetical order (current behavior).
 
 ### Dashboard per Profile
 
-Home page адаптируется к профилю:
+Home page adapts to the profile:
 
 ```
 metadata.profile_dashboards
-├── id               UUID PK
-├── profile_id       FK → iam.profiles.id
-├── config           JSONB
-├── created_at       TIMESTAMPTZ
-└── updated_at       TIMESTAMPTZ
++-- id               UUID PK
++-- profile_id       FK -> iam.profiles.id
++-- config           JSONB
++-- created_at       TIMESTAMPTZ
++-- updated_at       TIMESTAMPTZ
 
 config = {
   "widgets": [
     {
       "type": "list",                      // list | chart | metric | calendar
-      "label": "Мои открытые задачи",
+      "label": "My Open Tasks",
       "query": "SELECT Id, Subject, DueDate FROM Task WHERE OwnerId = :currentUserId AND Status != 'Completed' ORDER BY DueDate LIMIT 10",
       "size": "half"                        // full | half | third
     },
     {
       "type": "metric",
-      "label": "Сделки в этом месяце",
+      "label": "Deals This Month",
       "query": "SELECT COUNT(Id) FROM Opportunity WHERE CreatedDate = THIS_MONTH",
       "size": "third"
     }
@@ -360,138 +360,138 @@ config = {
 }
 ```
 
-Fallback: нет dashboard config → стандартный dashboard с recent items и tasks.
+Fallback: no dashboard config -> standard dashboard with recent items and tasks.
 
-### Пример: один объект — три bounded context
+### Example: one object — three bounded contexts
 
-**Order для Sales Rep (Profile: "Sales"):**
+**Order for Sales Rep (Profile: "Sales"):**
 ```jsonc
 {
   "sections": [
-    { "key": "client", "label": "Клиент", "fields": ["client_name", "contact_phone", "deal"] },
-    { "key": "products", "label": "Товары", "fields": ["products", "total_amount", "discount"] },
-    { "key": "delivery", "label": "Доставка", "fields": ["shipping_status", "delivery_date"] }
+    { "key": "client", "label": "Client", "fields": ["client_name", "contact_phone", "deal"] },
+    { "key": "products", "label": "Products", "fields": ["products", "total_amount", "discount"] },
+    { "key": "delivery", "label": "Delivery", "fields": ["shipping_status", "delivery_date"] }
   ],
   "highlight_fields": ["order_number", "client_name", "total_amount"],
   "actions": [
-    { "key": "send_proposal", "label": "Отправить предложение", "type": "primary" }
+    { "key": "send_proposal", "label": "Send Proposal", "type": "primary" }
   ],
   "related_lists": [
-    { "object": "Activity", "label": "Активности" }
+    { "object": "Activity", "label": "Activities" }
   ],
   "list_fields": ["order_number", "client_name", "status", "total_amount"]
 }
 ```
 
-**Order для кладовщика (Profile: "Warehouse"):**
+**Order for Warehouse Worker (Profile: "Warehouse"):**
 ```jsonc
 {
   "sections": [
-    { "key": "order", "label": "Заказ", "fields": ["order_number", "client_name"] },
-    { "key": "shipping", "label": "Отгрузка", "fields": ["warehouse", "products", "shipping_status", "tracking"] },
-    { "key": "dimensions", "label": "Вес и габариты", "fields": ["total_weight", "packages_count"] }
+    { "key": "order", "label": "Order", "fields": ["order_number", "client_name"] },
+    { "key": "shipping", "label": "Shipping", "fields": ["warehouse", "products", "shipping_status", "tracking"] },
+    { "key": "dimensions", "label": "Weight and Dimensions", "fields": ["total_weight", "packages_count"] }
   ],
   "highlight_fields": ["order_number", "shipping_status", "warehouse"],
   "actions": [
-    { "key": "mark_shipped", "label": "Отгрузить", "type": "primary", "visibility_expr": "record.status == 'confirmed'" },
-    { "key": "print_label", "label": "Печать этикетки", "type": "secondary" }
+    { "key": "mark_shipped", "label": "Ship", "type": "primary", "visibility_expr": "record.status == 'confirmed'" },
+    { "key": "print_label", "label": "Print Label", "type": "secondary" }
   ],
   "related_lists": [
-    { "object": "InventoryMovement", "label": "Движения по складу" }
+    { "object": "InventoryMovement", "label": "Inventory Movements" }
   ],
   "list_fields": ["order_number", "shipping_status", "warehouse", "created_at"]
 }
 ```
 
-**Order для руководителя (Profile: "Manager"):**
+**Order for Manager (Profile: "Manager"):**
 ```jsonc
 {
   "sections": [
-    { "key": "overview", "label": "Обзор", "fields": ["order_number", "client_name", "status", "total_amount"] },
-    { "key": "financials", "label": "Финансы", "fields": ["cost_price", "margin", "revenue", "discount"] },
-    { "key": "execution", "label": "Исполнение", "fields": ["warehouse", "shipping_status", "delivery_date"] }
+    { "key": "overview", "label": "Overview", "fields": ["order_number", "client_name", "status", "total_amount"] },
+    { "key": "financials", "label": "Financials", "fields": ["cost_price", "margin", "revenue", "discount"] },
+    { "key": "execution", "label": "Execution", "fields": ["warehouse", "shipping_status", "delivery_date"] }
   ],
   "highlight_fields": ["order_number", "total_amount", "margin"],
   "actions": [
-    { "key": "reassign", "label": "Переназначить", "type": "secondary" },
-    { "key": "export", "label": "Экспорт", "type": "secondary" }
+    { "key": "reassign", "label": "Reassign", "type": "secondary" },
+    { "key": "export", "label": "Export", "type": "secondary" }
   ],
   "related_lists": [
-    { "object": "Activity", "label": "Активности" },
-    { "object": "AuditLog", "label": "История изменений" }
+    { "object": "Activity", "label": "Activities" },
+    { "object": "AuditLog", "label": "Change History" }
   ],
   "list_fields": ["order_number", "client_name", "total_amount", "margin", "status"]
 }
 ```
 
-Три профиля, один URL `/app/Order/123` — три разных интерфейса. Без единой строчки хардкода.
+Three profiles, one URL `/app/Order/123` — three different interfaces. Without a single line of hardcoded logic.
 
 ### API
 
 ```
-GET  /api/v1/describe/:objectName          — включает resolved Object View для текущего профиля
-GET  /api/v1/admin/object-views            — список всех Object View (admin)
-POST /api/v1/admin/object-views            — создать Object View
-GET  /api/v1/admin/object-views/:id        — получить Object View
-PUT  /api/v1/admin/object-views/:id        — обновить Object View
-DELETE /api/v1/admin/object-views/:id      — удалить Object View
-GET  /api/v1/admin/profile-navigation/:id  — навигация профиля
-PUT  /api/v1/admin/profile-navigation/:id  — обновить навигацию
-GET  /api/v1/admin/profile-dashboards/:id  — dashboard профиля
-PUT  /api/v1/admin/profile-dashboards/:id  — обновить dashboard
+GET  /api/v1/describe/:objectName          — includes resolved Object View for the current profile
+GET  /api/v1/admin/object-views            — list all Object Views (admin)
+POST /api/v1/admin/object-views            — create Object View
+GET  /api/v1/admin/object-views/:id        — get Object View
+PUT  /api/v1/admin/object-views/:id        — update Object View
+DELETE /api/v1/admin/object-views/:id      — delete Object View
+GET  /api/v1/admin/profile-navigation/:id  — profile navigation
+PUT  /api/v1/admin/profile-navigation/:id  — update navigation
+GET  /api/v1/admin/profile-dashboards/:id  — profile dashboard
+PUT  /api/v1/admin/profile-dashboards/:id  — update dashboard
 ```
 
-Describe API расширяется: если для текущего профиля есть Object View — response включает `view` с секциями, действиями, related lists. Frontend использует `view` для рендеринга вместо плоского списка полей.
+Describe API is extended: if an Object View exists for the current profile — the response includes `view` with sections, actions, related lists. The frontend uses `view` for rendering instead of a flat list of fields.
 
-### Хранение
+### Storage
 
-Три таблицы в `metadata` schema:
+Three tables in the `metadata` schema:
 
-- `metadata.object_views` — конфигурация формы/списка per (object, profile)
+- `metadata.object_views` — form/list configuration per (object, profile)
 - `metadata.profile_navigation` — sidebar per profile
 - `metadata.profile_dashboards` — home page per profile
 
-Все конфигурации в JSONB — гибкость без миграций при расширении схемы.
+All configurations are stored in JSONB — flexibility without migrations when extending the schema.
 
-### Дорожная карта реализации
+### Implementation Roadmap
 
 ```
 Phase 9a: Object View Core                    Phase 9b: Navigation + Dashboard
-────────────────────────────                   ──────────────────────────────────
+------------------------------------          ----------------------------------
 - metadata.object_views table                  - metadata.profile_navigation table
 - Admin CRUD API + UI                          - metadata.profile_dashboards table
-- Describe API extension                       - Admin UI для navigation/dashboard
+- Describe API extension                       - Admin UI for navigation/dashboard
 - Frontend: render by Object View              - Sidebar per profile
 - Fallback logic                               - Home dashboard per profile
 - FLS intersection                             - Widget types: list, metric
 - Actions with visibility_expr                 - Chart widgets (Phase 15 dependency)
 ```
 
-## Последствия
+## Consequences
 
-### Позитивные
+### Positive
 
-- **Bounded context без дублирования** — один объект, N представлений, zero code per view
-- **Graceful degradation** — система работает без Object Views (fallback = текущее поведение)
-- **Security-first** — Object View сужает, но не расширяет доступ (FLS intersection)
-- **Администратор настраивает, не разработчик** — Admin CRUD UI для Object Views
-- **CRM+ERP без ERP** — складская роль получает "ERP-подобный" интерфейс через Object View
-- **Вписывается в каскад ADR-0019** — validation additive, defaults replace, visibility restrict
-- **Расширяемость** — Layout Builder (drag-and-drop) добавляется поверх как visual editor
-- **App Templates** могут включать Object Views per profile — out-of-the-box role-specific UI
+- **Bounded context without duplication** — one object, N presentations, zero code per view
+- **Graceful degradation** — the system works without Object Views (fallback = current behavior)
+- **Security-first** — Object View narrows but does not expand access (FLS intersection)
+- **Administrator configures, not developer** — Admin CRUD UI for Object Views
+- **CRM+ERP without ERP** — a warehouse role gets an "ERP-like" interface through Object View
+- **Fits into ADR-0019 cascade** — validation additive, defaults replace, visibility restrict
+- **Extensibility** — Layout Builder (drag-and-drop) can be added on top as a visual editor
+- **App Templates** can include Object Views per profile — out-of-the-box role-specific UI
 
-### Негативные
+### Negative
 
-- Дополнительный metadata-запрос при загрузке записи (кэшируется на frontend)
-- Complexity: конфигурация Object View может быть нетривиальной для неопытного админа
-- Действия (actions) пока только декларативные — реальная логика требует Automation Rules (Phase 13)
-- Dashboard widgets с SOQL — потенциальный performance concern при сложных запросах (решается через SOQL query limits)
+- Additional metadata request when loading a record (cached on the frontend)
+- Complexity: Object View configuration can be non-trivial for an inexperienced admin
+- Actions are currently declarative only — actual logic requires Automation Rules (Phase 13)
+- Dashboard widgets with SOQL — potential performance concern with complex queries (addressed through SOQL query limits)
 
-### Связанные ADR
+### Related ADRs
 
-- **ADR-0009..0012** — Security layers (OLS/FLS/RLS): Object View строится поверх, не обходит
-- **ADR-0019** — Declarative business logic: Object View = второй уровень каскада
-- **ADR-0020** — DML Pipeline: Object View может добавлять validation rules (additive) и override defaults (replace)
-- **ADR-0010** — Permission model: Profile = ключ привязки Object View
-- **ADR-0018** — App Templates: могут включать Object View definitions
-- **ADR-0027** — Layout + Form: Layout определяет presentation (HOW) поверх Object View (WHAT). Form = computed merge OV + Layout для фронтенда
+- **ADR-0009..0012** — Security layers (OLS/FLS/RLS): Object View is built on top, does not bypass
+- **ADR-0019** — Declarative business logic: Object View = second level of the cascade
+- **ADR-0020** — DML Pipeline: Object View can add validation rules (additive) and override defaults (replace)
+- **ADR-0010** — Permission model: Profile = key binding for Object View
+- **ADR-0018** — App Templates: can include Object View definitions
+- **ADR-0027** — Layout + Form: Layout defines presentation (HOW) on top of Object View (WHAT). Form = computed merge of OV + Layout for the frontend

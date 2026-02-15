@@ -1,109 +1,109 @@
-# ADR-0016: Single-tenant архитектура
+# ADR-0016: Single-Tenant Architecture
 
-**Статус:** Принято
-**Дата:** 2026-02-11
-**Участники:** @roman_myakotin
+**Status:** Accepted
+**Date:** 2026-02-11
+**Participants:** @roman_myakotin
 
-## Контекст
+## Context
 
-Платформа проектируется как self-hosted CRM для B2B-компаний (ADR-0014: Open Core, AGPL).
-Необходимо зафиксировать модель tenancy, поскольку она фундаментально влияет на:
-- схему базы данных (shared schema vs isolated DB)
-- security engine (RLS-политики, изоляция данных)
-- metadata engine (table-per-object, DDL при admin-операциях — ADR-0007)
-- инфраструктуру и deployment-модель
+The platform is designed as a self-hosted CRM for B2B companies (ADR-0014: Open Core, AGPL).
+We need to establish the tenancy model, as it fundamentally affects:
+- database schema (shared schema vs isolated DB)
+- security engine (RLS policies, data isolation)
+- metadata engine (table-per-object, DDL at admin time — ADR-0007)
+- infrastructure and deployment model
 
-Ключевые факторы:
+Key factors:
 
-1. **Self-hosted фокус.** Продукт позиционируется как self-hosted: каждый клиент разворачивает собственный инстанс. Multi-tenant архитектура избыточна для этой модели.
+1. **Self-hosted focus.** The product is positioned as self-hosted: each customer deploys their own instance. Multi-tenant architecture is excessive for this model.
 
-2. **Простота для MVP.** Multi-tenant добавляет сквозную сложность: tenant_id в каждой таблице, tenant-aware кеши, tenant isolation в SOQL/DML, tenant-specific миграции. Это существенно замедлит доставку Phase 3–8.
+2. **Simplicity for MVP.** Multi-tenancy adds cross-cutting complexity: tenant_id in every table, tenant-aware caches, tenant isolation in SOQL/DML, tenant-specific migrations. This would significantly slow down delivery of Phase 3–8.
 
-3. **Security isolation.** B2B-клиенты требуют полной изоляции данных (compliance, GDPR, регуляторные требования). Физическая изоляция (отдельная БД на инстанс) проще для аудита и сертификации, чем логическая изоляция через row-level tenant filtering.
+3. **Security isolation.** B2B customers require full data isolation (compliance, GDPR, regulatory requirements). Physical isolation (separate DB per instance) is simpler for auditing and certification than logical isolation via row-level tenant filtering.
 
-4. **Архитектурная совместимость.** Table-per-object (ADR-0007) генерирует DDL при создании объектов. В multi-tenant shared-schema DDL одного тенанта влияет на всех. Это создаёт блокировки и усложняет миграции.
+4. **Architectural compatibility.** Table-per-object (ADR-0007) generates DDL when creating objects. In a multi-tenant shared schema, one tenant's DDL affects everyone. This creates locks and complicates migrations.
 
-## Рассмотренные варианты
+## Options Considered
 
-### Вариант A — Multi-tenant: shared database, shared schema
+### Option A — Multi-tenant: shared database, shared schema
 
-Все тенанты в одной БД, изоляция через `tenant_id` колонку в каждой таблице.
+All tenants in one DB, isolation via a `tenant_id` column in every table.
 
-**Плюсы:**
-- Экономия ресурсов при большом количестве мелких клиентов
-- Единый deployment, одна БД для обслуживания
+**Pros:**
+- Resource savings with a large number of small customers
+- Single deployment, one DB to maintain
 
-**Минусы:**
-- Сквозная сложность: `tenant_id` в каждом запросе, каждом индексе, каждом кеше
-- Риск data leakage при ошибке в фильтрации
-- DDL от table-per-object (ADR-0007) блокирует всех тенантов
-- Metadata engine должен быть tenant-aware (отдельные object_definitions на тенанта)
-- Усложняет SOQL/DML: каждый запрос обязан фильтровать по tenant_id
-- Невозможно дать клиенту superuser-доступ к БД
-- Аудит и compliance значительно сложнее
+**Cons:**
+- Cross-cutting complexity: `tenant_id` in every query, every index, every cache
+- Risk of data leakage from filtering mistakes
+- DDL from table-per-object (ADR-0007) blocks all tenants
+- Metadata engine must be tenant-aware (separate object_definitions per tenant)
+- Complicates SOQL/DML: every query must filter by tenant_id
+- Cannot give the customer superuser access to the DB
+- Auditing and compliance significantly harder
 
-### Вариант B — Multi-tenant: shared database, separate schemas
+### Option B — Multi-tenant: shared database, separate schemas
 
-Каждый тенант — отдельная PostgreSQL schema (`tenant_123.contacts`).
+Each tenant gets a separate PostgreSQL schema (`tenant_123.contacts`).
 
-**Плюсы:**
-- Лучшая изоляция, чем shared schema
-- Нативная поддержка PostgreSQL `search_path`
+**Pros:**
+- Better isolation than shared schema
+- Native PostgreSQL `search_path` support
 
-**Минусы:**
-- DDL от table-per-object всё ещё рискованный (блокировки на уровне каталога)
-- Миграции нужно прогонять по всем схемам — O(tenants) время
-- Кеши (metadata, security) должны быть per-schema
-- Ограничения PostgreSQL: тысячи схем с тысячами таблиц замедляют `pg_catalog`
-- Не упрощает deployment — всё равно одна БД
+**Cons:**
+- DDL from table-per-object is still risky (catalog-level locks)
+- Migrations must run across all schemas — O(tenants) time
+- Caches (metadata, security) must be per-schema
+- PostgreSQL limitations: thousands of schemas with thousands of tables slow down `pg_catalog`
+- Does not simplify deployment — still one DB
 
-### Вариант C — Single-tenant: один инстанс на клиента (выбран)
+### Option C — Single-tenant: one instance per customer (chosen)
 
-Каждый клиент получает полностью изолированный инстанс приложения + БД.
+Each customer gets a fully isolated application instance + DB.
 
-**Плюсы:**
-- Полная изоляция данных — trivial для compliance и аудита
-- Нет `tenant_id` нигде — код проще, меньше ошибок, выше производительность
-- Table-per-object DDL безопасен — влияет только на одного клиента
-- Metadata engine, SOQL/DML, security caches — всё работает без tenant-awareness
-- Клиент может получить superuser-доступ к своей БД
-- Независимые миграции, бэкапы, масштабирование
-- Естественно ложится на self-hosted модель (ADR-0014)
-- Проще для MVP — можно сфокусироваться на бизнес-логике
+**Pros:**
+- Full data isolation — trivial for compliance and auditing
+- No `tenant_id` anywhere — simpler code, fewer bugs, higher performance
+- Table-per-object DDL is safe — affects only one customer
+- Metadata engine, SOQL/DML, security caches — all work without tenant-awareness
+- Customer can get superuser access to their own DB
+- Independent migrations, backups, scaling
+- Natural fit for the self-hosted model (ADR-0014)
+- Simpler for MVP — can focus on business logic
 
-**Минусы:**
-- Больше инфраструктуры при SaaS-модели (отдельная БД на клиента)
-- Нет resource sharing между клиентами
-- Для managed SaaS потребуется оркестратор (Kubernetes, Terraform)
+**Cons:**
+- More infrastructure in a SaaS model (separate DB per customer)
+- No resource sharing between customers
+- Managed SaaS would require an orchestrator (Kubernetes, Terraform)
 
-## Решение
+## Decision
 
-**Выбран Вариант C — single-tenant архитектура.**
+**Option C chosen — single-tenant architecture.**
 
-Один инстанс приложения обслуживает одну организацию. Каждый deployment включает:
-- Собственный PostgreSQL-экземпляр (или отдельную БД)
-- Собственный Redis
-- Собственный API-сервер
+One application instance serves one organization. Each deployment includes:
+- Its own PostgreSQL instance (or a separate DB)
+- Its own Redis
+- Its own API server
 
-### Последствия для кода
+### Consequences for Code
 
-- **Нет `tenant_id`** — ни в таблицах, ни в запросах, ни в кешах
-- **Metadata engine** (ADR-0003, ADR-0007) работает без изменений
-- **Security engine** (ADR-0009–0013) — RLS/OLS/FLS без tenant-фильтрации
-- **SOQL/DML** — запросы не содержат tenant-предикатов
-- **Миграции** — стандартный `golang-migrate`, без tenant-цикла
-- **Конфигурация** — через переменные окружения (`.env`), уникальные для инстанса
+- **No `tenant_id`** — not in tables, not in queries, not in caches
+- **Metadata engine** (ADR-0003, ADR-0007) works without changes
+- **Security engine** (ADR-0009–0013) — RLS/OLS/FLS without tenant filtering
+- **SOQL/DML** — queries contain no tenant predicates
+- **Migrations** — standard `golang-migrate`, no tenant loop
+- **Configuration** — via environment variables (`.env`), unique per instance
 
-### Путь к SaaS (если потребуется)
+### Path to SaaS (if needed)
 
-Single-tenant не закрывает путь к managed cloud offering:
-- **Kubernetes + Helm chart** — каждый клиент = namespace с отдельным deployment
-- **Database-per-tenant** паттерн (в отличие от schema-per-tenant) дёшев в оркестрации
-- **Terraform/Pulumi** — автоматизация provisioning
-- Многие enterprise SaaS (Atlassian Data Center, GitLab Dedicated) используют single-tenant
+Single-tenant does not close the path to a managed cloud offering:
+- **Kubernetes + Helm chart** — each customer = namespace with a separate deployment
+- **Database-per-tenant** pattern (as opposed to schema-per-tenant) is cheap to orchestrate
+- **Terraform/Pulumi** — provisioning automation
+- Many enterprise SaaS products (Atlassian Data Center, GitLab Dedicated) use single-tenant
 
-## Связанные решения
+## Related Decisions
 
-- [ADR-0007: Table-per-object](0007-table-per-object-storage.md) — DDL при admin-операциях, безопасен в single-tenant
-- [ADR-0009: Security architecture](0009-security-architecture-overview.md) — 3-слойная безопасность без tenant-awareness
-- [ADR-0014: Open Core](0014-licensing-and-business-model.md) — self-hosted фокус подтверждает single-tenant
+- [ADR-0007: Table-per-object](0007-table-per-object-storage.md) — DDL at admin time, safe in single-tenant
+- [ADR-0009: Security architecture](0009-security-architecture-overview.md) — 3-layer security without tenant-awareness
+- [ADR-0014: Open Core](0014-licensing-and-business-model.md) — self-hosted focus confirms single-tenant

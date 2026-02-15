@@ -1,49 +1,49 @@
-# ADR-0013: Модель групп
+# ADR-0013: Group Model
 
-**Статус:** Принято
-**Дата:** 2026-02-08
-**Участники:** @roman_myakotin
+**Status:** Accepted
+**Date:** 2026-02-08
+**Participants:** @roman_myakotin
 
-## Контекст
+## Context
 
-Группы — ключевой механизм sharing. Sharing rules и share tables ссылаются на получателей
-доступа. Необходимо определить:
-- Типы групп и правила их создания
-- Модель grantee в share tables
-- Lifecycle авто-генерируемых групп
+Groups are a key sharing mechanism. Sharing rules and share tables reference access recipients.
+The following must be defined:
+- Group types and their creation rules
+- The grantee model in share tables
+- Lifecycle of auto-generated groups
 
-## Рассмотренные варианты
+## Considered Alternatives
 
-### Вариант A — Auto-generated groups, единый grantee (выбран)
+### Option A — Auto-generated Groups, Unified Grantee (chosen)
 
-Все sharing идёт через groups. Share table содержит только `grantee_id` (всегда group).
-Система автоматически создаёт группы для ролей и пользователей.
+All sharing goes through groups. The share table contains only `grantee_id` (always a group).
+The system automatically creates groups for roles and users.
 
-Плюсы: унифицированная модель — один grantee type, один кэш, один resolution path.
-Минусы: auto-generation при изменении ролей/пользователей. Больше строк в group/group_member.
+Pros: unified model — one grantee type, one cache, one resolution path.
+Cons: auto-generation on role/user changes. More rows in group/group_member.
 
-### Вариант B — Polymorphic grantee, без auto-generation
+### Option B — Polymorphic Grantee, No Auto-generation
 
-Groups — только ручные. Share tables имеют `grantee_type: 'user' | 'group' | 'role' | 'role_and_subordinates'`.
-Для каждого типа — своя resolution logic.
+Groups are manual only. Share tables have `grantee_type: 'user' | 'group' | 'role' | 'role_and_subordinates'`.
+Each type has its own resolution logic.
 
-Плюсы: нет auto-generation, меньше данных.
-Минусы: несколько resolution paths в enforcement, сложнее WHERE clause.
+Pros: no auto-generation, less data.
+Cons: multiple resolution paths in enforcement, more complex WHERE clause.
 
-## Решение
+## Decision
 
-### Типы групп
+### Group Types
 
-| Type | Создание | `related_role_id` | Membership |
+| Type | Creation | `related_role_id` | Membership |
 |------|----------|-------------------|------------|
-| `personal` | Авто при создании User | NULL | Только этот user |
-| `role` | Авто при создании UserRole | NOT NULL | Users с этой ролью |
-| `role_and_subordinates` | Авто при создании UserRole | NOT NULL | Users с ролью + subordinate roles |
-| `public` | Вручную админом | NULL | Вручную: users + nested groups |
+| `personal` | Auto on User creation | NULL | Only this user |
+| `role` | Auto on UserRole creation | NOT NULL | Users with this role |
+| `role_and_subordinates` | Auto on UserRole creation | NOT NULL | Users with this role + subordinate roles |
+| `public` | Manually by admin | NULL | Manual: users + nested groups |
 
-Territory-based типы (`territory`, `territory_and_subordinates`) — Phase N.
+Territory-based types (`territory`, `territory_and_subordinates`) — Phase N.
 
-### Таблица groups
+### Groups Table
 
 ```sql
 CREATE TABLE iam.groups (
@@ -59,11 +59,11 @@ CREATE TABLE iam.groups (
 );
 ```
 
-- `related_role_id` — NOT NULL для `role` и `role_and_subordinates`
-- `related_user_id` — NOT NULL для `personal`
-- Оба NULL для `public`
+- `related_role_id` — NOT NULL for `role` and `role_and_subordinates`
+- `related_user_id` — NOT NULL for `personal`
+- Both NULL for `public`
 
-### Таблица group_members
+### Group Members Table
 
 ```sql
 CREATE TABLE iam.group_members (
@@ -81,26 +81,26 @@ CREATE TABLE iam.group_members (
 );
 ```
 
-Поддерживает nested groups: group может содержать users и другие groups.
-`effective_group_members` (ADR-0012) раскрывает nested membership в плоский список.
+Supports nested groups: a group can contain users and other groups.
+`effective_group_members` (ADR-0012) flattens nested membership into a flat list.
 
-### Auto-generation lifecycle
+### Auto-generation Lifecycle
 
-| Событие | Действие |
-|---------|----------|
-| Создан User | Авто-создать Group type=`personal` с `related_user_id`, добавить user как member |
-| Удалён User | Каскадное удаление personal group (ON DELETE CASCADE) |
-| Создана UserRole | Авто-создать Group type=`role` + Group type=`role_and_subordinates` с `related_role_id` |
-| Удалена UserRole | Каскадное удаление связанных groups |
-| User назначен на роль | Добавить в `role` group этой роли. Добавить во все `role_and_subordinates` groups ancestor-ролей |
-| User снят с роли | Удалить из соответствующих auto-generated groups |
-| Изменён parent_id роли | Пересчитать membership `role_and_subordinates` groups всех затронутых ролей |
+| Event | Action |
+|-------|--------|
+| User created | Auto-create Group type=`personal` with `related_user_id`, add user as member |
+| User deleted | Cascade deletion of personal group (ON DELETE CASCADE) |
+| UserRole created | Auto-create Group type=`role` + Group type=`role_and_subordinates` with `related_role_id` |
+| UserRole deleted | Cascade deletion of related groups |
+| User assigned to role | Add to `role` group of this role. Add to all `role_and_subordinates` groups of ancestor roles |
+| User removed from role | Remove from corresponding auto-generated groups |
+| Role parent_id changed | Recalculate membership of `role_and_subordinates` groups for all affected roles |
 
-Все изменения → outbox event → пересчёт `effective_group_members` (ADR-0012).
+All changes → outbox event → recalculation of `effective_group_members` (ADR-0012).
 
-### Единый grantee в share tables
+### Unified Grantee in Share Tables
 
-Share table содержит только `grantee_id` — всегда group_id:
+The share table contains only `grantee_id` — always a group_id:
 
 ```sql
 CREATE TABLE obj_{name}__share (
@@ -115,11 +115,11 @@ CREATE TABLE obj_{name}__share (
 );
 ```
 
-- Manual share конкретному user → grant на его personal group
-- Sharing rule для роли → grant на role/role_and_subordinates group
-- Всегда один resolution path через `effective_group_members`
+- Manual share to a specific user → grant to their personal group
+- Sharing rule for a role → grant to role/role_and_subordinates group
+- Always one resolution path through `effective_group_members`
 
-### Единый WHERE clause в SOQL engine
+### Unified WHERE Clause in the SOQL Engine
 
 ```sql
 -- RLS: share table check
@@ -134,26 +134,26 @@ t.id IN (
 )
 ```
 
-Один path, один кэш, один JOIN.
+One path, one cache, one JOIN.
 
-### Sharing rules — source/target через groups
+### Sharing Rules — Source/Target via Groups
 
 ```sql
--- Sharing rule ссылается на groups
+-- Sharing rule references groups
 source_group_id  UUID NOT NULL REFERENCES iam.groups(id),
 target_group_id  UUID NOT NULL REFERENCES iam.groups(id),
 ```
 
-Вместо `source_type + source_id` / `target_type + target_id` — прямые FK на groups.
-"Записи пользователей роли Sales" → source = Group type=`role` where related_role_id = Sales.
-"Доступны роли Support и подчинённым" → target = Group type=`role_and_subordinates` where related_role_id = Support.
+Instead of `source_type + source_id` / `target_type + target_id` — direct FKs to groups.
+"Records of users in the Sales role" → source = Group type=`role` where related_role_id = Sales.
+"Accessible to Support role and subordinates" → target = Group type=`role_and_subordinates` where related_role_id = Support.
 
-## Последствия
+## Consequences
 
-- Каждый user и каждая роль автоматически получают связанные groups
-- Share tables имеют единый тип grantee (group_id), без polymorphic dispatch
-- `effective_group_members` — единственный кэш для RLS resolution
-- Sharing rules ссылаются напрямую на groups (FK), без enum source_type/target_type
-- Auto-generation управляется через outbox events
-- Public groups создаются и наполняются вручную через admin UI
-- Territory-based groups добавляются в Phase N без изменения модели
+- Every user and every role automatically receive associated groups
+- Share tables have a unified grantee type (group_id), no polymorphic dispatch
+- `effective_group_members` is the sole cache for RLS resolution
+- Sharing rules reference groups directly (FK), no enum source_type/target_type
+- Auto-generation is managed through outbox events
+- Public groups are created and populated manually through the admin UI
+- Territory-based groups are added in Phase N without changing the model

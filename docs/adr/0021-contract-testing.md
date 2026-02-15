@@ -1,116 +1,116 @@
-# ADR-0021: Контрактное тестирование — OpenAPI validation + генерация TS типов
+# ADR-0021: Contract Testing — OpenAPI Validation + TS Type Generation
 
-**Статус:** Принято
-**Дата:** 2026-02-14
-**Участники:** @roman_myakotin
+**Status:** Accepted
+**Date:** 2026-02-14
+**Participants:** @roman_myakotin
 
-## Контекст
+## Context
 
-Контракт между backend и frontend определён в `api/openapi.yaml` (OpenAPI 3.0.3, 1700+ строк). До этого решения существовали три точки рассинхронизации:
+The contract between backend and frontend is defined in `api/openapi.yaml` (OpenAPI 3.0.3, 1700+ lines). Before this decision, there were three points of desynchronization:
 
-1. **OpenAPI spec ↔ Go handlers** — spec обновлялся вручную; ничто не проверяло, что реальный JSON-ответ handler'а соответствует описанной схеме. Handler-тесты проверяли только status code.
-2. **OpenAPI spec ↔ TypeScript types** — типы в `web/src/types/` писались вручную и дрифтовали (уже ловили snake_case/camelCase баги).
-3. **Go generated types ↔ OpenAPI spec** — `oapi-codegen` генерировал Go-типы, но без `required` arrays в spec все поля были pointer types, маскируя реальные ошибки.
+1. **OpenAPI spec <-> Go handlers** — the spec was updated manually; nothing verified that the actual JSON response from a handler matched the described schema. Handler tests only checked the status code.
+2. **OpenAPI spec <-> TypeScript types** — types in `web/src/types/` were written manually and drifted (we had already caught snake_case/camelCase bugs).
+3. **Go generated types <-> OpenAPI spec** — `oapi-codegen` generated Go types, but without `required` arrays in the spec all fields were pointer types, masking real errors.
 
-Цена рассинхронизации росла: 20+ endpoints, 15+ entity schemas, 215 e2e тестов. Ручная синхронизация перестала масштабироваться.
+The cost of desynchronization was growing: 20+ endpoints, 15+ entity schemas, 215 e2e tests. Manual synchronization stopped scaling.
 
-Требования:
-1. Автоматическая проверка соответствия HTTP-ответов OpenAPI-схеме в Go handler-тестах
-2. Единый source of truth для TypeScript типов (без ручного дублирования)
-3. Одна команда для регенерации Go и TS типов: `make generate-api`
-4. Нулевые новые runtime-зависимости (только dev/test)
-5. Обратная совместимость с существующими тестами
+Requirements:
+1. Automatic verification that HTTP responses match the OpenAPI schema in Go handler tests
+2. A single source of truth for TypeScript types (no manual duplication)
+3. A single command to regenerate Go and TS types: `make generate-api`
+4. Zero new runtime dependencies (dev/test only)
+5. Backward compatibility with existing tests
 
-## Рассмотренные варианты
+## Considered Options
 
-### Вариант A — Ручная синхронизация (status quo)
+### Option A — Manual Synchronization (status quo)
 
-Продолжать вручную поддерживать соответствие spec ↔ код ↔ типы.
+Continue manually maintaining correspondence between spec <-> code <-> types.
 
-**Плюсы:**
-- Нет дополнительной сложности
-- Нет новых инструментов
+**Pros:**
+- No additional complexity
+- No new tools
 
-**Минусы:**
-- Дрифт неизбежен при росте API (20+ endpoints)
-- Ошибки обнаруживаются только в runtime или e2e
-- Двойная работа: описать в spec + написать TypeScript интерфейс
-- Нет гарантии, что handler отдаёт то, что описано в spec
+**Cons:**
+- Drift is inevitable as the API grows (20+ endpoints)
+- Errors are discovered only at runtime or in e2e tests
+- Double work: describe in spec + write TypeScript interface
+- No guarantee that a handler returns what is described in the spec
 
-### Вариант B — Генерация OpenAPI из кода (code-first)
+### Option B — Generate OpenAPI from Code (code-first)
 
-Генерировать OpenAPI spec из Go-структур или handler'ов (swaggo, go-swagger).
+Generate the OpenAPI spec from Go structs or handlers (swaggo, go-swagger).
 
-**Плюсы:**
-- Spec всегда соответствует коду
-- Не нужно поддерживать spec вручную
+**Pros:**
+- Spec always matches the code
+- No need to maintain the spec manually
 
-**Минусы:**
-- Потеря контроля над дизайном API (spec как побочный эффект)
-- Spec привязан к реализации, а не к контракту
-- Сложная настройка аннотаций в коде
-- Противоречит подходу spec-first, принятому в проекте
+**Cons:**
+- Loss of control over API design (spec as a side effect)
+- Spec is tied to implementation, not to the contract
+- Complex annotation setup in code
+- Contradicts the spec-first approach adopted in the project
 
-### Вариант C — Spec-first с контрактной валидацией в тестах (выбран)
+### Option C — Spec-first with Contract Validation in Tests (chosen)
 
-OpenAPI spec остаётся source of truth. Go handler-тесты валидируют ответы против spec через `kin-openapi`. TypeScript типы генерируются из spec через `openapi-typescript`.
+The OpenAPI spec remains the source of truth. Go handler tests validate responses against the spec via `kin-openapi`. TypeScript types are generated from the spec via `openapi-typescript`.
 
-**Плюсы:**
-- Spec = единый контракт, контролируемый разработчиком
-- Автоматическое обнаружение дрифта в обе стороны (Go и TS)
-- Нулевые runtime-зависимости (`kin-openapi` уже в go.mod как транзитивная)
-- Существующие тесты получают контрактную проверку без изменений
-- TypeScript типы всегда актуальны — ручной дрифт исключён
+**Pros:**
+- Spec = single contract, controlled by the developer
+- Automatic drift detection in both directions (Go and TS)
+- Zero runtime dependencies (`kin-openapi` is already in go.mod as transitive)
+- Existing tests gain contract validation without modifications
+- TypeScript types are always up to date — manual drift is eliminated
 
-**Минусы:**
-- Spec нужно обновлять при каждом изменении API (но это и есть цель)
-- Добавление `required` arrays в spec меняет Go generated types (pointer → value), требуя одноразовых правок handler'ов
-- `openapi-typescript` — новая devDependency
+**Cons:**
+- Spec needs to be updated with every API change (but that is the goal)
+- Adding `required` arrays to the spec changes Go generated types (pointer -> value), requiring one-time handler fixes
+- `openapi-typescript` — a new devDependency
 
-### Вариант D — Сторонний контрактный фреймворк (Pact, Dredd)
+### Option D — Third-party Contract Framework (Pact, Dredd)
 
-Использовать специализированные инструменты контрактного тестирования.
+Use specialized contract testing tools.
 
-**Плюсы:**
-- Развитый функционал (consumer-driven contracts, broker)
-- Стандарт индустрии для микросервисов
+**Pros:**
+- Rich functionality (consumer-driven contracts, broker)
+- Industry standard for microservices
 
-**Минусы:**
-- Overkill для monolith с единым frontend
-- Дополнительная инфраструктура (broker, CI интеграция)
-- Дублирует то, что `kin-openapi` даёт бесплатно
-- Кривая обучения
+**Cons:**
+- Overkill for a monolith with a single frontend
+- Additional infrastructure (broker, CI integration)
+- Duplicates what `kin-openapi` provides for free
+- Learning curve
 
-## Решение
+## Decision
 
-**Выбран вариант C: Spec-first с контрактной валидацией в тестах.**
+**Option C chosen: Spec-first with contract validation in tests.**
 
-### Архитектура
+### Architecture
 
 ```
-api/openapi.yaml                    ← Source of truth (единый контракт)
-    │
-    ├──► oapi-codegen               → internal/api/openapi_gen.go (Go types + routes)
-    │
-    ├──► openapi-typescript         → web/src/types/openapi.d.ts (TS types)
-    │    └──► CamelCaseKeys<T>      → web/src/types/{metadata,auth,...}.ts (derived types)
-    │
-    └──► kin-openapi (в тестах)     → contractValidationMiddleware (response validation)
+api/openapi.yaml                    <- Source of truth (single contract)
+    |
+    |---> oapi-codegen               -> internal/api/openapi_gen.go (Go types + routes)
+    |
+    |---> openapi-typescript         -> web/src/types/openapi.d.ts (TS types)
+    |    └---> CamelCaseKeys<T>      -> web/src/types/{metadata,auth,...}.ts (derived types)
+    |
+    └---> kin-openapi (in tests)     -> contractValidationMiddleware (response validation)
 ```
 
 ### Backend: Response validation middleware
 
-Файл `internal/handler/testutil_contract_test.go` — общий middleware для всех handler-тестов:
+File `internal/handler/testutil_contract_test.go` — shared middleware for all handler tests:
 
-- `loadSpec()` загружает OpenAPI spec один раз через `sync.Once`
-- `responseCapture` оборачивает `gin.ResponseWriter` для перехвата response body
-- `contractValidationMiddleware(t)` — Gin middleware, валидирующий каждый response:
-  1. Находит route в spec через `gorillamux.Router`
-  2. Строит `RequestValidationInput` + `ResponseValidationInput`
-  3. Вызывает `openapi3filter.ValidateResponse()`
-  4. При несоответствии — `t.Errorf()` с деталями
+- `loadSpec()` loads the OpenAPI spec once via `sync.Once`
+- `responseCapture` wraps `gin.ResponseWriter` to intercept the response body
+- `contractValidationMiddleware(t)` — Gin middleware that validates every response:
+  1. Finds the route in the spec via `gorillamux.Router`
+  2. Constructs `RequestValidationInput` + `ResponseValidationInput`
+  3. Calls `openapi3filter.ValidateResponse()`
+  4. On mismatch — `t.Errorf()` with details
 
-Каждый `setup*Router()` в тестах принимает `t *testing.T` и добавляет middleware:
+Each `setup*Router()` in tests accepts `t *testing.T` and adds the middleware:
 ```go
 func setupRouter(t *testing.T, h *MetadataHandler) *gin.Engine {
     r := gin.New()
@@ -119,11 +119,11 @@ func setupRouter(t *testing.T, h *MetadataHandler) *gin.Engine {
 }
 ```
 
-### Frontend: Генерация типов из OpenAPI
+### Frontend: Type Generation from OpenAPI
 
-1. `openapi-typescript` генерирует `web/src/types/openapi.d.ts` из spec
-2. `CamelCaseKeys<T>` (`web/src/types/camelcase.ts`) конвертирует snake_case ключи в camelCase (HTTP-клиент делает это в runtime)
-3. Каждый файл типов (`metadata.ts`, `auth.ts`, `validationRules.ts`, `records.ts`) экспортирует derived types:
+1. `openapi-typescript` generates `web/src/types/openapi.d.ts` from the spec
+2. `CamelCaseKeys<T>` (`web/src/types/camelcase.ts`) converts snake_case keys to camelCase (the HTTP client does this at runtime)
+3. Each type file (`metadata.ts`, `auth.ts`, `validationRules.ts`, `records.ts`) exports derived types:
 
 ```typescript
 import type { components } from './openapi'
@@ -132,7 +132,7 @@ import type { CamelCaseKeys } from './camelcase'
 export type ObjectDefinition = CamelCaseKeys<components['schemas']['ObjectDefinition']>
 ```
 
-### Makefile: единая точка генерации
+### Makefile: single generation entry point
 
 ```makefile
 generate-api:
@@ -140,47 +140,47 @@ generate-api:
     cd web && npx openapi-typescript ../api/openapi.yaml -o src/types/openapi.d.ts
 ```
 
-### Жёсткость spec: required arrays
+### Spec strictness: required arrays
 
-Добавлены `required` arrays в response entity schemas (`ObjectDefinition`, `FieldDefinitionSchema`, `ValidationRule`, `TokenPair`, `UserInfo`, `PaginationMeta`, `ObjectNavItem`, `ObjectDescribe`, `FieldDescribe`). Это обеспечивает:
-- Go: value types вместо pointer types для обязательных полей
-- TS: non-optional properties вместо `field?: type`
+Added `required` arrays to response entity schemas (`ObjectDefinition`, `FieldDefinitionSchema`, `ValidationRule`, `TokenPair`, `UserInfo`, `PaginationMeta`, `ObjectNavItem`, `ObjectDescribe`, `FieldDescribe`). This ensures:
+- Go: value types instead of pointer types for required fields
+- TS: non-optional properties instead of `field?: type`
 
-### Затронутые файлы
+### Affected Files
 
-| Файл | Роль |
+| File | Role |
 |------|------|
-| `internal/handler/testutil_contract_test.go` | Новый — loadSpec, middleware, responseCapture |
-| `internal/handler/*_test.go` (5 файлов) | setup*Router теперь принимает `t` + middleware |
-| `web/src/types/camelcase.ts` | Новый — `CamelCaseKeys<T>` utility type |
-| `web/src/types/openapi.d.ts` | Новый — автогенерированные типы из OpenAPI |
-| `web/src/types/{metadata,auth,validationRules,records}.ts` | Derived types вместо ручных интерфейсов |
-| `api/openapi.yaml` | Добавлены `required` arrays, `nullable`, `enum` |
-| `Makefile` | Обновлён `generate-api`, добавлен `web-generate-types` |
+| `internal/handler/testutil_contract_test.go` | New — loadSpec, middleware, responseCapture |
+| `internal/handler/*_test.go` (5 files) | setup*Router now accepts `t` + middleware |
+| `web/src/types/camelcase.ts` | New — `CamelCaseKeys<T>` utility type |
+| `web/src/types/openapi.d.ts` | New — auto-generated types from OpenAPI |
+| `web/src/types/{metadata,auth,validationRules,records}.ts` | Derived types instead of manual interfaces |
+| `api/openapi.yaml` | Added `required` arrays, `nullable`, `enum` |
+| `Makefile` | Updated `generate-api`, added `web-generate-types` |
 
-## Последствия
+## Consequences
 
-### Позитивные
-- **Дрифт обнаруживается мгновенно**: изменение spec без обновления handler'а → тест падает; изменение spec без `make generate-api` → TypeScript compilation error
-- **Нулевые runtime-зависимости**: вся валидация — только в тестах
-- **28 handler-тестов** автоматически получили контрактную проверку без изменений в тестовой логике
-- **TypeScript типы** больше не пишутся вручную — один `make generate-api` обновляет всё
-- **Smoke-тест контракта**: изменить поле в spec → и Go тесты, и TS type-check ломаются
+### Positive
+- **Drift is detected instantly**: changing the spec without updating the handler -> test fails; changing the spec without `make generate-api` -> TypeScript compilation error
+- **Zero runtime dependencies**: all validation is in tests only
+- **28 handler tests** automatically gained contract validation without changes to test logic
+- **TypeScript types** are no longer written manually — one `make generate-api` updates everything
+- **Contract smoke test**: change a field in the spec -> both Go tests and TS type-check break
 
-### Негативные
-- При изменении API нужно обновлять spec первым (spec-first дисциплина)
-- Добавление `required` arrays в существующий spec потребовало одноразового рефакторинга Go handler'ов (pointer → value types)
-- `openapi-typescript` — ещё одна devDependency во frontend
+### Negative
+- When changing the API, the spec must be updated first (spec-first discipline)
+- Adding `required` arrays to the existing spec required a one-time refactor of Go handlers (pointer -> value types)
+- `openapi-typescript` — another devDependency in the frontend
 
-### Workflow для разработчика
+### Developer Workflow
 
-1. Изменить `api/openapi.yaml` (добавить/изменить endpoint или schema)
-2. `make generate-api` — регенерировать Go и TS типы
-3. Обновить handler/frontend код под новые типы (компилятор подскажет)
-4. `go test ./internal/handler/...` — контрактная валидация
-5. `cd web && npm run type-check` — TypeScript проверка
+1. Modify `api/openapi.yaml` (add/change endpoint or schema)
+2. `make generate-api` — regenerate Go and TS types
+3. Update handler/frontend code to match new types (the compiler will guide you)
+4. `go test ./internal/handler/...` — contract validation
+5. `cd web && npm run type-check` — TypeScript verification
 
-### Будущие расширения
-- Request validation middleware (валидация входящих запросов в тестах)
-- CI pipeline step: `make generate-api && git diff --exit-code` — проверка, что spec и сгенерированный код синхронизированы
-- Автоматическая генерация mock-данных из OpenAPI schemas для e2e тестов
+### Future Extensions
+- Request validation middleware (validating incoming requests in tests)
+- CI pipeline step: `make generate-api && git diff --exit-code` — verifying that spec and generated code are in sync
+- Automatic mock data generation from OpenAPI schemas for e2e tests

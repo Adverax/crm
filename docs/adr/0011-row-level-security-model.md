@@ -1,24 +1,24 @@
-# ADR-0011: Row-Level Security — OWD и Sharing
+# ADR-0011: Row-Level Security — OWD and Sharing
 
-**Статус:** Принято
-**Дата:** 2026-02-08
-**Участники:** @roman_myakotin
+**Status:** Accepted
+**Date:** 2026-02-08
+**Participants:** @roman_myakotin
 
-## Контекст
+## Context
 
-RLS определяет, какие **конкретные записи** видит пользователь. Это самый сложный
-слой безопасности. Необходимо определить:
-- Organization-Wide Defaults (OWD) — базовый уровень видимости записей объекта
-- Механизмы расширения доступа (sharing rules, manual sharing)
-- Роль иерархии ролей в видимости записей
-- Физическое хранение row-level grants
+RLS determines which **specific records** a user can see. This is the most complex
+security layer. The following must be defined:
+- Organization-Wide Defaults (OWD) — the baseline record visibility level for an object
+- Access extension mechanisms (sharing rules, manual sharing)
+- The role of role hierarchy in record visibility
+- Physical storage of row-level grants
 
-## Решение
+## Decision
 
 ### OWD — Organization-Wide Defaults
 
-Каждый объект имеет `visibility` — базовый уровень доступа к записям
-для пользователей, имеющих OLS-доступ (Read) к объекту.
+Each object has a `visibility` — the baseline level of access to records
+for users who have OLS access (Read) to the object.
 
 ```sql
 ALTER TABLE metadata.object_definitions
@@ -26,33 +26,33 @@ ADD COLUMN visibility VARCHAR(30) NOT NULL DEFAULT 'private'
 CHECK (visibility IN ('private', 'public_read', 'public_read_write', 'controlled_by_parent'));
 ```
 
-| Значение | Read | Edit | Семантика |
-|----------|------|------|-----------|
-| `private` | owner + hierarchy + sharing | owner + sharing | Максимально закрытый |
-| `public_read` | все с OLS Read | owner + sharing | Все видят, edit ограничен |
-| `public_read_write` | все с OLS Read | все с OLS Update | Полностью открытый |
-| `controlled_by_parent` | наследуется от parent | наследуется от parent | Для composition (ADR-0005) |
+| Value | Read | Edit | Semantics |
+|-------|------|------|-----------|
+| `private` | owner + hierarchy + sharing | owner + sharing | Maximum restriction |
+| `public_read` | all with OLS Read | owner + sharing | Everyone can see, edit is restricted |
+| `public_read_write` | all with OLS Read | all with OLS Update | Fully open |
+| `controlled_by_parent` | inherited from parent | inherited from parent | For composition (ADR-0005) |
 
-`controlled_by_parent` применяется к child-объектам в composition-связи.
-Доступ к child-записи определяется доступом к parent-записи.
+`controlled_by_parent` applies to child objects in a composition relationship.
+Access to a child record is determined by access to the parent record.
 
-### Role Hierarchy — только Read
+### Role Hierarchy — Read Only
 
-Менеджер (parent role) видит записи, принадлежащие пользователям подчинённых ролей.
-Доступ предоставляется **только на чтение** (permissions = 1).
+A manager (parent role) can see records owned by users in subordinate roles.
+Access is granted **for reading only** (permissions = 1).
 
-Действует для OWD `private` и `public_read`:
-- `private`: менеджер **видит** записи подчинённых (но не edit)
-- `public_read`: все уже видят, hierarchy не добавляет ничего нового
-- `public_read_write`: все уже видят и редактируют
+Applies for OWD `private` and `public_read`:
+- `private`: manager **sees** subordinates' records (but cannot edit)
+- `public_read`: everyone can already see, hierarchy adds nothing new
+- `public_read_write`: everyone can already see and edit
 
-Для edit по иерархии — используются sharing rules или manual sharing.
+For edit access via hierarchy — use sharing rules or manual sharing.
 
-### Share Tables — per-object grant storage
+### Share Tables — Per-Object Grant Storage
 
-Вместо полной материализации `(user × record)` — per-object таблицы
-с компактными grants. Создаются DDL engine при создании объекта
-с OWD != `public_read_write`.
+Instead of full materialization of `(user × record)` — per-object tables
+with compact grants. Created by the DDL engine when creating an object
+with OWD != `public_read_write`.
 
 ```sql
 CREATE TABLE obj_{name}__share (
@@ -70,17 +70,17 @@ CREATE INDEX ix_{name}__share_grantee
 ON obj_{name}__share (grantee_id);
 ```
 
-`grantee_id` — всегда group_id. Без polymorphic `grantee_type` (ADR-0013).
-- Manual share конкретному user → grant на его personal group
-- Sharing rule для роли → grant на role/role_and_subordinates group
-- Единый resolution через `effective_group_members`
+`grantee_id` — always a group_id. No polymorphic `grantee_type` (ADR-0013).
+- Manual share to a specific user → grant to their personal group
+- Sharing rule for a role → grant to role/role_and_subordinates group
+- Unified resolution through `effective_group_members`
 
-`reason` позволяет точечный revoke: удаление sharing rule удаляет только
-записи с `reason = 'sharing_rule'`, не затрагивая manual shares.
+`reason` enables targeted revoke: deleting a sharing rule removes only
+entries with `reason = 'sharing_rule'`, without affecting manual shares.
 
 ### Sharing Rules
 
-Хранятся в общей таблице с типом правила:
+Stored in a common table with a rule type:
 
 ```sql
 CREATE TABLE security.sharing_rules (
@@ -89,16 +89,16 @@ CREATE TABLE security.sharing_rules (
     rule_type       VARCHAR(20) NOT NULL
                     CHECK (rule_type IN ('owner_based', 'criteria_based')),
 
-    -- Источник (чьи записи расшариваются) — всегда group (ADR-0013)
+    -- Source (whose records are being shared) — always a group (ADR-0013)
     source_group_id UUID NOT NULL REFERENCES iam.groups(id),
 
-    -- Получатель (кому открывается доступ) — всегда group (ADR-0013)
+    -- Target (who gets access) — always a group (ADR-0013)
     target_group_id UUID NOT NULL REFERENCES iam.groups(id),
 
-    -- Уровень доступа
+    -- Access level
     access_level    INT NOT NULL DEFAULT 1,  -- 1=R, 5=R+U
 
-    -- Критерий (только для criteria_based, NULL для owner_based)
+    -- Criteria (only for criteria_based, NULL for owner_based)
     criteria_field_id   UUID REFERENCES metadata.field_definitions(id),
     criteria_operator   VARCHAR(10)
                         CHECK (criteria_operator IN ('eq', 'neq', 'in', 'gt', 'lt')),
@@ -109,27 +109,27 @@ CREATE TABLE security.sharing_rules (
 );
 ```
 
-Source и target — прямые FK на groups. Без polymorphic `source_type`/`target_type`.
+Source and target are direct FKs to groups. No polymorphic `source_type`/`target_type`.
 
-**Owner-based:** "Записи Account, принадлежащие group(type=role, Sales), доступны group(type=role_and_subordinates, Support) с правом Read."
+**Owner-based:** "Account records owned by group(type=role, Sales) are accessible to group(type=role_and_subordinates, Support) with Read permission."
 
-**Criteria-based:** "Записи Account, где `status = 'Active'`, доступны group(type=public, Partners) с правом Read."
+**Criteria-based:** "Account records where `status = 'Active'` are accessible to group(type=public, Partners) with Read permission."
 
-При создании/изменении sharing rule — асинхронно генерируются grants в share tables
-(через outbox pattern, ADR-0012).
+When a sharing rule is created or modified, grants are asynchronously generated in share tables
+(via outbox pattern, ADR-0012).
 
 ### Manual Record Sharing
 
-Прямые grants в share table с `reason = 'manual'`. Создаются через UI или API.
-Не удаляются автоматически при изменении sharing rules.
+Direct grants in the share table with `reason = 'manual'`. Created via UI or API.
+Not automatically removed when sharing rules change.
 
 ### Query-time RLS
 
-SOQL engine строит WHERE clause в зависимости от OWD объекта:
+The SOQL engine builds a WHERE clause depending on the object's OWD:
 
-**OWD = `public_read_write`:** WHERE clause не нужен.
+**OWD = `public_read_write`:** No WHERE clause needed.
 
-**OWD = `public_read`:** WHERE clause для write-операций.
+**OWD = `public_read`:** WHERE clause for write operations.
 
 **OWD = `private`:**
 ```sql
@@ -142,7 +142,7 @@ WHERE (
     FROM security.effective_visible_owner
     WHERE user_id = :user_id
   )
-  -- 3. Share table grants (единый path через groups, ADR-0013)
+  -- 3. Share table grants (unified path through groups, ADR-0013)
   OR t.id IN (
     SELECT s.record_id
     FROM obj_{name}__share s
@@ -163,32 +163,32 @@ WHERE (
 )
 ```
 
-**OWD = `controlled_by_parent`:** рекурсивно проверяется доступ к parent-записи.
+**OWD = `controlled_by_parent`:** Access to the parent record is checked recursively.
 
-## Рассмотренные варианты
+## Considered Alternatives
 
-### Полная материализация effective_rls (отклонено)
+### Full effective_rls Materialization (rejected)
 
-Таблица `(user_id, object_id, record_id) → permissions`. Размер = O(users × records).
-При 1000 пользователях и 1M записей = 1B строк. Не масштабируется.
-Пересчёт при изменении sharing rule затрагивает миллионы строк.
+A table `(user_id, object_id, record_id) → permissions`. Size = O(users × records).
+With 1,000 users and 1M records = 1B rows. Does not scale.
+Recalculation when a sharing rule changes affects millions of rows.
 
-### Query-time через closure tables (рассмотрено)
+### Query-time via Closure Tables (considered)
 
-Без pre-materialization, только closure tables + runtime JOIN.
-Работает, но `effective_visible_owner` даёт выигрыш в query-time
-за счёт одного lookup вместо двух JOIN (ADR-0012).
+No pre-materialization, only closure tables + runtime JOIN.
+Works, but `effective_visible_owner` provides a query-time advantage
+by using a single lookup instead of two JOINs (ADR-0012).
 
-### Share tables + effective caches (выбрано)
+### Share Tables + Effective Caches (chosen)
 
-Компактные per-object share tables (grants, не полная матрица) +
-pre-materialized helper caches. Лучший баланс между размером и скоростью.
+Compact per-object share tables (grants, not a full matrix) +
+pre-materialized helper caches. Best balance between size and speed.
 
-## Последствия
+## Consequences
 
-- Каждый объект с OWD != `public_read_write` получает share table через DDL engine
-- Sharing rules хранятся в общей таблице, grants генерируются асинхронно
-- Role hierarchy даёт только Read — для edit нужен explicit grant
-- SOQL engine строит WHERE clause динамически на основе OWD и кэшей
-- Territory management — Phase N, но модель уже поддерживает его
-- Criteria-based sharing rules с nullable полями в общей таблице (без отдельной таблицы критериев)
+- Every object with OWD != `public_read_write` gets a share table via the DDL engine
+- Sharing rules are stored in a common table, grants are generated asynchronously
+- Role hierarchy provides Read only — for edit an explicit grant is needed
+- The SOQL engine builds the WHERE clause dynamically based on OWD and caches
+- Territory management is Phase N, but the model already supports it
+- Criteria-based sharing rules use nullable fields in the common table (no separate criteria table)

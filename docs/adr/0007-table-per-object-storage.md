@@ -1,91 +1,91 @@
-# ADR-0007: Таблица на каждый объект (table-per-object storage)
+# ADR-0007: Table-Per-Object Storage
 
-**Статус:** Принято
-**Дата:** 2026-02-08
-**Участники:** @roman_myakotin
+**Status:** Accepted
+**Date:** 2026-02-08
+**Participants:** @roman_myakotin
 
-## Контекст
+## Context
 
-Metadata-driven CRM позволяет создавать произвольные объекты (custom objects) с произвольными
-полями. Необходимо определить, как данные записей хранятся в PostgreSQL.
+A metadata-driven CRM allows creating arbitrary objects (custom objects) with arbitrary
+fields. It is necessary to determine how record data is stored in PostgreSQL.
 
-Ключевые факторы:
-- Custom objects создаются редко (admin-операции), запросы к данным — постоянно
-- SOQL/DML — единый API для доступа к данным, транслируется в SQL
-- Важны нативные constraints: FK, UNIQUE, NOT NULL, индексы
-- PostgreSQL 16 поддерживает транзакционный DDL (CREATE TABLE, ALTER TABLE — атомарны)
+Key factors:
+- Custom objects are created rarely (admin operations), data queries happen constantly
+- SOQL/DML is the unified API for data access, translated into SQL
+- Native constraints are important: FK, UNIQUE, NOT NULL, indexes
+- PostgreSQL 16 supports transactional DDL (CREATE TABLE, ALTER TABLE are atomic)
 
-## Рассмотренные варианты
+## Options Considered
 
-### Вариант A: Таблица на каждый объект (выбран)
+### Option A: Table Per Object (chosen)
 
-Каждый объект получает собственную таблицу. Создание объекта = `CREATE TABLE`,
-добавление поля = `ALTER TABLE ADD COLUMN`.
+Each object gets its own table. Creating an object = `CREATE TABLE`,
+adding a field = `ALTER TABLE ADD COLUMN`.
 
-**Плюсы:**
-- Нативная производительность PostgreSQL — индексы, query planner, JOINs
-- Сильная типизация на уровне БД (VARCHAR, NUMERIC, UUID, BOOLEAN, TIMESTAMPTZ)
-- FK constraints работают нативно для reference-полей
-- UNIQUE, NOT NULL constraints на уровне БД
-- SOQL → SQL трансляция тривиальна (прямой маппинг object → table, field → column)
-- Проверено на практике
+**Pros:**
+- Native PostgreSQL performance — indexes, query planner, JOINs
+- Strong typing at the DB level (VARCHAR, NUMERIC, UUID, BOOLEAN, TIMESTAMPTZ)
+- FK constraints work natively for reference fields
+- UNIQUE, NOT NULL constraints at the DB level
+- SOQL → SQL translation is trivial (direct mapping object → table, field → column)
+- Proven in practice
 
-**Минусы:**
-- DDL в runtime (CREATE TABLE, ALTER TABLE)
-- Нужны DDL-привилегии для приложения
-- Количество таблиц растёт с количеством объектов
+**Cons:**
+- DDL at runtime (CREATE TABLE, ALTER TABLE)
+- DDL privileges required for the application
+- Number of tables grows with the number of objects
 
-### Вариант B: EAV (Entity-Attribute-Value)
+### Option B: EAV (Entity-Attribute-Value)
 
-Одна таблица `record_values` с колонками `(record_id, field_id, value_text, value_number, ...)`.
+A single `record_values` table with columns `(record_id, field_id, value_text, value_number, ...)`.
 
-**Плюсы:** никакого DDL в runtime, полностью динамическая схема.
-**Минусы:** ужасная производительность для сложных запросов (self-JOIN на каждое поле),
-невозможны FK/UNIQUE constraints, SOQL → SQL трансляция крайне сложная.
+**Pros:** no DDL at runtime, fully dynamic schema.
+**Cons:** terrible performance for complex queries (self-JOIN per field),
+FK/UNIQUE constraints impossible, SOQL → SQL translation extremely complex.
 
-### Вариант C: Wide table (подход Salesforce)
+### Option C: Wide Table (Salesforce approach)
 
-Одна таблица `data_rows` с generic-колонками `val0..val500`, все значения как TEXT.
+A single `data_rows` table with generic columns `val0..val500`, all values as TEXT.
 
-**Плюсы:** никакого DDL, единая таблица.
-**Минусы:** потеря типизации, лимит на количество полей, sparse storage, сложный кастинг.
+**Pros:** no DDL, single table.
+**Cons:** loss of typing, field count limit, sparse storage, complex casting.
 
-### Вариант D: JSONB-документ
+### Option D: JSONB Document
 
-Одна таблица `records` с колонкой `data JSONB`.
+A single `records` table with a `data JSONB` column.
 
-**Плюсы:** никакого DDL, JSONB хорошо оптимизирован в PG, GIN-индексы.
-**Минусы:** нет FK constraints внутри JSONB, UNIQUE constraints только через partial index,
-агрегации медленнее нативных колонок.
+**Pros:** no DDL, JSONB is well-optimized in PG, GIN indexes.
+**Cons:** no FK constraints inside JSONB, UNIQUE constraints only via partial index,
+aggregations slower than native columns.
 
-## Решение
+## Decision
 
-Принимаем **Вариант A** — таблица на каждый объект.
+We adopt **Option A** — table per object.
 
-### Расположение таблиц
+### Table Placement
 
-Физическое расположение таблицы определяется полями `schema_name` и `table_name`
-в `object_definitions` (ADR-0003). Это позволяет размещать данные в разных PG-схемах.
+The physical location of the table is determined by the `schema_name` and `table_name`
+fields in `object_definitions` (ADR-0003). This allows placing data in different PG schemas.
 
-Конвенция по умолчанию:
+Default convention:
 
-| object_type | schema_name | table_name | Пример |
-|-------------|-------------|------------|--------|
+| object_type | schema_name | table_name | Example |
+|-------------|-------------|------------|---------|
 | standard | `public` | `obj_{api_name}` | `public.obj_account` |
 | custom | `public` | `obj_{api_name}` | `public.obj_invoice` |
 
-Администратор может переопределить схему при необходимости.
+Administrators can override the schema if needed.
 
-DDL и SOQL/DML engine обращаются к таблице через `{schema_name}.{table_name}` из метаданных,
-а не через вычисление имени из `api_name`.
+DDL and SOQL/DML engine access the table via `{schema_name}.{table_name}` from metadata,
+not by computing the name from `api_name`.
 
-### Структура таблицы объекта
+### Object Table Structure
 
-При создании объекта metadata engine генерирует DDL:
+When creating an object, the metadata engine generates DDL:
 
 ```sql
 CREATE TABLE public.obj_invoice (
-    -- Системные поля (обязательные для каждого объекта)
+    -- System fields (mandatory for every object)
     id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     owner_id    UUID        NOT NULL REFERENCES users(id),
     created_by  UUID        NOT NULL REFERENCES users(id),
@@ -95,9 +95,9 @@ CREATE TABLE public.obj_invoice (
 );
 ```
 
-### Добавление поля
+### Adding a Field
 
-При создании поля metadata engine генерирует ALTER TABLE:
+When creating a field, the metadata engine generates ALTER TABLE:
 
 ```sql
 -- text/plain
@@ -116,17 +116,17 @@ ALTER TABLE obj_invoice ADD COLUMN is_paid BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE obj_invoice ADD COLUMN status VARCHAR(255);
 ```
 
-### Маппинг field_type → DDL
+### field_type → DDL Mapping
 
 | field_type | field_subtype | DDL column type |
 |-----------|---------------|----------------|
-| text | plain | `VARCHAR(n)` — n из config.max_length |
+| text | plain | `VARCHAR(n)` — n from config.max_length |
 | text | area, rich | `TEXT` |
 | text | email | `VARCHAR(255)` |
 | text | phone | `VARCHAR(40)` |
 | text | url | `VARCHAR(2048)` |
-| number | integer | `NUMERIC(p,0)` — p из config.precision |
-| number | decimal, currency, percent | `NUMERIC(p,s)` — из config |
+| number | integer | `NUMERIC(p,0)` — p from config.precision |
+| number | decimal, currency, percent | `NUMERIC(p,s)` — from config |
 | number | auto_number | `INTEGER GENERATED ALWAYS AS IDENTITY` |
 | boolean | — | `BOOLEAN` |
 | datetime | date | `DATE` |
@@ -136,9 +136,9 @@ ALTER TABLE obj_invoice ADD COLUMN status VARCHAR(255);
 | picklist | multi | `TEXT[]` |
 | reference | association | `UUID REFERENCES obj_{target}(id) ON DELETE SET NULL` |
 | reference | composition | `UUID NOT NULL REFERENCES obj_{target}(id) ON DELETE CASCADE` |
-| reference | polymorphic | два столбца: `{name}_object_type VARCHAR(100) NOT NULL` + `{name}_record_id UUID NOT NULL` |
+| reference | polymorphic | two columns: `{name}_object_type VARCHAR(100) NOT NULL` + `{name}_record_id UUID NOT NULL` |
 
-### Constraints из метаданных
+### Constraints from Metadata
 
 ```sql
 -- is_required = true
@@ -148,33 +148,33 @@ ALTER TABLE obj_invoice ALTER COLUMN number SET NOT NULL;
 ALTER TABLE obj_invoice ADD CONSTRAINT uq_invoice_number UNIQUE (number);
 ```
 
-### Индексы
+### Indexes
 
-Metadata engine автоматически создаёт индексы:
-- FK-колонки (reference-поля)
-- Поля с `is_unique = true`
-- Composite index для polymorphic reference: `(object_type, record_id)`
-- `owner_id` (для RLS-запросов)
+The metadata engine automatically creates indexes for:
+- FK columns (reference fields)
+- Fields with `is_unique = true`
+- Composite index for polymorphic reference: `(object_type, record_id)`
+- `owner_id` (for RLS queries)
 
-### Удаление поля
+### Deleting a Field
 
 ```sql
 ALTER TABLE obj_invoice DROP COLUMN amount;
 ```
 
-### Удаление объекта
+### Deleting an Object
 
 ```sql
 DROP TABLE obj_invoice;
 ```
 
-Hard delete с подтверждением (ADR-0003).
+Hard delete with confirmation (ADR-0003).
 
-## Последствия
+## Consequences
 
-- Metadata engine выполняет DDL при создании/изменении объектов и полей
-- Приложение требует DDL-привилегий на схему данных
-- SOQL → SQL трансляция: object → `{schema_name}.{table_name}` из метаданных, field → column name
-- Нативные PG constraints обеспечивают целостность данных
-- Schema migration для custom objects управляется платформой, не файлами миграций
-- Standard objects (Account, Contact и т.д.) создаются seed-скриптом при инициализации
+- The metadata engine executes DDL when creating/modifying objects and fields
+- The application requires DDL privileges on the data schema
+- SOQL → SQL translation: object → `{schema_name}.{table_name}` from metadata, field → column name
+- Native PG constraints ensure data integrity
+- Schema migration for custom objects is managed by the platform, not by migration files
+- Standard objects (Account, Contact, etc.) are created by a seed script during initialization

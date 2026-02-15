@@ -1,148 +1,148 @@
-# ADR-0025: Scenario Engine — оркестрация долгоживущих бизнес-процессов
+# ADR-0025: Scenario Engine — Orchestration of Long-lived Business Processes
 
-**Статус:** Принято
-**Дата:** 2026-02-15
-**Участники:** @roman_myakotin
+**Status:** Accepted
+**Date:** 2026-02-15
+**Participants:** @roman_myakotin
 
-## Контекст
+## Context
 
-### Проблема: координация многошаговых бизнес-процессов
+### Problem: coordination of multi-step business processes
 
-Платформа поддерживает синхронную бизнес-логику через DML Pipeline (ADR-0020) и Procedure Engine (ADR-0024): валидация, defaults, computed fields, цепочки Commands. Однако реальные бизнес-процессы часто выходят за рамки одного HTTP-запроса:
+The platform supports synchronous business logic through DML Pipeline (ADR-0020) and Procedure Engine (ADR-0024): validation, defaults, computed fields, Command chains. However, real business processes often extend beyond a single HTTP request:
 
-| Процесс | Длительность | Особенности |
-|---------|-------------|-------------|
-| Onboarding клиента | Часы-дни | Ожидание email-подтверждения, настройка интеграций |
-| Согласование скидки | Дни | Human-in-the-loop, эскалация при timeout |
-| Обработка заказа | Минуты-часы | Saga: резервирование, оплата, отгрузка, rollback при ошибке |
-| Подписание контракта | Дни-недели | Внешние сигналы (DocuSign), напоминания |
+| Process | Duration | Characteristics |
+|---------|----------|-----------------|
+| Client onboarding | Hours to days | Waiting for email confirmation, setting up integrations |
+| Discount approval | Days | Human-in-the-loop, escalation on timeout |
+| Order processing | Minutes to hours | Saga: reservation, payment, shipping, rollback on error |
+| Contract signing | Days to weeks | External signals (DocuSign), reminders |
 
-Текущая архитектура не решает:
+The current architecture does not solve:
 
-1. **Durability** -- состояние процесса хранится в памяти; при рестарте сервера контекст теряется, процесс "зависает"
-2. **Consistency** -- при ошибке на шаге 4 из 7 нет механизма автоматического отката завершённых шагов 1-3
-3. **Ожидание внешних событий** -- процесс не может "заснуть" и проснуться при получении webhook или действии пользователя
-4. **Observability** -- нет единой истории выполнения; логи разбросаны, невозможно ответить "на каком шаге зависла заявка?"
-5. **Idempotency** -- при retry после сбоя возможны дублирования (двойные списания, повторные email)
+1. **Durability** -- process state is stored in memory; on server restart, context is lost and the process "hangs"
+2. **Consistency** -- when an error occurs at step 4 of 7, there is no mechanism for automatic rollback of completed steps 1-3
+3. **Waiting for external events** -- a process cannot "sleep" and wake up upon receiving a webhook or user action
+4. **Observability** -- no unified execution history; logs are scattered, impossible to answer "at which step is the request stuck?"
+5. **Idempotency** -- on retry after a failure, duplications are possible (double charges, repeated emails)
 
-### Операционные и финансовые риски без оркестрации
+### Operational and Financial Risks Without Orchestration
 
-| Риск | Последствие |
-|------|-------------|
-| "Зависшие" операции | Клиент оплатил, но заказ не создан -- нет автоматического rollback |
-| Потеря контекста при сбое | После рестарта непонятно, какие операции завершены |
-| Двойные списания | Повторное выполнение без проверки идемпотентности |
-| Упущенные сделки | Процесс "завис", менеджер забыл, клиент ушёл к конкуренту |
+| Risk | Consequence |
+|------|------------|
+| "Stuck" operations | Client paid, but order was not created -- no automatic rollback |
+| Context loss on failure | After restart, it is unclear which operations completed |
+| Double charges | Re-execution without idempotency check |
+| Missed deals | Process "hangs", manager forgets, client goes to competitor |
 
-### Связь с терминологией ADR-0023
+### Relationship with ADR-0023 Terminology
 
-ADR-0023 определил иерархию исполняемой логики: Action (зонтичный) -> Command (атомарная операция) -> Procedure (синхронная цепочка) -> **Scenario** (асинхронный долгоживущий процесс). Scenario -- верхний уровень иерархии, обеспечивающий durability и координацию. Каждый Step сценария вызывает Procedure, inline Command или встроенную операцию (`wait signal`, `wait timer`).
+ADR-0023 defined the hierarchy of executable logic: Action (umbrella) -> Command (atomic operation) -> Procedure (synchronous chain) -> **Scenario** (asynchronous long-lived process). Scenario is the top level of the hierarchy, providing durability and coordination. Each Scenario Step invokes a Procedure, inline Command, or built-in operation (`wait signal`, `wait timer`).
 
-### Связь с Object View (ADR-0022) и Automation Rules (ADR-0019)
+### Relationship with Object View (ADR-0022) and Automation Rules (ADR-0019)
 
-- **Object View**: action type `scenario` запускает Scenario из UI-кнопки на карточке записи
-- **Automation Rules**: триггер "после обновления записи" может запустить Scenario как реакцию (post-execute stage, ADR-0020)
+- **Object View**: action type `scenario` launches a Scenario from a UI button on the record card
+- **Automation Rules**: a "record after update" trigger can launch a Scenario as a reaction (post-execute stage, ADR-0020)
 
-## Рассмотренные варианты
+## Considered Options
 
-### Вариант A -- Прямые сервисные вызовы (status quo)
+### Option A -- Direct Service Calls (status quo)
 
-Каждый процесс реализуется как цепочка вызовов в Go-сервисе: `createAccount() -> sendEmail() -> setupIntegration()`. Состояние -- в переменных текущего запроса.
+Each process is implemented as a chain of calls in a Go service: `createAccount() -> sendEmail() -> setupIntegration()`. State is in the variables of the current request.
 
-**Плюсы:**
-- Нет новых абстракций
-- Простая реализация для 2-3 процессов
-- Нет overhead на сериализацию состояния
+**Pros:**
+- No new abstractions
+- Simple implementation for 2-3 processes
+- No overhead for state serialization
 
-**Минусы:**
-- Нет durability: рестарт = потеря контекста
-- Нет rollback: ошибка на шаге N оставляет систему в неконсистентном состоянии
-- Невозможно ждать внешние события (approval, webhook)
-- Boilerplate: retry, timeout, state management -- в каждом сервисе заново
-- Не масштабируется: 10+ процессов = технический долг
-- "Только Вася знает, как работает этот процесс"
+**Cons:**
+- No durability: restart = context loss
+- No rollback: error at step N leaves the system in an inconsistent state
+- Cannot wait for external events (approval, webhook)
+- Boilerplate: retry, timeout, state management -- repeated in every service
+- Does not scale: 10+ processes = technical debt
+- "Only Vasya knows how this process works"
 
-### Вариант B -- Event-driven хореография (pub/sub)
+### Option B -- Event-driven Choreography (pub/sub)
 
-Сервисы общаются через события: `AccountCreated -> EmailService.SendWelcome -> IntegrationService.Setup`. Каждый сервис реагирует на события других.
+Services communicate through events: `AccountCreated -> EmailService.SendWelcome -> IntegrationService.Setup`. Each service reacts to events from others.
 
-**Плюсы:**
-- Слабая связанность между сервисами
-- Естественная масштабируемость
-- Каждый сервис развивается независимо
+**Pros:**
+- Loose coupling between services
+- Natural scalability
+- Each service evolves independently
 
-**Минусы:**
-- Control flow распределён по сервисам -- нет единого места для понимания процесса
-- Отладка через трассировку событий -- сложнее, чем одна точка наблюдения
-- Failure handling в каждом сервисе отдельно -- нет централизованного rollback
-- Циклические зависимости между событиями -- труднообнаружимые баги
-- Сложно добавить условную логику ("если сумма > 100k, другой approver")
-- Требует отдельной инфраструктуры (message broker)
+**Cons:**
+- Control flow is distributed across services -- no single place to understand the process
+- Debugging through event tracing -- harder than a single observation point
+- Failure handling in each service separately -- no centralized rollback
+- Circular dependencies between events -- hard-to-discover bugs
+- Difficult to add conditional logic ("if amount > 100k, different approver")
+- Requires separate infrastructure (message broker)
 
-### Вариант C -- JSON DSL + Constructor UI (выбран)
+### Option C -- JSON DSL + Constructor UI (chosen)
 
-Центральный координатор выполняет сценарии, описанные декларативно (JSON, JSONB в PostgreSQL). Администратор собирает сценарий через Constructor UI (аналогично Procedure Constructor из ADR-0024). Saga pattern для rollback.
+A central coordinator executes scenarios described declaratively (JSON, JSONB in PostgreSQL). The administrator assembles a scenario through Constructor UI (analogous to the Procedure Constructor from ADR-0024). Saga pattern for rollback.
 
-**Плюсы:**
-- Constructor-first: администратор собирает сценарий через формы, не пишет JSON
-- JSON нативен для стека: `encoding/json` (Go), JSONB (PostgreSQL), TypeScript
-- Явный control flow: весь процесс виден в одном месте
-- Централизованная обработка ошибок и rollback
-- Durability из коробки (PostgreSQL)
-- Встроенные signals, timers, retry policies
-- Простота отладки: одна точка наблюдения, полная история execution
-- CEL как сквозной expression language (ADR-0019, Phase 7b)
+**Pros:**
+- Constructor-first: administrator assembles a scenario through forms, does not write JSON
+- JSON is native to the stack: `encoding/json` (Go), JSONB (PostgreSQL), TypeScript
+- Explicit control flow: the entire process is visible in one place
+- Centralized error handling and rollback
+- Durability out of the box (PostgreSQL)
+- Built-in signals, timers, retry policies
+- Easy debugging: single observation point, complete execution history
+- CEL as cross-cutting expression language (ADR-0019, Phase 7b)
 
-**Минусы:**
-- Overhead для простых операций (одношаговые -- не нужен Scenario)
-- PostgreSQL как единственный backend для durability
-- Constructor UI -- дополнительные инвестиции во frontend
-- Декларативность ограничивает: для сложной логики нужна Procedure (ADR-0024)
+**Cons:**
+- Overhead for simple operations (single-step -- Scenario is not needed)
+- PostgreSQL as the only backend for durability
+- Constructor UI -- additional frontend investment
+- Declarativeness is limiting: for complex logic, a Procedure is needed (ADR-0024)
 
-### Вариант D -- Temporal/Cadence (внешний workflow engine)
+### Option D -- Temporal/Cadence (external workflow engine)
 
-Использование production-grade платформы (Temporal.io) для оркестрации.
+Using a production-grade platform (Temporal.io) for orchestration.
 
-**Плюсы:**
-- Production-ready, проверен в масштабе (Uber, Netflix, Stripe)
-- Детерминистический replay
+**Pros:**
+- Production-ready, proven at scale (Uber, Netflix, Stripe)
+- Deterministic replay
 - Fork/join, child workflows, versioning
-- Активное сообщество и документация
+- Active community and documentation
 
-**Минусы:**
-- Внешняя зависимость: отдельный сервис, кластер, мониторинг
-- Противоречит self-hosted фокусу платформы (ADR-0016) -- пользователь должен разворачивать Temporal
-- Learning curve значительно выше (Temporal SDK, worker concept, activity vs workflow)
-- Код workflow на Go, не декларативный -- администратор не может настраивать
-- Overkill для 80% сценариев CRM (линейные approval flows)
-- Привязка к конкретному вендору
+**Cons:**
+- External dependency: separate service, cluster, monitoring
+- Contradicts the platform's self-hosted focus (ADR-0016) -- the user must deploy Temporal
+- Learning curve is significantly higher (Temporal SDK, worker concept, activity vs workflow)
+- Workflow code is in Go, not declarative -- administrator cannot configure
+- Overkill for 80% of CRM scenarios (linear approval flows)
+- Vendor lock-in
 
-## Решение
+## Decision
 
-**Выбран вариант C: JSON DSL + Constructor UI, персистентность в PostgreSQL (JSONB) и Saga pattern для rollback.**
+**Option C chosen: JSON DSL + Constructor UI, persistence in PostgreSQL (JSONB), and Saga pattern for rollback.**
 
-Администратор собирает сценарий через Constructor UI (Scenario Constructor). JSON — внутреннее представление (IR). Power users могут редактировать JSON напрямую. При росте потребностей (fork/join, детерминистический replay) возможна миграция на Temporal — декларативный DSL может быть скомпилирован в Temporal workflow.
+The administrator assembles a scenario through Constructor UI (Scenario Constructor). JSON is the internal representation (IR). Power users can edit JSON directly. As needs grow (fork/join, deterministic replay), migration to Temporal is possible -- the declarative DSL can be compiled into a Temporal workflow.
 
-### Архитектурный принцип: Orchestration over Choreography
+### Architectural Principle: Orchestration over Choreography
 
-Для критичных бизнес-процессов выбрана оркестрация:
-- Центральный координатор (Orchestrator) знает все шаги
-- Явный control flow виден в одном месте
-- Централизованная обработка ошибок и rollback
-- Одна точка наблюдения для мониторинга и отладки
+For critical business processes, orchestration is chosen:
+- A central coordinator (Orchestrator) knows all the steps
+- Explicit control flow is visible in one place
+- Centralized error handling and rollback
+- Single observation point for monitoring and debugging
 
-### Модель выполнения: Workflow
+### Execution Model: Workflow
 
-**Sequential Workflow** -- основная модель. Шаги выполняются последовательно с условным пропуском (`when`).
+**Sequential Workflow** -- the primary model. Steps execute sequentially with conditional skipping (`when`).
 
-Расширения workflow:
-- **`goto`** -- переход к произвольному шагу (создание циклов, возвратов)
-- **`loop`** -- повторение группы шагов пока выполняется условие (`while`)
+Workflow extensions:
+- **`goto`** -- jump to an arbitrary step (creating loops, returns)
+- **`loop`** -- repeat a group of steps while a condition holds (`while`)
 
-**State Machine отложен.** Workflow + `goto` + `wait signal` покрывает 95% бизнес-сценариев. State Machine запланирован для будущих версий (документооборот со статусами, подписки с lifecycle).
+**State Machine is deferred.** Workflow + `goto` + `wait signal` covers 95% of business scenarios. State Machine is planned for future versions (document workflows with statuses, subscriptions with lifecycle).
 
 ```
-Workflow с расширениями:
+Workflow with extensions:
 
   +---------+
   | Step 1  |
@@ -160,14 +160,14 @@ Workflow с расширениями:
        +---------+
 ```
 
-### Структура Scenario
+### Scenario Structure
 
 ```json
 {
   "code": "order_fulfillment",
-  "name": "Исполнение заказа",
+  "name": "Order Fulfillment",
   "version": 1,
-  "description": "Полный цикл: резервирование → оплата → отгрузка",
+  "description": "Full cycle: reservation -> payment -> shipping",
   "input": [
     { "name": "orderId", "type": "uuid", "required": true },
     { "name": "amount", "type": "number", "required": true }
@@ -183,14 +183,14 @@ Workflow с расширениями:
 }
 ```
 
-### Структура Step
+### Step Structure
 
-Каждый Step -- единица работы внутри сценария. В соответствии с ADR-0023, поле `procedure` (ранее `handler`) указывает на Procedure или inline Command.
+Each Step is a unit of work inside a scenario. In accordance with ADR-0023, the `procedure` field (formerly `handler`) points to a Procedure or inline Command.
 
 ```json
 {
   "code": "charge_payment",
-  "name": "Списание оплаты",
+  "name": "Charge Payment",
   "procedure": "process_payment",
   "input": {
     "orderId": "$.input.orderId",
@@ -208,16 +208,16 @@ Workflow с расширениями:
 }
 ```
 
-Форматы указания `procedure` в step:
+Formats for specifying `procedure` in a step:
 
-| Формат | Интерпретация | Пример |
-|--------|---------------|--------|
-| Строка-идентификатор | Ссылка на Procedure | `"procedure": "create_customer"` |
-| Строка с namespace | Внешняя Procedure | `"procedure": "integrations.sync_1c"` |
-| Inline Command (JSON) | Одна команда | `"procedure": { "type": "notification.email", ... }` |
-| Массив commands (JSON) | Несколько команд | `"procedure": [{ "type": "record.create", ... }]` |
+| Format | Interpretation | Example |
+|--------|---------------|---------|
+| String identifier | Reference to a Procedure | `"procedure": "create_customer"` |
+| String with namespace | External Procedure | `"procedure": "integrations.sync_1c"` |
+| Inline Command (JSON) | Single command | `"procedure": { "type": "notification.email", ... }` |
+| Array of commands (JSON) | Multiple commands | `"procedure": [{ "type": "record.create", ... }]` |
 
-Порядок разрешения имени: сначала локальные `procedures` сценария, затем глобальный реестр Procedure (ADR-0024).
+Name resolution order: first local `procedures` of the scenario, then the global Procedure registry (ADR-0024).
 
 ### Execution Lifecycle
 
@@ -231,19 +231,19 @@ Workflow с расширениями:
      +---> cancelled
 ```
 
-| Статус | Описание |
-|--------|----------|
-| `pending` | Создан, ожидает запуска |
-| `running` | Выполняется (активный шаг) |
-| `waiting` | Ожидает signal или timer |
-| `compensating` | Выполняется откат (Saga) |
-| `completed` | Успешно завершён |
-| `failed` | Ошибка (после rollback или fail_fast) |
-| `cancelled` | Отменён вручную или по API |
+| Status | Description |
+|--------|-------------|
+| `pending` | Created, awaiting launch |
+| `running` | Executing (active step) |
+| `waiting` | Waiting for signal or timer |
+| `compensating` | Executing rollback (Saga) |
+| `completed` | Successfully completed |
+| `failed` | Error (after rollback or fail_fast) |
+| `cancelled` | Cancelled manually or via API |
 
 ### Signals
 
-**Signal** -- внешнее событие, влияющее на выполнение. Execution приостанавливается (`status=waiting`) до получения сигнала.
+**Signal** -- an external event affecting execution. Execution is paused (`status=waiting`) until a signal is received.
 
 ```json
 {
@@ -263,170 +263,170 @@ POST /api/v1/executions/{executionId}/signal
 }
 ```
 
-Типичные сигналы: `approval_decision`, `email_confirmed`, `payment_completed`, `document_signed`.
+Typical signals: `approval_decision`, `email_confirmed`, `payment_completed`, `document_signed`.
 
 ### Timers
 
-Четыре типа таймеров:
+Four timer types:
 
-| Тип | Назначение | Пример |
-|-----|------------|--------|
-| `delay` | Пауза на N времени | Подождать 1 час перед follow-up |
-| `until` | Ждать до timestamp | Активировать в дату начала |
-| `timeout` | Ограничение ожидания signal | Отменить если не ответили за 7 дней |
-| `reminder` | Периодическое напоминание | Напоминать каждые 24 часа |
+| Type | Purpose | Example |
+|------|---------|---------|
+| `delay` | Pause for N time | Wait 1 hour before follow-up |
+| `until` | Wait until timestamp | Activate on start date |
+| `timeout` | Limit signal wait time | Cancel if no response in 7 days |
+| `reminder` | Periodic reminder | Remind every 24 hours |
 
 ### Rollback (Saga Pattern)
 
-При ошибке на шаге N автоматически откатываются все завершённые шаги в обратном порядке (LIFO):
+On error at step N, all completed steps are automatically rolled back in reverse order (LIFO):
 
 ```
 Forward:  Step1 --> Step2 --> Step3 --> Step4 (X Error!)
 Rollback:          Comp3 <-- Comp2 <-- Comp1
 ```
 
-Rollback выполняется по принципу best-effort: если откатное действие падает, ошибка логируется и продолжается откат следующего шага. Не все шаги обязаны иметь rollback (email отправлен -- не откатить).
+Rollback is executed on a best-effort basis: if a compensating action fails, the error is logged and rollback continues with the next step. Not all steps are required to have a rollback (an email sent cannot be unsent).
 
-Стратегии обработки ошибок:
+Error handling strategies:
 
-| Стратегия | Поведение |
-|-----------|-----------|
-| `fail_fast` | При первой ошибке -- сразу `failed`, без rollback |
-| `retry` | Retry по политике, затем fail_fast |
-| `compensate` | Retry, затем rollback всех выполненных шагов |
+| Strategy | Behavior |
+|----------|----------|
+| `fail_fast` | On first error -- immediately `failed`, without rollback |
+| `retry` | Retry per policy, then fail_fast |
+| `compensate` | Retry, then rollback all completed steps |
 
-### Durability и Recovery
+### Durability and Recovery
 
-Состояние execution персистится в PostgreSQL после каждого шага. При рестарте приложения:
+Execution state is persisted in PostgreSQL after each step. On application restart:
 
-1. Найти executions со статусом `running`, `waiting`, `compensating`
-2. Для `running` -- определить последний завершённый step, retry текущий с тем же idempotency key
-3. Для `waiting` -- проверить поступившие сигналы/таймеры, возобновить если есть
-4. Для `compensating` -- продолжить rollback с текущего шага
+1. Find executions with status `running`, `waiting`, `compensating`
+2. For `running` -- determine the last completed step, retry the current one with the same idempotency key
+3. For `waiting` -- check for received signals/timers, resume if any
+4. For `compensating` -- continue rollback from the current step
 
-Step записывается как завершённый только после успешного выполнения. При recovery -- retry текущего step, не повторение завершённых.
+A step is recorded as completed only after successful execution. On recovery -- retry the current step, do not repeat completed ones.
 
 ### Idempotency
 
-Платформа автоматически генерирует idempotency key для каждого шага:
+The platform automatically generates an idempotency key for each step:
 
 ```
 idempotencyKey = {executionId}-{stepCode}
 ```
 
-Этот ключ передаётся в Procedure и далее во внешние вызовы. Повторный вызов с тем же ключом должен давать тот же результат. Все встроенные Procedures платформы (`record.*`, `notification.*`) -- idempotent by design. Для HTTP-интеграций ключ передаётся в заголовке запроса.
+This key is passed into the Procedure and further into external calls. A repeated call with the same key must produce the same result. All built-in platform Procedures (`record.*`, `notification.*`) are idempotent by design. For HTTP integrations, the key is passed in the request header.
 
-### Context (модель контекста)
+### Context (Context Model)
 
-Контекст накапливается по мере выполнения и доступен через CEL expressions:
+Context accumulates as execution progresses and is accessible via CEL expressions:
 
-| Путь | Описание | Мутабельность |
-|------|----------|---------------|
-| `$.input` | Входные параметры сценария | Immutable |
-| `$.steps.<code>` | Результат шага (null если пропущен по `when`) | Append-only |
-| `$.steps.<code>.meta` | Метаданные шага из определения | Immutable |
-| `$.signals` | Полученные сигналы | Append-only |
-| `$.meta` | Метаданные сценария | Immutable |
-| `$.execution` | Системные данные (startedAt, attempt) | Read-only |
-| `$.user` | Текущий пользователь | Immutable |
-| `$.now` | Текущее время | Computed |
+| Path | Description | Mutability |
+|------|-------------|------------|
+| `$.input` | Scenario input parameters | Immutable |
+| `$.steps.<code>` | Step result (null if skipped by `when`) | Append-only |
+| `$.steps.<code>.meta` | Step metadata from the definition | Immutable |
+| `$.signals` | Received signals | Append-only |
+| `$.meta` | Scenario metadata | Immutable |
+| `$.execution` | System data (startedAt, attempt) | Read-only |
+| `$.user` | Current user | Immutable |
+| `$.now` | Current time | Computed |
 
-Пропущенные шаги (условие `when` = false): `$.steps.<code>` = `null`. Безопасный доступ: `$.steps.x != null && $.steps.x.field == "value"`.
+Skipped steps (condition `when` = false): `$.steps.<code>` = `null`. Safe access: `$.steps.x != null && $.steps.x.field == "value"`.
 
-### Архитектурные компоненты
+### Architectural Components
 
-| Компонент | Ответственность |
-|-----------|-----------------|
-| **Scenario Registry** | Хранит определения сценариев (JSON/JSONB в DB, Go-embedded для built-in) |
-| **Orchestrator** | Запускает и координирует executions, управляет lifecycle |
-| **Step Executor** | Выполняет конкретный шаг: резолвит Procedure, передаёт input, сохраняет output |
-| **Compensator** | Выполняет откатные действия в обратном порядке (LIFO) |
-| **Signal Handler** | Принимает внешние сигналы через API, пробуждает waiting executions |
-| **Timer Scheduler** | Планирует и запускает отложенные события, проверяет timeout |
-| **Execution Repository** | Персистирует состояние execution и историю шагов в PostgreSQL |
+| Component | Responsibility |
+|-----------|---------------|
+| **Scenario Registry** | Stores scenario definitions (JSON/JSONB in DB, Go-embedded for built-in) |
+| **Orchestrator** | Launches and coordinates executions, manages lifecycle |
+| **Step Executor** | Executes a specific step: resolves Procedure, passes input, saves output |
+| **Compensator** | Executes compensating actions in reverse order (LIFO) |
+| **Signal Handler** | Receives external signals via API, wakes up waiting executions |
+| **Timer Scheduler** | Schedules and triggers deferred events, checks timeouts |
+| **Execution Repository** | Persists execution state and step history in PostgreSQL |
 
 ### Storage
 
-Две таблицы в PostgreSQL:
+Two tables in PostgreSQL:
 
-**`scenario_executions`** -- состояние execution:
+**`scenario_executions`** -- execution state:
 
-| Колонка | Тип | Описание |
-|---------|-----|----------|
-| id | UUID PK | Уникальный ID execution |
-| scenario_code | VARCHAR | Код сценария |
-| scenario_version | INT | Версия на момент запуска |
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID PK | Unique execution ID |
+| scenario_code | VARCHAR | Scenario code |
+| scenario_version | INT | Version at launch time |
 | status | VARCHAR | pending/running/waiting/compensating/completed/failed/cancelled |
-| input | JSONB | Входные параметры |
-| context | JSONB | Накопленный контекст (steps results, signals) |
-| current_step | VARCHAR | Код текущего шага |
-| error | JSONB | Информация об ошибке (если есть) |
-| started_at | TIMESTAMPTZ | Время запуска |
-| completed_at | TIMESTAMPTZ | Время завершения |
-| created_at | TIMESTAMPTZ | Время создания |
-| updated_at | TIMESTAMPTZ | Время обновления |
+| input | JSONB | Input parameters |
+| context | JSONB | Accumulated context (step results, signals) |
+| current_step | VARCHAR | Current step code |
+| error | JSONB | Error information (if any) |
+| started_at | TIMESTAMPTZ | Start time |
+| completed_at | TIMESTAMPTZ | Completion time |
+| created_at | TIMESTAMPTZ | Creation time |
+| updated_at | TIMESTAMPTZ | Update time |
 
-**`scenario_step_history`** -- история выполнения шагов:
+**`scenario_step_history`** -- step execution history:
 
-| Колонка | Тип | Описание |
-|---------|-----|----------|
-| id | UUID PK | Уникальный ID записи |
-| execution_id | UUID FK | Ссылка на execution |
-| step_code | VARCHAR | Код шага |
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID PK | Unique record ID |
+| execution_id | UUID FK | Reference to execution |
+| step_code | VARCHAR | Step code |
 | status | VARCHAR | completed/failed/skipped/compensated |
-| input | JSONB | Входные данные шага |
-| output | JSONB | Результат выполнения |
-| error | JSONB | Ошибка (если есть) |
-| attempt | INT | Номер попытки |
-| started_at | TIMESTAMPTZ | Время начала |
-| completed_at | TIMESTAMPTZ | Время завершения |
-| created_at | TIMESTAMPTZ | Время создания |
+| input | JSONB | Step input data |
+| output | JSONB | Execution result |
+| error | JSONB | Error (if any) |
+| attempt | INT | Attempt number |
+| started_at | TIMESTAMPTZ | Start time |
+| completed_at | TIMESTAMPTZ | Completion time |
+| created_at | TIMESTAMPTZ | Creation time |
 
-### Лимиты
+### Limits
 
-| Параметр | Ограничение | Обоснование |
-|----------|-------------|-------------|
-| Максимум шагов в сценарии | 50 | Предотвращение чрезмерно сложных процессов |
-| Максимальная глубина goto | 100 итераций | Защита от бесконечных циклов |
-| Timeout execution по умолчанию | 30 дней | Защита от "забытых" executions |
-| Retry maxAttempts по умолчанию | 3 | Баланс надёжности и ресурсов |
-| Размер context (JSONB) | 1 MB | Предотвращение разрастания состояния |
+| Parameter | Limit | Rationale |
+|-----------|-------|-----------|
+| Maximum steps in a scenario | 50 | Prevent excessively complex processes |
+| Maximum goto depth | 100 iterations | Protection against infinite loops |
+| Default execution timeout | 30 days | Protection against "forgotten" executions |
+| Default retry maxAttempts | 3 | Balance of reliability and resources |
+| Context size (JSONB) | 1 MB | Prevent state bloat |
 
-### State Machine (не в MVP)
+### State Machine (not in MVP)
 
-Запланирован для будущих версий. Workflow + goto + wait signal покрывает 95% бизнес-сценариев CRM. State Machine понадобится для:
-- Документооборот со статусами (draft -> review -> approved -> active)
-- Подписки с lifecycle (trial -> active -> paused -> cancelled)
-- Процессы, где состояние важнее последовательности шагов
+Planned for future versions. Workflow + goto + wait signal covers 95% of CRM business scenarios. State Machine will be needed for:
+- Document workflows with statuses (draft -> review -> approved -> active)
+- Subscriptions with lifecycle (trial -> active -> paused -> cancelled)
+- Processes where state matters more than step sequence
 
-Планируемый синтаксис: `mode: state_machine`, блок `states` вместо `steps`, переходы по событиям (`on`). Альтернатива в MVP: Workflow + goto + wait signal для event-driven логики.
+Planned syntax: `mode: state_machine`, `states` block instead of `steps`, transitions by events (`on`). Alternative in MVP: Workflow + goto + wait signal for event-driven logic.
 
-## Последствия
+## Consequences
 
-### Позитивные
+### Positive
 
-- **Durability** -- состояние execution переживает рестарт; recovery с последнего checkpoint; нет "зависших" операций
-- **Saga-гарантии** -- автоматический rollback всех завершённых шагов при ошибке; система возвращается в консистентное состояние
-- **Observability** -- полная история выполнения каждого шага с input/output/error; одна точка для диагностики
-- **Self-service для администраторов** -- новые процессы собираются через Constructor UI без разработки; время внедрения: дни вместо недель
-- **Встроенные примитивы** -- signals, timers, retry policies, idempotency -- из коробки, без boilerplate в каждом сервисе
-- **Вписывается в иерархию ADR-0023** -- Scenario = верхний уровень (Action -> Command -> Procedure -> Scenario); Step вызывает Procedure
-- **CEL как сквозной expression language** -- единый язык от Object View до Scenario (`when`, `input.*`)
-- **Инкрементальная реализация** -- Phase 13b; не блокирует Phase 9a (Object View) и Phase 13a (Procedure Engine)
-- **Путь миграции на Temporal** -- при росте потребностей декларативный DSL может быть скомпилирован в Temporal workflow
+- **Durability** -- execution state survives restarts; recovery from the last checkpoint; no "stuck" operations
+- **Saga guarantees** -- automatic rollback of all completed steps on error; system returns to a consistent state
+- **Observability** -- complete execution history of every step with input/output/error; single point for diagnostics
+- **Self-service for administrators** -- new processes are assembled through Constructor UI without development; deployment time: days instead of weeks
+- **Built-in primitives** -- signals, timers, retry policies, idempotency -- out of the box, without boilerplate in every service
+- **Fits into ADR-0023 hierarchy** -- Scenario = top level (Action -> Command -> Procedure -> Scenario); Step invokes Procedure
+- **CEL as cross-cutting expression language** -- unified language from Object View to Scenario (`when`, `input.*`)
+- **Incremental implementation** -- Phase 13b; does not block Phase 9a (Object View) or Phase 13a (Procedure Engine)
+- **Migration path to Temporal** -- as needs grow, the declarative DSL can be compiled into a Temporal workflow
 
-### Негативные
+### Negative
 
-- **Overhead для простых операций** -- одношаговые процессы без ожиданий не должны быть Scenarios (использовать Procedure или прямой сервисный вызов)
-- **PostgreSQL dependency** -- durability привязана к PostgreSQL; при высоких нагрузках на execution может потребоваться отдельная БД
-- **Learning curve** -- lifecycle, signals, retry policies, Saga pattern -- новые концепции для команды (Constructor UI снижает порог входа)
-- **Декларативные ограничения** -- для сложной вычислительной логики внутри шага нужна Procedure (ADR-0024), а не inline expression
+- **Overhead for simple operations** -- single-step processes without waiting should not be Scenarios (use Procedure or direct service call)
+- **PostgreSQL dependency** -- durability is tied to PostgreSQL; under high execution loads, a separate DB may be needed
+- **Learning curve** -- lifecycle, signals, retry policies, Saga pattern -- new concepts for the team (Constructor UI lowers the entry barrier)
+- **Declarative limitations** -- for complex computational logic within a step, a Procedure is needed (ADR-0024), not an inline expression
 
-## Связанные ADR
+## Related ADRs
 
-- **ADR-0019** -- Declarative business logic: Automation Rules (post-execute trigger) запускают Scenario; CEL как expression language
-- **ADR-0020** -- DML Pipeline: post-execute stage может запустить Scenario через Automation Rules
-- **ADR-0022** -- Object View: action type `scenario` запускает Scenario из UI-кнопки на карточке записи
-- **ADR-0023** -- Action terminology: Scenario в иерархии Action -> Command -> Procedure -> Scenario; Step вызывает Procedure
-- **ADR-0024** -- Procedure Engine: Steps выполняют Procedures; Procedure = синхронная цепочка Commands
-- **ADR-0029** -- Versioning: Scenario definition хранится в `scenario_versions`. Draft/Published lifecycle. Scenario run фиксирует procedure versions при старте через `scenario_run_snapshots`
+- **ADR-0019** -- Declarative business logic: Automation Rules (post-execute trigger) launch Scenarios; CEL as expression language
+- **ADR-0020** -- DML Pipeline: post-execute stage can launch a Scenario through Automation Rules
+- **ADR-0022** -- Object View: action type `scenario` launches a Scenario from a UI button on the record card
+- **ADR-0023** -- Action terminology: Scenario in the hierarchy Action -> Command -> Procedure -> Scenario; Step invokes Procedure
+- **ADR-0024** -- Procedure Engine: Steps execute Procedures; Procedure = synchronous Command chain
+- **ADR-0029** -- Versioning: Scenario definition is stored in `scenario_versions`. Draft/Published lifecycle. Scenario run captures procedure versions at start through `scenario_run_snapshots`

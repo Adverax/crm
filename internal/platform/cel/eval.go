@@ -86,6 +86,15 @@ func (c *ProgramCache) EvaluateAny(expr string, vars map[string]any) (any, error
 	return out.Value(), nil
 }
 
+// Reset replaces the CEL environment and clears all cached programs.
+// Used when custom functions change and environments need to be rebuilt.
+func (c *ProgramCache) Reset(env *cel.Env) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.env = env
+	c.programs = make(map[string]cel.Program)
+}
+
 // Env returns the underlying CEL environment for external use (e.g., expression validation).
 func (c *ProgramCache) Env() *cel.Env {
 	return c.env

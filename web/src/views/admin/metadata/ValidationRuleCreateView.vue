@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { validationRulesApi } from '@/api/validationRules'
 import { useToast } from '@/composables/useToast'
+import { http } from '@/api/http'
 import PageHeader from '@/components/admin/PageHeader.vue'
+import ExpressionBuilder from '@/components/admin/expression-builder/ExpressionBuilder.vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -20,6 +22,19 @@ import {
 const props = defineProps<{
   objectId: string
 }>()
+
+const objectApiName = ref('')
+
+onMounted(async () => {
+  try {
+    const resp = await http.get<{ data: { api_name: string } }>(
+      `/api/v1/admin/metadata/objects/${props.objectId}`,
+    )
+    objectApiName.value = resp.data.api_name
+  } catch {
+    // object api name won't be available for field picker
+  }
+})
 
 const router = useRouter()
 const toast = useToast()
@@ -105,13 +120,12 @@ const breadcrumbs = computed(() => [
           </div>
 
           <div class="space-y-2">
-            <Label for="expression">CEL-выражение</Label>
-            <Textarea
-              id="expression"
+            <Label>CEL-выражение</Label>
+            <ExpressionBuilder
               v-model="form.expression"
-              rows="3"
-              required
-              placeholder='size(record.Name) > 0'
+              context="validation_rule"
+              :object-api-name="objectApiName || undefined"
+              placeholder="size(record.Name) > 0"
               data-testid="field-expression"
             />
             <p class="text-xs text-muted-foreground">
@@ -149,12 +163,13 @@ const breadcrumbs = computed(() => [
           </div>
 
           <div class="space-y-2">
-            <Label for="when_expression">Условие применения (CEL, необязательно)</Label>
-            <Textarea
-              id="when_expression"
+            <Label>Условие применения (CEL, необязательно)</Label>
+            <ExpressionBuilder
               v-model="form.whenExpression"
-              rows="2"
+              context="when_expression"
+              :object-api-name="objectApiName || undefined"
               placeholder='record.Type == "Premium"'
+              height="80px"
             />
           </div>
 
