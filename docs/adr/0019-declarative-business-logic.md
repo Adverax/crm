@@ -179,9 +179,22 @@ Default — «какое значение подставить, если не у
 
 ### Подсистемы
 
-Поведенческая логика разбивается на **5 независимых подсистем**:
+Поведенческая логика разбивается на **6 независимых подсистем**:
 
 ```
+┌─────────────────────────────────────────────────────────────────┐
+│  GLOBAL (cross-cutting)                                          │
+│  Доступны на всех уровнях каскада, на backend и frontend         │
+│                                                                  │
+│  ┌───────────────────────────────────────────────────────────┐   │
+│  │  Custom Functions (ADR-0026)                               │   │
+│  │  Именованные чистые CEL-выражения: fn.discount(tier, amt) │   │
+│  │  Dual-stack: cel-go + cel-js. Нет side effects.           │   │
+│  │  Вызываются из любого CEL-контекста ниже.                 │   │
+│  └───────────────────────────────────────────────────────────┘   │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │ доступны как fn.*
+                               ▼
 ┌─────────────────────────────────────────────────────────┐
 │              PER-OBJECT (metadata level)                 │
 │   Базовые правила, наследуемые всеми Object View/Layout│
@@ -284,9 +297,28 @@ field_definitions.field_subtype = "string" | "number" | "boolean" | "datetime"
 Реактивная логика: «когда произошло X, выполни Y». Аналог Salesforce Flow / Process Builder.
 
 - Trigger condition — CEL-выражение (`new.Stage == "Closed Won" && old.Stage != "Closed Won"`)
-- Action — ссылка на Handler (синхронный) или Scenario (асинхронный)
+- Action — ссылка на Procedure (синхронная, ADR-0024) или Scenario (асинхронный, ADR-0025)
+- Терминология: ADR-0023
 
 Отдельный ADR при необходимости.
+
+#### 6. Custom Functions (global, cross-cutting, ADR-0026)
+
+Именованные чистые CEL-выражения с типизированными параметрами. Устраняют дублирование CEL-логики между подсистемами.
+
+```
+metadata.functions (name, params JSONB, return_type, body TEXT)
+```
+
+- **Чистые**: нет side effects — только вычисления, без CRUD/IO
+- **Глобальные**: не привязаны к объекту, вызываются из любого CEL-контекста через `fn.*` namespace
+- **Dual-stack**: загружаются в cel-go (backend) и cel-js (frontend) — одинаковое поведение
+- **Reusable**: одно определение → использование в validation rules, defaults, formulas, visibility, procedure/scenario input
+- **Composable**: `fn.total(fn.discount(tier, amount), tax_rate)` — функции вызывают друг друга (max 3 уровня)
+
+Отличие от Formula Fields: Formula Field привязан к объекту и полю; Function глобальна и принимает произвольные параметры.
+
+Детализация: [ADR-0026](0026-custom-functions.md).
 
 ### Execution context: DML Engine
 
@@ -326,22 +358,23 @@ CEL-интеграция вводится при реализации Validation
 ### Дорожная карта
 
 ```
-Phase 7a                     Phase 7b                   Phase N+1              Phase N+2
-─────────────────────    ──────────────────────    ──────────────────    ──────────────────
-Generic CRUD endpoints   CEL engine (cel-go)       Formula Fields        Object Views
-+ Metadata-driven UI     + Validation Rules        + Computed on read    + Query composition
-+ Static defaults        + Dynamic defaults        + SOQL integration    + Mutations
-+ System fields inject   + DML pipeline ext.       + Frontend eval       + Automation Rules
-                         + Frontend CEL eval                             + Layout cascade
+Phase 7a                  Phase 7b                Phase 10                Phase 9a/9b
+──────────────────    ──────────────────    ──────────────────────    ──────────────────
+Generic CRUD          CEL engine (cel-go)   Custom Functions          Object Views
++ Metadata-driven UI  + Validation Rules    + fn.* namespace          + Query composition
++ Static defaults     + Dynamic defaults    + Function Constructor    + Actions
++ System fields       + DML pipeline ext.   + Expression Builder      + Automation Rules
+                      + Frontend CEL eval   + Formula Fields          + Layout cascade
+                                            + SOQL integration
 ```
 
 **Phase 7a.** Generic metadata-driven REST endpoints: один набор handlers обслуживает все объекты через SOQL (чтение) и DML (запись). Frontend рендерит формы по метаданным. Валидация: required + type constraints (уже в DML Engine). Static defaults: инжект `FieldConfig.default_value` для отсутствующих полей. Системные поля (`owner_id`, `created_by_id`, `created_at`, `updated_at`). Без CEL.
 
 **Phase 7b — CEL + Validation Rules + Dynamic Defaults.** Интеграция `cel-go`. Таблица `metadata.validation_rules`. Расширение `FieldConfig` для `default_expr`. Интеграция в DML pipeline (Stage 3 dynamic + Stage 4b). Frontend-библиотека для CEL-eval (`cel-js`).
 
-**Phase N+1 — Formula Fields.** Новый `field_type = "formula"`. CEL-выражение в config. SOQL executor вычисляет после fetch. Frontend вычисляет локально.
+**Phase 10 — Custom Functions + Formula Fields.** Custom Functions (ADR-0026): глобальные именованные CEL-выражения с `fn.*` namespace, dual-stack (cel-go + cel-js), Function Constructor + интеграция в Expression Builder. Formula Fields: `field_type = "formula"`, CEL-выражение в config, SOQL executor вычисляет после fetch, frontend вычисляет локально. Formula Fields могут вызывать Custom Functions.
 
-**Phase N+2 — Object Views + Automation + Layout cascade.** Полная композиция с трёхуровневым каскадом. Каскадный мержинг (metadata + Object View + Layout). Отдельные ADR для каждой подсистемы.
+**Phase 9a/9b — Object Views + Automation + Layout cascade.** Полная композиция с трёхуровневым каскадом. Каскадный мержинг (metadata + Object View + Layout). ADR-0022 (Object View), ADR-0023 (терминология Action), ADR-0024 (Procedure Engine), ADR-0025 (Scenario Engine).
 
 ## Последствия
 
@@ -372,3 +405,7 @@ Generic CRUD endpoints   CEL engine (cel-go)       Formula Fields        Object 
 - ADR-0018 — App Templates (создают schema; подсистемы из этого ADR определяют поведение)
 - ADR-0020 — DML Pipeline Extension (typed stages — точки интеграции подсистем в DML Engine)
 - ADR-0022 — Object View как адаптер bounded context (детализация подсистемы 4: role-based UI, config schema, resolution logic)
+- ADR-0023 — Action terminology: единая иерархия Action → Command → Procedure → Scenario + Function (ортогональна)
+- ADR-0024 — Procedure Engine: JSON DSL + Constructor UI для синхронной бизнес-логики (Mutations → Action type: procedure)
+- ADR-0025 — Scenario Engine: JSON DSL + Constructor UI для асинхронных долгоживущих процессов
+- ADR-0026 — Custom Functions (детализация подсистемы 6: fn.* namespace, dual-stack, ограничения, Constructor UI)
