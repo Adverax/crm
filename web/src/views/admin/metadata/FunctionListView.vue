@@ -26,7 +26,8 @@ async function loadFunctions() {
     const response = await functionsApi.list()
     functions.value = response.data ?? []
   } catch (err) {
-    error.value = 'Не удалось загрузить функции'
+    const detail = err instanceof Error ? err.message : String(err)
+    error.value = `Не удалось загрузить функции: ${detail}`
     toast.errorFromApi(err)
   } finally {
     loading.value = false

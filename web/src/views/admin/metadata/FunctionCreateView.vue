@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { functionsApi } from '@/api/functions'
 import { useToast } from '@/composables/useToast'
+import { useFunctionsStore } from '@/stores/functions'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import ExpressionBuilder from '@/components/admin/expression-builder/ExpressionBuilder.vue'
 import { Button } from '@/components/ui/button'
@@ -21,6 +22,7 @@ import type { FunctionParam } from '@/types/functions'
 
 const router = useRouter()
 const toast = useToast()
+const functionsStore = useFunctionsStore()
 const submitting = ref(false)
 
 const form = ref({
@@ -69,6 +71,7 @@ async function onSubmit() {
         : undefined,
     })
     toast.success('Функция создана')
+    await functionsStore.invalidate()
     router.push({ name: 'admin-functions' })
   } catch (err) {
     toast.errorFromApi(err)

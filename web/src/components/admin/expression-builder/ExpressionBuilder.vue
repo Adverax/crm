@@ -1,12 +1,18 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import type { Extension } from '@codemirror/state'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CodeMirrorEditor from './CodeMirrorEditor.vue'
 import FieldPicker from './FieldPicker.vue'
+import FunctionPicker from './FunctionPicker.vue'
 import ExpressionErrors from './ExpressionErrors.vue'
+import ExpressionPreview from './ExpressionPreview.vue'
 import { celApi } from '@/api/cel'
 import { http } from '@/api/http'
+import { useFunctionsStore } from '@/stores/functions'
+import { celAutocomplete } from '@/lib/codemirror/cel-autocomplete'
 import type { CelContext, CelValidateError, FunctionParam } from '@/types/functions'
 
 interface DescribeField {
@@ -46,6 +52,10 @@ const errors = ref<CelValidateError[]>([])
 const returnType = ref<string | null>(null)
 const fields = ref<DescribeField[]>([])
 const editorRef = ref<InstanceType<typeof CodeMirrorEditor> | null>(null)
+const showPreview = ref(false)
+const pickerTab = ref('fields')
+
+const functionsStore = useFunctionsStore()
 
 async function loadFields() {
   if (!props.objectApiName) return
@@ -62,9 +72,21 @@ async function loadFields() {
 }
 
 onMounted(() => {
+  functionsStore.ensureLoaded()
   if (props.objectApiName) {
     loadFields()
   }
+})
+
+const autocompleteExtension = computed<Extension[]>(() => {
+  return [
+    celAutocomplete({
+      fields: fields.value,
+      params: props.functionParams,
+      functions: functionsStore.functions,
+      context: props.context,
+    }),
+  ]
 })
 
 async function onValidate() {
@@ -102,6 +124,16 @@ function onInsertFromPicker(text: string) {
 function onInput(value: string | number) {
   emit('update:modelValue', String(value))
 }
+
+const showSidePanel = computed(() => {
+  if (!props.showFieldPicker) return false
+  return fields.value.length > 0 ||
+    props.functionParams.length > 0 ||
+    functionsStore.functions.length > 0 ||
+    props.context !== 'function_body'
+})
+
+const hasFunctions = computed(() => functionsStore.functions.length > 0)
 </script>
 
 <template>
@@ -128,6 +160,16 @@ function onInput(value: string | number) {
       >
         {{ validating ? 'Проверка...' : 'Проверить' }}
       </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        class="h-7 px-2 text-xs"
+        data-testid="preview-toggle"
+        @click="showPreview = !showPreview"
+      >
+        {{ showPreview ? 'Скрыть превью' : 'Превью' }}
+      </Button>
       <span
         v-if="returnType"
         class="text-xs text-muted-foreground"
@@ -137,13 +179,14 @@ function onInput(value: string | number) {
       </span>
     </div>
 
-    <!-- Editor + Field Picker -->
+    <!-- Editor + Side Panel -->
     <div class="flex gap-3">
       <div class="flex-1 min-w-0">
         <CodeMirrorEditor
           v-if="mode === 'editor'"
           ref="editorRef"
           :model-value="modelValue"
+          :extensions="autocompleteExtension"
           :height="height"
           :disabled="disabled"
           @update:model-value="onInput"
@@ -160,14 +203,47 @@ function onInput(value: string | number) {
         />
       </div>
 
-      <FieldPicker
-        v-if="showFieldPicker"
-        :fields="fields"
-        :params="functionParams"
-        :context="context"
-        @insert="onInsertFromPicker"
-      />
+      <!-- Side panel with tabs -->
+      <div v-if="showSidePanel" class="w-60 border-l pl-3">
+        <Tabs v-model="pickerTab" class="w-full">
+          <TabsList class="h-8 w-full" data-testid="picker-tabs">
+            <TabsTrigger value="fields" class="text-xs h-7 flex-1">
+              Поля
+            </TabsTrigger>
+            <TabsTrigger
+              v-if="hasFunctions || context !== 'function_body'"
+              value="functions"
+              class="text-xs h-7 flex-1"
+              data-testid="functions-tab"
+            >
+              Функции
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="fields" class="mt-2">
+            <FieldPicker
+              :fields="fields"
+              :params="functionParams"
+              :context="context"
+              class="!w-full !border-0 !pl-0"
+              @insert="onInsertFromPicker"
+            />
+          </TabsContent>
+
+          <TabsContent value="functions" class="mt-2" data-testid="functions-tab-content">
+            <FunctionPicker @insert="onInsertFromPicker" />
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
+
+    <!-- Preview -->
+    <ExpressionPreview
+      v-if="showPreview"
+      :expression="modelValue"
+      :context="context"
+      :function-params="functionParams"
+    />
 
     <!-- Errors -->
     <ExpressionErrors :errors="errors" />

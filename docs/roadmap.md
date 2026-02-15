@@ -16,10 +16,10 @@
 | Security (OLS/FLS) | Profile, Permission Set, Permission Set Group, Muting PS | Profile, Grant/Deny PS, OLS bitmask, FLS bitmask, effective caches | 90% SF |
 | Security (RLS) | OWD, Role Hierarchy, Sharing Rules, Manual Sharing, Apex Sharing, Teams, Territory | OWD, Groups (4 типа), Share tables, Role hierarchy, Sharing Rules (owner+criteria), Manual Sharing, RLS enforcer, effective caches, Territory Management (ee/) | 85% SF |
 | Data Access (SOQL) | SOQL с relationship queries, aggregates, security enforcement | SOQL parser (participle), validator, compiler, executor с OLS+FLS+RLS enforcement, relationship queries, aggregates, date literals, subqueries | 70% SF |
-| Data Mutation (DML) | Insert, Update, Upsert, Delete, Undelete, Merge + triggers | INSERT/UPDATE/DELETE/UPSERT, OLS+FLS enforcement, RLS injection для UPDATE/DELETE, batch operations, functions, validation rules (CEL), dynamic defaults (CEL) | 65% SF |
+| Data Mutation (DML) | Insert, Update, Upsert, Delete, Undelete, Merge + triggers | INSERT/UPDATE/DELETE/UPSERT, OLS+FLS enforcement, RLS injection для UPDATE/DELETE, batch operations, Custom Functions (fn.* dual-stack), validation rules (CEL), dynamic defaults (CEL) | 65% SF |
 | Auth | OAuth 2.0, SAML, MFA, Connected Apps | JWT (access + refresh), login, password reset, rate limiting | JWT + refresh tokens |
 | Automation | Flow Builder, Triggers, Workflow Rules, Approval Processes | Не реализовано | Triggers + базовые Flows |
-| UI Framework | Lightning App Builder, LWC, Dynamic Forms | Vue.js admin + metadata-driven CRM UI (AppLayout, dynamic record views, FieldRenderer) | Admin + Record UI + Object Views |
+| UI Framework | Lightning App Builder, LWC, Dynamic Forms | Vue.js admin + metadata-driven CRM UI (AppLayout, dynamic record views, FieldRenderer), Expression Builder (CodeMirror + autocomplete + live preview) | Admin + Record UI + Object Views |
 | APIs | REST, SOAP, Bulk, Streaming, Metadata, Tooling, GraphQL | REST admin endpoints (metadata + security + groups + sharing rules) | REST + Streaming |
 | Analytics | Reports, Dashboards, Einstein | Не реализовано | Базовые отчёты |
 | Integration | Platform Events, CDC, External Services | Не реализовано | CDC + webhooks |
@@ -332,21 +332,34 @@ Row-Level Security — кто видит какие записи.
 
 ---
 
-### Phase 8: Custom Functions (ADR-0026) ⬜
+### Phase 8: Custom Functions (ADR-0026) ✅
 
 Именованные чистые CEL-выражения — фундамент для переиспользования вычислительной логики.
 
-- [ ] **metadata.functions table**: id, name, description, params JSONB, return_type, body TEXT
-- [ ] **CEL integration**: fn.* namespace, cel-go registration, ProgramCache extension
-- [ ] **Dual-stack**: загрузка в cel-go (backend) + cel-js (frontend) через Describe API
-- [ ] **Safety**: circular dependency detection, recursion prevention, call stack tracking
-- [ ] **Limits**: 4KB body, 100ms timeout, 3 levels nesting, 10 params, 200 functions max
-- [ ] **Admin REST API**: CRUD functions + test endpoint + dependencies view (7 endpoints)
-- [ ] **Function Constructor UI**: create/edit + Expression Builder + live preview
-- [ ] **Expression Builder**: reusable component — field picker, operator picker, function picker
-- [ ] **Dependency tracking**: where-used view, deletion protection (409 Conflict)
-- [ ] **Migration + pgTAP tests**: UP/DOWN + schema tests for metadata.functions
-- [ ] **E2E tests**: admin function CRUD + Expression Builder
+#### Phase 8a: Backend + Admin UI ✅
+
+- [x] **metadata.functions table**: id, name, description, params JSONB, return_type, body TEXT
+- [x] **CEL integration**: fn.* namespace, cel-go registration, ProgramCache extension
+- [x] **Safety**: circular dependency detection (DetectCycles), nesting depth check (max 3 levels)
+- [x] **Limits**: 4KB body, 100ms timeout, 3 levels nesting, 10 params, 200 functions max
+- [x] **Admin REST API**: CRUD functions (5 endpoints) + deletion protection (409 Conflict, FindUsages)
+- [x] **Admin Vue.js UI**: function list/create/detail views
+- [x] **Migration + pgTAP tests**: UP/DOWN + schema tests for metadata.functions
+- [x] **E2E tests**: admin function CRUD (14 тестов)
+
+#### Phase 8b: Expression Builder + cel-js ✅
+
+- [x] **Dual-stack**: cel-js на фронтенде (`@marcbachmann/cel-js`), FnNamespace pattern для fn.* вызовов
+- [x] **Pinia functions store**: кэш функций с `ensureLoaded()` / `invalidate()`
+- [x] **cel-js wrapper**: `createCelEnvironment()`, `evaluateCel()`, `evaluateCelSafe()` с BigInt→Number конвертацией
+- [x] **useCelEnvironment composable**: reactive, пересоздаёт environment при изменении функций
+- [x] **CodeMirror autocomplete**: context-aware (record., old., user., fn., params), `@codemirror/autocomplete`
+- [x] **CodeMirrorEditor Compartment**: динамическая реконфигурация extensions без пересоздания редактора
+- [x] **ExpressionPreview**: live client-side CEL evaluation с debounce 300ms, parameter test inputs
+- [x] **FunctionPicker**: каталог built-in + custom функций (5 групп), insert в редактор
+- [x] **ExpressionBuilder integration**: Tabs (Поля/Функции), autocomplete, preview toggle
+- [x] **Unit тесты**: cel-environment (12 тестов)
+- [x] **E2E тесты**: Expression Builder (9 тестов — Functions tab, Preview, Autocomplete)
 
 ---
 
@@ -589,7 +602,7 @@ Event-driven архитектура для интеграций.
 Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ✅ ──→ Phase 4 ✅ ──→ Phase 5 ✅ ──→ Phase 6 ✅
                                                                                           │
                                                                                           ▼
-                                                                                    Phase 7a ✅──→ Phase 7b ✅──→ Phase 8
+                                                                                    Phase 7a ✅──→ Phase 7b ✅──→ Phase 8 ✅
                                                                                (generic CRUD)  (CEL+valid.)   (functions)
                                                                                                                    │
                                                                                                              Phase 9a

@@ -18,10 +18,12 @@
     "generate:types": "openapi-typescript ../api/openapi.yaml -o src/types/openapi.d.ts"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "^6.20.0",
     "@codemirror/language": "^6.12.1",
     "@codemirror/state": "^6.5.4",
     "@codemirror/view": "^6.39.14",
     "@lezer/highlight": "^1.2.3",
+    "@marcbachmann/cel-js": "^7.4.0",
     "@tailwindcss/vite": "^4.1.18",
     "@vueuse/core": "^14.2.0",
     "class-variance-authority": "^0.7.1",

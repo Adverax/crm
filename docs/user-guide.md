@@ -1,1095 +1,1130 @@
-# Руководство администратора CRM
+# CRM Administrator Guide
 
-## Оглавление
+## Table of Contents
 
-1. [Введение](#1-введение)
-2. [Авторизация](#2-авторизация)
-   - [Вход в систему](#21-вход-в-систему)
-   - [Токены доступа](#22-токены-доступа)
-   - [Восстановление пароля](#23-восстановление-пароля)
-   - [Установка пароля администратором](#24-установка-пароля-администратором)
-   - [Выход из системы](#25-выход-из-системы)
-   - [Текущий пользователь](#26-текущий-пользователь)
-3. [Ключевые концепции](#3-ключевые-концепции)
-4. [Управление метаданными](#4-управление-метаданными)
-   - [Объекты](#41-объекты)
-   - [Поля](#42-поля)
-5. [Управление безопасностью](#5-управление-безопасностью)
-   - [Роли](#51-роли)
-   - [Наборы разрешений](#52-наборы-разрешений)
-   - [Профили](#53-профили)
-   - [Пользователи](#54-пользователи)
-   - [Группы](#55-группы)
-   - [Правила совместного доступа](#56-правила-совместного-доступа)
-   - [Ручной шаринг](#57-ручной-шаринг)
-6. [SOQL — язык запросов](#6-soql--язык-запросов)
-   - [Синтаксис](#61-синтаксис)
-   - [Операторы и функции](#62-операторы-и-функции)
-   - [Дата-литералы](#63-дата-литералы)
-   - [Связи и подзапросы](#64-связи-и-подзапросы)
-   - [Безопасность в SOQL](#65-безопасность-в-soql)
+1. [Introduction](#1-introduction)
+2. [Authentication](#2-authentication)
+   - [Login](#21-login)
+   - [Access Tokens](#22-access-tokens)
+   - [Password Recovery](#23-password-recovery)
+   - [Admin Password Reset](#24-admin-password-reset)
+   - [Logout](#25-logout)
+   - [Current User](#26-current-user)
+3. [Key Concepts](#3-key-concepts)
+4. [Metadata Management](#4-metadata-management)
+   - [Objects](#41-objects)
+   - [Fields](#42-fields)
+5. [Security Management](#5-security-management)
+   - [Roles](#51-roles)
+   - [Permission Sets](#52-permission-sets)
+   - [Profiles](#53-profiles)
+   - [Users](#54-users)
+   - [Groups](#55-groups)
+   - [Sharing Rules](#56-sharing-rules)
+   - [Manual Sharing](#57-manual-sharing)
+6. [SOQL — Query Language](#6-soql--query-language)
+   - [Syntax](#61-syntax)
+   - [Operators and Functions](#62-operators-and-functions)
+   - [Date Literals](#63-date-literals)
+   - [Relationships and Subqueries](#64-relationships-and-subqueries)
+   - [Security in SOQL](#65-security-in-soql)
    - [API](#66-api)
-   - [Лимиты](#67-лимиты)
-7. [DML — язык манипуляции данными](#7-dml--язык-манипуляции-данными)
+   - [Limits](#67-limits)
+7. [DML — Data Manipulation Language](#7-dml--data-manipulation-language)
    - [INSERT](#71-insert)
    - [UPDATE](#72-update)
    - [DELETE](#73-delete)
    - [UPSERT](#74-upsert)
-   - [Функции в DML](#75-функции-в-dml)
-   - [Безопасность в DML](#76-безопасность-в-dml)
+   - [Functions in DML](#75-functions-in-dml)
+   - [Security in DML](#76-security-in-dml)
    - [API](#77-api)
-   - [Лимиты](#78-лимиты)
-8. [Управление территориями (Enterprise)](#8-управление-территориями-enterprise)
-   - [Модели территорий](#81-модели-территорий)
-   - [Территории](#82-территории)
-   - [Настройки объектов](#83-настройки-объектов-по-умолчанию)
-   - [Назначение пользователей](#84-назначение-пользователей)
-   - [Назначение записей](#85-назначение-записей)
-   - [Правила назначения](#86-правила-назначения)
-9. [Типичные сценарии](#9-типичные-сценарии)
+   - [Limits](#78-limits)
+8. [Territory Management (Enterprise)](#8-territory-management-enterprise)
+   - [Territory Models](#81-territory-models)
+   - [Territories](#82-territories)
+   - [Object Defaults](#83-object-defaults)
+   - [User Assignment](#84-user-assignment)
+   - [Record Assignment](#85-record-assignment)
+   - [Assignment Rules](#86-assignment-rules)
+9. [App Templates](#9-app-templates)
+   - [Available Templates](#91-available-templates)
+   - [Applying a Template](#92-applying-a-template)
+   - [API](#93-api)
+   - [Limitations](#94-limitations)
+10. [Record Management (Generic CRUD)](#10-record-management-generic-crud)
+    - [Describe API](#101-describe-api)
+    - [Record CRUD](#102-record-crud)
+    - [System Fields](#103-system-fields)
+    - [Pagination](#104-pagination)
+    - [Security in Record Operations](#105-security-in-record-operations)
+11. [Validation Rules & Dynamic Defaults](#11-validation-rules--dynamic-defaults)
+    - [Validation Rules](#111-validation-rules)
+    - [CEL Expression Language](#112-cel-expression-language)
+    - [Dynamic Defaults](#113-dynamic-defaults)
+    - [DML Pipeline](#114-dml-pipeline)
+    - [Admin UI](#115-admin-ui)
+    - [CEL Validation Endpoint](#116-cel-validation-endpoint)
+12. [Custom Functions](#12-custom-functions)
+    - [Overview](#121-overview)
+    - [Creating Functions](#122-creating-functions)
+    - [fn.* Namespace](#123-fn-namespace)
+    - [Parameters & Return Types](#124-parameters--return-types)
+    - [Dependency Management](#125-dependency-management)
+    - [Expression Builder](#126-expression-builder)
+    - [API](#127-api)
+    - [Limits](#128-limits)
+13. [Common Scenarios](#13-common-scenarios)
 
 ---
 
-## 1. Введение
+## 1. Introduction
 
-### Назначение
+### Purpose
 
-Админ-панель CRM предназначена для системных администраторов и позволяет:
+The CRM admin panel is designed for system administrators and allows:
 
-- Управлять **метаданными** — определять объекты и их поля (схему данных), настраивать видимость объектов (OWD).
-- Управлять **безопасностью** — настраивать роли, профили, наборы разрешений, пользователей, группы, правила совместного доступа и ручной шаринг записей.
+- Managing **metadata** — defining objects and their fields (data schema), configuring object visibility (OWD).
+- Managing **security** — configuring roles, profiles, permission sets, users, groups, sharing rules, and manual record sharing.
+- Applying **app templates** — bootstrapping the system with pre-configured objects and fields.
+- Configuring **validation rules** — CEL expressions that check data on every save.
+- Creating **custom functions** — reusable CEL expressions callable from any context.
+- Working with **records** — creating, editing, and deleting records of any object through a universal CRUD interface.
 
-### Для кого
+### Audience
 
-Документ предназначен для системного администратора, ответственного за конфигурацию CRM-платформы: создание структуры данных, настройку прав доступа и управление пользователями.
+This document is intended for the system administrator responsible for CRM platform configuration: creating data structures, setting up access permissions, and managing users.
 
-### Навигация
+### Navigation
 
-Админ-панель доступна по адресу `/admin`. Интерфейс состоит из двух частей:
+The admin panel is available at `/admin`. The interface consists of two parts:
 
-- **Боковая панель** (слева, ширина 240px) — навигация по разделам.
-- **Основная область** (справа) — содержимое выбранного раздела.
+- **Sidebar** (left, 240px width) — section navigation.
+- **Main area** (right) — content of the selected section.
 
-Структура боковой панели:
+Sidebar structure:
 
-| Пункт | Маршрут |
-|-------|---------|
-| **Объекты** | `/admin/metadata/objects` |
-| **Безопасность** (группа, раскрывается) | |
-| — Роли | `/admin/security/roles` |
-| — Наборы разрешений | `/admin/security/permission-sets` |
-| — Профили | `/admin/security/profiles` |
-| **Пользователи** | `/admin/security/users` |
+| Item | Route |
+|------|-------|
+| **Objects** | `/admin/metadata/objects` |
+| **Templates** | `/admin/templates` |
+| **Functions** | `/admin/functions` |
+| **Security** (collapsible group) | |
+| — Roles | `/admin/security/roles` |
+| — Permission Sets | `/admin/security/permission-sets` |
+| — Profiles | `/admin/security/profiles` |
+| **Users** | `/admin/security/users` |
 
-Группа «Безопасность» раскрывается автоматически при переходе к любому из её подразделов.
+The "Security" group expands automatically when navigating to any of its subsections. Validation rules are accessed from the object detail page (Objects → select object → Validation Rules tab).
 
-Все страницы деталей содержат **хлебные крошки** (breadcrumbs) для удобной навигации назад.
+The CRM workspace is available at `/app` with its own sidebar showing all accessible objects for the current user.
 
-### Общие элементы интерфейса
+All detail pages contain **breadcrumbs** for convenient back-navigation.
 
-- **Таблицы** с постраничной навигацией (20 записей на страницу). Кнопки «Назад» / «Вперёд» появляются при наличии нескольких страниц.
-- **Меню действий** (три вертикальные точки) в каждой строке таблицы — содержит пункты «Открыть» и «Удалить».
-- **Диалог подтверждения удаления** — перед удалением любой сущности система запрашивает подтверждение.
-- **Toast-уведомления** — сообщения об успешных операциях и ошибках.
+### Common UI Elements
+
+- **Tables** with pagination (20 records per page). "Previous" / "Next" buttons appear when multiple pages exist.
+- **Action menu** (three vertical dots) in each table row — contains "Open" and "Delete" items.
+- **Delete confirmation dialog** — the system prompts for confirmation before deleting any entity.
+- **Toast notifications** — messages for successful operations and errors.
 
 ---
 
-## 2. Авторизация
+## 2. Authentication
 
-Для работы с админ-панелью необходимо пройти аутентификацию. Система использует JWT (JSON Web Token) — стандартный механизм авторизации для REST API.
+Working with the admin panel requires authentication. The system uses JWT (JSON Web Token) — a standard authorization mechanism for REST APIs.
 
-### 2.1. Вход в систему
+### 2.1. Login
 
-**Маршрут:** `/login`
+**Route:** `/login`
 
-Страница входа содержит форму:
+The login page contains a form:
 
-| Поле | Тип | Обязательное | Описание |
-|------|-----|:---:|----------|
-| Имя пользователя | Текст | Да | Username учётной записи |
-| Пароль | Пароль | Да | Пароль учётной записи |
+| Field | Type | Required | Description |
+|-------|------|:---:|-------------|
+| Username | Text | Yes | Account username |
+| Password | Password | Yes | Account password |
 
-Кнопка **«Войти»** — отправляет запрос аутентификации. При успехе — перенаправление в админ-панель (`/admin`).
+**"Login"** button — sends an authentication request. On success — redirects to the admin panel (`/admin`).
 
-Ссылка **«Забыли пароль?»** — переход на страницу восстановления пароля.
+**"Forgot password?"** link — navigates to the password recovery page.
 
-**Ограничение попыток:** Эндпоинт входа ограничен — не более 5 попыток за 15 минут с одного IP-адреса. При превышении лимита запросы отклоняются с ошибкой 429 (Too Many Requests).
+**Rate limiting:** The login endpoint is rate-limited — no more than 5 attempts per 15 minutes from a single IP address. When the limit is exceeded, requests are rejected with a 429 (Too Many Requests) error.
 
-### 2.2. Токены доступа
+### 2.2. Access Tokens
 
-Система использует JWT-аутентификацию с двумя типами токенов:
+The system uses JWT authentication with two token types:
 
-| Токен | Время жизни | Назначение |
-|-------|-------------|------------|
-| **Access token** | 15 минут | Авторизация API-запросов (заголовок `Authorization: Bearer <token>`) |
-| **Refresh token** | 7 дней | Получение новой пары токенов без повторного ввода пароля |
+| Token | Lifetime | Purpose |
+|-------|----------|---------|
+| **Access token** | 15 minutes | API request authorization (`Authorization: Bearer <token>` header) |
+| **Refresh token** | 7 days | Obtaining a new token pair without re-entering the password |
 
-**Автоматическое обновление:** При истечении access token фронтенд автоматически запрашивает новую пару токенов с помощью refresh token. Если refresh token тоже истёк — пользователь перенаправляется на страницу входа.
+**Automatic refresh:** When the access token expires, the frontend automatically requests a new token pair using the refresh token. If the refresh token has also expired — the user is redirected to the login page.
 
-**Ротация токенов:** При каждом обновлении (refresh) старый refresh token аннулируется и выпускается новый. Это защищает от повторного использования перехваченных токенов.
+**Token rotation:** Each refresh invalidates the old refresh token and issues a new one. This protects against reuse of intercepted tokens.
 
-**Хранение:** Refresh token хранится на сервере в виде SHA-256 хеша. Сырой токен не сохраняется — при утечке базы данных токены невозможно использовать.
+**Storage:** The refresh token is stored on the server as a SHA-256 hash. The raw token is not saved — in case of a database leak, the tokens cannot be used.
 
-### 2.3. Восстановление пароля
+### 2.3. Password Recovery
 
-#### Запрос сброса
+#### Reset Request
 
-**Маршрут:** `/forgot-password`
+**Route:** `/forgot-password`
 
-| Поле | Тип | Обязательное | Описание |
-|------|-----|:---:|----------|
-| Email | Email | Да | Электронная почта, привязанная к учётной записи |
+| Field | Type | Required | Description |
+|-------|------|:---:|-------------|
+| Email | Email | Yes | Email address associated with the account |
 
-Кнопка **«Отправить»** — инициирует отправку письма со ссылкой для сброса пароля. Система всегда отвечает успехом, даже если указанный email не зарегистрирован (для защиты от перечисления пользователей).
+**"Send"** button — initiates sending an email with a password reset link. The system always responds with success, even if the specified email is not registered (to protect against user enumeration).
 
-Ссылка **«Вернуться ко входу»** — возврат на страницу входа.
+**"Back to login"** link — returns to the login page.
 
-#### Сброс пароля
+#### Password Reset
 
-**Маршрут:** `/reset-password?token=<token>`
+**Route:** `/reset-password?token=<token>`
 
-Пользователь переходит по ссылке из письма. Форма содержит:
+The user follows the link from the email. The form contains:
 
-| Поле | Тип | Обязательное | Описание |
-|------|-----|:---:|----------|
-| Новый пароль | Пароль | Да | Новый пароль (минимум 8 символов, максимум 128) |
-| Подтверждение пароля | Пароль | Да | Повтор нового пароля |
+| Field | Type | Required | Description |
+|-------|------|:---:|-------------|
+| New password | Password | Yes | New password (minimum 8 characters, maximum 128) |
+| Confirm password | Password | Yes | Repeat of the new password |
 
-Кнопка **«Сбросить пароль»** — устанавливает новый пароль. После сброса все активные сессии пользователя аннулируются (refresh tokens удаляются), и пользователь перенаправляется на страницу входа.
+**"Reset password"** button — sets the new password. After the reset, all active user sessions are invalidated (refresh tokens are deleted), and the user is redirected to the login page.
 
-Токен сброса действителен **1 час** и может быть использован только один раз.
+The reset token is valid for **1 hour** and can only be used once.
 
-### 2.4. Установка пароля администратором
+### 2.4. Admin Password Reset
 
-Администратор может установить пароль для любого пользователя через API:
+An administrator can set a password for any user via the API:
 
-**Маршрут:** `PUT /api/v1/admin/security/users/:id/password`
+**Route:** `PUT /api/v1/admin/security/users/:id/password`
 
-Тело запроса:
+Request body:
 ```json
 {
-  "password": "новый_пароль"
+  "password": "new_password"
 }
 ```
 
-Требования к паролю: минимум 8 символов, максимум 128 символов.
+Password requirements: minimum 8 characters, maximum 128 characters.
 
-#### Начальный пароль администратора
+#### Initial Administrator Password
 
-При первом запуске системы пароль для учётной записи системного администратора задаётся через переменную окружения:
+On the first system startup, the system administrator account password is set via an environment variable:
 
 ```
 ADMIN_INITIAL_PASSWORD=your-secure-password
 ```
 
-Пароль устанавливается однократно: если у администратора уже задан пароль, переменная окружения игнорируется.
+The password is set once: if the administrator already has a password, the environment variable is ignored.
 
-### 2.5. Выход из системы
+### 2.5. Logout
 
-**Кнопка «Выйти»** расположена в нижней части боковой панели (рядом с именем текущего пользователя).
+The **"Logout"** button is located at the bottom of the sidebar (next to the current user's name).
 
-При выходе:
-- Текущий refresh token аннулируется на сервере.
-- Локальные токены удаляются из браузера.
-- Пользователь перенаправляется на страницу входа.
+On logout:
+- The current refresh token is invalidated on the server.
+- Local tokens are removed from the browser.
+- The user is redirected to the login page.
 
-Для завершения **всех** активных сессий (например, при подозрении на компрометацию) используйте API:
+To terminate **all** active sessions (e.g., if a compromise is suspected), use the API:
 
 ```
 POST /api/v1/auth/logout-all
 ```
 
-Это удалит все refresh tokens пользователя.
+This will delete all of the user's refresh tokens.
 
-### 2.6. Текущий пользователь
+### 2.6. Current User
 
-**Маршрут API:** `GET /api/v1/auth/me`
+**API Route:** `GET /api/v1/auth/me`
 
-Возвращает информацию о текущем авторизованном пользователе:
+Returns information about the currently authenticated user:
 
-| Поле | Описание |
-|------|----------|
-| `id` | UUID пользователя |
-| `username` | Имя пользователя |
-| `email` | Электронная почта |
-| `first_name` | Имя |
-| `last_name` | Фамилия |
-| `profile_id` | UUID назначенного профиля |
-| `role_id` | UUID назначенной роли (или `null`) |
-| `is_active` | Статус активности |
+| Field | Description |
+|-------|-------------|
+| `id` | User UUID |
+| `username` | Username |
+| `email` | Email address |
+| `first_name` | First name |
+| `last_name` | Last name |
+| `profile_id` | UUID of the assigned profile |
+| `role_id` | UUID of the assigned role (or `null`) |
+| `is_active` | Activity status |
 
-Имя текущего пользователя отображается в нижней части боковой панели админки.
+The current user's name is displayed at the bottom of the admin panel sidebar.
 
 ---
 
-## 3. Ключевые концепции
+## 3. Key Concepts
 
-### Модель безопасности
+### Security Model
 
-Система безопасности CRM реализует три слоя контроля доступа:
+The CRM security system implements three layers of access control:
 
-1. **OLS (Object-Level Security)** — права на уровне объекта. Определяет, какие CRUD-операции разрешены для данного объекта.
-2. **FLS (Field-Level Security)** — права на уровне поля. Определяет, какие поля пользователь может читать и/или редактировать.
-3. **RLS (Row-Level Security)** — права на уровне записи. Определяет, какие конкретно записи видит пользователь на основе OWD-видимости объекта, иерархии ролей, групп, правил совместного доступа и ручного шаринга.
+1. **OLS (Object-Level Security)** — object-level permissions. Determines which CRUD operations are allowed for a given object.
+2. **FLS (Field-Level Security)** — field-level permissions. Determines which fields a user can read and/or edit.
+3. **RLS (Row-Level Security)** — record-level permissions. Determines which specific records a user can see based on OWD visibility, role hierarchy, groups, sharing rules, and manual sharing.
 
-### Иерархия сущностей безопасности
+### Security Entity Hierarchy
 
 ```
-Профиль (Profile)
-  └── Базовый набор разрешений (base Permission Set, тип grant)
-        ├── OLS: права на объекты
-        └── FLS: права на поля
+Profile
+  └── Base Permission Set (grant type)
+        ├── OLS: object permissions
+        └── FLS: field permissions
 
-Пользователь (User)
-  ├── Профиль (ровно один, обязательный)
-  ├── Роль (опциональная, используется для RLS)
-  ├── Дополнительные наборы разрешений (grant и/или deny)
-  └── Группы (автоматические и ручные)
+User
+  ├── Profile (exactly one, required)
+  ├── Role (optional, used for RLS)
+  ├── Additional Permission Sets (grant and/or deny)
+  └── Groups (automatic and manual)
 
-Группы (Groups)
-  ├── Personal — одна на пользователя (авто-создание)
-  ├── Role — одна на роль (авто-создание)
-  ├── Role & Subordinates — одна на роль (авто-создание)
-  └── Public — создаются администратором
+Groups
+  ├── Personal — one per user (auto-created)
+  ├── Role — one per role (auto-created)
+  ├── Role & Subordinates — one per role (auto-created)
+  └── Public — created by administrator
 
-Правила совместного доступа (Sharing Rules)
-  ├── Owner-based — на основе владельца записи
-  └── Criteria-based — на основе значения поля записи
+Sharing Rules
+  ├── Owner-based — based on record ownership
+  └── Criteria-based — based on record field values
 ```
 
-### OWD (Organization-Wide Defaults) — видимость объекта
+### OWD (Organization-Wide Defaults) — Object Visibility
 
-Видимость (OWD) определяет **базовый уровень доступа** ко всем записям объекта для всех пользователей. Это отправная точка RLS — далее доступ расширяется через иерархию ролей, группы и правила шаринга.
+Visibility (OWD) determines the **baseline access level** to all records of an object for all users. This is the starting point for RLS — access is then extended through role hierarchy, groups, and sharing rules.
 
-| Видимость | Описание |
-|-----------|----------|
-| `private` | Пользователь видит только свои записи (по полю `owner_id`). Доступ расширяется через иерархию ролей, группы и шаринг. |
-| `public_read` | Все пользователи могут читать все записи. Обновление — только владелец, иерархия или шаринг. |
-| `public_read_write` | Полный доступ для всех. RLS-фильтрация отключена. Share-таблица не создаётся. |
-| `controlled_by_parent` | Доступ определяется родительским объектом (для композиционных связей). |
+| Visibility | Description |
+|------------|-------------|
+| `private` | Users can only see their own records (by `owner_id` field). Access is extended through role hierarchy, groups, and sharing. |
+| `public_read` | All users can read all records. Updates — only by owner, hierarchy, or sharing. |
+| `public_read_write` | Full access for everyone. RLS filtering is disabled. No share table is created. |
+| `controlled_by_parent` | Access is determined by the parent object (for composition relationships). |
 
-Видимость задаётся при создании объекта и может быть изменена позднее. При смене видимости система автоматически создаёт или удаляет share-таблицу.
+Visibility is set when creating an object and can be changed later. When changing visibility, the system automatically creates or deletes the share table.
 
-### Группы
+### Groups
 
-Группы — это механизм объединения пользователей для целей шаринга. Все операции шаринга (ручной, через правила) выполняются через группы.
+Groups are a mechanism for combining users for sharing purposes. All sharing operations (manual, via rules) are performed through groups.
 
-| Тип группы | Описание | Создание |
-|------------|----------|----------|
-| `personal` | Содержит одного пользователя | Автоматически при создании пользователя |
-| `role` | Содержит всех пользователей с данной ролью | Автоматически при создании роли |
-| `role_and_subordinates` | Содержит пользователей с данной ролью и всех подчинённых ролей | Автоматически при создании роли |
-| `public` | Произвольная группа пользователей | Вручную администратором |
+| Group Type | Description | Creation |
+|------------|-------------|----------|
+| `personal` | Contains a single user | Automatically when creating a user |
+| `role` | Contains all users with a given role | Automatically when creating a role |
+| `role_and_subordinates` | Contains users with a given role and all subordinate roles | Automatically when creating a role |
+| `public` | Arbitrary group of users | Manually by administrator |
 
-При изменении роли пользователя его членство в ролевых группах пересчитывается автоматически.
+When a user's role changes, their membership in role groups is recalculated automatically.
 
-### Принцип вычисления эффективных прав
+### Effective Permissions Calculation
 
 ```
 effective = grants & ~denies
 ```
 
-1. Базовые права определяются **профилем** пользователя (через его базовый набор разрешений).
-2. Дополнительные **grant-наборы** расширяют права (битовое ИЛИ).
-3. **Deny-наборы** глобально подавляют указанные права (битовое И с инверсией).
+1. Base permissions are determined by the user's **profile** (through its base permission set).
+2. Additional **grant sets** extend permissions (bitwise OR).
+3. **Deny sets** globally suppress specified permissions (bitwise AND with inversion).
 
-Deny всегда побеждает Grant.
+Deny always overrides Grant.
 
-### Bitmask-модель прав
+### Bitmask Permission Model
 
-**OLS (права на объект):**
+**OLS (object permissions):**
 
-| Бит | Значение | Операция |
-|-----|----------|----------|
-| 1   | `0001`   | Чтение   |
-| 2   | `0010`   | Создание |
-| 4   | `0100`   | Обновление |
-| 8   | `1000`   | Удаление |
+| Bit | Value | Operation |
+|-----|-------|-----------|
+| 1   | `0001` | Read    |
+| 2   | `0010` | Create  |
+| 4   | `0100` | Update  |
+| 8   | `1000` | Delete  |
 
-Полный доступ = `15` (все 4 бита установлены).
+Full access = `15` (all 4 bits set).
 
-**FLS (права на поле):**
+**FLS (field permissions):**
 
-| Бит | Значение | Операция |
-|-----|----------|----------|
-| 1   | `01`     | Чтение   |
-| 2   | `10`     | Запись   |
+| Bit | Value | Operation |
+|-----|-------|-----------|
+| 1   | `01`  | Read    |
+| 2   | `10`  | Write   |
 
-Полный доступ = `3` (оба бита установлены).
+Full access = `3` (both bits set).
 
-### Роли
+### Roles
 
-Роли образуют **иерархию** (дерево). Они используются для Row-Level Security:
+Roles form a **hierarchy** (tree). They are used for Row-Level Security:
 
-- Пользователь с более высокой ролью в иерархии может видеть записи подчинённых (только чтение).
-- У пользователя может быть ровно одна роль (или ни одной).
+- A user with a higher role in the hierarchy can see records of subordinates (read only).
+- A user can have exactly one role (or none).
 
 ---
 
-## 4. Управление метаданными
+## 4. Metadata Management
 
-### 4.1. Объекты
+### 4.1. Objects
 
-Объект — это описание сущности в системе (аналог таблицы). Каждый объект хранит метаданные: имя, тип, флаги поведения.
+An object is a description of an entity in the system (analogous to a table). Each object stores metadata: name, type, behavioral flags.
 
-#### Список объектов
+#### Object List
 
-**Маршрут:** `/admin/metadata/objects`
+**Route:** `/admin/metadata/objects`
 
-Страница отображает таблицу со следующими колонками:
+The page displays a table with the following columns:
 
-| Колонка | Описание |
-|---------|----------|
-| API Name | Уникальный идентификатор объекта (ссылка на детальную страницу) |
-| Название | Человекочитаемое название |
-| Тип | `standard` или `custom` (отображается бейджем) |
-| Создан | Дата создания |
+| Column | Description |
+|--------|-------------|
+| API Name | Unique object identifier (link to detail page) |
+| Label | Human-readable name |
+| Type | `standard` or `custom` (displayed as a badge) |
+| Created | Creation date |
 
-**Фильтрация:** выпадающий список для фильтрации по типу объекта:
-- Все типы
+**Filtering:** dropdown to filter by object type:
+- All types
 - Standard
 - Custom
 
-**Действия:**
-- Кнопка **«Создать объект»** — переход к форме создания.
-- Контекстное меню строки — «Открыть» и «Удалить» (удаление доступно только если `isDeleteableObject = true` и `isPlatformManaged = false`).
+**Actions:**
+- **"Create Object"** button — navigates to the creation form.
+- Row context menu — "Open" and "Delete" (deletion is only available if `isDeleteableObject = true` and `isPlatformManaged = false`).
 
-#### Создание объекта
+#### Creating an Object
 
-**Маршрут:** `/admin/metadata/objects/new`
+**Route:** `/admin/metadata/objects/new`
 
-Форма состоит из двух карточек:
+The form consists of two cards:
 
-**Карточка «Основная информация»:**
+**"Basic Information" card:**
 
-| Поле | Тип | Обязательное | Описание |
-|------|-----|:---:|----------|
-| API Name | Текст | Да | Уникальное имя объекта (например, `Invoice__c`). Задаётся при создании, далее не редактируется. |
-| Название | Текст | Да | Отображаемое имя в единственном числе (например, «Счёт») |
-| Мн. число | Текст | Да | Название во множественном числе (например, «Счета») |
-| Тип объекта | Выбор | Да | `standard` или `custom`. Задаётся при создании, далее не редактируется. |
-| Видимость (OWD) | Выбор | Нет | Базовый уровень доступа к записям: `private` (по умолчанию), `public_read`, `public_read_write`, `controlled_by_parent`. См. [OWD](#owd-organization-wide-defaults--видимость-объекта). |
-| Описание | Многострочный текст | Нет | Произвольное описание объекта |
+| Field | Type | Required | Description |
+|-------|------|:---:|-------------|
+| API Name | Text | Yes | Unique object name (e.g., `Invoice__c`). Set at creation, not editable afterwards. |
+| Label | Text | Yes | Display name in singular (e.g., "Invoice") |
+| Plural Label | Text | Yes | Display name in plural (e.g., "Invoices") |
+| Object Type | Select | Yes | `standard` or `custom`. Set at creation, not editable afterwards. |
+| Visibility (OWD) | Select | No | Baseline record access level: `private` (default), `public_read`, `public_read_write`, `controlled_by_parent`. See [OWD](#owd-organization-wide-defaults--object-visibility). |
+| Description | Textarea | No | Free-form object description |
 
-**Карточка флагов** (три группы чекбоксов):
+**Flags card** (three groups of checkboxes):
 
-**Группа «Разрешения на записи»:**
+**"Record Permissions" group:**
 
-| Флаг | Описание |
-|------|----------|
-| `isCreateable` | Разрешено создание записей этого объекта |
-| `isUpdateable` | Разрешено обновление записей |
-| `isDeleteable` | Разрешено удаление записей |
-| `isQueryable` | Объект доступен для запросов через SOQL |
-| `isSearchable` | Объект доступен для полнотекстового поиска |
+| Flag | Description |
+|------|-------------|
+| `isCreateable` | Record creation is allowed for this object |
+| `isUpdateable` | Record updates are allowed |
+| `isDeleteable` | Record deletion is allowed |
+| `isQueryable` | Object is available for SOQL queries |
+| `isSearchable` | Object is available for full-text search |
 
-**Группа «Настройки объекта»:**
+**"Object Settings" group:**
 
-| Флаг | Описание |
-|------|----------|
-| `isVisibleInSetup` | Объект отображается в интерфейсе настроек |
-| `isCustomFieldsAllowed` | К объекту можно добавлять пользовательские поля |
-| `isDeleteableObject` | Сам объект можно удалить |
+| Flag | Description |
+|------|-------------|
+| `isVisibleInSetup` | Object is displayed in the setup interface |
+| `isCustomFieldsAllowed` | Custom fields can be added to the object |
+| `isDeleteableObject` | The object itself can be deleted |
 
-**Группа «Возможности»:**
+**"Capabilities" group:**
 
-| Флаг | Описание |
-|------|----------|
-| `hasActivities` | Поддержка активностей (задачи, события) |
-| `hasNotes` | Поддержка заметок |
-| `hasHistoryTracking` | Ведение истории изменений |
-| `hasSharingRules` | Поддержка правил общего доступа (RLS) |
+| Flag | Description |
+|------|-------------|
+| `hasActivities` | Activities support (tasks, events) |
+| `hasNotes` | Notes support |
+| `hasHistoryTracking` | Change history tracking |
+| `hasSharingRules` | Sharing rules support (RLS) |
 
-После нажатия **«Создать»** происходит переход на детальную страницу созданного объекта.
+After clicking **"Create"**, the user is redirected to the detail page of the created object.
 
-#### Редактирование объекта
+#### Editing an Object
 
-**Маршрут:** `/admin/metadata/objects/:objectId`
+**Route:** `/admin/metadata/objects/:objectId`
 
-Детальная страница содержит две вкладки:
+The detail page contains two tabs:
 
-**Вкладка «Основное»:**
-- Все те же поля, что при создании, но **API Name** и **Тип объекта** — только для чтения (disabled).
-- Название, Мн. число, Описание, **Видимость (OWD)** и все флаги — редактируемые.
-- При изменении видимости с/на `public_read_write` система автоматически создаёт или удаляет share-таблицу объекта.
-- Кнопка **«Сохранить»** — сохраняет изменения.
+**"General" tab:**
+- All the same fields as during creation, but **API Name** and **Object Type** are read-only (disabled).
+- Label, Plural Label, Description, **Visibility (OWD)**, and all flags are editable.
+- When changing visibility to/from `public_read_write`, the system automatically creates or deletes the object's share table.
+- **"Save"** button — saves changes.
 
-**Вкладка «Поля (N)»:**
-- Отображает таблицу полей объекта (см. [4.2. Поля](#42-поля)).
-- В заголовке вкладки показано количество полей.
+**"Fields (N)" tab:**
+- Displays the object's field table (see [4.2. Fields](#42-fields)).
+- The tab header shows the field count.
 
-**Удаление объекта:**
-- Кнопка **«Удалить объект»** (красная, в правом верхнем углу) видна только если `isDeleteableObject = true` и `isPlatformManaged = false`.
-- Удаление требует подтверждения. Текст предупреждения: *«Объект «{label}» ({apiName}) и все его поля будут удалены без возможности восстановления»*.
+**Deleting an object:**
+- **"Delete Object"** button (red, top-right corner) is visible only if `isDeleteableObject = true` and `isPlatformManaged = false`.
+- Deletion requires confirmation. Warning text: *"Object '{label}' ({apiName}) and all its fields will be permanently deleted."*
 
-### 4.2. Поля
+### 4.2. Fields
 
-Поле — это атрибут объекта (аналог колонки таблицы). Каждое поле имеет тип, подтип и дополнительную конфигурацию.
+A field is an attribute of an object (analogous to a table column). Each field has a type, subtype, and additional configuration.
 
-#### Таблица полей
+#### Field Table
 
-Таблица полей отображается на вкладке «Поля» детальной страницы объекта. Для каждого поля отображаются: API Name, Название, Тип, Подтип, флаги «Обязательное» и «Уникальное».
+The field table is displayed on the "Fields" tab of the object detail page. For each field, the following are shown: API Name, Label, Type, Subtype, "Required" and "Unique" flags.
 
-Действия:
-- Кнопка **«Добавить поле»** — открывает диалог создания.
-- Кнопка **«Редактировать»** — открывает диалог редактирования.
-- Кнопка **«Удалить»** — удаляет поле (с подтверждением).
+Actions:
+- **"Add Field"** button — opens the creation dialog.
+- **"Edit"** button — opens the editing dialog.
+- **"Delete"** button — deletes the field (with confirmation).
 
-#### Типы и подтипы полей
+#### Field Types and Subtypes
 
-| Тип | Русское название | Доступные подтипы |
-|-----|-----------------|-------------------|
-| `text` | Текст | `plain` (Простой текст), `area` (Многострочный), `rich` (Форматированный), `email` (Email), `phone` (Телефон), `url` (URL) |
-| `number` | Число | `integer` (Целое), `decimal` (Десятичное), `currency` (Валюта), `percent` (Процент), `auto_number` (Авто-номер) |
-| `boolean` | Логический | — (без подтипов) |
-| `datetime` | Дата/Время | `date` (Дата), `datetime` (Дата и время), `time` (Время) |
-| `picklist` | Список выбора | `single` (Одиночный), `multi` (Множественный) |
-| `reference` | Связь | `association` (Ассоциация), `composition` (Композиция), `polymorphic` (Полиморфная) |
+| Type | Display Name | Available Subtypes |
+|------|-------------|-------------------|
+| `text` | Text | `plain` (Plain text), `area` (Multiline), `rich` (Rich text), `email` (Email), `phone` (Phone), `url` (URL) |
+| `number` | Number | `integer` (Integer), `decimal` (Decimal), `currency` (Currency), `percent` (Percent), `auto_number` (Auto-number) |
+| `boolean` | Boolean | — (no subtypes) |
+| `datetime` | Date/Time | `date` (Date), `datetime` (Date and time), `time` (Time) |
+| `picklist` | Picklist | `single` (Single-select), `multi` (Multi-select) |
+| `reference` | Reference | `association` (Association), `composition` (Composition), `polymorphic` (Polymorphic) |
 
-#### Создание поля
+#### Creating a Field
 
-Диалог создания поля содержит следующие поля:
+The field creation dialog contains the following fields:
 
-| Поле | Тип | Обязательное | Описание |
-|------|-----|:---:|----------|
-| API Name | Текст | Да | Уникальное имя поля в рамках объекта |
-| Название | Текст | Да | Отображаемое имя поля |
-| Тип | Выбор | Да | Один из шести типов: text, number, boolean, datetime, picklist, reference |
-| Подтип | Выбор | Зависит от типа | Список доступных подтипов зависит от выбранного типа. Для boolean подтипы отсутствуют. |
-| Ссылочный объект | Выбор | Для reference | Объект, на который ссылается поле |
-| Описание | Текст | Нет | Описание поля |
-| Help Text | Текст | Нет | Текст-подсказка для пользователей |
-| Обязательное | Чекбокс | Нет | Делает поле обязательным для заполнения |
-| Уникальное | Чекбокс | Нет | Значение поля должно быть уникальным |
-| Пользовательское | Чекбокс | Нет | Отмечает поле как custom |
-| Порядок сортировки | Число | Нет | Порядок отображения поля |
+| Field | Type | Required | Description |
+|-------|------|:---:|-------------|
+| API Name | Text | Yes | Unique field name within the object |
+| Label | Text | Yes | Display name of the field |
+| Type | Select | Yes | One of six types: text, number, boolean, datetime, picklist, reference |
+| Subtype | Select | Depends on type | Available subtypes depend on the selected type. No subtypes for boolean. |
+| Reference Object | Select | For reference | Object that the field references |
+| Description | Text | No | Field description |
+| Help Text | Text | No | Help text for users |
+| Required | Checkbox | No | Makes the field required |
+| Unique | Checkbox | No | Field value must be unique |
+| Custom | Checkbox | No | Marks the field as custom |
+| Sort Order | Number | No | Display order of the field |
 
-#### Конфигурация поля по типу/подтипу
+#### Type/Subtype-Specific Configuration
 
-В зависимости от выбранной комбинации тип/подтип доступны дополнительные поля конфигурации:
+Depending on the selected type/subtype combination, additional configuration fields are available:
 
-**Текстовые поля (text/plain, text/area, text/rich):**
+**Text fields (text/plain, text/area, text/rich):**
 
-| Параметр | Описание |
-|----------|----------|
-| Макс. длина | Максимальная длина текста |
-| Значение по умолчанию | Значение, подставляемое при создании записи |
+| Parameter | Description |
+|-----------|-------------|
+| Max Length | Maximum text length |
+| Default Value | Value substituted when creating a record |
 
-**Текстовые (email, phone, url):**
+**Text fields (email, phone, url):**
 
-| Параметр | Описание |
-|----------|----------|
-| Макс. длина | Максимальная длина текста |
+| Parameter | Description |
+|-----------|-------------|
+| Max Length | Maximum text length |
 
-**Целое число (number/integer):**
+**Integer (number/integer):**
 
-| Параметр | Описание |
-|----------|----------|
-| Значение по умолчанию | Значение по умолчанию |
+| Parameter | Description |
+|-----------|-------------|
+| Default Value | Default value |
 
-**Десятичное / Валюта / Процент (number/decimal, number/currency, number/percent):**
+**Decimal / Currency / Percent (number/decimal, number/currency, number/percent):**
 
-| Параметр | Описание |
-|----------|----------|
-| Точность (всего цифр) | Общее количество значащих цифр |
-| Масштаб (после запятой) | Количество знаков после десятичной точки |
-| Значение по умолчанию | Значение по умолчанию |
+| Parameter | Description |
+|-----------|-------------|
+| Precision (total digits) | Total number of significant digits |
+| Scale (after decimal) | Number of digits after the decimal point |
+| Default Value | Default value |
 
-**Авто-номер (number/auto_number):**
+**Auto-number (number/auto_number):**
 
-| Параметр | Описание |
-|----------|----------|
-| Формат | Шаблон нумерации, например `INV-{0000}` |
-| Начальное значение | Стартовое значение счётчика |
+| Parameter | Description |
+|-----------|-------------|
+| Format | Numbering template, e.g., `INV-{0000}` |
+| Starting Value | Counter starting value |
 
-**Логический (boolean):**
+**Boolean:**
 
-| Параметр | Описание |
-|----------|----------|
-| Значение по умолчанию | `true` или `false` |
+| Parameter | Description |
+|-----------|-------------|
+| Default Value | `true` or `false` |
 
-**Дата/Время (datetime/date, datetime/datetime, datetime/time):**
+**Date/Time (datetime/date, datetime/datetime, datetime/time):**
 
-| Параметр | Описание |
-|----------|----------|
-| Значение по умолчанию | Значение по умолчанию |
+| Parameter | Description |
+|-----------|-------------|
+| Default Value | Default value |
 
-**Ассоциация (reference/association):**
+**Association (reference/association):**
 
-| Параметр | Описание |
-|----------|----------|
-| Имя связи | Имя обратной связи |
-| При удалении | `set_null` (Очистить) или `restrict` (Запретить) |
+| Parameter | Description |
+|-----------|-------------|
+| Relationship Name | Reverse relationship name |
+| On Delete | `set_null` (Clear) or `restrict` (Prevent) |
 
-**Композиция (reference/composition):**
+**Composition (reference/composition):**
 
-| Параметр | Описание |
-|----------|----------|
-| Имя связи | Имя обратной связи |
-| При удалении | `cascade` (Каскадное удаление) или `restrict` (Запретить) |
-| Можно переназначить родителя | Разрешена ли смена родительского объекта |
+| Parameter | Description |
+|-----------|-------------|
+| Relationship Name | Reverse relationship name |
+| On Delete | `cascade` (Cascade delete) or `restrict` (Prevent) |
+| Allow Reparent | Whether parent reassignment is allowed |
 
-**Полиморфная связь (reference/polymorphic):**
+**Polymorphic reference (reference/polymorphic):**
 
-| Параметр | Описание |
-|----------|----------|
-| Имя связи | Имя обратной связи |
-| При удалении | `set_null` (Очистить) или `restrict` (Запретить) |
+| Parameter | Description |
+|-----------|-------------|
+| Relationship Name | Reverse relationship name |
+| On Delete | `set_null` (Clear) or `restrict` (Prevent) |
 
-#### Редактирование поля
+#### Editing a Field
 
-Диалог редактирования позволяет изменить:
-- Название
-- Описание
+The edit dialog allows changing:
+- Label
+- Description
 - Help Text
-- Обязательное (чекбокс)
-- Уникальное (чекбокс)
-- Параметры конфигурации (зависят от типа/подтипа)
-- Порядок сортировки
+- Required (checkbox)
+- Unique (checkbox)
+- Configuration parameters (depend on type/subtype)
+- Sort Order
 
-**API Name**, **Тип** и **Подтип** — не редактируются после создания.
+**API Name**, **Type**, and **Subtype** are not editable after creation.
 
-#### Удаление поля
+#### Deleting a Field
 
-Удаление поля выполняется через кнопку «Удалить» в таблице полей. Операция необратима.
+Field deletion is performed via the "Delete" button in the field table. The operation is irreversible.
 
 ---
 
-## 5. Управление безопасностью
+## 5. Security Management
 
-### 5.1. Роли
+### 5.1. Roles
 
-Роли определяют положение пользователя в организационной иерархии. Используются для Row-Level Security: пользователи с более высокой ролью получают доступ на чтение записей подчинённых.
+Roles define a user's position in the organizational hierarchy. They are used for Row-Level Security: users with a higher role gain read access to records of subordinates.
 
-#### Список ролей
+#### Role List
 
-**Маршрут:** `/admin/security/roles`
+**Route:** `/admin/security/roles`
 
-Таблица со следующими колонками:
+Table with the following columns:
 
-| Колонка | Описание |
-|---------|----------|
-| API Name | Уникальный идентификатор роли (ссылка на детальную страницу) |
-| Название | Человекочитаемое название |
-| Родительская роль | Название роли-родителя или «—» для корневых ролей |
-| Создан | Дата создания |
+| Column | Description |
+|--------|-------------|
+| API Name | Unique role identifier (link to detail page) |
+| Label | Human-readable name |
+| Parent Role | Parent role name or "—" for root roles |
+| Created | Creation date |
 
-Действия:
-- Кнопка **«Создать роль»** — переход к форме создания.
-- Контекстное меню строки — «Открыть» и «Удалить».
+Actions:
+- **"Create Role"** button — navigates to the creation form.
+- Row context menu — "Open" and "Delete".
 
-#### Создание роли
+#### Creating a Role
 
-**Маршрут:** `/admin/security/roles/new`
+**Route:** `/admin/security/roles/new`
 
-| Поле | Тип | Обязательное | Описание |
-|------|-----|:---:|----------|
-| API Name | Текст | Да | Уникальное имя роли (например, `sales_manager`). Задаётся при создании, далее не редактируется. |
-| Название | Текст | Да | Отображаемое имя (например, «Менеджер по продажам») |
-| Родительская роль | Выбор | Нет | Выбор из списка существующих ролей. Вариант «Без родителя» — корневая роль. |
-| Описание | Многострочный текст | Нет | Произвольное описание роли |
+| Field | Type | Required | Description |
+|-------|------|:---:|-------------|
+| API Name | Text | Yes | Unique role name (e.g., `sales_manager`). Set at creation, not editable afterwards. |
+| Label | Text | Yes | Display name (e.g., "Sales Manager") |
+| Parent Role | Select | No | Select from existing roles. "No parent" option — root role. |
+| Description | Textarea | No | Free-form role description |
 
-После создания происходит переход на детальную страницу роли.
+After creation, the user is redirected to the role detail page.
 
-> **Автоматические группы:** При создании роли система автоматически создаёт две группы: `role_{api_name}` (все пользователи с данной ролью) и `role_and_sub_{api_name}` (пользователи с данной ролью и подчинёнными ролями).
+> **Automatic groups:** When a role is created, the system automatically creates two groups: `role_{api_name}` (all users with this role) and `role_and_sub_{api_name}` (users with this role and all subordinate roles).
 
-#### Редактирование роли
+#### Editing a Role
 
-**Маршрут:** `/admin/security/roles/:roleId`
+**Route:** `/admin/security/roles/:roleId`
 
-- **API Name** — только для чтения.
-- **Название**, **Родительская роль**, **Описание** — редактируемые.
-- В списке родительских ролей исключена текущая роль (нельзя назначить роль родителем самой себя).
-- Кнопка **«Сохранить»** — сохраняет изменения.
+- **API Name** — read-only.
+- **Label**, **Parent Role**, **Description** — editable.
+- The current role is excluded from the parent roles list (a role cannot be its own parent).
+- **"Save"** button — saves changes.
 
-#### Удаление роли
+#### Deleting a Role
 
-Кнопка **«Удалить роль»** (красная) в правом верхнем углу детальной страницы. Требует подтверждения.
+**"Delete Role"** button (red) in the top-right corner of the detail page. Requires confirmation.
 
-### 5.2. Наборы разрешений
+### 5.2. Permission Sets
 
-Набор разрешений (Permission Set) — это контейнер для OLS- и FLS-прав. Бывает двух типов:
+A Permission Set is a container for OLS and FLS permissions. There are two types:
 
-- **Grant** — расширяет права (разрешает операции).
-- **Deny** — глобально подавляет права (запрещает операции, даже если они разрешены в других наборах).
+- **Grant** — extends permissions (allows operations).
+- **Deny** — globally suppresses permissions (forbids operations, even if they are allowed in other sets).
 
-#### Список наборов разрешений
+#### Permission Set List
 
-**Маршрут:** `/admin/security/permission-sets`
+**Route:** `/admin/security/permission-sets`
 
-Таблица со следующими колонками:
+Table with the following columns:
 
-| Колонка | Описание |
-|---------|----------|
-| API Name | Уникальный идентификатор (ссылка на детальную страницу) |
-| Название | Человекочитаемое название |
-| Тип | `Grant` или `Deny` (отображается бейджем) |
-| Создан | Дата создания |
+| Column | Description |
+|--------|-------------|
+| API Name | Unique identifier (link to detail page) |
+| Label | Human-readable name |
+| Type | `Grant` or `Deny` (displayed as a badge) |
+| Created | Creation date |
 
-**Фильтрация:** выпадающий список для фильтрации по типу:
-- Все типы
+**Filtering:** dropdown to filter by type:
+- All types
 - Grant
 - Deny
 
-Действия:
-- Кнопка **«Создать набор»** — переход к форме создания.
-- Контекстное меню строки — «Открыть» и «Удалить».
+Actions:
+- **"Create Permission Set"** button — navigates to the creation form.
+- Row context menu — "Open" and "Delete".
 
-#### Создание набора разрешений
+#### Creating a Permission Set
 
-**Маршрут:** `/admin/security/permission-sets/new`
+**Route:** `/admin/security/permission-sets/new`
 
-| Поле | Тип | Обязательное | Описание |
-|------|-----|:---:|----------|
-| API Name | Текст | Да | Уникальное имя (например, `sales_read_access`). Не редактируется после создания. |
-| Название | Текст | Да | Отображаемое имя (например, «Доступ на чтение продаж») |
-| Тип | Выбор | Да | `Grant (разрешает)` или `Deny (запрещает)`. Не редактируется после создания. |
-| Описание | Многострочный текст | Нет | Произвольное описание |
+| Field | Type | Required | Description |
+|-------|------|:---:|-------------|
+| API Name | Text | Yes | Unique name (e.g., `sales_read_access`). Not editable after creation. |
+| Label | Text | Yes | Display name (e.g., "Sales Read Access") |
+| Type | Select | Yes | `Grant (allows)` or `Deny (forbids)`. Not editable after creation. |
+| Description | Textarea | No | Free-form description |
 
-#### Детальная страница набора разрешений
+#### Permission Set Detail Page
 
-**Маршрут:** `/admin/security/permission-sets/:permissionSetId`
+**Route:** `/admin/security/permission-sets/:permissionSetId`
 
-Содержит три вкладки:
+Contains three tabs:
 
-**Вкладка «Основное»:**
-- API Name (только чтение), Название, Тип (только чтение), Описание.
-- Кнопка «Сохранить» для сохранения изменений названия и описания.
+**"General" tab:**
+- API Name (read-only), Label, Type (read-only), Description.
+- "Save" button to save label and description changes.
 
-**Вкладка «Права на объекты» (OLS):**
+**"Object Permissions" (OLS) tab:**
 
-Таблица, где каждая строка — это объект из метаданных. Для каждого объекта отображается группа чекбоксов:
+A table where each row is an object from metadata. For each object, a group of checkboxes is displayed:
 
-| Чекбокс | Бит | Описание |
-|---------|-----|----------|
-| Чтение | 1 | Право на чтение записей объекта |
-| Создание | 2 | Право на создание записей |
-| Обновление | 4 | Право на обновление записей |
-| Удаление | 8 | Право на удаление записей |
+| Checkbox | Bit | Description |
+|----------|-----|-------------|
+| Read | 1 | Permission to read object records |
+| Create | 2 | Permission to create records |
+| Update | 4 | Permission to update records |
+| Delete | 8 | Permission to delete records |
 
-Изменения сохраняются **мгновенно** при переключении чекбокса (без нажатия кнопки «Сохранить»).
+Changes are saved **instantly** when toggling a checkbox (no "Save" button needed).
 
-**Вкладка «Права на поля» (FLS):**
+**"Field Permissions" (FLS) tab:**
 
-1. Сначала нужно выбрать объект из выпадающего списка.
-2. После выбора отображается таблица полей этого объекта. Для каждого поля — группа чекбоксов:
+1. First, select an object from the dropdown.
+2. After selection, a table of the object's fields is displayed. For each field — a group of checkboxes:
 
-| Чекбокс | Бит | Описание |
-|---------|-----|----------|
-| Чтение | 1 | Право на чтение значения поля |
-| Запись | 2 | Право на изменение значения поля |
+| Checkbox | Bit | Description |
+|----------|-----|-------------|
+| Read | 1 | Permission to read the field value |
+| Write | 2 | Permission to edit the field value |
 
-Изменения также сохраняются **мгновенно**.
+Changes are also saved **instantly**.
 
-#### Удаление набора разрешений
+#### Deleting a Permission Set
 
-Кнопка **«Удалить набор»** (красная) в правом верхнем углу. Требует подтверждения.
+**"Delete Permission Set"** button (red) in the top-right corner. Requires confirmation.
 
-### 5.3. Профили
+### 5.3. Profiles
 
-Профиль — это обязательная сущность безопасности, назначаемая каждому пользователю. При создании профиля автоматически создаётся **базовый набор разрешений** (grant-тип), который определяет начальные права пользователя.
+A Profile is a mandatory security entity assigned to every user. When a profile is created, a **base permission set** (grant type) is automatically created, which defines the user's initial permissions.
 
-#### Список профилей
+#### Profile List
 
-**Маршрут:** `/admin/security/profiles`
+**Route:** `/admin/security/profiles`
 
-Таблица со следующими колонками:
+Table with the following columns:
 
-| Колонка | Описание |
-|---------|----------|
-| API Name | Уникальный идентификатор (ссылка на детальную страницу) |
-| Название | Человекочитаемое название |
-| Создан | Дата создания |
+| Column | Description |
+|--------|-------------|
+| API Name | Unique identifier (link to detail page) |
+| Label | Human-readable name |
+| Created | Creation date |
 
-Действия:
-- Кнопка **«Создать профиль»** — переход к форме создания.
-- Контекстное меню строки — «Открыть» и «Удалить».
+Actions:
+- **"Create Profile"** button — navigates to the creation form.
+- Row context menu — "Open" and "Delete".
 
-#### Создание профиля
+#### Creating a Profile
 
-**Маршрут:** `/admin/security/profiles/new`
+**Route:** `/admin/security/profiles/new`
 
-| Поле | Тип | Обязательное | Описание |
-|------|-----|:---:|----------|
-| API Name | Текст | Да | Уникальное имя (например, `sales_profile`). Не редактируется после создания. |
-| Название | Текст | Да | Отображаемое имя (например, «Профиль менеджера») |
-| Описание | Многострочный текст | Нет | Произвольное описание |
+| Field | Type | Required | Description |
+|-------|------|:---:|-------------|
+| API Name | Text | Yes | Unique name (e.g., `sales_profile`). Not editable after creation. |
+| Label | Text | Yes | Display name (e.g., "Sales Profile") |
+| Description | Textarea | No | Free-form description |
 
-При создании профиля система автоматически генерирует базовый набор разрешений (grant).
+When a profile is created, the system automatically generates a base permission set (grant).
 
-#### Редактирование профиля
+#### Editing a Profile
 
-**Маршрут:** `/admin/security/profiles/:profileId`
+**Route:** `/admin/security/profiles/:profileId`
 
-- API Name (только чтение), Название, Описание — редактируемые.
-- Ссылка **«Открыть базовый набор разрешений»** — переход на страницу редактирования базового набора разрешений профиля, где настраиваются OLS и FLS.
-- Кнопка **«Сохранить»** — сохраняет изменения названия и описания.
+- API Name (read-only), Label, Description — editable.
+- **"Open Base Permission Set"** link — navigates to the profile's base permission set editing page, where OLS and FLS are configured.
+- **"Save"** button — saves label and description changes.
 
-> **Важно:** Для настройки OLS/FLS профиля необходимо перейти к его базовому набору разрешений через ссылку на детальной странице профиля.
+> **Important:** To configure a profile's OLS/FLS, navigate to its base permission set via the link on the profile detail page.
 
-#### Удаление профиля
+#### Deleting a Profile
 
-Кнопка **«Удалить профиль»** (красная) в правом верхнем углу. Требует подтверждения.
+**"Delete Profile"** button (red) in the top-right corner. Requires confirmation.
 
-### 5.4. Пользователи
+### 5.4. Users
 
-Пользователь — это учётная запись человека в системе. Каждому пользователю назначается профиль (обязательно) и опционально — роль и дополнительные наборы разрешений.
+A User is a person's account in the system. Each user is assigned a profile (required) and optionally — a role and additional permission sets.
 
-#### Список пользователей
+#### User List
 
-**Маршрут:** `/admin/security/users`
+**Route:** `/admin/security/users`
 
-Таблица со следующими колонками:
+Table with the following columns:
 
-| Колонка | Описание |
-|---------|----------|
-| Username | Имя пользователя (ссылка на детальную страницу) |
-| Email | Электронная почта |
-| Имя | Полное имя (имя + фамилия) |
-| Профиль | Название назначенного профиля |
-| Роль | Название назначенной роли или «—» |
-| Статус | Бейдж «Активен» / «Неактивен» |
+| Column | Description |
+|--------|-------------|
+| Username | Username (link to detail page) |
+| Email | Email address |
+| Name | Full name (first name + last name) |
+| Profile | Assigned profile name |
+| Role | Assigned role name or "—" |
+| Status | "Active" / "Inactive" badge |
 
-Действия:
-- Кнопка **«Создать пользователя»** — переход к форме создания.
-- Контекстное меню строки — «Открыть» и «Удалить».
+Actions:
+- **"Create User"** button — navigates to the creation form.
+- Row context menu — "Open" and "Delete".
 
-#### Создание пользователя
+#### Creating a User
 
-**Маршрут:** `/admin/security/users/new`
+**Route:** `/admin/security/users/new`
 
-Форма состоит из трёх карточек:
+The form consists of three cards:
 
-**Карточка «Учётные данные»:**
+**"Credentials" card:**
 
-| Поле | Тип | Обязательное | Описание |
-|------|-----|:---:|----------|
-| Имя пользователя | Текст | Да | Уникальное имя для входа (например, `john.doe`). Не редактируется после создания. |
-| Email | Email | Да | Электронная почта |
+| Field | Type | Required | Description |
+|-------|------|:---:|-------------|
+| Username | Text | Yes | Unique login name (e.g., `john.doe`). Not editable after creation. |
+| Email | Email | Yes | Email address |
 
-**Карточка «Личные данные»:**
+**"Personal Information" card:**
 
-| Поле | Тип | Обязательное | Описание |
-|------|-----|:---:|----------|
-| Имя | Текст | Нет | Имя пользователя |
-| Фамилия | Текст | Нет | Фамилия пользователя |
+| Field | Type | Required | Description |
+|-------|------|:---:|-------------|
+| First Name | Text | No | User's first name |
+| Last Name | Text | No | User's last name |
 
-**Карточка «Безопасность»:**
+**"Security" card:**
 
-| Поле | Тип | Обязательное | Описание |
-|------|-----|:---:|----------|
-| Профиль | Выбор | Да | Выбор из списка созданных профилей |
-| Роль | Выбор | Нет | Выбор из списка ролей. Вариант «Без роли» — пользователь не входит в иерархию. |
+| Field | Type | Required | Description |
+|-------|------|:---:|-------------|
+| Profile | Select | Yes | Select from created profiles |
+| Role | Select | No | Select from existing roles. "No role" option — user is not in the hierarchy. |
 
-> **Автоматические действия при создании:** Система автоматически создаёт персональную группу `personal_{username}` и добавляет пользователя в неё, а также в ролевые группы (если роль указана).
+> **Automatic actions on creation:** The system automatically creates a personal group `personal_{username}` and adds the user to it, as well as to role groups (if a role is specified).
 
-#### Редактирование пользователя
+#### Editing a User
 
-**Маршрут:** `/admin/security/users/:userId`
+**Route:** `/admin/security/users/:userId`
 
-Содержит две вкладки:
+Contains two tabs:
 
-**Вкладка «Основное»:**
+**"General" tab:**
 
-- **Имя пользователя** — только для чтения.
-- **Email**, **Имя**, **Фамилия** — редактируемые.
-- **Профиль** и **Роль** — изменяемые через выпадающие списки. При смене роли членство в ролевых группах пересчитывается автоматически.
-- **Активен** — переключатель (Switch). Неактивный пользователь не может войти в систему.
-- Кнопка **«Сохранить»** — сохраняет изменения.
+- **Username** — read-only.
+- **Email**, **First Name**, **Last Name** — editable.
+- **Profile** and **Role** — changeable via dropdowns. When the role changes, membership in role groups is recalculated automatically.
+- **Active** — toggle switch. An inactive user cannot log in.
+- **"Save"** button — saves changes.
 
-**Вкладка «Наборы разрешений»:**
+**"Permission Sets" tab:**
 
-Управление дополнительными наборами разрешений, назначенными пользователю.
+Managing additional permission sets assigned to the user.
 
-Таблица назначенных наборов:
+Table of assigned sets:
 
-| Колонка | Описание |
-|---------|----------|
-| Название | Название набора разрешений |
-| Тип | `Grant` или `Deny` (бейдж) |
-| Назначен | Дата назначения |
-| Действие | Кнопка «Отозвать» |
+| Column | Description |
+|--------|-------------|
+| Label | Permission set name |
+| Type | `Grant` or `Deny` (badge) |
+| Assigned | Assignment date |
+| Action | "Revoke" button |
 
-Действия:
-- Кнопка **«Назначить набор»** — открывает диалог назначения. В диалоге доступен выпадающий список с наборами разрешений, которые ещё не назначены данному пользователю. Рядом с каждым набором показан его тип (grant/deny).
-- Кнопка **«Отозвать»** — отзывает набор разрешений у пользователя (с подтверждением).
+Actions:
+- **"Assign Permission Set"** button — opens the assignment dialog. The dialog contains a dropdown with permission sets not yet assigned to this user. Each set's type (grant/deny) is shown next to it.
+- **"Revoke"** button — revokes the permission set from the user (with confirmation).
 
-#### Удаление пользователя
+#### Deleting a User
 
-Кнопка **«Удалить пользователя»** (красная) в правом верхнем углу. Требует подтверждения.
+**"Delete User"** button (red) in the top-right corner. Requires confirmation.
 
-### 5.5. Группы
+### 5.5. Groups
 
-Группы объединяют пользователей для целей шаринга. Все записи шарятся именно группам, а не отдельным пользователям.
+Groups combine users for sharing purposes. All records are shared with groups, not individual users.
 
-#### Автоматические группы
+#### Automatic Groups
 
-Три типа групп создаются автоматически и не управляются вручную:
+Three group types are created automatically and are not managed manually:
 
-- **Personal** — создаётся при создании пользователя. Содержит ровно одного пользователя. API Name: `personal_{username}`.
-- **Role** — создаётся при создании роли. Содержит всех пользователей с данной ролью. API Name: `role_{api_name}`.
-- **Role & Subordinates** — создаётся при создании роли. Содержит пользователей с данной ролью и со всех подчинённых ролей. API Name: `role_and_sub_{api_name}`.
+- **Personal** — created when a user is created. Contains exactly one user. API Name: `personal_{username}`.
+- **Role** — created when a role is created. Contains all users with the given role. API Name: `role_{api_name}`.
+- **Role & Subordinates** — created when a role is created. Contains users with the given role and all subordinate roles. API Name: `role_and_sub_{api_name}`.
 
-Членство в этих группах пересчитывается автоматически при изменении роли пользователя или иерархии ролей.
+Membership in these groups is recalculated automatically when a user's role or the role hierarchy changes.
 
-#### Публичные группы
+#### Public Groups
 
-Публичные группы (`public`) создаются администратором вручную и позволяют объединять пользователей произвольным образом.
+Public groups (`public`) are created manually by the administrator and allow combining users in any way.
 
-| Поле | Тип | Обязательное | Описание |
-|------|-----|:---:|----------|
-| API Name | Текст | Да | Уникальное имя группы |
-| Название | Текст | Да | Отображаемое имя |
-| Тип | Выбор | Да | `personal`, `role`, `role_and_subordinates` или `public` |
+| Field | Type | Required | Description |
+|-------|------|:---:|-------------|
+| API Name | Text | Yes | Unique group name |
+| Label | Text | Yes | Display name |
+| Type | Select | Yes | `personal`, `role`, `role_and_subordinates`, or `public` |
 
-#### Членство в группах
+#### Group Membership
 
-В группу можно добавить:
-- **Пользователя** (по `member_user_id`).
-- **Другую группу** (по `member_group_id`) — все члены вложенной группы становятся членами родительской.
+The following can be added to a group:
+- A **user** (by `member_user_id`).
+- **Another group** (by `member_group_id`) — all members of the nested group become members of the parent group.
 
-> **Ограничение:** В одном добавлении указывается либо пользователь, либо группа — не оба одновременно.
+> **Restriction:** Each addition specifies either a user or a group — not both simultaneously.
 
-Эффективное членство (с учётом вложенных групп) вычисляется автоматически и хранится в кэше `security.effective_group_members`.
+Effective membership (including nested groups) is calculated automatically and stored in the `security.effective_group_members` cache.
 
-### 5.6. Правила совместного доступа
+### 5.6. Sharing Rules
 
-Правила совместного доступа (Sharing Rules) расширяют видимость записей объекта для определённых групп пользователей. Правила работают аддитивно — они только добавляют доступ, но не могут его ограничить.
+Sharing Rules extend record visibility for specific groups of users. Rules work additively — they only add access, they cannot restrict it.
 
-#### Типы правил
+#### Rule Types
 
-| Тип | Описание |
-|-----|----------|
-| `owner_based` | Записи, принадлежащие пользователям из **исходной группы**, становятся видны пользователям из **целевой группы**. |
-| `criteria_based` | Записи, удовлетворяющие критерию (поле + оператор + значение), становятся видны пользователям из **целевой группы**. |
+| Type | Description |
+|------|-------------|
+| `owner_based` | Records owned by users in the **source group** become visible to users in the **target group**. |
+| `criteria_based` | Records matching a criterion (field + operator + value) become visible to users in the **target group**. |
 
-#### Создание правила
+#### Creating a Rule
 
-| Поле | Тип | Обязательное | Описание |
-|------|-----|:---:|----------|
-| Объект | UUID | Да | Объект, к которому применяется правило |
-| Тип правила | Выбор | Да | `owner_based` или `criteria_based` |
-| Исходная группа | UUID | Да | Группа владельцев записей (для owner_based) |
-| Целевая группа | UUID | Да | Группа, которой предоставляется доступ |
-| Уровень доступа | Выбор | Да | `read` — только чтение, `read_write` — чтение и запись |
-| Поле критерия | Текст | Для criteria_based | Имя поля для фильтрации (например, `status`) |
-| Оператор критерия | Текст | Для criteria_based | Оператор сравнения (например, `equals`) |
-| Значение критерия | Текст | Для criteria_based | Значение для сравнения (например, `closed`) |
+| Field | Type | Required | Description |
+|-------|------|:---:|-------------|
+| Object | UUID | Yes | Object to which the rule applies |
+| Rule Type | Select | Yes | `owner_based` or `criteria_based` |
+| Source Group | UUID | Yes | Group of record owners (for owner_based) |
+| Target Group | UUID | Yes | Group that receives access |
+| Access Level | Select | Yes | `read` — read only, `read_write` — read and write |
+| Criteria Field | Text | For criteria_based | Field name for filtering (e.g., `status`) |
+| Criteria Operator | Text | For criteria_based | Comparison operator (e.g., `equals`) |
+| Criteria Value | Text | For criteria_based | Value for comparison (e.g., `closed`) |
 
-> **Примечание:** Генерация записей в share-таблицах на основе правил выполняется в Phase 3/4 (DML engine). Phase 2b хранит определения правил и генерирует outbox-события для пересчёта кэшей.
+> **Note:** Generation of entries in share tables based on rules is performed in Phase 3/4 (DML engine). Phase 2b stores rule definitions and generates outbox events for cache recalculation.
 
-### 5.7. Ручной шаринг
+### 5.7. Manual Sharing
 
-Ручной шаринг позволяет предоставить доступ к конкретной записи определённой группе пользователей. Запись добавляется в share-таблицу объекта с причиной `manual`.
+Manual sharing allows granting access to a specific record for a specific group of users. An entry is added to the object's share table with reason `manual`.
 
-#### Предоставление доступа (Share)
+#### Granting Access (Share)
 
-| Параметр | Тип | Описание |
-|----------|-----|----------|
-| Таблица | Текст | Имя таблицы объекта (например, `obj_invoice`) |
-| ID записи | UUID | Идентификатор записи, к которой предоставляется доступ |
-| Группа | UUID | Идентификатор группы, которой предоставляется доступ |
-| Уровень доступа | Выбор | `read` или `read_write` |
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| Table | Text | Object table name (e.g., `obj_invoice`) |
+| Record ID | UUID | ID of the record to be shared |
+| Group | UUID | ID of the group to receive access |
+| Access Level | Select | `read` or `read_write` |
 
-При повторном шаринге той же записи той же группе уровень доступа обновляется.
+When re-sharing the same record with the same group, the access level is updated.
 
-#### Отзыв доступа (Revoke)
+#### Revoking Access (Revoke)
 
-Удаляет запись из share-таблицы с причиной `manual` для указанной пары (запись, группа).
+Deletes the entry from the share table with reason `manual` for the specified (record, group) pair.
 
-#### Просмотр шарингов
+#### Viewing Shares
 
-Возвращает список всех записей из share-таблицы для конкретной записи (все причины: `manual`, `sharing_rule`, `territory`).
+Returns a list of all entries from the share table for a specific record (all reasons: `manual`, `sharing_rule`, `territory`).
 
-### Как RLS определяет видимость записи
+### How RLS Determines Record Visibility
 
-Для объекта с видимостью `private` или `controlled_by_parent` пользователь видит запись, если выполняется хотя бы одно условие:
+For an object with visibility `private` or `controlled_by_parent`, a user can see a record if at least one condition is met:
 
-1. **Владелец** — пользователь является владельцем записи (`owner_id`).
-2. **Иерархия ролей** — пользователь находится выше владельца в иерархии ролей (только чтение).
-3. **Share-таблица** — запись расшарена группе, в которую входит пользователь (через ручной шаринг, правила или территории).
+1. **Owner** — the user is the record owner (`owner_id`).
+2. **Role hierarchy** — the user is above the owner in the role hierarchy (read only).
+3. **Share table** — the record is shared with a group that includes the user (via manual sharing, rules, or territories).
 
-Для `public_read` — все могут читать; обновление — по тем же правилам, что `private`.
-Для `public_read_write` — RLS-фильтрация полностью отключена.
+For `public_read` — everyone can read; updates follow the same rules as `private`.
+For `public_read_write` — RLS filtering is completely disabled.
 
 ---
 
-## 6. SOQL — язык запросов
+## 6. SOQL — Query Language
 
-SOQL (Structured Object Query Language) — встроенный язык запросов платформы. Все операции чтения данных проходят через SOQL с автоматическим применением OLS, FLS и RLS.
+SOQL (Structured Object Query Language) is the platform's built-in query language. All data read operations go through SOQL with automatic OLS, FLS, and RLS enforcement.
 
-### 6.1. Синтаксис
+### 6.1. Syntax
 
-#### Базовая структура
+#### Basic Structure
 
 ```
-SELECT <поля> FROM <объект>
-[WHERE <условие>]
-[GROUP BY <поля>]
-[HAVING <условие>]
-[ORDER BY <поля> [ASC|DESC] [NULLS FIRST|LAST]]
-[LIMIT <число>]
-[OFFSET <число>]
+SELECT <fields> FROM <object>
+[WHERE <condition>]
+[GROUP BY <fields>]
+[HAVING <condition>]
+[ORDER BY <fields> [ASC|DESC] [NULLS FIRST|LAST]]
+[LIMIT <number>]
+[OFFSET <number>]
 [FOR UPDATE]
 ```
 
-#### Примеры запросов
+#### Query Examples
 
-Простой запрос:
+Simple query:
 ```
 SELECT Id, Name, Email FROM Contact WHERE Status = 'Active'
 ```
 
-С сортировкой и ограничением:
+With sorting and limit:
 ```
 SELECT Id, Name, Amount FROM Deal ORDER BY Amount DESC LIMIT 10
 ```
 
-Группировка с агрегатами:
+Grouping with aggregates:
 ```
 SELECT Status, COUNT(), SUM(Amount) FROM Deal GROUP BY Status HAVING COUNT() > 5
 ```
 
-Алиасы полей:
+Field aliases:
 ```
 SELECT Name AS ContactName, Email AS ContactEmail FROM Contact
 ```
 
-### 6.2. Операторы и функции
+### 6.2. Operators and Functions
 
-#### Операторы сравнения
+#### Comparison Operators
 
-| Оператор | Описание | Пример |
-|----------|----------|--------|
-| `=` или `==` | Равно | `WHERE Status = 'Active'` |
-| `!=` или `<>` | Не равно | `WHERE Status != 'Closed'` |
-| `>` | Больше | `WHERE Amount > 1000` |
-| `<` | Меньше | `WHERE Amount < 500` |
-| `>=` | Больше или равно | `WHERE CreatedAt >= 2024-01-01` |
-| `<=` | Меньше или равно | `WHERE Amount <= 10000` |
+| Operator | Description | Example |
+|----------|-------------|---------|
+| `=` or `==` | Equal | `WHERE Status = 'Active'` |
+| `!=` or `<>` | Not equal | `WHERE Status != 'Closed'` |
+| `>` | Greater than | `WHERE Amount > 1000` |
+| `<` | Less than | `WHERE Amount < 500` |
+| `>=` | Greater than or equal | `WHERE CreatedAt >= 2024-01-01` |
+| `<=` | Less than or equal | `WHERE Amount <= 10000` |
 
-#### Логические операторы
+#### Logical Operators
 
-| Оператор | Пример |
-|----------|--------|
+| Operator | Example |
+|----------|---------|
 | `AND` | `WHERE Status = 'Active' AND Amount > 1000` |
 | `OR` | `WHERE Status = 'Closed' OR Status = 'Won'` |
 | `NOT` | `WHERE NOT IsDeleted` |
 
-#### Специальные операторы
+#### Special Operators
 
-| Оператор | Описание | Пример |
-|----------|----------|--------|
-| `IS NULL` | Проверка на NULL | `WHERE Phone IS NULL` |
-| `IS NOT NULL` | Проверка на не-NULL | `WHERE Email IS NOT NULL` |
-| `IN` | Вхождение в список | `WHERE Id IN ('001', '002', '003')` |
-| `NOT IN` | Невхождение в список | `WHERE Status NOT IN ('Closed', 'Archived')` |
-| `LIKE` | Поиск по шаблону | `WHERE Name LIKE 'Acme%'` |
-| `NOT LIKE` | Инверсия LIKE | `WHERE Email NOT LIKE '%test%'` |
+| Operator | Description | Example |
+|----------|-------------|---------|
+| `IS NULL` | NULL check | `WHERE Phone IS NULL` |
+| `IS NOT NULL` | Not-NULL check | `WHERE Email IS NOT NULL` |
+| `IN` | List membership | `WHERE Id IN ('001', '002', '003')` |
+| `NOT IN` | List exclusion | `WHERE Status NOT IN ('Closed', 'Archived')` |
+| `LIKE` | Pattern matching | `WHERE Name LIKE 'Acme%'` |
+| `NOT LIKE` | Inverse LIKE | `WHERE Email NOT LIKE '%test%'` |
 
-Шаблоны `LIKE`: `%` — любые символы, `_` — один символ.
+`LIKE` patterns: `%` — any characters, `_` — single character.
 
-#### Агрегатные функции
+#### Aggregate Functions
 
-| Функция | Описание | Пример |
-|---------|----------|--------|
-| `COUNT()` | Количество записей | `SELECT COUNT() FROM Contact` |
-| `COUNT_DISTINCT(field)` | Количество уникальных значений | `SELECT COUNT_DISTINCT(Status) FROM Deal` |
-| `SUM(field)` | Сумма | `SELECT SUM(Amount) FROM Deal` |
-| `AVG(field)` | Среднее | `SELECT AVG(Amount) FROM Deal` |
-| `MIN(field)` | Минимум | `SELECT MIN(CreatedAt) FROM Contact` |
-| `MAX(field)` | Максимум | `SELECT MAX(Amount) FROM Deal` |
+| Function | Description | Example |
+|----------|-------------|---------|
+| `COUNT()` | Record count | `SELECT COUNT() FROM Contact` |
+| `COUNT_DISTINCT(field)` | Unique value count | `SELECT COUNT_DISTINCT(Status) FROM Deal` |
+| `SUM(field)` | Sum | `SELECT SUM(Amount) FROM Deal` |
+| `AVG(field)` | Average | `SELECT AVG(Amount) FROM Deal` |
+| `MIN(field)` | Minimum | `SELECT MIN(CreatedAt) FROM Contact` |
+| `MAX(field)` | Maximum | `SELECT MAX(Amount) FROM Deal` |
 
-#### Встроенные функции
+#### Built-in Functions
 
-**Строковые:**
+**String:**
 
-| Функция | Описание |
-|---------|----------|
-| `UPPER(str)` | Перевод в верхний регистр |
-| `LOWER(str)` | Перевод в нижний регистр |
-| `TRIM(str)` | Удаление пробелов по краям |
-| `LENGTH(str)` или `LEN(str)` | Длина строки |
-| `SUBSTRING(str, start, length)` или `SUBSTR(...)` | Подстрока |
-| `CONCAT(str1, str2, ...)` | Конкатенация |
+| Function | Description |
+|----------|-------------|
+| `UPPER(str)` | Convert to uppercase |
+| `LOWER(str)` | Convert to lowercase |
+| `TRIM(str)` | Remove leading/trailing whitespace |
+| `LENGTH(str)` or `LEN(str)` | String length |
+| `SUBSTRING(str, start, length)` or `SUBSTR(...)` | Substring |
+| `CONCAT(str1, str2, ...)` | Concatenation |
 
-**Числовые:**
+**Numeric:**
 
-| Функция | Описание |
-|---------|----------|
-| `ABS(num)` | Абсолютное значение |
-| `ROUND(num, decimals)` | Округление |
-| `FLOOR(num)` | Округление вниз |
-| `CEIL(num)` или `CEILING(num)` | Округление вверх |
+| Function | Description |
+|----------|-------------|
+| `ABS(num)` | Absolute value |
+| `ROUND(num, decimals)` | Rounding |
+| `FLOOR(num)` | Floor |
+| `CEIL(num)` or `CEILING(num)` | Ceiling |
 
-**Обработка NULL:**
+**NULL handling:**
 
-| Функция | Описание |
-|---------|----------|
-| `COALESCE(expr1, expr2, ...)` | Первое не-NULL значение |
-| `NULLIF(expr1, expr2)` | NULL, если значения равны |
+| Function | Description |
+|----------|-------------|
+| `COALESCE(expr1, expr2, ...)` | First non-NULL value |
+| `NULLIF(expr1, expr2)` | NULL if values are equal |
 
-### 6.3. Дата-литералы
+### 6.3. Date Literals
 
-SOQL поддерживает символические дата-литералы, которые автоматически разрешаются в конкретные даты на момент выполнения запроса.
+SOQL supports symbolic date literals that are automatically resolved to specific dates at query execution time.
 
-**Статические литералы:**
+**Static literals:**
 
-| Литерал | Описание |
-|---------|----------|
-| `TODAY` | Сегодня |
-| `YESTERDAY` | Вчера |
-| `TOMORROW` | Завтра |
-| `THIS_WEEK` / `LAST_WEEK` / `NEXT_WEEK` | Текущая / прошлая / следующая неделя |
-| `THIS_MONTH` / `LAST_MONTH` / `NEXT_MONTH` | Текущий / прошлый / следующий месяц |
-| `THIS_QUARTER` / `LAST_QUARTER` / `NEXT_QUARTER` | Текущий / прошлый / следующий квартал |
-| `THIS_YEAR` / `LAST_YEAR` / `NEXT_YEAR` | Текущий / прошлый / следующий год |
-| `LAST_90_DAYS` / `NEXT_90_DAYS` | Последние / следующие 90 дней |
-| `THIS_FISCAL_QUARTER` / `THIS_FISCAL_YEAR` | Текущий фискальный квартал / год |
+| Literal | Description |
+|---------|-------------|
+| `TODAY` | Today |
+| `YESTERDAY` | Yesterday |
+| `TOMORROW` | Tomorrow |
+| `THIS_WEEK` / `LAST_WEEK` / `NEXT_WEEK` | Current / previous / next week |
+| `THIS_MONTH` / `LAST_MONTH` / `NEXT_MONTH` | Current / previous / next month |
+| `THIS_QUARTER` / `LAST_QUARTER` / `NEXT_QUARTER` | Current / previous / next quarter |
+| `THIS_YEAR` / `LAST_YEAR` / `NEXT_YEAR` | Current / previous / next year |
+| `LAST_90_DAYS` / `NEXT_90_DAYS` | Last / next 90 days |
+| `THIS_FISCAL_QUARTER` / `THIS_FISCAL_YEAR` | Current fiscal quarter / year |
 
-**Параметрические литералы (с указанием N):**
+**Parameterized literals (with N):**
 
-| Литерал | Пример |
-|---------|--------|
+| Literal | Example |
+|---------|---------|
 | `LAST_N_DAYS:N` | `WHERE CreatedAt >= LAST_N_DAYS:30` |
 | `NEXT_N_DAYS:N` | `WHERE DueDate <= NEXT_N_DAYS:7` |
-| `LAST_N_WEEKS:N` / `NEXT_N_WEEKS:N` | Последние/следующие N недель |
-| `LAST_N_MONTHS:N` / `NEXT_N_MONTHS:N` | Последние/следующие N месяцев |
-| `LAST_N_QUARTERS:N` / `NEXT_N_QUARTERS:N` | Последние/следующие N кварталов |
-| `LAST_N_YEARS:N` / `NEXT_N_YEARS:N` | Последние/следующие N лет |
+| `LAST_N_WEEKS:N` / `NEXT_N_WEEKS:N` | Last/next N weeks |
+| `LAST_N_MONTHS:N` / `NEXT_N_MONTHS:N` | Last/next N months |
+| `LAST_N_QUARTERS:N` / `NEXT_N_QUARTERS:N` | Last/next N quarters |
+| `LAST_N_YEARS:N` / `NEXT_N_YEARS:N` | Last/next N years |
 
-### 6.4. Связи и подзапросы
+### 6.4. Relationships and Subqueries
 
-#### Lookup-запросы (child → parent)
+#### Lookup Queries (child → parent)
 
-Используйте точечную нотацию для обращения к полям родительского объекта:
+Use dot notation to access parent object fields:
 
 ```
 SELECT Name, Account.Name, Account.Owner.Name FROM Contact
 ```
 
-Глубина вложенности — до 5 уровней.
+Nesting depth — up to 5 levels.
 
-#### Relationship-подзапросы (parent → child)
+#### Relationship Subqueries (parent → child)
 
-Для получения дочерних записей используйте подзапросы в SELECT:
+To retrieve child records, use subqueries in SELECT:
 
 ```
 SELECT Name, (SELECT Email, Phone FROM Contacts) FROM Account
 ```
 
-Подзапросы поддерживают WHERE, ORDER BY и LIMIT.
+Subqueries support WHERE, ORDER BY, and LIMIT.
 
-#### Semi-join (IN с подзапросом)
+#### Semi-join (IN with subquery)
 
 ```
 SELECT Name FROM Contact
 WHERE AccountId IN (SELECT Id FROM Account WHERE Industry = 'Tech')
 ```
 
-#### TYPEOF (полиморфные поля)
+#### TYPEOF (polymorphic fields)
 
-Для полиморфных reference-полей:
+For polymorphic reference fields:
 
 ```
 SELECT TYPEOF What
@@ -1100,29 +1135,29 @@ END
 FROM Task
 ```
 
-### 6.5. Безопасность в SOQL
+### 6.5. Security in SOQL
 
-Каждый SOQL-запрос автоматически проходит три уровня security:
+Every SOQL query automatically passes through three security levels:
 
-1. **OLS** — проверяется право `Read` на объект в SELECT и FROM. Если у пользователя нет доступа к объекту, запрос отклоняется.
-2. **FLS** — проверяется право `Read` на каждое поле в SELECT. Системные поля (`Id`, `OwnerId`, `CreatedAt`, `UpdatedAt`, `CreatedById`, `UpdatedById`) доступны всегда.
-3. **RLS** — в SQL автоматически инжектируется WHERE-условие, ограничивающее результат записями, видимыми пользователю (на основе OWD, иерархии ролей, групп и шаринга).
+1. **OLS** — the `Read` permission on the object in SELECT and FROM is checked. If the user does not have access to the object, the query is rejected.
+2. **FLS** — the `Read` permission on each field in SELECT is checked. System fields (`Id`, `OwnerId`, `CreatedAt`, `UpdatedAt`, `CreatedById`, `UpdatedById`) are always accessible.
+3. **RLS** — a WHERE condition is automatically injected into the SQL, limiting results to records visible to the user (based on OWD, role hierarchy, groups, and sharing).
 
 ### 6.6. API
 
 **GET** `/api/v1/query?q=<SOQL>`
 
-Параметры:
-- `q` (обязательный) — строка SOQL-запроса.
+Parameters:
+- `q` (required) — SOQL query string.
 
-Пример:
+Example:
 ```
 GET /api/v1/query?q=SELECT Id, Name FROM Account LIMIT 10
 ```
 
 **POST** `/api/v1/query`
 
-Тело запроса:
+Request body:
 ```json
 {
   "query": "SELECT Id, Name FROM Account WHERE Industry = 'Tech'",
@@ -1130,7 +1165,7 @@ GET /api/v1/query?q=SELECT Id, Name FROM Account LIMIT 10
 }
 ```
 
-Ответ:
+Response:
 ```json
 {
   "totalSize": 3,
@@ -1143,54 +1178,54 @@ GET /api/v1/query?q=SELECT Id, Name FROM Account LIMIT 10
 }
 ```
 
-### 6.7. Лимиты
+### 6.7. Limits
 
-| Параметр | Значение по умолчанию |
-|----------|----------------------|
-| Максимум записей (LIMIT) | 50 000 |
-| Максимум OFFSET | 2 000 |
-| Глубина lookup (точечная нотация) | 5 уровней |
-| Максимум подзапросов | 20 |
-| Записей в подзапросе (per parent) | 200 |
-| Длина запроса | 100 000 символов |
+| Parameter | Default Value |
+|-----------|--------------|
+| Maximum records (LIMIT) | 50,000 |
+| Maximum OFFSET | 2,000 |
+| Lookup depth (dot notation) | 5 levels |
+| Maximum subqueries | 20 |
+| Records per subquery (per parent) | 200 |
+| Query length | 100,000 characters |
 
 ---
 
-## 7. DML — язык манипуляции данными
+## 7. DML — Data Manipulation Language
 
-DML (Data Manipulation Language) — встроенный язык для операций записи. Все изменения данных проходят через DML с автоматическим применением OLS и FLS. Для UPDATE и DELETE дополнительно применяется RLS.
+DML (Data Manipulation Language) is the built-in language for write operations. All data changes go through DML with automatic OLS and FLS enforcement. For UPDATE and DELETE, RLS is additionally applied.
 
 ### 7.1. INSERT
 
-Вставка одной или нескольких записей.
+Inserting one or more records.
 
 ```
-INSERT INTO <объект> (поле1, поле2, ...) VALUES (значение1, значение2, ...)
+INSERT INTO <object> (field1, field2, ...) VALUES (value1, value2, ...)
 ```
 
-**Одна запись:**
+**Single record:**
 ```
 INSERT INTO Contact (FirstName, LastName, Email)
-VALUES ('Иван', 'Петров', 'ivan@example.com')
+VALUES ('John', 'Smith', 'john@example.com')
 ```
 
-**Несколько записей (batch):**
+**Multiple records (batch):**
 ```
 INSERT INTO Contact (FirstName, LastName, Email)
 VALUES
-  ('Иван', 'Петров', 'ivan@example.com'),
-  ('Мария', 'Сидорова', 'maria@example.com')
+  ('John', 'Smith', 'john@example.com'),
+  ('Jane', 'Doe', 'jane@example.com')
 ```
 
 ### 7.2. UPDATE
 
-Обновление записей по условию.
+Updating records by condition.
 
 ```
-UPDATE <объект> SET поле1 = значение1, поле2 = значение2 [WHERE условие]
+UPDATE <object> SET field1 = value1, field2 = value2 [WHERE condition]
 ```
 
-**Примеры:**
+**Examples:**
 ```
 UPDATE Contact SET Status = 'Active' WHERE Id = '550e8400-e29b-41d4-a716-446655440000'
 
@@ -1198,34 +1233,34 @@ UPDATE Account SET Revenue = 1000000, Industry = 'Tech'
 WHERE Name LIKE 'Acme%'
 ```
 
-> **Важно:** RLS автоматически ограничивает UPDATE только записями, видимыми текущему пользователю. Попытка обновить чужую запись не вызовет ошибку, но запись не будет затронута.
+> **Important:** RLS automatically restricts UPDATE to only records visible to the current user. Attempting to update another user's record will not cause an error, but the record will not be affected.
 
 ### 7.3. DELETE
 
-Удаление записей по условию.
+Deleting records by condition.
 
 ```
-DELETE FROM <объект> WHERE условие
+DELETE FROM <object> WHERE condition
 ```
 
-**Пример:**
+**Example:**
 ```
 DELETE FROM Task WHERE Status = 'Completed' AND CreatedAt < 2023-01-01
 ```
 
-> **Важно:** По умолчанию `WHERE` обязателен для DELETE (защита от случайного удаления всех записей). RLS ограничивает удаление только видимыми записями.
+> **Important:** By default, `WHERE` is mandatory for DELETE (protection against accidental deletion of all records). RLS restricts deletion to visible records only.
 
 ### 7.4. UPSERT
 
-Вставка или обновление на основе внешнего идентификатора.
+Insert or update based on an external identifier.
 
 ```
-UPSERT <объект> (поле1, поле2, ...) VALUES (значение1, значение2, ...) ON <внешний_ключ>
+UPSERT <object> (field1, field2, ...) VALUES (value1, value2, ...) ON <external_key>
 ```
 
-Если запись с указанным значением внешнего ключа существует — выполняется UPDATE. Если не существует — INSERT.
+If a record with the specified external key value exists — UPDATE is performed. If it doesn't exist — INSERT.
 
-**Пример:**
+**Example:**
 ```
 UPSERT Account (Name, Revenue, ExternalId)
 VALUES ('Acme Inc', 1000000, 'ext_001')
@@ -1241,40 +1276,40 @@ VALUES
 ON ExternalId
 ```
 
-### 7.5. Функции в DML
+### 7.5. Functions in DML
 
-В значениях INSERT, UPDATE и UPSERT можно использовать те же функции, что и в SOQL:
+In INSERT, UPDATE, and UPSERT values, you can use the same functions as in SOQL:
 
 ```
 INSERT INTO Contact (FirstName, Email)
-VALUES (UPPER('ivan'), COALESCE(NULL, 'default@example.com'))
+VALUES (UPPER('john'), COALESCE(NULL, 'default@example.com'))
 
 UPDATE Contact SET Email = LOWER(Email) WHERE Status = 'Pending'
 ```
 
-### 7.6. Безопасность в DML
+### 7.6. Security in DML
 
-| Операция | OLS | FLS | RLS |
-|----------|-----|-----|-----|
-| **INSERT** | CanCreate | CanWrite (каждое поле) | — (не нужен) |
-| **UPDATE** | CanUpdate | CanWrite (каждое поле) | WHERE injection (только видимые записи) |
-| **DELETE** | CanDelete | — | WHERE injection (только видимые записи) |
-| **UPSERT** | CanCreate + CanUpdate | CanWrite (каждое поле) | — (INSERT path) |
+| Operation | OLS | FLS | RLS |
+|-----------|-----|-----|-----|
+| **INSERT** | CanCreate | CanWrite (each field) | — (not needed) |
+| **UPDATE** | CanUpdate | CanWrite (each field) | WHERE injection (visible records only) |
+| **DELETE** | CanDelete | — | WHERE injection (visible records only) |
+| **UPSERT** | CanCreate + CanUpdate | CanWrite (each field) | — (INSERT path) |
 
-Системные поля (`Id`, `CreatedAt`, `UpdatedAt`, `CreatedById`, `UpdatedById`) — только для чтения, их нельзя указывать в DML. Поле `OwnerId` — записываемое.
+System fields (`Id`, `CreatedAt`, `UpdatedAt`, `CreatedById`, `UpdatedById`) are read-only and cannot be specified in DML. The `OwnerId` field is writable.
 
 ### 7.7. API
 
 **POST** `/api/v1/data`
 
-Тело запроса:
+Request body:
 ```json
 {
-  "statement": "INSERT INTO Contact (FirstName, LastName) VALUES ('Иван', 'Петров')"
+  "statement": "INSERT INTO Contact (FirstName, LastName) VALUES ('John', 'Smith')"
 }
 ```
 
-Ответ:
+Response:
 ```json
 {
   "rows_affected": 1,
@@ -1282,101 +1317,101 @@ UPDATE Contact SET Email = LOWER(Email) WHERE Status = 'Pending'
 }
 ```
 
-Для UPDATE/DELETE — `updated_ids` / `deleted_ids` соответственно.
+For UPDATE/DELETE — `updated_ids` / `deleted_ids` respectively.
 
-### 7.8. Лимиты
+### 7.8. Limits
 
-| Параметр | Значение по умолчанию |
-|----------|----------------------|
-| Максимум строк в batch (INSERT/UPSERT) | 10 000 |
-| Длина выражения | 100 000 символов |
-| WHERE обязателен для DELETE | Да |
+| Parameter | Default Value |
+|-----------|--------------|
+| Maximum batch rows (INSERT/UPSERT) | 10,000 |
+| Statement length | 100,000 characters |
+| WHERE required for DELETE | Yes |
 
 ---
 
-## 8. Управление территориями (Enterprise)
+## 8. Territory Management (Enterprise)
 
-> **Внимание:** Управление территориями доступно только в Enterprise-редакции (лицензия Adverax Commercial License). В Community-редакции эти эндпоинты отсутствуют.
+> **Note:** Territory Management is only available in the Enterprise edition (Adverax Commercial License). These endpoints are not present in the Community edition.
 
-Территории — это механизм организации доступа к записям на основе географических, функциональных или иных критериев. Территории работают параллельно с иерархией ролей и расширяют модель RLS.
+Territories are a mechanism for organizing record access based on geographic, functional, or other criteria. Territories work alongside the role hierarchy and extend the RLS model.
 
-Базовый маршрут: `/api/v1/admin/territory`
+Base route: `/api/v1/admin/territory`
 
-### 8.1. Модели территорий
+### 8.1. Territory Models
 
-Модель территорий — контейнер верхнего уровня, определяющий набор территорий. Модель имеет жизненный цикл: `planning` → `active` → `archived`.
+A territory model is a top-level container that defines a set of territories. A model has a lifecycle: `planning` → `active` → `archived`.
 
-#### Маршруты
+#### Routes
 
-| Метод | Маршрут | Описание |
-|-------|---------|----------|
-| POST | `/territory/models` | Создать модель |
-| GET | `/territory/models` | Список моделей (с пагинацией) |
-| GET | `/territory/models/:id` | Получить модель по ID |
-| PUT | `/territory/models/:id` | Обновить модель |
-| DELETE | `/territory/models/:id` | Удалить модель |
-| POST | `/territory/models/:id/activate` | Активировать модель |
-| POST | `/territory/models/:id/archive` | Архивировать модель |
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/territory/models` | Create a model |
+| GET | `/territory/models` | List models (with pagination) |
+| GET | `/territory/models/:id` | Get model by ID |
+| PUT | `/territory/models/:id` | Update model |
+| DELETE | `/territory/models/:id` | Delete model |
+| POST | `/territory/models/:id/activate` | Activate model |
+| POST | `/territory/models/:id/archive` | Archive model |
 
-#### Создание модели
+#### Creating a Model
 
 ```json
 {
   "api_name": "fy2026",
-  "label": "Территориальная модель FY2026",
-  "description": "Модель территорий на 2026 финансовый год"
+  "label": "Territory Model FY2026",
+  "description": "Territory model for fiscal year 2026"
 }
 ```
 
-#### Жизненный цикл
+#### Lifecycle
 
-- **Planning** — начальное состояние. Можно редактировать структуру территорий.
-- **Active** — модель активна, территории влияют на видимость записей.
-- **Archived** — модель архивирована, территории не влияют на доступ.
+- **Planning** — initial state. Territory structure can be edited.
+- **Active** — model is active, territories affect record visibility.
+- **Archived** — model is archived, territories do not affect access.
 
-Переходы: `planning → active` (активация), `active → archived` (архивация).
+Transitions: `planning → active` (activation), `active → archived` (archiving).
 
-### 8.2. Территории
+### 8.2. Territories
 
-Территория — узел в иерархическом дереве внутри модели. Территории образуют дерево (parent → children).
+A territory is a node in a hierarchical tree within a model. Territories form a tree (parent → children).
 
-#### Маршруты
+#### Routes
 
-| Метод | Маршрут | Описание |
-|-------|---------|----------|
-| POST | `/territory/territories` | Создать территорию |
-| GET | `/territory/territories?model_id=<uuid>` | Список территорий модели |
-| GET | `/territory/territories/:id` | Получить территорию по ID |
-| PUT | `/territory/territories/:id` | Обновить территорию |
-| DELETE | `/territory/territories/:id` | Удалить территорию |
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/territory/territories` | Create a territory |
+| GET | `/territory/territories?model_id=<uuid>` | List territories of a model |
+| GET | `/territory/territories/:id` | Get territory by ID |
+| PUT | `/territory/territories/:id` | Update territory |
+| DELETE | `/territory/territories/:id` | Delete territory |
 
-#### Создание территории
+#### Creating a Territory
 
 ```json
 {
   "model_id": "...",
   "parent_id": null,
-  "api_name": "moscow_region",
-  "label": "Московский регион",
-  "description": "Включает Москву и Московскую область"
+  "api_name": "west_region",
+  "label": "West Region",
+  "description": "Includes all western states"
 }
 ```
 
-При `parent_id = null` создаётся корневая территория. При указании `parent_id` — дочерняя.
+With `parent_id = null`, a root territory is created. When specifying `parent_id` — a child territory.
 
-### 8.3. Настройки объектов по умолчанию
+### 8.3. Object Defaults
 
-Определяют, какой уровень доступа территория предоставляет к записям конкретного объекта.
+Define what access level a territory grants to records of a specific object.
 
-#### Маршруты
+#### Routes
 
-| Метод | Маршрут | Описание |
-|-------|---------|----------|
-| POST | `/territory/territories/:id/object-defaults` | Установить настройку |
-| GET | `/territory/territories/:id/object-defaults` | Список настроек территории |
-| DELETE | `/territory/territories/:id/object-defaults/:objectId` | Удалить настройку |
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/territory/territories/:id/object-defaults` | Set a default |
+| GET | `/territory/territories/:id/object-defaults` | List territory defaults |
+| DELETE | `/territory/territories/:id/object-defaults/:objectId` | Remove a default |
 
-#### Установка настройки
+#### Setting a Default
 
 ```json
 {
@@ -1385,21 +1420,21 @@ UPDATE Contact SET Email = LOWER(Email) WHERE Status = 'Pending'
 }
 ```
 
-Уровни доступа: `read`, `read_write`.
+Access levels: `read`, `read_write`.
 
-### 8.4. Назначение пользователей
+### 8.4. User Assignment
 
-Пользователи назначаются в территории (M:M связь). Пользователь может быть назначен в несколько территорий.
+Users are assigned to territories (M:M relationship). A user can be assigned to multiple territories.
 
-#### Маршруты
+#### Routes
 
-| Метод | Маршрут | Описание |
-|-------|---------|----------|
-| POST | `/territory/territories/:id/users` | Назначить пользователя |
-| GET | `/territory/territories/:id/users` | Список пользователей территории |
-| DELETE | `/territory/territories/:id/users/:userId` | Отозвать пользователя |
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/territory/territories/:id/users` | Assign a user |
+| GET | `/territory/territories/:id/users` | List territory users |
+| DELETE | `/territory/territories/:id/users/:userId` | Unassign a user |
 
-#### Назначение
+#### Assignment
 
 ```json
 {
@@ -1407,19 +1442,19 @@ UPDATE Contact SET Email = LOWER(Email) WHERE Status = 'Pending'
 }
 ```
 
-### 8.5. Назначение записей
+### 8.5. Record Assignment
 
-Конкретные записи могут быть привязаны к территории.
+Specific records can be linked to a territory.
 
-#### Маршруты
+#### Routes
 
-| Метод | Маршрут | Описание |
-|-------|---------|----------|
-| POST | `/territory/territories/:id/records` | Привязать запись |
-| GET | `/territory/territories/:id/records` | Список записей территории |
-| DELETE | `/territory/territories/:id/records/:recordId?object_id=<uuid>` | Отвязать запись |
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/territory/territories/:id/records` | Link a record |
+| GET | `/territory/territories/:id/records` | List territory records |
+| DELETE | `/territory/territories/:id/records/:recordId?object_id=<uuid>` | Unlink a record |
 
-#### Привязка записи
+#### Linking a Record
 
 ```json
 {
@@ -1429,175 +1464,981 @@ UPDATE Contact SET Email = LOWER(Email) WHERE Status = 'Pending'
 }
 ```
 
-### 8.6. Правила назначения
+### 8.6. Assignment Rules
 
-Правила автоматически назначают записи в территории на основе критериев.
+Rules automatically assign records to territories based on criteria.
 
-#### Маршруты
+#### Routes
 
-| Метод | Маршрут | Описание |
-|-------|---------|----------|
-| POST | `/territory/assignment-rules` | Создать правило |
-| GET | `/territory/assignment-rules?territory_id=<uuid>` | Список правил территории |
-| GET | `/territory/assignment-rules/:id` | Получить правило по ID |
-| PUT | `/territory/assignment-rules/:id` | Обновить правило |
-| DELETE | `/territory/assignment-rules/:id` | Удалить правило |
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/territory/assignment-rules` | Create a rule |
+| GET | `/territory/assignment-rules?territory_id=<uuid>` | List territory rules |
+| GET | `/territory/assignment-rules/:id` | Get rule by ID |
+| PUT | `/territory/assignment-rules/:id` | Update rule |
+| DELETE | `/territory/assignment-rules/:id` | Delete rule |
 
-### Как территории влияют на RLS
+### How Territories Affect RLS
 
-Пользователь, назначенный в территорию, получает доступ к записям этой территории (и всех дочерних территорий) на уровне, определённом в object-defaults. Доступ предоставляется через share-таблицы объектов с причиной `territory`.
+A user assigned to a territory gains access to records of that territory (and all child territories) at the level defined in object-defaults. Access is provided through object share tables with reason `territory`.
 
 ---
 
-## 9. Типичные сценарии
+## 9. App Templates
 
-### Сценарий 1: Первый вход в систему
+App Templates allow administrators to bootstrap the CRM with pre-configured objects and fields on first launch. Instead of manually creating objects one by one, you can apply a ready-made template that creates all necessary objects, fields, and security permissions in one operation.
 
-1. Убедитесь, что при запуске сервера задана переменная окружения `ADMIN_INITIAL_PASSWORD`.
-2. Перейдите на страницу входа (`/login`).
-3. Введите:
-   - Имя пользователя: `admin`
-   - Пароль: значение из `ADMIN_INITIAL_PASSWORD`
-4. Нажмите **«Войти»**.
-5. После входа рекомендуется сменить пароль администратора через API:
+### 9.1 Available Templates
+
+The platform ships with two built-in templates:
+
+#### Sales CRM
+
+A classic sales pipeline template with 4 objects and 36 fields.
+
+| Object | Fields | Visibility | Description |
+|--------|--------|------------|-------------|
+| Account | 9 | Private | Companies and organizations. Fields: name, website, phone, industry, employee_count, annual_revenue, billing_city, billing_country, description |
+| Contact | 9 | Private | People associated with accounts. Fields: first_name, last_name, email, phone, title, account_id (reference → Account), department, date_of_birth, description |
+| Opportunity | 9 | Private | Sales deals. Fields: name, account_id (ref → Account), contact_id (ref → Contact), amount, stage, probability, close_date, is_won, description |
+| Task | 9 | PublicReadWrite | Activities and to-do items. Fields: subject, status, priority, due_date, account_id (ref → Account), contact_id (ref → Contact), opportunity_id (ref → Opportunity), is_completed, description |
+
+Reference fields use `set_null` on delete — if a parent record is deleted, the reference field is set to NULL rather than cascading the deletion.
+
+#### Recruiting
+
+An applicant tracking system with 4 objects and 28 fields.
+
+| Object | Fields | Visibility | Description |
+|--------|--------|------------|-------------|
+| Position | 8 | PublicRead | Open job positions. Fields: title, department, location, status, salary_min, salary_max, headcount, description |
+| Candidate | 9 | Private | Job applicants. Fields: first_name, last_name, email, phone, current_company, current_title, linkedin_url, source, notes |
+| Application | 6 | Private | Candidate applications. Fields: position_id (ref → Position), candidate_id (ref → Candidate), stage, applied_date, is_rejected, rejection_reason |
+| Interview | 5 | Private | Scheduled interviews. Fields: application_id (ref → Application, cascade delete), scheduled_at, interview_type, result, feedback |
+
+The Interview object uses `cascade` on delete for application_id — deleting an Application automatically removes its Interviews.
+
+### 9.2 Applying a Template
+
+Templates can only be applied to an **empty database** (no objects exist yet). This is a one-time operation.
+
+**Steps:**
+
+1. Navigate to `/admin/templates` in the admin panel.
+2. The page displays available templates as cards showing the template name, description, and object/field count.
+3. Click the "Apply" button on the desired template.
+4. The system creates all objects and fields from the template, grants full OLS permissions to the System Administrator profile, and invalidates the metadata cache.
+5. A success notification confirms the template was applied.
+
+**Guard mechanism:** If any objects already exist in the database, the apply operation returns a `409 Conflict` error. This prevents accidental double application or mixing templates.
+
+**Security auto-grant:** After applying a template, the System Administrator profile automatically receives full CRUD permissions (Read + Create + Update + Delete) for all created objects. Other profiles need manual permission configuration.
+
+### 9.3 API
+
+#### List Templates
+
+```
+GET /api/v1/admin/templates
+```
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id": "sales_crm",
+      "label": "Sales CRM",
+      "description": "CRM for sales teams: accounts, contacts, opportunities, and tasks",
+      "status": "available",
+      "objects": 4,
+      "fields": 36
+    },
+    {
+      "id": "recruiting",
+      "label": "Recruiting",
+      "description": "Applicant tracking system: positions, candidates, applications, and interviews",
+      "status": "available",
+      "objects": 4,
+      "fields": 28
+    }
+  ]
+}
+```
+
+Template status values: `available` (can be applied), `applied` (already applied), `blocked` (unavailable).
+
+#### Apply Template
+
+```
+POST /api/v1/admin/templates/{templateId}/apply
+```
+
+Request body: `{}` (empty).
+
+**Success response:**
+```json
+{
+  "data": {
+    "template_id": "sales_crm",
+    "message": "template applied successfully"
+  }
+}
+```
+
+**Error responses:**
+
+| HTTP Code | Condition |
+|-----------|-----------|
+| 404 | Unknown template ID |
+| 409 | Objects already exist in the database |
+
+### 9.4 Limitations
+
+- **One-time only:** A template can only be applied once to an empty database.
+- **All-or-nothing:** You cannot select a subset of objects from a template.
+- **No undo:** There is no "unapply" operation. To start over, reset the database.
+- **No customization before apply:** Templates are applied as-is. Customization (adding fields, changing labels) is done after application through the standard metadata management API.
+
+---
+
+## 10. Record Management (Generic CRUD)
+
+The platform provides a universal set of REST endpoints for working with records of **any object**. There is no per-object code — the same endpoints serve Account, Contact, Opportunity, or any custom object. The frontend renders forms and tables dynamically from metadata.
+
+### 10.1 Describe API
+
+The Describe API provides metadata introspection — information about available objects and their fields.
+
+#### List Accessible Objects
+
+```
+GET /api/v1/describe
+```
+
+Returns all objects the current user can read, filtered by OLS permissions. This endpoint powers the sidebar navigation.
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "api_name": "Account",
+      "label": "Account",
+      "plural_label": "Accounts",
+      "is_createable": true,
+      "is_queryable": true
+    },
+    {
+      "api_name": "Contact",
+      "label": "Contact",
+      "plural_label": "Contacts",
+      "is_createable": true,
+      "is_queryable": true
+    }
+  ]
+}
+```
+
+Only objects where the user has OLS Read permission appear in the list.
+
+#### Describe a Specific Object
+
+```
+GET /api/v1/describe/{objectName}
+```
+
+Returns complete object metadata including all fields the user can see (filtered by FLS).
+
+**Response:**
+```json
+{
+  "data": {
+    "api_name": "Account",
+    "label": "Account",
+    "plural_label": "Accounts",
+    "is_createable": true,
+    "is_updateable": true,
+    "is_deleteable": true,
+    "fields": [
+      {
+        "api_name": "Id",
+        "label": "ID",
+        "field_type": "text",
+        "field_subtype": null,
+        "is_required": false,
+        "is_read_only": true,
+        "is_system_field": true,
+        "sort_order": -6,
+        "config": {}
+      },
+      {
+        "api_name": "Name",
+        "label": "Name",
+        "field_type": "text",
+        "field_subtype": null,
+        "is_required": true,
+        "is_read_only": false,
+        "is_system_field": false,
+        "sort_order": 1,
+        "config": {
+          "max_length": 255,
+          "default_value": null,
+          "values": []
+        }
+      }
+    ]
+  }
+}
+```
+
+**Field properties:**
+
+| Property | Description |
+|----------|-------------|
+| `api_name` | Field identifier (e.g., "Name", "Email") |
+| `label` | Display name |
+| `field_type` | Storage type: text, number, boolean, datetime, reference, picklist |
+| `field_subtype` | Semantic subtype: email, phone, url, currency, etc. (or null) |
+| `is_required` | Mandatory on create/update |
+| `is_read_only` | Cannot be modified by the user |
+| `is_system_field` | System-managed field (Id, CreatedAt, OwnerId, etc.) |
+| `sort_order` | Display order (system fields have negative values) |
+| `config` | Field-specific configuration (max_length, precision, scale, default_value, picklist values) |
+
+**Error responses:**
+
+| HTTP Code | Condition |
+|-----------|-----------|
+| 401 | Not authenticated |
+| 403 | User lacks OLS Read permission for this object |
+| 404 | Object does not exist |
+
+### 10.2 Record CRUD
+
+All record operations use the same URL pattern: `/api/v1/records/{objectName}`.
+
+#### List Records
+
+```
+GET /api/v1/records/{objectName}?page=1&per_page=20
+```
+
+Returns paginated records for the specified object. Security is enforced automatically — RLS filters out records the user cannot see, FLS filters out fields the user cannot read.
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "Id": "550e8400-e29b-41d4-a716-446655440000",
+      "OwnerId": "550e8400-e29b-41d4-a716-446655440001",
+      "CreatedAt": "2026-02-15T10:30:00Z",
+      "UpdatedAt": "2026-02-15T14:45:00Z",
+      "Name": "Acme Corp",
+      "Industry": "Technology"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "per_page": 20,
+    "total": 45,
+    "total_pages": 3
+  }
+}
+```
+
+#### Get a Single Record
+
+```
+GET /api/v1/records/{objectName}/{recordId}
+```
+
+Returns a single record by UUID. Returns `404` if the record doesn't exist or the user cannot see it (RLS).
+
+**Response:**
+```json
+{
+  "data": {
+    "Id": "550e8400-e29b-41d4-a716-446655440000",
+    "OwnerId": "550e8400-e29b-41d4-a716-446655440001",
+    "CreatedAt": "2026-02-15T10:30:00Z",
+    "UpdatedAt": "2026-02-15T14:45:00Z",
+    "Name": "Acme Corp",
+    "Industry": "Technology",
+    "Revenue": 1000000
+  }
+}
+```
+
+#### Create a Record
+
+```
+POST /api/v1/records/{objectName}
+Content-Type: application/json
+
+{
+  "Name": "New Corp",
+  "Industry": "Finance",
+  "Revenue": 5000000
+}
+```
+
+System fields are injected automatically (see [10.3 System Fields](#103-system-fields)). Validation rules and dynamic defaults are applied before the record is saved.
+
+**Response:**
+```json
+{
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+#### Update a Record
+
+```
+PUT /api/v1/records/{objectName}/{recordId}
+Content-Type: application/json
+
+{
+  "Name": "Updated Corp",
+  "Revenue": 6000000
+}
+```
+
+Partial update — only send fields that need to change. The `UpdatedById` field is set automatically to the current user.
+
+**Response:**
+```json
+{
+  "data": {
+    "success": true
+  }
+}
+```
+
+#### Delete a Record
+
+```
+DELETE /api/v1/records/{objectName}/{recordId}
+```
+
+Hard delete (no soft delete). Returns `204 No Content` on success.
+
+**Error responses (all CRUD operations):**
+
+| HTTP Code | Condition |
+|-----------|-----------|
+| 400 | Invalid request body, UUID format, or type mismatch |
+| 401 | Not authenticated |
+| 403 | OLS/FLS/RLS permission denied |
+| 404 | Object or record not found |
+
+### 10.3 System Fields
+
+Every record automatically includes 6 system fields. These fields are always present in Describe responses (with negative `sort_order`) and in record data.
+
+| Field | Type | Writable | Description |
+|-------|------|----------|-------------|
+| `Id` | UUID | No | Unique record identifier, auto-generated |
+| `OwnerId` | Reference | Yes | Record owner (defaults to current user on create) |
+| `CreatedAt` | Datetime | No | Timestamp of record creation |
+| `UpdatedAt` | Datetime | No | Timestamp of last update |
+| `CreatedById` | Reference | No | User who created the record |
+| `UpdatedById` | Reference | No | User who last updated the record |
+
+**On create:** `OwnerId` is set to the current user if not provided. `CreatedById` and `UpdatedById` are always set to the current user (override attempts are ignored).
+
+**On update:** `UpdatedById` is always set to the current user. `Id`, `CreatedAt`, and `CreatedById` cannot be changed.
+
+### 10.4 Pagination
+
+List endpoints support offset-based pagination:
+
+| Parameter | Default | Min | Max | Description |
+|-----------|---------|-----|-----|-------------|
+| `page` | 1 | 1 | — | 1-based page number |
+| `per_page` | 20 | 1 | 100 | Records per page |
+
+The response includes a `pagination` object:
+
+```json
+{
+  "pagination": {
+    "page": 2,
+    "per_page": 10,
+    "total": 45,
+    "total_pages": 5
+  }
+}
+```
+
+### 10.5 Security in Record Operations
+
+Every record operation enforces all 3 security layers:
+
+| Operation | OLS Check | FLS Check | RLS Check |
+|-----------|-----------|-----------|-----------|
+| List | Read | Read (fields filtered) | Records filtered |
+| Get | Read | Read (fields filtered) | Record must be visible |
+| Create | Create | Write (on each field) | Owner set automatically |
+| Update | Update | Write (on each field) | Record must be accessible |
+| Delete | Delete | — | Record must be accessible |
+
+If any security check fails, the operation returns `403 Forbidden` without revealing which specific check failed.
+
+---
+
+## 11. Validation Rules & Dynamic Defaults
+
+The platform supports declarative business logic through CEL (Common Expression Language) — no code required. Administrators can define validation rules that check data on every save, and dynamic defaults that compute field values automatically.
+
+### 11.1 Validation Rules
+
+A validation rule is a CEL expression that must evaluate to `true` for a record to be saved. If the expression evaluates to `false`, the save is blocked and the user sees the configured error message.
+
+**Key properties:**
+
+| Property | Description |
+|----------|-------------|
+| `api_name` | Unique identifier within the object (e.g., `name_required`) |
+| `label` | Display name for the admin UI |
+| `expression` | CEL expression that must return `true` for the record to be valid |
+| `error_message` | User-facing message shown when the rule fails |
+| `error_code` | Machine-readable error code (default: `validation_failed`) |
+| `severity` | `error` (blocks save) or `warning` (reported but doesn't block) |
+| `when_expression` | Optional CEL gate — the rule is only evaluated if this expression returns `true` |
+| `applies_to` | When the rule is checked: `create`, `update`, or `create,update` (default) |
+| `is_active` | Enable/disable the rule without deleting it |
+
+**Example rules:**
+
+| Rule | Expression | Error Message |
+|------|-----------|---------------|
+| Name required | `size(record.Name) > 0` | "Name field cannot be empty" |
+| Amount positive | `record.Amount > 0` | "Amount must be greater than zero" |
+| Email format | `record.Email.contains("@")` | "Invalid email format" |
+| Status change only | `record.Status != old.Status` | "Status must change" (with `when_expression`: `has(old)`) |
+
+**Validation semantics:** All active rules for the object are evaluated (AND semantics). If **any** rule with severity `error` fails, the entire save operation is blocked. Rules with severity `warning` are reported but do not prevent the save.
+
+### 11.2 CEL Expression Language
+
+CEL (Common Expression Language) is used for validation rules, dynamic defaults, conditional gates, and custom functions. Expressions are pure computations with no side effects.
+
+#### Available Variables
+
+| Variable | Type | Description | Available in |
+|----------|------|-------------|-------------|
+| `record` | map | Current record data (field values) | All contexts |
+| `old` | map | Previous record data (before update) | Validation rules (UPDATE only) |
+| `user` | map | Current user context | All contexts |
+| `now` | timestamp | Current UTC timestamp | All contexts |
+
+#### User Object Properties
+
+```
+user.id          — UUID of the current user
+user.profile_id  — UUID of the user's profile
+user.role_id     — UUID of the user's role (empty string if none)
+```
+
+#### Built-in Functions
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `size(x)` | Length of string, list, or map | `size(record.Name) > 0` |
+| `has(x)` | Check if field/variable exists | `has(old) && old.Status != record.Status` |
+| `contains(s)` | String contains substring | `record.Email.contains("@")` |
+| `startsWith(s)` | String starts with prefix | `record.Code.startsWith("ACC-")` |
+| `endsWith(s)` | String ends with suffix | `record.File.endsWith(".pdf")` |
+| `matches(re)` | Regex match | `record.Phone.matches("^\\+[0-9]+$")` |
+| `int(x)` | Convert to integer | `int(record.Quantity)` |
+| `double(x)` | Convert to float | `double(record.Price)` |
+| `string(x)` | Convert to string | `string(now.year)` |
+| `bool(x)` | Convert to boolean | `bool(record.IsActive)` |
+| `timestamp(s)` | Parse ISO timestamp | `timestamp("2026-01-01T00:00:00Z")` |
+| `duration(s)` | Parse duration | `duration("24h")` |
+
+#### Expression Examples
+
+```cel
+// Numeric range
+record.Amount > 0 && record.Amount <= 1000000
+
+// Conditional validation
+record.Type == "Premium" ? record.Amount >= 5000 : true
+
+// Date comparison
+now > timestamp("2026-01-01T00:00:00Z")
+
+// Compare with previous value (UPDATE)
+has(old) && record.Stage != old.Stage
+
+// User-based logic
+user.role_id != ""
+
+// String validation
+size(record.Name) >= 3 && size(record.Name) <= 100
+```
+
+### 11.3 Dynamic Defaults
+
+Dynamic defaults automatically compute field values when a record is created or updated. They are configured as CEL expressions in the field definition (`default_expr` property).
+
+**How defaults work:**
+
+1. The system examines each field definition for the object.
+2. If the field has a `default_expr` (CEL expression) or `default_value` (static value), and the field is not provided in the request, the default is applied.
+3. Static defaults (`default_value`) are converted to the field's type (int, float, bool, datetime, etc.).
+4. Dynamic defaults (`default_expr`) are evaluated as CEL expressions with access to `record`, `user`, and `now` variables.
+
+**The `default_on` property** controls when defaults are applied:
+
+| Value | Behavior |
+|-------|----------|
+| `create` | Default is applied only on INSERT (default) |
+| `update` | Default is applied only on UPDATE |
+| `create,update` | Default is applied on both |
+
+**Default examples:**
+
+| Field | default_expr | Description |
+|-------|-------------|-------------|
+| OwnerId | `user.id` | Set record owner to current user |
+| CreatedAt | `now` | Set creation timestamp |
+| Code | `"ACC-" + string(now.year)` | Generate code prefix |
+| Priority | (default_value: `"Medium"`) | Static default value |
+
+**Processing order:** Defaults are applied **before** validation rules. This means validation rules can check values set by defaults.
+
+### 11.4 DML Pipeline
+
+Every data write (INSERT, UPDATE, DELETE, UPSERT) passes through a multi-stage pipeline:
+
+```
+Parse → Resolve → Defaults → Validate → Compile → Execute
+```
+
+| Stage | Description |
+|-------|-------------|
+| **Parse** | Parse request JSON, extract field names and values |
+| **Resolve** | Look up field types from metadata, verify object exists |
+| **Defaults** | Apply static defaults (`default_value`) and dynamic defaults (`default_expr` via CEL) |
+| **Validate** | Check required fields, type constraints, OLS/FLS permissions, then evaluate CEL validation rules |
+| **Compile** | Generate parameterized SQL statement |
+| **Execute** | Execute SQL with RLS enforcement, return results |
+
+If any stage fails, the pipeline stops and returns an error. Validation rules that fail with severity `error` block the pipeline at the Validate stage.
+
+### 11.5 Admin UI
+
+Validation rules are managed through the admin panel at:
+
+```
+/admin/metadata/objects/{objectId}/validation-rules
+```
+
+**List view** — Shows all rules for the selected object with columns: api_name, label, severity badge, active/inactive badge.
+
+**Create view** — Form with fields: api_name, label, expression (with Expression Builder), error_message, error_code, severity dropdown, when_expression (optional, with Expression Builder), applies_to, description.
+
+**Detail view** — Same as create, with api_name disabled (immutable). Includes Save, Cancel, and Delete buttons.
+
+The **Expression Builder** component provides a CodeMirror editor with CEL syntax highlighting, real-time expression validation, and error display.
+
+### 11.6 CEL Validation Endpoint
+
+Administrators can validate CEL expressions before saving rules:
+
+```
+POST /api/v1/admin/cel/validate
+```
+
+**Request:**
+```json
+{
+  "expression": "size(record.Name) > 0",
+  "context": "validation_rule",
+  "object_api_name": "Account"
+}
+```
+
+**Success response:**
+```json
+{
+  "valid": true,
+  "return_type": "bool"
+}
+```
+
+**Error response:**
+```json
+{
+  "valid": false,
+  "errors": [
+    {
+      "message": "undeclared reference to 'recordd'",
+      "line": 1,
+      "column": 10
+    }
+  ]
+}
+```
+
+Context values:
+
+| Context | Variables | Purpose |
+|---------|-----------|---------|
+| `validation_rule` | record, old, user, now | Validate/when expressions in validation rules |
+| `when_expression` | record, old, user, now | Conditional gate expressions |
+| `default_expr` | record, user, now | Dynamic default expressions |
+| `function_body` | function parameters only | Custom function body expressions |
+
+---
+
+## 12. Custom Functions
+
+### 12.1 Overview
+
+Custom Functions are named, reusable CEL expressions that can be called from any CEL context — validation rules, dynamic defaults, when-expressions, and other functions. They provide a way to encapsulate common business logic without duplicating expressions.
+
+Every custom function:
+- Has a unique name and is called via the `fn.*` namespace (e.g., `fn.discount(amount)`)
+- Accepts typed parameters and returns a typed result
+- Is a **pure computation** — no side effects, no database access, no external calls
+- Works on both backend (cel-go) and frontend (cel-js) — **dual-stack**
+
+### 12.2 Creating Functions
+
+Functions are created through the admin panel at `/admin/functions` or via the REST API.
+
+**Example: Discount calculator**
+
+| Property | Value |
+|----------|-------|
+| Name | `discount` |
+| Description | Calculates discount by amount |
+| Parameters | `amount` (number) |
+| Return type | `number` |
+| Body | `amount > 1000 ? amount * 0.1 : 0.0` |
+
+**Example: Premium check**
+
+| Property | Value |
+|----------|-------|
+| Name | `is_premium` |
+| Description | Checks premium customer status |
+| Parameters | `total` (number), `count` (number) |
+| Return type | `boolean` |
+| Body | `total > 10000 && count > 5` |
+
+### 12.3 fn.* Namespace
+
+All custom functions are accessible via the `fn.` prefix. This prevents name collisions with built-in CEL functions.
+
+**Usage in validation rules:**
+```cel
+fn.is_premium(record.TotalSales, record.OrderCount) && record.Status == "active"
+```
+
+**Usage in dynamic defaults:**
+```cel
+fn.discount(record.Amount)
+```
+
+**Nested calls (max 3 levels):**
+```cel
+fn.calculate_tier(fn.discount(amount))
+```
+
+Function name resolution: the system looks up the function name in the metadata cache and evaluates the body expression with the provided arguments bound to the parameter names.
+
+### 12.4 Parameters & Return Types
+
+**Parameter types:**
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `string` | Text value | `"hello"` |
+| `number` | Integer or float | `42`, `3.14` |
+| `boolean` | True/false | `true`, `false` |
+| `list` | Array of values | `[1, 2, 3]` |
+| `map` | Key-value object | `{"key": "value"}` |
+| `any` | Any type (dynamic) | — |
+
+**Return types:** Same as parameter types. The `any` type means the function can return different types depending on input.
+
+Each function can have up to **10 parameters**. Parameters have a name, type, and optional description.
+
+### 12.5 Dependency Management
+
+Functions can call other functions, which creates dependencies. The platform enforces safety constraints:
+
+- **No cycles:** `fn_a → fn_b → fn_a` is rejected. The system uses DFS cycle detection.
+- **Max nesting depth: 3 levels.** `fn_a → fn_b → fn_c` is allowed, but adding a 4th level is rejected.
+- **Usage tracking:** Before deleting a function, the system checks if it's referenced in:
+  - Other function bodies (`metadata.functions.body`)
+  - Validation rule expressions (`metadata.validation_rules.expression` and `when_expression`)
+  - Field default expressions (`metadata.field_definitions.default_expr`)
+
+If a function is referenced anywhere, deletion returns `409 Conflict` with details about where it's used.
+
+### 12.6 Expression Builder
+
+The Expression Builder is a shared UI component used across all CEL expression contexts (validation rules, defaults, functions). It provides:
+
+- **CodeMirror editor** with CEL syntax highlighting, bracket matching, and undo/redo
+- **Real-time validation** — expressions are validated via the `/api/v1/admin/cel/validate` endpoint as you type
+- **Field picker** — suggests object field names (e.g., `record.Name`, `record.Amount`) when editing in an object context
+- **Function picker** — lists all custom `fn.*` functions grouped by category, along with built-in string, type conversion, and time functions
+- **Error display** — shows compilation errors with line/column location
+- **Return type inference** — displays the detected return type of the expression
+
+### 12.7 API
+
+#### List Functions
+
+```
+GET /api/v1/admin/functions
+```
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id": "fn111111-1111-1111-1111-111111111111",
+      "name": "discount",
+      "description": "Calculates discount by amount",
+      "params": [
+        {"name": "amount", "type": "number", "description": "Amount in currency"}
+      ],
+      "return_type": "number",
+      "body": "amount > 1000 ? amount * 0.1 : 0.0",
+      "created_at": "2026-02-15T10:00:00Z",
+      "updated_at": "2026-02-15T10:00:00Z"
+    }
+  ]
+}
+```
+
+#### Create Function
+
+```
+POST /api/v1/admin/functions
+
+{
+  "name": "discount",
+  "description": "Calculates discount by amount",
+  "params": [
+    {"name": "amount", "type": "number", "description": "Amount in currency"}
+  ],
+  "return_type": "number",
+  "body": "amount > 1000 ? amount * 0.1 : 0.0"
+}
+```
+
+Returns `201 Created` with the full function object.
+
+#### Get Function
+
+```
+GET /api/v1/admin/functions/{functionId}
+```
+
+#### Update Function
+
+```
+PUT /api/v1/admin/functions/{functionId}
+
+{
+  "description": "Updated discount calculator",
+  "body": "amount > 2000 ? amount * 0.15 : 0.0"
+}
+```
+
+Note: the `name` field cannot be changed after creation.
+
+#### Delete Function
+
+```
+DELETE /api/v1/admin/functions/{functionId}
+```
+
+Returns `204 No Content` on success. Returns `409 Conflict` if the function is referenced by other functions, validation rules, or field defaults.
+
+**Error responses:**
+
+| HTTP Code | Condition |
+|-----------|-----------|
+| 400 | Invalid name format, empty body, too many parameters |
+| 404 | Function not found |
+| 409 | Name already taken (create) or function is in use (delete) |
+
+### 12.8 Limits
+
+| Parameter | Limit | Description |
+|-----------|-------|-------------|
+| Function body size | 4 KB | Maximum CEL expression length |
+| Parameters per function | 10 | Maximum number of input parameters |
+| Nesting depth | 3 levels | Maximum fn.a → fn.b → fn.c chain |
+| Total functions | 200 | Maximum number of functions per system |
+| Name format | `^[a-z][a-z0-9_]*$` | Lowercase letters, digits, underscores |
+| Execution timeout | 100 ms | Maximum evaluation time per function call |
+
+---
+
+## 13. Common Scenarios
+
+### Scenario 1: First Login
+
+1. Ensure that the `ADMIN_INITIAL_PASSWORD` environment variable is set when starting the server.
+2. Navigate to the login page (`/login`).
+3. Enter:
+   - Username: `admin`
+   - Password: value from `ADMIN_INITIAL_PASSWORD`
+4. Click **"Login"**.
+5. After logging in, it is recommended to change the admin password via the API:
    ```
    PUT /api/v1/admin/security/users/<admin-uuid>/password
-   {"password": "новый-надёжный-пароль"}
+   {"password": "new-secure-password"}
    ```
 
-### Сценарий 2: Восстановить забытый пароль
+### Scenario 2: Recover a Forgotten Password
 
-1. На странице входа (`/login`) нажмите **«Забыли пароль?»**.
-2. Введите email, привязанный к учётной записи.
-3. Нажмите **«Отправить»**.
-4. Откройте письмо и перейдите по ссылке сброса пароля.
-5. Введите новый пароль и подтвердите его.
-6. Нажмите **«Сбросить пароль»**.
-7. Войдите с новым паролем.
+1. On the login page (`/login`), click **"Forgot password?"**.
+2. Enter the email associated with the account.
+3. Click **"Send"**.
+4. Open the email and follow the password reset link.
+5. Enter the new password and confirm it.
+6. Click **"Reset password"**.
+7. Log in with the new password.
 
-### Сценарий 3: Создать новый объект с полями
+### Scenario 3: Create a New Object with Fields
 
-1. Перейдите в **Объекты** (`/admin/metadata/objects`).
-2. Нажмите **«Создать объект»**.
-3. Заполните:
+1. Go to **Objects** (`/admin/metadata/objects`).
+2. Click **"Create Object"**.
+3. Fill in:
    - API Name: `Invoice__c`
-   - Название: `Счёт`
-   - Мн. число: `Счета`
-   - Тип объекта: `custom`
-   - Включите нужные флаги (как минимум: Создание записей, Обновление записей, Запросы).
-4. Нажмите **«Создать»**.
-5. На детальной странице объекта перейдите на вкладку **«Поля»**.
-6. Нажмите **«Добавить поле»** и создайте поля:
-   - `number__c` — тип `text`, подтип `plain`, макс. длина: 50, обязательное, уникальное.
-   - `amount__c` — тип `number`, подтип `currency`, точность: 18, масштаб: 2.
-   - `invoice_date__c` — тип `datetime`, подтип `date`.
-   - `account_id__c` — тип `reference`, подтип `association`, ссылочный объект: `Account`, при удалении: `set_null`.
+   - Label: `Invoice`
+   - Plural Label: `Invoices`
+   - Object Type: `custom`
+   - Enable the necessary flags (at minimum: Record creation, Record updates, Queries).
+4. Click **"Create"**.
+5. On the object detail page, switch to the **"Fields"** tab.
+6. Click **"Add Field"** and create fields:
+   - `number__c` — type `text`, subtype `plain`, max length: 50, required, unique.
+   - `amount__c` — type `number`, subtype `currency`, precision: 18, scale: 2.
+   - `invoice_date__c` — type `datetime`, subtype `date`.
+   - `account_id__c` — type `reference`, subtype `association`, reference object: `Account`, on delete: `set_null`.
 
-### Сценарий 4: Настроить доступ к объекту
+### Scenario 4: Configure Object Access
 
-1. Создайте или откройте **набор разрешений** (`/admin/security/permission-sets`).
-   - При создании: API Name: `invoice_access`, Название: «Доступ к счетам», Тип: `Grant`.
-2. Перейдите на вкладку **«Права на объекты»**.
-3. Найдите строку `Invoice__c` и отметьте нужные чекбоксы: Чтение, Создание, Обновление.
-4. Перейдите на вкладку **«Права на поля»**.
-5. Выберите объект `Invoice__c` в выпадающем списке.
-6. Для каждого поля отметьте: Чтение и Запись.
+1. Create or open a **permission set** (`/admin/security/permission-sets`).
+   - When creating: API Name: `invoice_access`, Label: "Invoice Access", Type: `Grant`.
+2. Go to the **"Object Permissions"** tab.
+3. Find the `Invoice__c` row and check the needed checkboxes: Read, Create, Update.
+4. Go to the **"Field Permissions"** tab.
+5. Select the `Invoice__c` object from the dropdown.
+6. For each field, check: Read and Write.
 
-### Сценарий 5: Создать пользователя с полным набором безопасности
+### Scenario 5: Create a User with Full Security Setup
 
-1. **Создайте роль** (если ещё нет):
-   - Перейдите в **Роли** → **«Создать роль»**.
-   - API Name: `sales_manager`, Название: «Менеджер по продажам».
-   - Родительская роль: выберите при необходимости.
+1. **Create a role** (if none exists):
+   - Go to **Roles** → **"Create Role"**.
+   - API Name: `sales_manager`, Label: "Sales Manager".
+   - Parent Role: select if needed.
 
-2. **Создайте профиль** (если ещё нет):
-   - Перейдите в **Профили** → **«Создать профиль»**.
-   - API Name: `sales_profile`, Название: «Профиль продаж».
+2. **Create a profile** (if none exists):
+   - Go to **Profiles** → **"Create Profile"**.
+   - API Name: `sales_profile`, Label: "Sales Profile".
 
-3. **Настройте OLS/FLS профиля:**
-   - На детальной странице профиля нажмите ссылку **«Открыть базовый набор разрешений»**.
-   - На вкладке **«Права на объекты»** — настройте CRUD-права.
-   - На вкладке **«Права на поля»** — настройте доступ к полям.
+3. **Configure profile OLS/FLS:**
+   - On the profile detail page, click the **"Open Base Permission Set"** link.
+   - On the **"Object Permissions"** tab — configure CRUD permissions.
+   - On the **"Field Permissions"** tab — configure field access.
 
-4. **Создайте пользователя:**
-   - Перейдите в **Пользователи** → **«Создать пользователя»**.
-   - Заполните: username, email, имя, фамилия.
-   - Выберите профиль: «Профиль продаж».
-   - Выберите роль: «Менеджер по продажам».
+4. **Create a user:**
+   - Go to **Users** → **"Create User"**.
+   - Fill in: username, email, first name, last name.
+   - Select profile: "Sales Profile".
+   - Select role: "Sales Manager".
 
-5. **Назначьте дополнительные наборы разрешений** (при необходимости):
-   - На детальной странице пользователя перейдите на вкладку **«Наборы разрешений»**.
-   - Нажмите **«Назначить набор»** и выберите нужный.
+5. **Assign additional permission sets** (if needed):
+   - On the user detail page, go to the **"Permission Sets"** tab.
+   - Click **"Assign Permission Set"** and select the desired one.
 
-### Сценарий 6: Ограничить доступ пользователю с помощью Deny
+### Scenario 6: Restrict User Access with Deny
 
-1. Создайте **deny-набор разрешений:**
-   - Перейдите в **Наборы разрешений** → **«Создать набор»**.
-   - API Name: `no_delete_invoices`, Название: «Запрет удаления счетов», Тип: `Deny`.
-2. На вкладке **«Права на объекты»** — отметьте чекбокс **Удаление** для объекта `Invoice__c`.
-3. Назначьте этот набор пользователю:
-   - Откройте детальную страницу пользователя → вкладка **«Наборы разрешений»** → **«Назначить набор»** → выберите «Запрет удаления счетов».
+1. Create a **deny permission set:**
+   - Go to **Permission Sets** → **"Create Permission Set"**.
+   - API Name: `no_delete_invoices`, Label: "No Invoice Deletion", Type: `Deny`.
+2. On the **"Object Permissions"** tab — check the **Delete** checkbox for the `Invoice__c` object.
+3. Assign this set to the user:
+   - Open the user detail page → **"Permission Sets"** tab → **"Assign Permission Set"** → select "No Invoice Deletion".
 
-Теперь, даже если профиль пользователя разрешает удаление счетов, deny-набор его заблокирует.
+Now, even if the user's profile allows invoice deletion, the deny set will block it.
 
-### Сценарий 7: Передать пользователю другую роль
+### Scenario 7: Change a User's Role
 
-1. Перейдите в **Пользователи** → откройте нужного пользователя.
-2. На вкладке **«Основное»** измените значение в поле **Роль**.
-3. Нажмите **«Сохранить»**.
+1. Go to **Users** → open the desired user.
+2. On the **"General"** tab, change the value in the **Role** field.
+3. Click **"Save"**.
 
-Членство в ролевых группах пересчитается автоматически.
+Membership in role groups is recalculated automatically.
 
-### Сценарий 8: Настроить видимость объекта
+### Scenario 8: Configure Object Visibility
 
-1. Перейдите в **Объекты** → откройте нужный объект.
-2. В поле **«Видимость (OWD)»** выберите нужное значение:
-   - `private` — записи видит только владелец (по умолчанию).
-   - `public_read` — все могут читать, обновлять — только владелец.
-   - `public_read_write` — полный доступ для всех (share-таблица не создаётся).
-   - `controlled_by_parent` — доступ определяется родительским объектом.
-3. Нажмите **«Сохранить»**.
+1. Go to **Objects** → open the desired object.
+2. In the **"Visibility (OWD)"** field, select the desired value:
+   - `private` — only the owner can see records (default).
+   - `public_read` — everyone can read, updates — only by owner.
+   - `public_read_write` — full access for everyone (no share table created).
+   - `controlled_by_parent` — access is determined by the parent object.
+3. Click **"Save"**.
 
-> **Внимание:** При смене с `public_read_write` на любой другой режим создаётся share-таблица. При смене на `public_read_write` — share-таблица удаляется вместе со всеми записями шаринга.
+> **Warning:** When switching from `public_read_write` to any other mode, a share table is created. When switching to `public_read_write` — the share table is deleted along with all sharing entries.
 
-### Сценарий 9: Расшарить записи отделу продаж
+### Scenario 9: Share Records with the Sales Department
 
-1. **Создайте правило совместного доступа:**
-   - Объект: выберите нужный (например, `Invoice__c`).
-   - Тип правила: `owner_based`.
-   - Исходная группа: `role_sales_manager` (владельцы записей — менеджеры).
-   - Целевая группа: `role_and_sub_sales_director` (доступ — директор и все подчинённые).
-   - Уровень доступа: `read`.
+1. **Create a sharing rule:**
+   - Object: select the desired one (e.g., `Invoice__c`).
+   - Rule type: `owner_based`.
+   - Source group: `role_sales_manager` (record owners — managers).
+   - Target group: `role_and_sub_sales_director` (access — director and all subordinates).
+   - Access level: `read`.
 
-Теперь все записи, принадлежащие менеджерам по продажам, будут видны директору по продажам и его подчинённым.
+Now all records owned by sales managers will be visible to the sales director and their subordinates.
 
-### Сценарий 10: Предоставить ручной доступ к конкретной записи
+### Scenario 10: Grant Manual Access to a Specific Record
 
-1. Вызовите API ручного шаринга:
-   - Таблица: `obj_invoice` (имя таблицы объекта).
-   - ID записи: UUID конкретного счёта.
-   - Группа: UUID персональной группы пользователя (или публичной группы).
-   - Уровень доступа: `read_write`.
+1. Call the manual sharing API:
+   - Table: `obj_invoice` (object table name).
+   - Record ID: UUID of the specific invoice.
+   - Group: UUID of the user's personal group (or a public group).
+   - Access level: `read_write`.
 
-Запись появится в share-таблице `obj_invoice__share` с причиной `manual`.
+The entry will appear in the `obj_invoice__share` share table with reason `manual`.
 
-### Сценарий 11: Создать публичную группу для проектной команды
+### Scenario 11: Create a Public Group for a Project Team
 
-1. Создайте группу типа `public`:
+1. Create a group of type `public`:
    - API Name: `project_alpha_team`
-   - Название: «Команда проекта Alpha»
-2. Добавьте участников — по одному пользователю или целой группе.
-3. Используйте эту группу в правилах совместного доступа или для ручного шаринга.
+   - Label: "Project Alpha Team"
+2. Add members — individual users or entire groups.
+3. Use this group in sharing rules or for manual sharing.
 
 ---
 
-### Сценарий 12: Выполнить SOQL-запрос к данным
+### Scenario 12: Execute a SOQL Query
 
-1. Отправьте GET-запрос:
+1. Send a GET request:
    ```
    GET /api/v1/query?q=SELECT Id, Name, Email FROM Contact WHERE Status = 'Active' ORDER BY Name LIMIT 20
    ```
-2. Или POST-запрос для длинных запросов:
+2. Or a POST request for long queries:
    ```json
    POST /api/v1/query
    {
@@ -1605,39 +2446,107 @@ UPDATE Contact SET Email = LOWER(Email) WHERE Status = 'Pending'
      "pageSize": 50
    }
    ```
-3. Ответ содержит массив `records` с полями, запрошенными в SELECT. Все поля, недоступные пользователю по FLS, будут исключены. Записи, невидимые по RLS, не попадут в результат.
+3. The response contains a `records` array with the fields requested in SELECT. All fields inaccessible to the user by FLS will be excluded. Records invisible by RLS will not appear in the results.
 
-### Сценарий 13: Создать записи через DML
+### Scenario 13: Create Records via DML
 
-1. Отправьте POST-запрос:
+1. Send a POST request:
    ```json
    POST /api/v1/data
    {
-     "statement": "INSERT INTO Contact (FirstName, LastName, Email) VALUES ('Иван', 'Петров', 'ivan@example.com')"
+     "statement": "INSERT INTO Contact (FirstName, LastName, Email) VALUES ('John', 'Smith', 'john@example.com')"
    }
    ```
-2. Ответ содержит `inserted_ids` — список UUID созданных записей.
-3. Для пакетной вставки передайте несколько строк VALUES через запятую (до 10 000 строк).
+2. The response contains `inserted_ids` — a list of UUIDs of the created records.
+3. For batch inserts, pass multiple VALUES rows separated by commas (up to 10,000 rows).
 
-### Сценарий 14: Обновить записи через DML
+### Scenario 14: Update Records via DML
 
-1. Отправьте POST-запрос:
+1. Send a POST request:
    ```json
    POST /api/v1/data
    {
      "statement": "UPDATE Contact SET Status = 'Inactive' WHERE LastLoginDate < 2025-01-01"
    }
    ```
-2. Ответ содержит `updated_ids`. RLS гарантирует, что обновятся только записи, видимые текущему пользователю.
+2. The response contains `updated_ids`. RLS guarantees that only records visible to the current user will be updated.
 
-### Сценарий 15: Настроить территориальную модель (Enterprise)
+### Scenario 15: Set Up a Territory Model (Enterprise)
 
-1. **Создайте модель:** POST `/api/v1/admin/territory/models` с `api_name`, `label`.
-2. **Создайте территории:** POST `/api/v1/admin/territory/territories` — корневую и дочерние (указывая `parent_id`).
-3. **Настройте доступ:** POST `/api/v1/admin/territory/territories/:id/object-defaults` — укажите `object_id` и `access_level` (`read` или `read_write`) для каждого объекта.
-4. **Назначьте пользователей:** POST `/api/v1/admin/territory/territories/:id/users` — добавьте пользователей в территории.
-5. **Активируйте модель:** POST `/api/v1/admin/territory/models/:id/activate` — территории начнут влиять на видимость записей.
+1. **Create a model:** POST `/api/v1/admin/territory/models` with `api_name`, `label`.
+2. **Create territories:** POST `/api/v1/admin/territory/territories` — root and child territories (specifying `parent_id`).
+3. **Configure access:** POST `/api/v1/admin/territory/territories/:id/object-defaults` — specify `object_id` and `access_level` (`read` or `read_write`) for each object.
+4. **Assign users:** POST `/api/v1/admin/territory/territories/:id/users` — add users to territories.
+5. **Activate the model:** POST `/api/v1/admin/territory/models/:id/activate` — territories will begin affecting record visibility.
+
+### Scenario 16: Apply an App Template
+
+1. Ensure the database is empty (no objects created yet).
+2. Navigate to `/admin/templates`.
+3. Choose a template (e.g., "Sales CRM") and click "Apply".
+4. The system creates 4 objects (Account, Contact, Opportunity, Task) with 36 fields, grants OLS permissions to the System Administrator profile, and rebuilds the metadata cache.
+5. Navigate to `/app` — the sidebar now shows the created objects. You can immediately start creating records.
+
+### Scenario 17: Create and Edit Records via Generic CRUD
+
+1. Navigate to `/app` — the sidebar shows all objects accessible to the current user.
+2. Click on an object (e.g., "Accounts") to see the record list.
+3. Click "Create" — the form renders all editable fields from the object metadata.
+4. Fill in the required fields (e.g., Name) and click "Create".
+5. The system injects system fields (OwnerId, CreatedById), applies dynamic defaults, runs validation rules, and saves the record.
+6. To edit, click on a record in the list, modify fields, and click "Save".
+7. To delete, open a record and click "Delete" with confirmation.
+
+### Scenario 18: Configure a Validation Rule
+
+1. Navigate to `/admin/metadata/objects` and click on the target object.
+2. Go to the "Validation Rules" tab and click "Create".
+3. Fill in the form:
+   - **api_name:** `amount_positive`
+   - **label:** "Amount must be positive"
+   - **expression:** `record.Amount > 0` (use the Expression Builder for autocompletion)
+   - **error_message:** "Amount must be greater than zero"
+   - **severity:** `error`
+   - **applies_to:** `create,update`
+4. Click "Create". The rule is immediately active.
+5. Test: Try to create a record with Amount = 0 — the system returns an error with the message "Amount must be greater than zero".
+
+### Scenario 19: Set Up Dynamic Defaults for a Field
+
+1. Navigate to `/admin/metadata/objects/{objectId}/fields` and edit the target field.
+2. Set the `default_expr` property to a CEL expression. Examples:
+   - `user.id` — auto-fill with the current user's ID.
+   - `now` — set the current timestamp.
+   - `"ACC-" + string(now.year)` — generate a code prefix.
+3. Set `default_on` to control when the default applies: `create`, `update`, or `create,update`.
+4. Save the field definition.
+5. Test: Create a record without providing a value for this field — the default expression is evaluated and the result is saved.
+
+### Scenario 20: Create a Custom Function
+
+1. Navigate to `/admin/functions` and click "Create".
+2. Fill in:
+   - **name:** `discount` (lowercase with underscores)
+   - **description:** "Calculates discount by amount"
+   - **parameters:** Add a parameter `amount` of type `number`
+   - **return_type:** `number`
+   - **body:** `amount > 1000 ? amount * 0.1 : 0.0`
+3. The Expression Builder validates the expression in real time.
+4. Click "Create".
+5. Now use this function in any CEL context:
+   - Validation rule: `fn.discount(record.Amount) < record.MaxDiscount`
+   - Dynamic default: `fn.discount(record.TotalSales)`
+
+### Scenario 21: Use the Expression Builder
+
+1. When editing a validation rule, default expression, or function body, the Expression Builder provides:
+   - **CodeMirror editor** with syntax highlighting for CEL.
+   - **Field picker** (tab "Fields") — click a field name to insert `record.FieldName` at the cursor.
+   - **Function picker** (tab "Functions") — click a function name to insert `fn.function_name()` at the cursor.
+   - **Real-time validation** — the expression is checked as you type; errors are shown with line and column numbers.
+   - **Return type display** — shows the inferred return type of the expression.
+2. The same Expression Builder component is used across all CEL contexts: validation rules, when-expressions, default expressions, and function bodies.
 
 ---
 
-*Документ создан для CRM Platform. Актуален для Phase 0–5 (Scaffolding, Metadata engine, Security engine, SOQL, DML, Auth) + Territory Management (Enterprise).*
+*Document created for CRM Platform. Current for Phase 0–8 (Scaffolding, Metadata engine, Security engine, SOQL, DML, Auth, App Templates, Generic CRUD, CEL engine, Validation Rules, Dynamic Defaults, Custom Functions) + Territory Management (Enterprise).*

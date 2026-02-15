@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onBeforeUnmount, shallowRef } from 'vue'
 import { EditorView, keymap } from '@codemirror/view'
-import { EditorState, type Extension } from '@codemirror/state'
+import { EditorState, Compartment, type Extension } from '@codemirror/state'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { bracketMatching } from '@codemirror/language'
 import { celLanguage } from '@/lib/codemirror/cel-language'
@@ -28,6 +28,7 @@ const emit = defineEmits<{
 
 const editorContainer = ref<HTMLDivElement | null>(null)
 const view = shallowRef<EditorView | null>(null)
+const dynamicCompartment = new Compartment()
 let isUpdating = false
 
 function createExtensions(): Extension[] {
@@ -61,7 +62,7 @@ function createExtensions(): Extension[] {
         outlineOffset: '-1px',
       },
     }),
-    ...props.extensions,
+    dynamicCompartment.of(props.extensions),
   ]
 }
 
@@ -99,6 +100,16 @@ watch(
       })
       isUpdating = false
     }
+  },
+)
+
+watch(
+  () => props.extensions,
+  (newExtensions) => {
+    if (!view.value) return
+    view.value.dispatch({
+      effects: dynamicCompartment.reconfigure(newExtensions),
+    })
   },
 )
 

@@ -3,6 +3,7 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { functionsApi } from '@/api/functions'
 import { useToast } from '@/composables/useToast'
+import { useFunctionsStore } from '@/stores/functions'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
 import ExpressionBuilder from '@/components/admin/expression-builder/ExpressionBuilder.vue'
@@ -28,6 +29,7 @@ const props = defineProps<{
 
 const router = useRouter()
 const toast = useToast()
+const functionsStore = useFunctionsStore()
 
 const fn = ref<Function | null>(null)
 const loading = ref(false)
@@ -103,6 +105,7 @@ async function onSave() {
         : undefined,
     })
     toast.success('Функция обновлена')
+    await functionsStore.invalidate()
   } catch (err) {
     toast.errorFromApi(err)
   } finally {
@@ -114,6 +117,7 @@ async function onDelete() {
   try {
     await functionsApi.delete(props.functionId)
     toast.success('Функция удалена')
+    await functionsStore.invalidate()
     router.push({ name: 'admin-functions' })
   } catch (err) {
     toast.errorFromApi(err)
