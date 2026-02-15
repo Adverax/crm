@@ -275,7 +275,9 @@ field_definitions.field_subtype = "string" | "number" | "boolean" | "datetime"
 - Validation overrides — дополнительные правила (additive only)
 - Default overrides — альтернативные дефолты (replace)
 
-Отдельный ADR при необходимости.
+**Архитектурная роль: адаптер bounded context (DDD).** Один и тот же объект (например `Order`) обслуживает разные бизнес-роли: менеджер по продажам, кладовщик, руководитель. Каждая роль работает в своём bounded context — со своим набором полей, действий, related lists и sidebar. Object View, привязанный к профилю (`profile_id`), адаптирует единые данные к контексту конкретной роли без дублирования кода. OLS/FLS/RLS контролируют *доступ к данным*, Object View контролирует *представление данных*. При этом Object View только сужает видимость (FLS intersection), но не расширяет доступ.
+
+Детализация: [ADR-0022](0022-object-view-bounded-context.md) — структура config, resolution logic, sidebar/dashboard per profile, примеры role-based UI.
 
 #### 5. Automation Rules (per-object, будущее)
 
@@ -369,3 +371,4 @@ Generic CRUD endpoints   CEL engine (cel-go)       Formula Fields        Object 
 - ADR-0009..0012 — Security layers (validation rules дополняют, но не заменяют OLS/FLS/RLS)
 - ADR-0018 — App Templates (создают schema; подсистемы из этого ADR определяют поведение)
 - ADR-0020 — DML Pipeline Extension (typed stages — точки интеграции подсистем в DML Engine)
+- ADR-0022 — Object View как адаптер bounded context (детализация подсистемы 4: role-based UI, config schema, resolution logic)
