@@ -65,11 +65,11 @@
 | Record Types | Не реализовано | Phase 9c |
 | Object Views (role-based layouts) | Не реализовано | Phase 9a (ADR-0022) |
 | Compact Layouts (highlight fields) | Не реализовано | Phase 9a (ADR-0022) |
-| Formula Fields | Не реализовано | Phase 10 |
-| Roll-Up Summary Fields | Не реализовано | Phase 10 |
-| Validation Rules (formula-based) | Не реализовано | Phase 10 |
+| Formula Fields | Не реализовано | Phase 12 |
+| Roll-Up Summary Fields | Не реализовано | Phase 12 |
+| Validation Rules (formula-based) | Не реализовано | Phase 12 |
 | Field History Tracking | Не реализовано | Phase N (ee/) |
-| Custom Metadata Types (`__mdt`) | Не реализовано | Phase 11 |
+| Custom Metadata Types (`__mdt`) | Не реализовано | Phase 14 |
 | Big Objects | Не реализовано | Далёкая перспектива |
 | External Objects | Не реализовано | Далёкая перспектива |
 
@@ -165,7 +165,7 @@ Row-Level Security — кто видит какие записи.
 | Возможность | Фаза |
 |-------------|------|
 | Cursor-based pagination (queryLocator) | Phase 3d |
-| SOSL (full-text search) | Phase 12 |
+| SOSL (full-text search) | Phase 15 |
 | `GET /api/v1/soql/describe/{objectName}` | Phase 3d |
 
 ---
@@ -195,10 +195,10 @@ Row-Level Security — кто видит какие записи.
 
 | Возможность | Фаза |
 |-------------|------|
-| Procedure/Scenario triggers (before/after insert/update/delete) | Phase 13 |
+| Automation Rules triggers (before/after insert/update/delete) | Phase 10 |
 | Undelete (Recycle Bin) | Phase 4d |
 | Merge | Phase 4d |
-| Validation Rules (formula-based, pre-DML) | Phase 10 |
+| Validation Rules (formula-based, pre-DML) | Phase 12 |
 | Cascade delete (composition) | Phase 4a |
 | Set null on delete (association) | Phase 4a |
 | Partial success mode (`allOrNone: false`) | Phase 4d |
@@ -266,10 +266,10 @@ Row-Level Security — кто видит какие записи.
 
 | Шаблон | Объекты | Фаза |
 |--------|---------|------|
-| Customer Support | Case, Knowledge Article, Entitlement | Phase 8 |
-| Marketing | Campaign, CampaignMember, Lead | Phase 8 |
-| Commerce | Product, PriceBook, Order, OrderItem | Phase 11 |
-| Project Management | Project, Milestone, Task, TimeEntry | Phase 11 |
+| Customer Support | Case, Knowledge Article, Entitlement | Phase 14 |
+| Marketing | Campaign, CampaignMember, Lead | Phase 14 |
+| Commerce | Product, PriceBook, Order, OrderItem | Phase 14 |
+| Project Management | Project, Milestone, Task, TimeEntry | Phase 14 |
 
 ---
 
@@ -315,16 +315,16 @@ Row-Level Security — кто видит какие записи.
 - [ ] Related lists: child objects на detail page (SOQL subqueries)
 - [ ] Inline edit: click-to-edit на detail page
 - [ ] List views: saved filters (мои записи, все записи, custom)
-- [ ] Global search (placeholder → SOSL в Phase 12)
+- [ ] Global search (placeholder → SOSL в Phase 15)
 - [ ] Recent items
 
 **UI features для будущих фаз:**
 
 | Возможность | Фаза |
 |-------------|------|
-| Kanban view (Opportunity stages) | Phase 8 |
-| Calendar view (Events) | Phase 8 |
-| Home page с dashboards | Phase 8 |
+| Kanban view (Opportunity stages) | Phase 11 |
+| Calendar view (Events) | Phase 11 |
+| Home page с dashboards | Phase 11 |
 | Dynamic Forms (visibility rules) | Phase 9c |
 | Object Views per profile (role-based UI) | Phase 9a |
 | Navigation + Dashboard per profile | Phase 9b |
@@ -332,17 +332,21 @@ Row-Level Security — кто видит какие записи.
 
 ---
 
-### Phase 8: Notifications, Dashboard, Activity ⬜
+### Phase 8: Custom Functions (ADR-0026) ⬜
 
-CRM становится рабочим инструментом.
+Именованные чистые CEL-выражения — фундамент для переиспользования вычислительной логики.
 
-- [ ] In-app notifications: bell icon, notification list, read/unread
-- [ ] Email notifications: template engine, trigger-based sending
-- [ ] Home dashboard: pipeline chart, tasks due today, recent items
-- [ ] Activity timeline: хронология tasks/events на record detail
-- [ ] Kanban board для Opportunity stages
-- [ ] Calendar view для Events
-- [ ] Pipeline reports: grouped by stage, by owner, by close_date month
+- [ ] **metadata.functions table**: id, name, description, params JSONB, return_type, body TEXT
+- [ ] **CEL integration**: fn.* namespace, cel-go registration, ProgramCache extension
+- [ ] **Dual-stack**: загрузка в cel-go (backend) + cel-js (frontend) через Describe API
+- [ ] **Safety**: circular dependency detection, recursion prevention, call stack tracking
+- [ ] **Limits**: 4KB body, 100ms timeout, 3 levels nesting, 10 params, 200 functions max
+- [ ] **Admin REST API**: CRUD functions + test endpoint + dependencies view (7 endpoints)
+- [ ] **Function Constructor UI**: create/edit + Expression Builder + live preview
+- [ ] **Expression Builder**: reusable component — field picker, operator picker, function picker
+- [ ] **Dependency tracking**: where-used view, deletion protection (409 Conflict)
+- [ ] **Migration + pgTAP tests**: UP/DOWN + schema tests for metadata.functions
+- [ ] **E2E tests**: admin function CRUD + Expression Builder
 
 ---
 
@@ -362,6 +366,11 @@ CRM становится рабочим инструментом.
 - [ ] **Vue.js Admin UI**: Object View list/create/detail + preview
 - [ ] **Frontend renderer**: RecordDetailView/RecordCreateView рендерят по Object View config (sections, field order, actions)
 - [ ] **Fallback**: без Object View — текущее поведение (все FLS-доступные поля)
+- [ ] **Layout (ADR-0027)**: `metadata.layouts` table, Layout per (object_view, form_factor: desktop/tablet/mobile)
+- [ ] **Layout config**: section_config (columns, collapsed, visibility_expr), field_config (col_span, ui_kind, required_expr, readonly_expr, reference_config), list_columns (width, align, sortable)
+- [ ] **Form (computed)**: merge OV + Layout → Form в Describe API response. Frontend работает только с Form
+- [ ] **Admin Layout UI**: CRUD layouts, preview per form factor, sync с OV lifecycle
+- [ ] **ui_kind enum**: 20+ типов (auto, text, textarea, badge, lookup, rating, slider, toggle, etc.)
 
 #### Phase 9b: Navigation + Dashboard per Profile
 
@@ -382,24 +391,109 @@ CRM становится рабочим инструментом.
 
 ---
 
-### Phase 10: Formula Engine + Custom Functions ⬜
+### Phase 10: Procedure Engine + Automation Rules (ADR-0024) ⬜
 
-Вычисляемые поля, именованные функции и расширенная валидация.
+Декларативная автоматизация: от атомарных команд до составных процедур.
 
-- [ ] **Custom Functions (ADR-0026)**: именованные CEL-выражения с типизированными параметрами (`fn.*` namespace)
-- [ ] **Dual-stack functions**: загрузка в cel-go (backend) + cel-js (frontend) через Describe API
-- [ ] **Function Constructor UI**: admin-страница create/edit + Expression Builder + live preview + dependency view
-- [ ] **Expression Builder integration**: пользовательские функции в каталоге Function picker
+#### Phase 10a: Procedure Engine Core
+
+- [ ] **Procedure runtime**: JSON DSL parsing, CEL evaluation, command execution
+- [ ] **Command types**: `record.*` (CRUD через DML), `notification.*` (email/in-app), `integration.*` (HTTP), `compute.*` (transform/validate/fail), `flow.*` (call/if/match)
+- [ ] **Conditional logic**: `when` (per-command), `flow.if` (condition/then/else), `flow.match` (expression/cases)
+- [ ] **Rollback (Saga)**: LIFO compensating commands
+- [ ] **Security sandbox**: лимиты (30s timeout, 50 commands, 10 HTTP calls), OLS/FLS/RLS enforcement
+- [ ] **Storage**: `metadata.procedures` table (JSONB), snapshot versioning
+- [ ] **Admin REST API**: CRUD procedures + test (dry-run)
+- [ ] **Procedure Constructor UI**: visual form-based builder → JSON
+- [ ] **pgTAP tests**: schema tests for metadata.procedures
+
+#### Phase 10b: Automation Rules
+
+- [ ] **Automation Rules**: trigger definitions (before/after insert/update/delete)
+- [ ] **Rule conditions**: CEL expression (`new.status != old.status`)
+- [ ] **Actions**: invoke Procedure, field update, send notification
+- [ ] **Execution order**: sort_order per object per event
+- [ ] **Storage**: `metadata.automation_rules` table
+- [ ] **Admin REST API + UI**: CRUD automation rules
+- [ ] **pgTAP tests + E2E tests**
+
+**Automation features для далёкой перспективы:**
+
+| Возможность SF | Аналог |
+|----------------|--------|
+| Apex (custom language) | Go trigger handlers (compiled) |
+| Process Builder | Procedure Engine покрывает |
+| Workflow Rules | Procedure Engine + Automation Rules покрывает |
+| Flow Builder (visual) | Visual Builder поверх JSON DSL (Phase N) |
+| Assignment Rules | Automation Rule + Procedure |
+| Escalation Rules | Scenario + timers |
+
+---
+
+### Phase 11: Notifications, Activity & CRM UX ⬜
+
+CRM как ежедневный рабочий инструмент. Notifications построены на Procedure Engine.
+
+#### Phase 11a: Notifications & Activity
+
+- [ ] **In-app notifications**: bell icon, notification list, read/unread, mark all read
+- [ ] **Notification model**: `notification_types` + `notifications` table
+- [ ] **Email notifications**: template engine (Go templates), SMTP sender
+- [ ] **Trigger integration**: Automation Rules → `notification.email` / `notification.in_app` commands
+- [ ] **Activity timeline**: chronological tasks/events on record detail page
+- [ ] **Activity model**: `hasActivities` flag on object → polymorphic activity feed
+
+#### Phase 11b: CRM UX Enhancements
+
+- [ ] **Home dashboard**: pipeline chart, tasks due today, recent items
+- [ ] **Kanban board**: drag-and-drop for picklist stages (Opportunity, Case)
+- [ ] **Calendar view**: events display, day/week/month
+- [ ] **Pipeline reports**: grouped by stage, by owner, by period
+
+---
+
+### Phase 12: Formula Engine ⬜
+
+Вычисляемые поля и расширенная валидация на формулах.
+
 - [ ] **Formula parser**: арифметика, строковые функции, date math, IF/CASE, cross-object refs
-- [ ] **Formula fields**: read-only computed на уровне SOQL (SQL expression в SELECT)
+- [ ] **Formula fields**: read-only computed at SOQL level (SQL expression в SELECT)
 - [ ] **Roll-Up Summary fields**: COUNT, SUM, MIN, MAX на master-detail parent
-- [ ] **Validation Rules**: boolean formula → error message, checked before DML save
-- [ ] **Default values**: formula или literal, applied on insert
+- [ ] **Validation Rules (formula-based)**: boolean formula → error message, pre-DML
+- [ ] **Default values (formula)**: formula или literal, applied on insert
 - [ ] **Auto-number fields**: sequence-based auto-increment с форматом (INV-{0000})
 
 ---
 
-### Phase 11: Advanced CRM Objects ⬜
+### Phase 13: Scenario Engine + Approval Processes (ADR-0025) ⬜
+
+Оркестрация долгоживущих процессов с durability и approval workflow.
+
+#### Phase 13a: Scenario Engine
+
+- [ ] **Orchestrator**: sequential workflow + goto + loop
+- [ ] **Steps**: вызов Procedure, inline Command, wait signal/timer
+- [ ] **Signals**: внешние события (approval, webhook, email confirm)
+- [ ] **Timers**: delay, until, timeout, reminder
+- [ ] **Rollback (Saga)**: LIFO компенсация завершённых steps
+- [ ] **Durability**: PostgreSQL persistence (`scenario_executions`, `scenario_step_history`)
+- [ ] **Recovery**: restart-safe — возобновление с последнего checkpoint
+- [ ] **Idempotency**: `{executionId}-{stepCode}` key per step
+- [ ] **Signal API**: `POST /executions/{id}/signal`
+- [ ] **Admin REST API + Constructor UI**: CRUD scenarios, execution monitoring
+
+#### Phase 13b: Approval Processes
+
+- [ ] Approval definition: entry criteria, steps, approvers
+- [ ] Submit for approval → pending → approved/rejected
+- [ ] Email notifications per step (via Procedure Engine)
+- [ ] Field updates on approve/reject (via Procedure Engine)
+- [ ] Approval history on record detail
+- [ ] Реализация как built-in Scenario + approval commands
+
+---
+
+### Phase 14: Advanced CRM Objects ⬜
 
 Расширение набора стандартных объектов для полноценного CRM.
 
@@ -417,7 +511,7 @@ CRM становится рабочим инструментом.
 
 ---
 
-### Phase 12: Full-Text Search (SOSL) ⬜
+### Phase 15: Full-Text Search (SOSL) ⬜
 
 Поиск по всем объектам одновременно.
 
@@ -429,63 +523,7 @@ CRM становится рабочим инструментом.
 
 ---
 
-### Phase 13: Automation Engine ⬜
-
-Декларативная автоматизация бизнес-логики: от атомарных операций до долгоживущих процессов.
-
-#### Phase 13a: Procedure Engine (ADR-0024)
-
-Декларативный YAML DSL для синхронной бизнес-логики.
-
-- [ ] **Procedure runtime**: парсинг YAML, CEL evaluation, command execution
-- [ ] **Command types**: `record.*` (CRUD через DML), `notification.*` (email/sms/push), `integration.*` (HTTP), `compute.*` (transform/validate/fail), `flow.*` (call/start)
-- [ ] **Компактный синтаксис**: `create Account:`, `email $.to welcome:`, `POST url:`
-- [ ] **Условная логика**: `when`, `if/else`, `match`
-- [ ] **Rollback (Saga)**: LIFO компенсационные actions
-- [ ] **Security sandbox**: лимиты (30s timeout, 50 commands, 10 HTTP), OLS/FLS/RLS enforcement
-- [ ] **Тестирование**: dry-run, декларативные YAML-тесты
-- [ ] **Storage**: `metadata.procedures` table, snapshot versioning
-- [ ] **Admin REST API**: CRUD procedures
-- [ ] **Vue.js Admin UI**: procedure list/create/detail
-
-#### Phase 13b: Scenario Engine (ADR-0025)
-
-Оркестрация долгоживущих бизнес-процессов с durability.
-
-- [ ] **Orchestrator**: sequential workflow + goto + loop
-- [ ] **Steps**: вызов Procedure, inline Command, wait signal/timer
-- [ ] **Signals**: внешние события (approval, webhook, email confirm)
-- [ ] **Timers**: delay, until, timeout, reminder
-- [ ] **Rollback (Saga)**: LIFO компенсация завершённых steps
-- [ ] **Durability**: PostgreSQL persistence (`scenario_executions`, `scenario_step_history`)
-- [ ] **Recovery**: restart-safe — возобновление с последнего checkpoint
-- [ ] **Idempotency**: `{executionId}-{stepCode}` key per step
-- [ ] **Signal API**: `POST /executions/{id}/signal`
-- [ ] **Admin REST API**: CRUD scenarios, execution monitoring
-
-#### Phase 13c: Approval Processes
-
-- [ ] Approval definition: entry criteria, steps, approvers
-- [ ] Submit for approval → pending → approved/rejected
-- [ ] Email notifications на каждом шаге (через Procedure Engine)
-- [ ] Field updates on approve/reject (через Procedure Engine)
-- [ ] Approval history на record detail
-- [ ] Реализация как built-in Scenario + approval commands
-
-**Automation features для далёкой перспективы:**
-
-| Возможность SF | Аналог |
-|----------------|--------|
-| Apex (custom language) | Go trigger handlers (compiled) |
-| Process Builder | Procedure Engine покрывает |
-| Workflow Rules | Procedure Engine + Automation Rules покрывает |
-| Flow Builder (visual) | Visual Builder поверх YAML DSL (Phase 13d) |
-| Assignment Rules | Automation Rule + Procedure |
-| Escalation Rules | Scenario + timers |
-
----
-
-### Phase 14: Streaming & Integration ⬜
+### Phase 16: Streaming & Integration ⬜
 
 Event-driven архитектура для интеграций.
 
@@ -500,7 +538,7 @@ Event-driven архитектура для интеграций.
 
 ---
 
-### Phase 15: Analytics — Reports & Dashboards ⬜
+### Phase 17: Analytics — Reports & Dashboards ⬜
 
 Бизнес-аналитика поверх SOQL.
 
@@ -542,27 +580,29 @@ Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ✅ �
                                                                                           │
                                                                                           ▼
                                                                                     Phase 7a ✅──→ Phase 7b ✅──→ Phase 8
-                                                                               (generic CRUD)  (CEL+valid.)   (notif+dash)
-                                                                                                    │           │
-                                                                                                    ▼           ▼
-                                                                                              Phase 9a ←───────┘
-                                                                                           (Object View core)
-                                                                                                    │
-                                                                                              Phase 9b
-                                                                                          (nav+dash per profile)
-                                                                                                    │
-                                                                                              Phase 10
-                                                                                             (formulas)
-                                                                                                    │
-                                                                                              Phase 9c
-                                                                                          (record types, dyn forms)
-                                                                                                    │
-                                                                                              Phase 13
-                                                                                            (automation)
+                                                                               (generic CRUD)  (CEL+valid.)   (functions)
+                                                                                                                   │
+                                                                                                             Phase 9a
+                                                                                                          (Object View)
+                                                                                                                   │
+                                                                                                             Phase 10
+                                                                                                          (Procedures)
+                                                                                                                   │
+                                                                                                             Phase 11
+                                                                                                       (Notif+CRM UX)
+                                                                                                                   │
+                                                                                                             Phase 12
+                                                                                                            (Formulas)
+                                                                                                                   │
+                                                                                                             Phase 9c
+                                                                                                       (Record Types)
+                                                                                                                   │
+                                                                                                             Phase 13
+                                                                                                           (Scenarios)
 
-                              Phase 12 (SOSL) — независимый, после Phase 3
-                              Phase 14 (CDC) — независимый, после Phase 4
-                              Phase 15 (Reports) — после Phase 3 + Phase 7b
+                              Phase 15 (SOSL) — независимый, после Phase 3
+                              Phase 16 (CDC) — независимый, после Phase 4
+                              Phase 17 (Reports) — после Phase 3 + Phase 12
                               Phase N (ee/) — параллельно, после Phase 2
 ```
 
@@ -578,17 +618,23 @@ Phase 2b/2c ✅ → Phase 3 ✅ → Phase 4 ✅ → Phase 5 ✅ → Phase 6 ✅ 
 
 ### Рекомендованный порядок после MVP
 
-1. **Phase 8** — notifications + dashboard (CRM становится ежедневным инструментом)
-2. **Phase 9a** — Object View core (role-based UI — bounded context adapter, ADR-0022)
-3. **Phase 9b** — navigation + dashboard per profile (role-specific home + sidebar)
-4. **Phase 10** — formulas + validation (data quality)
-5. **Phase 13a** — Procedure Engine (декларативная бизнес-логика, ADR-0024)
-6. **Phase 14** — CDC + webhooks (integrations)
-7. **Phase 12** — SOSL (search)
-8. **Phase 9c** — record types + dynamic forms (multi-scenario)
-9. **Phase 15** — reports (analytics)
-10. **Phase 11** — advanced objects (full CRM suite)
-11. **Phase 13b/c** — Scenario Engine (ADR-0025) + Approval Processes (durable automation)
+Принцип: **платформа перед фичами** — фичи, построенные на платформенных слоях, дешевле, гибче и не требуют переписывания.
+
+1. **Phase 8** — Custom Functions (CEL reuse foundation, ADR-0026)
+2. **Phase 9a** — Object View core (role-based UI, ADR-0022)
+3. **Phase 9b** — Navigation + Dashboard per profile
+4. **Phase 10a** — Procedure Engine core (declarative automation, ADR-0024)
+5. **Phase 10b** — Automation Rules (trigger → procedure)
+6. **Phase 11a** — Notifications & Activity (consumers of Procedure Engine)
+7. **Phase 11b** — CRM UX (dashboard, kanban, calendar)
+8. **Phase 12** — Formula Engine (computed fields, advanced validation)
+9. **Phase 9c** — Record Types + Dynamic Forms
+10. **Phase 13a** — Scenario Engine (ADR-0025)
+11. **Phase 13b** — Approval Processes
+12. **Phase 14** — Advanced CRM Objects
+13. **Phase 15** — SOSL (full-text search)
+14. **Phase 16** — Streaming & Integration (CDC, webhooks)
+15. **Phase 17** — Analytics (reports, dashboards)
 
 ---
 
@@ -615,12 +661,12 @@ Phase 2b/2c ✅ → Phase 3 ✅ → Phase 4 ✅ → Phase 5 ✅ → Phase 6 ✅ 
 |--------|-------|--------------------------|
 | **v0.1.0-alpha** | 0-2 | Metadata engine + полный security (OLS/FLS/RLS + Groups + Sharing Rules) + Territory Management (ee/) ✅ |
 | **v0.2.0-alpha** | 3-5 | SOQL + DML + Auth — данные можно читать/писать с security enforcement, JWT-аутентификация ✅ |
-| **v0.3.0-beta** | 6-7 | App Templates + Record UI — можно логиниться и работать с CRM-данными |
-| **v0.4.0-beta** | 7 | Полноценный UI — CRM можно использовать через браузер |
-| **v0.5.0-beta** | 8 | Notifications + dashboards — CRM как рабочий инструмент |
-| **v1.0.0** | 9-10 | Object Views (role-based UI), record types, formulas — production-ready |
-| **v1.x** | 11-15 | Advanced objects, search, automation, reports, integration |
-| **v2.0** | N | Enterprise features, multi-tenant, advanced analytics |
+| **v0.3.0-beta** | 6-7 | App Templates + Record UI — можно логиниться и работать с CRM-данными ✅ |
+| **v0.4.0-beta** | 8-9 | Custom Functions + Object Views — CEL reuse, role-based UI |
+| **v0.5.0-beta** | 10-11 | Procedure Engine + Notifications — declarative automation, daily CRM tool |
+| **v1.0.0** | 12-13 | Formulas + Scenarios + Approvals — production-ready |
+| **v1.x** | 14-16 | Advanced objects, search, integration |
+| **v2.0** | 17 + N | Analytics, enterprise features |
 
 ---
 

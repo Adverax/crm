@@ -409,3 +409,4 @@ Generic CRUD          CEL engine (cel-go)   Custom Functions          Object Vie
 - ADR-0024 — Procedure Engine: JSON DSL + Constructor UI для синхронной бизнес-логики (Mutations → Action type: procedure)
 - ADR-0025 — Scenario Engine: JSON DSL + Constructor UI для асинхронных долгоживущих процессов
 - ADR-0026 — Custom Functions (детализация подсистемы 6: fn.* namespace, dual-stack, ограничения, Constructor UI)
+- ADR-0027 — Layout + Form (третий уровень каскада: Layout определяет presentation поверх Object View, Form = computed merge для фронтенда)

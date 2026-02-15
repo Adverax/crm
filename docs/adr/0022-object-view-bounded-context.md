@@ -494,3 +494,4 @@ Phase 9a: Object View Core                    Phase 9b: Navigation + Dashboard
 - **ADR-0020** — DML Pipeline: Object View может добавлять validation rules (additive) и override defaults (replace)
 - **ADR-0010** — Permission model: Profile = ключ привязки Object View
 - **ADR-0018** — App Templates: могут включать Object View definitions
+- **ADR-0027** — Layout + Form: Layout определяет presentation (HOW) поверх Object View (WHAT). Form = computed merge OV + Layout для фронтенда
