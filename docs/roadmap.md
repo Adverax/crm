@@ -402,10 +402,17 @@ Row-Level Security — кто видит какие записи.
 - [ ] **Conditional logic**: `when` (per-command), `flow.if` (condition/then/else), `flow.match` (expression/cases)
 - [ ] **Rollback (Saga)**: LIFO compensating commands
 - [ ] **Security sandbox**: лимиты (30s timeout, 50 commands, 10 HTTP calls), OLS/FLS/RLS enforcement
-- [ ] **Storage**: `metadata.procedures` table (JSONB), snapshot versioning
-- [ ] **Admin REST API**: CRUD procedures + test (dry-run)
+- [ ] **Named Credentials (ADR-0028)**: `metadata.credentials` + `credential_tokens` + `credential_usage_log`
+- [ ] **Credential encryption**: AES-256-GCM, master key from ENV, unique nonce per record
+- [ ] **Credential types**: api_key (header/query), basic (username/password), oauth2_client (auto token refresh)
+- [ ] **SSRF protection**: base_url constraint, host match, internal IP blocklist, HTTPS only
+- [ ] **Credential Admin API + UI**: CRUD + test connection + usage log + deactivate/activate
+- [ ] **Versioning (ADR-0029)**: `metadata.procedure_versions` (draft/published/superseded), auto-increment version counter
+- [ ] **Draft/Publish workflow**: save draft → dry-run test → publish; rollback к предыдущей published
+- [ ] **Storage**: `metadata.procedures` + `procedure_versions` (definition в versions, не inline)
+- [ ] **Admin REST API**: CRUD procedures + versions + test (dry-run on draft) + publish + rollback
 - [ ] **Procedure Constructor UI**: visual form-based builder → JSON
-- [ ] **pgTAP tests**: schema tests for metadata.procedures
+- [ ] **pgTAP tests**: schema tests for metadata.procedures + credentials
 
 #### Phase 10b: Automation Rules
 
@@ -479,8 +486,11 @@ CRM как ежедневный рабочий инструмент. Notificatio
 - [ ] **Durability**: PostgreSQL persistence (`scenario_executions`, `scenario_step_history`)
 - [ ] **Recovery**: restart-safe — возобновление с последнего checkpoint
 - [ ] **Idempotency**: `{executionId}-{stepCode}` key per step
+- [ ] **Versioning (ADR-0029)**: `metadata.scenario_versions` (draft/published/superseded), auto-increment version counter
+- [ ] **Draft/Publish workflow**: save draft → test → publish; rollback
+- [ ] **Run snapshots**: `scenario_run_snapshots` фиксирует procedure_version_id при старте run
 - [ ] **Signal API**: `POST /executions/{id}/signal`
-- [ ] **Admin REST API + Constructor UI**: CRUD scenarios, execution monitoring
+- [ ] **Admin REST API + Constructor UI**: CRUD scenarios + versions, execution monitoring
 
 #### Phase 13b: Approval Processes
 

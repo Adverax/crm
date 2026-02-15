@@ -283,7 +283,7 @@ Form-based интерфейс для построения процедур:
 | `$.input` | Входные параметры procedure | `$.input.email` |
 | `$.user` | Текущий пользователь | `$.user.id`, `$.user.role` |
 | `$.now` | Текущее время UTC | `$.now` |
-| `$.secrets` | Секреты (API-ключи), только runtime | `$.secrets.stripe_key` |
+| `$.secrets` | **Deprecated** — заменён Named Credentials (ADR-0028). `integration.http` использует `credential` field | — |
 | `$.<name>` | Результат command с `as: name` | `$.account.id` |
 | `$.warnings` | Массив ошибок optional commands | `$.warnings` |
 | `$.error` | Текущая ошибка (в rollback-блоке) | `$.error.code` |
@@ -608,3 +608,5 @@ Procedure возвращает `ProcedureResult`:
 - **ADR-0020** — DML Pipeline Extension: все `record.*` commands выполняются через DML Engine с typed stages (defaults → validate → compute → execute)
 - **ADR-0022** — Object View: action type `procedure` в конфигурации кнопок вызывает Procedure Engine
 - **ADR-0023** — Action terminology: устанавливает терминологию (Procedure, Command, Command Type), используемую в данном ADR
+- **ADR-0028** — Named Credentials: `integration.http` command использует `credential` field для безопасной аутентификации. Заменяет `$.secrets` namespace
+- **ADR-0029** — Versioning: Procedure definition хранится в `procedure_versions`, не inline. Draft/Published lifecycle. Scenario фиксирует version при старте

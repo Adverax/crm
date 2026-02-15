@@ -429,3 +429,4 @@ idempotencyKey = {executionId}-{stepCode}
 - **ADR-0022** -- Object View: action type `scenario` запускает Scenario из UI-кнопки на карточке записи
 - **ADR-0023** -- Action terminology: Scenario в иерархии Action -> Command -> Procedure -> Scenario; Step вызывает Procedure
 - **ADR-0024** -- Procedure Engine: Steps выполняют Procedures; Procedure = синхронная цепочка Commands
+- **ADR-0029** -- Versioning: Scenario definition хранится в `scenario_versions`. Draft/Published lifecycle. Scenario run фиксирует procedure versions при старте через `scenario_run_snapshots`
