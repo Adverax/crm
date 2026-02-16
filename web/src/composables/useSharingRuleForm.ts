@@ -65,31 +65,31 @@ export function useSharingRuleForm(existing?: SharingRule) {
     let valid = true
 
     if (!state.objectId) {
-      errors.objectId = 'Объект обязателен'
+      errors.objectId = 'Object is required'
       valid = false
     }
 
     if (!state.sourceGroupId) {
-      errors.sourceGroupId = 'Группа-источник обязательна'
+      errors.sourceGroupId = 'Source group is required'
       valid = false
     }
 
     if (!state.targetGroupId) {
-      errors.targetGroupId = 'Группа-получатель обязательна'
+      errors.targetGroupId = 'Target group is required'
       valid = false
     }
 
     if (state.ruleType === 'criteria_based') {
       if (!state.criteriaField.trim()) {
-        errors.criteriaField = 'Поле критерия обязательно'
+        errors.criteriaField = 'Criteria field is required'
         valid = false
       }
       if (!state.criteriaOp.trim()) {
-        errors.criteriaOp = 'Оператор обязателен'
+        errors.criteriaOp = 'Operator is required'
         valid = false
       }
       if (!state.criteriaValue.trim()) {
-        errors.criteriaValue = 'Значение обязательно'
+        errors.criteriaValue = 'Value is required'
         valid = false
       }
     }

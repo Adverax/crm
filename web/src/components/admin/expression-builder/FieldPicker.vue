@@ -52,7 +52,7 @@ const groups = computed<PickerGroup[]>(() => {
       }))
       .filter((i) => !q || i.label.toLowerCase().includes(q) || (i.detail?.toLowerCase().includes(q) ?? false))
     if (items.length > 0) {
-      result.push({ label: 'Поля записи', items })
+      result.push({ label: 'Record Fields', items })
     }
   }
 
@@ -69,29 +69,29 @@ const groups = computed<PickerGroup[]>(() => {
       }))
       .filter((i) => !q || i.label.toLowerCase().includes(q) || (i.detail?.toLowerCase().includes(q) ?? false))
     if (items.length > 0) {
-      result.push({ label: 'Старые значения', items })
+      result.push({ label: 'Old Values', items })
     }
   }
 
   // User variables
   if (props.context !== 'function_body') {
     const userItems: PickerItem[] = [
-      { label: 'user.id', value: 'user.id', detail: 'ID пользователя' },
-      { label: 'user.profile_id', value: 'user.profile_id', detail: 'ID профиля' },
-      { label: 'user.role_id', value: 'user.role_id', detail: 'ID роли' },
+      { label: 'user.id', value: 'user.id', detail: 'User ID' },
+      { label: 'user.profile_id', value: 'user.profile_id', detail: 'Profile ID' },
+      { label: 'user.role_id', value: 'user.role_id', detail: 'Role ID' },
     ].filter((i) => !q || i.label.toLowerCase().includes(q))
     if (userItems.length > 0) {
-      result.push({ label: 'Пользователь', items: userItems })
+      result.push({ label: 'User', items: userItems })
     }
   }
 
   // System variables
   if (props.context !== 'function_body') {
     const sysItems: PickerItem[] = [
-      { label: 'now', value: 'now', detail: 'Текущее время' },
+      { label: 'now', value: 'now', detail: 'Current time' },
     ].filter((i) => !q || i.label.toLowerCase().includes(q))
     if (sysItems.length > 0) {
-      result.push({ label: 'Система', items: sysItems })
+      result.push({ label: 'System', items: sysItems })
     }
   }
 
@@ -105,7 +105,7 @@ const groups = computed<PickerGroup[]>(() => {
       }))
       .filter((i) => !q || i.label.toLowerCase().includes(q))
     if (items.length > 0) {
-      result.push({ label: 'Параметры', items })
+      result.push({ label: 'Parameters', items })
     }
   }
 
@@ -121,7 +121,7 @@ function onInsert(value: string) {
   <div class="w-60 border-l pl-3 space-y-3" data-testid="field-picker">
     <Input
       v-model="search"
-      placeholder="Поиск..."
+      placeholder="Search..."
       class="h-8 text-xs"
       data-testid="field-picker-search"
     />
@@ -143,7 +143,7 @@ function onInsert(value: string) {
     </div>
 
     <div v-if="groups.length === 0" class="text-xs text-muted-foreground">
-      Нет доступных переменных
+      No available variables
     </div>
   </div>
 </template>

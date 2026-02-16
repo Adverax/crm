@@ -123,7 +123,25 @@ function insertAtCursor(text: string) {
   view.value.focus()
 }
 
-defineExpose({ insertAtCursor })
+function setCursorAt(offset: number) {
+  if (!view.value) return
+  const docLength = view.value.state.doc.length
+  const pos = Math.min(Math.max(0, offset), docLength)
+  view.value.dispatch({ selection: { anchor: pos } })
+  view.value.focus()
+}
+
+function setCursorAtLineCol(line: number, col: number) {
+  if (!view.value) return
+  const doc = view.value.state.doc
+  const lineNum = Math.min(Math.max(1, line), doc.lines)
+  const lineObj = doc.line(lineNum)
+  const offset = Math.min(lineObj.from + Math.max(0, col - 1), lineObj.to)
+  view.value.dispatch({ selection: { anchor: offset } })
+  view.value.focus()
+}
+
+defineExpose({ insertAtCursor, setCursorAt, setCursorAtLineCol })
 </script>
 
 <template>

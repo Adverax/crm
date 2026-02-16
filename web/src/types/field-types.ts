@@ -10,34 +10,34 @@ export const FIELD_TYPE_SUBTYPES: Record<FieldType, FieldSubtype[]> = {
 }
 
 export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
-  text: 'Текст',
-  number: 'Число',
-  boolean: 'Логический',
-  datetime: 'Дата/Время',
-  picklist: 'Список выбора',
-  reference: 'Связь',
+  text: 'Text',
+  number: 'Number',
+  boolean: 'Boolean',
+  datetime: 'Date/Time',
+  picklist: 'Picklist',
+  reference: 'Reference',
 }
 
 export const FIELD_SUBTYPE_LABELS: Record<FieldSubtype, string> = {
-  plain: 'Простой текст',
-  area: 'Многострочный текст',
-  rich: 'Форматированный текст',
+  plain: 'Plain Text',
+  area: 'Text Area',
+  rich: 'Rich Text',
   email: 'Email',
-  phone: 'Телефон',
+  phone: 'Phone',
   url: 'URL',
-  integer: 'Целое число',
-  decimal: 'Десятичное',
-  currency: 'Валюта',
-  percent: 'Процент',
-  auto_number: 'Авто-номер',
-  date: 'Дата',
-  datetime: 'Дата и время',
-  time: 'Время',
-  single: 'Одиночный выбор',
-  multi: 'Множественный выбор',
-  association: 'Ассоциация',
-  composition: 'Композиция',
-  polymorphic: 'Полиморфная',
+  integer: 'Integer',
+  decimal: 'Decimal',
+  currency: 'Currency',
+  percent: 'Percent',
+  auto_number: 'Auto Number',
+  date: 'Date',
+  datetime: 'Date & Time',
+  time: 'Time',
+  single: 'Single Select',
+  multi: 'Multi Select',
+  association: 'Association',
+  composition: 'Composition',
+  polymorphic: 'Polymorphic',
 }
 
 export interface ConfigFieldDef {
@@ -49,88 +49,88 @@ export interface ConfigFieldDef {
 
 export const CONFIG_FIELDS_BY_TYPE: Record<string, ConfigFieldDef[]> = {
   'text/plain': [
-    { key: 'maxLength', label: 'Макс. длина', type: 'number' },
-    { key: 'defaultValue', label: 'Значение по умолчанию', type: 'text' },
+    { key: 'maxLength', label: 'Max Length', type: 'number' },
+    { key: 'defaultValue', label: 'Default Value', type: 'text' },
   ],
   'text/area': [
-    { key: 'maxLength', label: 'Макс. длина', type: 'number' },
-    { key: 'defaultValue', label: 'Значение по умолчанию', type: 'text' },
+    { key: 'maxLength', label: 'Max Length', type: 'number' },
+    { key: 'defaultValue', label: 'Default Value', type: 'text' },
   ],
   'text/rich': [
-    { key: 'maxLength', label: 'Макс. длина', type: 'number' },
-    { key: 'defaultValue', label: 'Значение по умолчанию', type: 'text' },
+    { key: 'maxLength', label: 'Max Length', type: 'number' },
+    { key: 'defaultValue', label: 'Default Value', type: 'text' },
   ],
   'text/email': [
-    { key: 'maxLength', label: 'Макс. длина', type: 'number' },
+    { key: 'maxLength', label: 'Max Length', type: 'number' },
   ],
   'text/phone': [
-    { key: 'maxLength', label: 'Макс. длина', type: 'number' },
+    { key: 'maxLength', label: 'Max Length', type: 'number' },
   ],
   'text/url': [
-    { key: 'maxLength', label: 'Макс. длина', type: 'number' },
+    { key: 'maxLength', label: 'Max Length', type: 'number' },
   ],
   'number/integer': [
-    { key: 'defaultValue', label: 'Значение по умолчанию', type: 'text' },
+    { key: 'defaultValue', label: 'Default Value', type: 'text' },
   ],
   'number/decimal': [
-    { key: 'precision', label: 'Точность (всего цифр)', type: 'number' },
-    { key: 'scale', label: 'Масштаб (после запятой)', type: 'number' },
-    { key: 'defaultValue', label: 'Значение по умолчанию', type: 'text' },
+    { key: 'precision', label: 'Precision (total digits)', type: 'number' },
+    { key: 'scale', label: 'Scale (decimal places)', type: 'number' },
+    { key: 'defaultValue', label: 'Default Value', type: 'text' },
   ],
   'number/currency': [
-    { key: 'precision', label: 'Точность (всего цифр)', type: 'number' },
-    { key: 'scale', label: 'Масштаб (после запятой)', type: 'number' },
-    { key: 'defaultValue', label: 'Значение по умолчанию', type: 'text' },
+    { key: 'precision', label: 'Precision (total digits)', type: 'number' },
+    { key: 'scale', label: 'Scale (decimal places)', type: 'number' },
+    { key: 'defaultValue', label: 'Default Value', type: 'text' },
   ],
   'number/percent': [
-    { key: 'precision', label: 'Точность (всего цифр)', type: 'number' },
-    { key: 'scale', label: 'Масштаб (после запятой)', type: 'number' },
-    { key: 'defaultValue', label: 'Значение по умолчанию', type: 'text' },
+    { key: 'precision', label: 'Precision (total digits)', type: 'number' },
+    { key: 'scale', label: 'Scale (decimal places)', type: 'number' },
+    { key: 'defaultValue', label: 'Default Value', type: 'text' },
   ],
   'number/auto_number': [
-    { key: 'format', label: 'Формат (например, INV-{0000})', type: 'text' },
-    { key: 'startValue', label: 'Начальное значение', type: 'number' },
+    { key: 'format', label: 'Format (e.g., INV-{0000})', type: 'text' },
+    { key: 'startValue', label: 'Start Value', type: 'number' },
   ],
   'boolean': [
-    { key: 'defaultValue', label: 'Значение по умолчанию', type: 'boolean' },
+    { key: 'defaultValue', label: 'Default Value', type: 'boolean' },
   ],
   'datetime/date': [
-    { key: 'defaultValue', label: 'Значение по умолчанию', type: 'text' },
+    { key: 'defaultValue', label: 'Default Value', type: 'text' },
   ],
   'datetime/datetime': [
-    { key: 'defaultValue', label: 'Значение по умолчанию', type: 'text' },
+    { key: 'defaultValue', label: 'Default Value', type: 'text' },
   ],
   'datetime/time': [
-    { key: 'defaultValue', label: 'Значение по умолчанию', type: 'text' },
+    { key: 'defaultValue', label: 'Default Value', type: 'text' },
   ],
   'reference/association': [
-    { key: 'relationshipName', label: 'Имя связи', type: 'text' },
+    { key: 'relationshipName', label: 'Relationship Name', type: 'text' },
     {
-      key: 'onDelete', label: 'При удалении', type: 'select',
+      key: 'onDelete', label: 'On Delete', type: 'select',
       options: [
-        { value: 'set_null', label: 'Очистить (set null)' },
-        { value: 'restrict', label: 'Запретить (restrict)' },
+        { value: 'set_null', label: 'Set Null' },
+        { value: 'restrict', label: 'Restrict' },
       ],
     },
   ],
   'reference/composition': [
-    { key: 'relationshipName', label: 'Имя связи', type: 'text' },
+    { key: 'relationshipName', label: 'Relationship Name', type: 'text' },
     {
-      key: 'onDelete', label: 'При удалении', type: 'select',
+      key: 'onDelete', label: 'On Delete', type: 'select',
       options: [
-        { value: 'cascade', label: 'Каскадное удаление' },
-        { value: 'restrict', label: 'Запретить (restrict)' },
+        { value: 'cascade', label: 'Cascade Delete' },
+        { value: 'restrict', label: 'Restrict' },
       ],
     },
-    { key: 'isReparentable', label: 'Можно переназначить родителя', type: 'boolean' },
+    { key: 'isReparentable', label: 'Allow Reparenting', type: 'boolean' },
   ],
   'reference/polymorphic': [
-    { key: 'relationshipName', label: 'Имя связи', type: 'text' },
+    { key: 'relationshipName', label: 'Relationship Name', type: 'text' },
     {
-      key: 'onDelete', label: 'При удалении', type: 'select',
+      key: 'onDelete', label: 'On Delete', type: 'select',
       options: [
-        { value: 'set_null', label: 'Очистить (set null)' },
-        { value: 'restrict', label: 'Запретить (restrict)' },
+        { value: 'set_null', label: 'Set Null' },
+        { value: 'restrict', label: 'Restrict' },
       ],
     },
   ],

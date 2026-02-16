@@ -7,6 +7,8 @@ import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { X } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -56,7 +58,7 @@ async function onSubmit() {
   if (!validate()) return
   try {
     const created = await store.createTerritory(toCreateRequest())
-    toast.success('Территория создана')
+    toast.success('Territory created')
     router.push({ name: 'admin-territory-detail', params: { territoryId: created.id } })
   } catch (err) {
     toast.errorFromApi(err)
@@ -64,28 +66,28 @@ async function onSubmit() {
 }
 
 const breadcrumbs = [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Территории', to: '/admin/territory/territories' },
-  { label: 'Новая территория' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Territories', to: '/admin/territory/territories' },
+  { label: 'New Territory' },
 ]
 </script>
 
 <template>
   <div>
-    <PageHeader title="Создать территорию" :breadcrumbs="breadcrumbs" />
+    <PageHeader title="Create Territory" :breadcrumbs="breadcrumbs" />
 
     <ErrorAlert v-if="territoriesError" :message="territoriesError" class="mb-4" />
 
     <form class="max-w-2xl space-y-6" @submit.prevent="onSubmit">
       <Card>
         <CardContent class="pt-6 space-y-4">
-          <h2 class="text-lg font-semibold">Основная информация</h2>
+          <h2 class="text-lg font-semibold">General Information</h2>
 
           <div class="space-y-2">
-            <Label for="modelId">Модель</Label>
+            <Label for="modelId">Model</Label>
             <Select :model-value="state.modelId" @update:model-value="onModelChange">
               <SelectTrigger>
-                <SelectValue placeholder="Выберите модель" />
+                <SelectValue placeholder="Select model" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem v-for="model in models" :key="model.id" :value="model.id">
@@ -107,19 +109,19 @@ const breadcrumbs = [
           </div>
 
           <div class="space-y-2">
-            <Label for="label">Название</Label>
-            <Input id="label" v-model="state.label" placeholder="Северная Америка" />
+            <Label for="label">Label</Label>
+            <Input id="label" v-model="state.label" placeholder="North America" />
             <p v-if="errors.label" class="text-sm text-destructive">{{ errors.label }}</p>
           </div>
 
           <div class="space-y-2">
-            <Label for="parentId">Родительская территория</Label>
+            <Label for="parentId">Parent Territory</Label>
             <Select :model-value="state.parentId ?? '__none__'" @update:model-value="onParentChange">
               <SelectTrigger>
-                <SelectValue placeholder="Без родителя" />
+                <SelectValue placeholder="No parent" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">Без родителя</SelectItem>
+                <SelectItem value="__none__">No parent</SelectItem>
                 <SelectItem v-for="t in territories" :key="t.id" :value="t.id">
                   {{ t.label }}
                 </SelectItem>
@@ -128,7 +130,7 @@ const breadcrumbs = [
           </div>
 
           <div class="space-y-2">
-            <Label for="description">Описание</Label>
+            <Label for="description">Description</Label>
             <Textarea id="description" v-model="state.description" rows="3" />
           </div>
         </CardContent>
@@ -136,13 +138,16 @@ const breadcrumbs = [
 
       <Separator />
 
-      <div class="flex gap-2">
+      <div class="flex gap-2 items-center">
         <Button type="submit" :disabled="territoriesLoading">
-          Создать
+          Create
         </Button>
-        <Button variant="outline" type="button" @click="router.back()">
-          Отмена
-        </Button>
+        <IconButton
+          :icon="X"
+          tooltip="Cancel"
+          variant="outline"
+          @click="router.back()"
+        />
       </div>
     </form>
   </div>

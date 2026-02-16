@@ -6,7 +6,8 @@ import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
-import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Trash2, Plus } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -45,11 +46,11 @@ const addMemberUserId = ref('')
 
 function groupTypeLabel(type: string): string {
   const labels: Record<string, string> = {
-    personal: 'Персональная',
-    role: 'Роль',
-    role_and_subordinates: 'Роль и подчинённые',
-    public: 'Публичная',
-    territory: 'Территория',
+    personal: 'Personal',
+    role: 'Role',
+    role_and_subordinates: 'Role & Subordinates',
+    public: 'Public',
+    territory: 'Territory',
   }
   return labels[type] ?? type
 }
@@ -70,7 +71,7 @@ watch(() => props.groupId, loadData)
 async function onDeleteGroup() {
   try {
     await store.deleteGroup(props.groupId)
-    toast.success('Группа удалена')
+    toast.success('Group deleted')
     router.push({ name: 'admin-groups' })
   } catch (err) {
     toast.errorFromApi(err)
@@ -88,7 +89,7 @@ async function onAddMember() {
   if (!addMemberUserId.value) return
   try {
     await store.addGroupMember(props.groupId, { memberUserId: addMemberUserId.value })
-    toast.success('Участник добавлен')
+    toast.success('Member added')
     addMemberUserId.value = ''
     await store.fetchGroupMembers(props.groupId)
   } catch (err) {
@@ -99,7 +100,7 @@ async function onAddMember() {
 async function onRemoveMember(memberId: string) {
   try {
     await store.removeGroupMember(props.groupId, memberId)
-    toast.success('Участник удалён')
+    toast.success('Member removed')
     await store.fetchGroupMembers(props.groupId)
   } catch (err) {
     toast.errorFromApi(err)
@@ -113,12 +114,12 @@ function getUserName(userId: string | null): string {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('ru-RU')
+  return new Date(iso).toLocaleDateString('en-US')
 }
 
 const breadcrumbs = computed(() => [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Группы', to: '/admin/security/groups' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Groups', to: '/admin/security/groups' },
   { label: currentGroup.value?.label ?? '...' },
 ])
 </script>
@@ -133,13 +134,12 @@ const breadcrumbs = computed(() => [
     <template v-else-if="currentGroup">
       <PageHeader :title="currentGroup.label" :breadcrumbs="breadcrumbs">
         <template #actions>
-          <Button
+          <IconButton
+            :icon="Trash2"
+            tooltip="Delete Group"
             variant="destructive"
-            size="sm"
             @click="showDeleteDialog = true"
-          >
-            Удалить группу
-          </Button>
+          />
         </template>
       </PageHeader>
 
@@ -147,16 +147,16 @@ const breadcrumbs = computed(() => [
 
       <Tabs default-value="info">
         <TabsList>
-          <TabsTrigger value="info">Основное</TabsTrigger>
+          <TabsTrigger value="info">General</TabsTrigger>
           <TabsTrigger value="members">
-            Участники ({{ groupMembers.length }})
+            Members ({{ groupMembers.length }})
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="info">
           <Card class="max-w-2xl mt-4">
             <CardContent class="pt-6 space-y-4">
-              <h2 class="text-lg font-semibold">Основная информация</h2>
+              <h2 class="text-lg font-semibold">General Information</h2>
 
               <div class="space-y-2">
                 <Label>API Name</Label>
@@ -164,17 +164,17 @@ const breadcrumbs = computed(() => [
               </div>
 
               <div class="space-y-2">
-                <Label>Название</Label>
+                <Label>Label</Label>
                 <Input :model-value="currentGroup.label" disabled />
               </div>
 
               <div class="space-y-2">
-                <Label>Тип группы</Label>
+                <Label>Group Type</Label>
                 <Input :model-value="groupTypeLabel(currentGroup.groupType)" disabled />
               </div>
 
               <div class="space-y-2">
-                <Label>Создана</Label>
+                <Label>Created</Label>
                 <Input :model-value="formatDate(currentGroup.createdAt)" disabled />
               </div>
             </CardContent>
@@ -185,13 +185,13 @@ const breadcrumbs = computed(() => [
           <div class="mt-4 space-y-4">
             <Card class="max-w-2xl">
               <CardContent class="pt-6 space-y-4">
-                <h2 class="text-lg font-semibold">Добавить участника</h2>
+                <h2 class="text-lg font-semibold">Add Member</h2>
                 <div class="flex gap-2 items-end">
                   <div class="flex-1 space-y-2">
-                    <Label>Пользователь</Label>
+                    <Label>User</Label>
                     <Select :model-value="addMemberUserId" @update:model-value="onUserSelect">
                       <SelectTrigger>
-                        <SelectValue placeholder="Выберите пользователя" />
+                        <SelectValue placeholder="Select user" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem v-for="user in users" :key="user.id" :value="user.id">
@@ -200,24 +200,28 @@ const breadcrumbs = computed(() => [
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button :disabled="!addMemberUserId || groupsLoading" @click="onAddMember">
-                    Добавить
-                  </Button>
+                  <IconButton
+                    :icon="Plus"
+                    tooltip="Add"
+                    variant="default"
+                    :disabled="!addMemberUserId || groupsLoading"
+                    @click="onAddMember"
+                  />
                 </div>
               </CardContent>
             </Card>
 
             <EmptyState
               v-if="groupMembers.length === 0"
-              title="Нет участников"
-              description="Добавьте пользователей в группу"
+              title="No Members"
+              description="Add users to this group"
             />
 
             <Table v-else>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Пользователь</TableHead>
-                  <TableHead>Добавлен</TableHead>
+                  <TableHead>User</TableHead>
+                  <TableHead>Added</TableHead>
                   <TableHead class="w-16" />
                 </TableRow>
               </TableHeader>
@@ -226,14 +230,13 @@ const breadcrumbs = computed(() => [
                   <TableCell class="font-medium">{{ getUserName(member.memberUserId) }}</TableCell>
                   <TableCell class="text-muted-foreground">{{ formatDate(member.createdAt) }}</TableCell>
                   <TableCell>
-                    <Button
+                    <IconButton
+                      :icon="Trash2"
+                      tooltip="Delete"
                       variant="ghost"
-                      size="sm"
-                      class="text-destructive"
+                      class="text-destructive hover:text-destructive"
                       @click="onRemoveMember(member.id)"
-                    >
-                      Удалить
-                    </Button>
+                    />
                   </TableCell>
                 </TableRow>
               </TableBody>
@@ -244,8 +247,8 @@ const breadcrumbs = computed(() => [
 
       <ConfirmDialog
         :open="showDeleteDialog"
-        title="Удалить группу?"
-        :description="`Группа «${currentGroup.label}» (${currentGroup.apiName}) будет удалена без возможности восстановления.`"
+        title="Delete Group?"
+        :description="`Group '${currentGroup.label}' (${currentGroup.apiName}) will be permanently deleted.`"
         @update:open="showDeleteDialog = $event"
         @confirm="onDeleteGroup"
       />

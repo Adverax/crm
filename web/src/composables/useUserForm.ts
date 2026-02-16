@@ -53,29 +53,29 @@ export function useUserForm(existing?: User) {
     let valid = true
 
     if (!state.username.trim()) {
-      errors.username = 'Имя пользователя обязательно'
+      errors.username = 'Username is required'
       valid = false
     } else if (state.username.length < 2) {
-      errors.username = 'Минимум 2 символа'
+      errors.username = 'Minimum 2 characters'
       valid = false
     } else if (state.username.length > 100) {
-      errors.username = 'Максимум 100 символов'
+      errors.username = 'Maximum 100 characters'
       valid = false
     } else if (!USERNAME_REGEX.test(state.username)) {
-      errors.username = 'Только латинские буквы, цифры, точки, дефисы и подчёркивания'
+      errors.username = 'Only letters, digits, dots, hyphens, and underscores'
       valid = false
     }
 
     if (!state.email.trim()) {
-      errors.email = 'Email обязателен'
+      errors.email = 'Email is required'
       valid = false
     } else if (!EMAIL_REGEX.test(state.email)) {
-      errors.email = 'Некорректный формат email'
+      errors.email = 'Invalid email format'
       valid = false
     }
 
     if (!state.profileId) {
-      errors.profileId = 'Профиль обязателен'
+      errors.profileId = 'Profile is required'
       valid = false
     }
 

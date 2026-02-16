@@ -50,7 +50,7 @@ export const usePermissionEditorStore = defineStore('permissionEditor', () => {
       objectDefinitions.value = objectsResponse.data ?? []
     } catch (err) {
       if (requestId !== olsRequestId) return
-      olsError.value = err instanceof Error ? err.message : 'Ошибка загрузки разрешений'
+      olsError.value = err instanceof Error ? err.message : 'Failed to load permissions'
       throw err
     } finally {
       if (requestId === olsRequestId) {
@@ -75,7 +75,7 @@ export const usePermissionEditorStore = defineStore('permissionEditor', () => {
       fieldsForObject.value = fieldsResponse.data ?? []
     } catch (err) {
       if (requestId !== flsRequestId) return
-      flsError.value = err instanceof Error ? err.message : 'Ошибка загрузки разрешений на поля'
+      flsError.value = err instanceof Error ? err.message : 'Failed to load field permissions'
       throw err
     } finally {
       if (requestId === flsRequestId) {
@@ -99,7 +99,7 @@ export const usePermissionEditorStore = defineStore('permissionEditor', () => {
         objectPermissions.value.push(response.data)
       }
     } catch (err) {
-      olsError.value = err instanceof Error ? err.message : 'Ошибка сохранения разрешения'
+      olsError.value = err instanceof Error ? err.message : 'Failed to save permission'
       throw err
     }
   }
@@ -119,7 +119,7 @@ export const usePermissionEditorStore = defineStore('permissionEditor', () => {
         fieldPermissions.value.push(response.data)
       }
     } catch (err) {
-      flsError.value = err instanceof Error ? err.message : 'Ошибка сохранения разрешения на поле'
+      flsError.value = err instanceof Error ? err.message : 'Failed to save field permission'
       throw err
     }
   }

@@ -24,18 +24,18 @@ test.describe('User list page', () => {
   test('shows user names', async ({ page }) => {
     await page.goto('/admin/security/users')
     const main = page.locator('main')
-    await expect(main.getByText('Иван Иванов')).toBeVisible()
-    await expect(main.getByText('Пётр Петров')).toBeVisible()
+    await expect(main.getByText('John Smith')).toBeVisible()
+    await expect(main.getByText('Peter Johnson')).toBeVisible()
   })
 
   test('has create user button', async ({ page }) => {
     await page.goto('/admin/security/users')
-    await expect(page.getByText('Создать пользователя')).toBeVisible()
+    await expect(page.getByText('Create User')).toBeVisible()
   })
 
   test('create button navigates to create page', async ({ page }) => {
     await page.goto('/admin/security/users')
-    await page.getByText('Создать пользователя').click()
+    await page.getByText('Create User').click()
     await expect(page).toHaveURL(/\/admin\/security\/users\/new/)
   })
 
@@ -51,8 +51,8 @@ test.describe('User list page', () => {
   test('shows active/inactive status badges', async ({ page }) => {
     await page.goto('/admin/security/users')
     const main = page.locator('main')
-    await expect(main.getByText('Активен', { exact: true })).toBeVisible()
-    await expect(main.getByText('Неактивен')).toBeVisible()
+    await expect(main.getByText('Active', { exact: true })).toBeVisible()
+    await expect(main.getByText('Inactive')).toBeVisible()
   })
 })
 
@@ -75,21 +75,21 @@ test.describe('User create page', () => {
 
   test('renders security card with selectors', async ({ page }) => {
     await page.goto('/admin/security/users/new')
-    await expect(page.getByText('Профиль').first()).toBeVisible()
-    await expect(page.getByText('Роль').first()).toBeVisible()
+    await expect(page.getByText('Profile').first()).toBeVisible()
+    await expect(page.getByText('Role').first()).toBeVisible()
   })
 
   test('has submit and cancel buttons', async ({ page }) => {
     await page.goto('/admin/security/users/new')
-    await expect(page.getByRole('button', { name: 'Создать' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Отмена' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Create' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible()
   })
 
   test('cancel navigates back to list', async ({ page }) => {
     await page.goto('/admin/security/users')
-    await page.getByText('Создать пользователя').click()
+    await page.getByText('Create User').click()
     await expect(page).toHaveURL(/\/admin\/security\/users\/new/)
-    await page.getByRole('button', { name: 'Отмена' }).click()
+    await page.getByRole('button', { name: 'Cancel' }).click()
     await expect(page).toHaveURL(/\/admin\/security\/users/)
   })
 
@@ -98,11 +98,11 @@ test.describe('User create page', () => {
 
     await page.locator('#username').fill('test_user')
     await page.locator('#email').fill('test@example.com')
-    await page.locator('#firstName').fill('Тест')
-    await page.locator('#lastName').fill('Тестов')
+    await page.locator('#firstName').fill('Test')
+    await page.locator('#lastName').fill('User')
 
-    await page.getByRole('button', { name: 'Создать' }).click()
-    await expect(page.getByText('Профиль обязателен')).toBeVisible()
+    await page.getByRole('button', { name: 'Create' }).click()
+    await expect(page.getByText('Profile is required')).toBeVisible()
   })
 })
 
@@ -122,9 +122,9 @@ test.describe('User detail page', () => {
 
   test('shows tabs: info and permission sets', async ({ page }) => {
     await page.goto(`/admin/security/users/${user.id}`)
-    await expect(page.getByRole('tab', { name: /Основное/ })).toBeVisible()
+    await expect(page.getByRole('tab', { name: /General/ })).toBeVisible()
     await expect(
-      page.getByRole('tab', { name: /Наборы разрешений/ }),
+      page.getByRole('tab', { name: /Permission Sets/ }),
     ).toBeVisible()
   })
 
@@ -137,25 +137,25 @@ test.describe('User detail page', () => {
 
   test('can switch to permission sets tab', async ({ page }) => {
     await page.goto(`/admin/security/users/${user.id}`)
-    await page.getByRole('tab', { name: /Наборы разрешений/ }).click()
+    await page.getByRole('tab', { name: /Permission Sets/ }).click()
     await expect(page.locator('main')).toBeVisible()
   })
 
   test('has save, cancel, and delete buttons', async ({ page }) => {
     await page.goto(`/admin/security/users/${user.id}`)
-    await expect(page.getByRole('button', { name: 'Сохранить' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Отмена' })).toBeVisible()
-    await expect(page.getByRole('button', { name: /Удалить/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Save' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Delete/ })).toBeVisible()
   })
 
   test('can submit updated user', async ({ page }) => {
     await page.goto(`/admin/security/users/${user.id}`)
-    await page.locator('#firstName').fill('Обновлённое имя')
+    await page.locator('#firstName').fill('Updated Name')
 
     const requestPromise = page.waitForRequest(
       `**/api/v1/admin/security/users/${user.id}`,
     )
-    await page.getByRole('button', { name: 'Сохранить' }).click()
+    await page.getByRole('button', { name: 'Save' }).click()
 
     const request = await requestPromise
     expect(request.method()).toBe('PUT')

@@ -8,12 +8,12 @@ describe('ConfirmDialog', () => {
       name: 'accepts required props without error',
       props: {
         open: true,
-        title: 'Удалить объект?',
-        description: 'Это действие нельзя отменить.',
+        title: 'Delete object?',
+        description: 'This action cannot be undone.',
       },
       assert: (wrapper: ReturnType<typeof mount>) => {
-        expect(wrapper.props('title')).toBe('Удалить объект?')
-        expect(wrapper.props('description')).toBe('Это действие нельзя отменить.')
+        expect(wrapper.props('title')).toBe('Delete object?')
+        expect(wrapper.props('description')).toBe('This action cannot be undone.')
       },
     },
     {
@@ -22,14 +22,14 @@ describe('ConfirmDialog', () => {
         open: true,
         title: 'Test',
         description: 'Description',
-        confirmLabel: 'Подтвердить',
+        confirmLabel: 'Confirm',
       },
       assert: (wrapper: ReturnType<typeof mount>) => {
-        expect(wrapper.props('confirmLabel')).toBe('Подтвердить')
+        expect(wrapper.props('confirmLabel')).toBe('Confirm')
       },
     },
     {
-      name: 'defaults confirmLabel to undefined (component uses "Удалить")',
+      name: 'defaults confirmLabel to undefined (component uses "Delete")',
       props: {
         open: false,
         title: 'Test',

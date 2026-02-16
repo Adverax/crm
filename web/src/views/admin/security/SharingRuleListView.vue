@@ -8,6 +8,8 @@ import PageHeader from '@/components/admin/PageHeader.vue'
 import EmptyState from '@/components/admin/EmptyState.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Plus, MoreVertical } from 'lucide-vue-next'
 import {
   Select,
   SelectContent,
@@ -79,7 +81,7 @@ async function onDeleteConfirmed() {
   if (!deleteTarget.value) return
   try {
     await securityStore.deleteSharingRule(deleteTarget.value.id)
-    toast.success('Правило удалено')
+    toast.success('Rule deleted')
     loadRules()
   } catch (err) {
     toast.errorFromApi(err)
@@ -90,11 +92,11 @@ async function onDeleteConfirmed() {
 }
 
 function ruleTypeLabel(type: string): string {
-  return type === 'owner_based' ? 'По владельцу' : 'По критерию'
+  return type === 'owner_based' ? 'Owner-based' : 'Criteria-based'
 }
 
 function accessLevelLabel(level: string): string {
-  return level === 'read' ? 'Чтение' : 'Чтение/Запись'
+  return level === 'read' ? 'Read' : 'Read/Write'
 }
 
 function groupName(groupId: string): string {
@@ -108,26 +110,29 @@ function objectName(objectId: string): string {
 }
 
 const breadcrumbs = [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Правила совместного доступа' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Sharing Rules' },
 ]
 </script>
 
 <template>
   <div>
-    <PageHeader title="Правила совместного доступа" :breadcrumbs="breadcrumbs">
+    <PageHeader title="Sharing Rules" :breadcrumbs="breadcrumbs">
       <template #actions>
-        <Button @click="router.push({ name: 'admin-sharing-rule-create' })">
-          Создать правило
-        </Button>
+        <IconButton
+          :icon="Plus"
+          tooltip="Create Rule"
+          variant="default"
+          @click="router.push({ name: 'admin-sharing-rule-create' })"
+        />
       </template>
     </PageHeader>
 
     <div class="max-w-xs mb-6 space-y-2">
-      <Label>Объект</Label>
+      <Label>Object</Label>
       <Select :model-value="selectedObjectId" @update:model-value="onObjectChange">
         <SelectTrigger>
-          <SelectValue placeholder="Выберите объект" />
+          <SelectValue placeholder="Select object" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem v-for="obj in objects" :key="obj.id" :value="obj.id">
@@ -138,7 +143,7 @@ const breadcrumbs = [
     </div>
 
     <div v-if="!selectedObjectId" class="text-sm text-muted-foreground">
-      Выберите объект для просмотра правил совместного доступа.
+      Select an object to view sharing rules.
     </div>
 
     <div v-else-if="sharingRulesLoading && sharingRules.length === 0" class="space-y-3">
@@ -147,13 +152,16 @@ const breadcrumbs = [
 
     <EmptyState
       v-else-if="!sharingRulesLoading && sharingRules.length === 0"
-      title="Нет правил"
-      :description="`Для объекта «${objectName(selectedObjectId)}» нет правил совместного доступа`"
+      title="No Rules"
+      :description="`No sharing rules for object '${objectName(selectedObjectId)}'`"
     >
       <template #action>
-        <Button @click="router.push({ name: 'admin-sharing-rule-create' })">
-          Создать правило
-        </Button>
+        <IconButton
+          :icon="Plus"
+          tooltip="Create Rule"
+          variant="default"
+          @click="router.push({ name: 'admin-sharing-rule-create' })"
+        />
       </template>
     </EmptyState>
 
@@ -161,10 +169,10 @@ const breadcrumbs = [
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Тип</TableHead>
-            <TableHead>Группа-источник</TableHead>
-            <TableHead>Группа-получатель</TableHead>
-            <TableHead>Доступ</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Source Group</TableHead>
+            <TableHead>Target Group</TableHead>
+            <TableHead>Access</TableHead>
             <TableHead class="w-16" />
           </TableRow>
         </TableHeader>
@@ -183,19 +191,19 @@ const breadcrumbs = [
               <DropdownMenu>
                 <DropdownMenuTrigger as-child>
                   <Button variant="ghost" size="sm" class="h-8 w-8 p-0" @click.stop>
-                    <span class="sr-only">Действия</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01" /></svg>
+                    <span class="sr-only">Actions</span>
+                    <MoreVertical />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem @click.stop="goToDetail(rule)">
-                    Открыть
+                    Open
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     class="text-destructive"
                     @click.stop="confirmDelete(rule)"
                   >
-                    Удалить
+                    Delete
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -207,8 +215,8 @@ const breadcrumbs = [
 
     <ConfirmDialog
       :open="showDeleteDialog"
-      title="Удалить правило?"
-      description="Правило совместного доступа будет удалено без возможности восстановления."
+      title="Delete Rule?"
+      description="This sharing rule will be permanently deleted."
       @update:open="showDeleteDialog = $event"
       @confirm="onDeleteConfirmed"
     />

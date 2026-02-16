@@ -8,6 +8,8 @@ import PageHeader from '@/components/admin/PageHeader.vue'
 import EmptyState from '@/components/admin/EmptyState.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Plus, ChevronLeft, ChevronRight, MoreVertical } from 'lucide-vue-next'
 import {
   Table,
   TableBody,
@@ -58,7 +60,7 @@ async function onDeleteConfirmed() {
   if (!deleteTarget.value) return
   try {
     await store.deleteRole(deleteTarget.value.id)
-    toast.success('Роль удалена')
+    toast.success('Role deleted')
     loadRoles()
   } catch (err) {
     toast.errorFromApi(err)
@@ -75,22 +77,25 @@ function getParentLabel(parentId: string | null): string {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('ru-RU')
+  return new Date(iso).toLocaleDateString('en-US')
 }
 
 const breadcrumbs = [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Роли' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Roles' },
 ]
 </script>
 
 <template>
   <div>
-    <PageHeader title="Роли" :breadcrumbs="breadcrumbs">
+    <PageHeader title="Roles" :breadcrumbs="breadcrumbs">
       <template #actions>
-        <Button @click="router.push({ name: 'admin-role-create' })">
-          Создать роль
-        </Button>
+        <IconButton
+          :icon="Plus"
+          tooltip="Create Role"
+          variant="default"
+          @click="router.push({ name: 'admin-role-create' })"
+        />
       </template>
     </PageHeader>
 
@@ -100,13 +105,16 @@ const breadcrumbs = [
 
     <EmptyState
       v-else-if="!rolesLoading && roles.length === 0"
-      title="Нет ролей"
-      description="Создайте первую роль в иерархии"
+      title="No Roles"
+      description="Create your first role in the hierarchy"
     >
       <template #action>
-        <Button @click="router.push({ name: 'admin-role-create' })">
-          Создать роль
-        </Button>
+        <IconButton
+          :icon="Plus"
+          tooltip="Create Role"
+          variant="default"
+          @click="router.push({ name: 'admin-role-create' })"
+        />
       </template>
     </EmptyState>
 
@@ -115,9 +123,9 @@ const breadcrumbs = [
         <TableHeader>
           <TableRow>
             <TableHead>API Name</TableHead>
-            <TableHead>Название</TableHead>
-            <TableHead>Родительская роль</TableHead>
-            <TableHead>Создан</TableHead>
+            <TableHead>Label</TableHead>
+            <TableHead>Parent Role</TableHead>
+            <TableHead>Created</TableHead>
             <TableHead class="w-16" />
           </TableRow>
         </TableHeader>
@@ -144,19 +152,19 @@ const breadcrumbs = [
               <DropdownMenu>
                 <DropdownMenuTrigger as-child>
                   <Button variant="ghost" size="sm" class="h-8 w-8 p-0" @click.stop>
-                    <span class="sr-only">Действия</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01" /></svg>
+                    <span class="sr-only">Actions</span>
+                    <MoreVertical />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem @click.stop="goToDetail(role)">
-                    Открыть
+                    Open
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     class="text-destructive"
                     @click.stop="confirmDelete(role)"
                   >
-                    Удалить
+                    Delete
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -168,20 +176,28 @@ const breadcrumbs = [
       <div v-if="rolesPagination && rolesPagination.totalPages > 1" class="flex items-center justify-between mt-4">
         <span class="text-sm text-muted-foreground">{{ pageInfo }}</span>
         <div class="flex gap-2">
-          <Button variant="outline" size="sm" :disabled="isFirstPage" @click="prevPage">
-            Назад
-          </Button>
-          <Button variant="outline" size="sm" :disabled="isLastPage" @click="nextPage">
-            Вперёд
-          </Button>
+          <IconButton
+            :icon="ChevronLeft"
+            tooltip="Back"
+            variant="outline"
+            :disabled="isFirstPage"
+            @click="prevPage"
+          />
+          <IconButton
+            :icon="ChevronRight"
+            tooltip="Next"
+            variant="outline"
+            :disabled="isLastPage"
+            @click="nextPage"
+          />
         </div>
       </div>
     </template>
 
     <ConfirmDialog
       :open="showDeleteDialog"
-      title="Удалить роль?"
-      :description="`Роль «${deleteTarget?.label}» (${deleteTarget?.apiName}) будет удалена без возможности восстановления.`"
+      title="Delete Role?"
+      :description="`Role '${deleteTarget?.label}' (${deleteTarget?.apiName}) will be permanently deleted.`"
       @update:open="showDeleteDialog = $event"
       @confirm="onDeleteConfirmed"
     />

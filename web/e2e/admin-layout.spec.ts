@@ -15,25 +15,25 @@ test.describe('Admin layout and sidebar', () => {
   test('sidebar shows top-level navigation items', async ({ page }) => {
     await page.goto('/admin')
     const sidebar = page.locator('aside')
-    await expect(sidebar.getByText('Объекты')).toBeVisible()
-    await expect(sidebar.getByText('Пользователи')).toBeVisible()
+    await expect(sidebar.getByText('Objects')).toBeVisible()
+    await expect(sidebar.getByText('Users')).toBeVisible()
   })
 
   test('sidebar shows security group with toggle', async ({ page }) => {
     await page.goto('/admin')
     const sidebar = page.locator('aside')
-    await expect(sidebar.getByText('Безопасность')).toBeVisible()
+    await expect(sidebar.getByText('Security')).toBeVisible()
   })
 
   test('security group expands and shows children', async ({ page }) => {
     await page.goto('/admin')
     const sidebar = page.locator('aside')
-    await sidebar.getByText('Безопасность').click()
-    await expect(sidebar.getByText('Роли')).toBeVisible()
-    await expect(sidebar.getByText('Наборы разрешений')).toBeVisible()
-    await expect(sidebar.getByText('Профили')).toBeVisible()
-    await expect(sidebar.getByText('Группы')).toBeVisible()
-    await expect(sidebar.getByText('Правила доступа')).toBeVisible()
+    await sidebar.getByText('Security').click()
+    await expect(sidebar.getByText('Roles')).toBeVisible()
+    await expect(sidebar.getByText('Permission Sets')).toBeVisible()
+    await expect(sidebar.getByText('Profiles')).toBeVisible()
+    await expect(sidebar.getByText('Groups')).toBeVisible()
+    await expect(sidebar.getByText('Sharing Rules')).toBeVisible()
   })
 
   test('redirects /admin to /admin/metadata/objects', async ({ page }) => {
@@ -44,48 +44,48 @@ test.describe('Admin layout and sidebar', () => {
   test('navigates to objects via sidebar link', async ({ page }) => {
     await page.goto('/admin/security/roles')
     const sidebar = page.locator('aside')
-    await sidebar.getByText('Объекты').click()
+    await sidebar.getByText('Objects').click()
     await expect(page).toHaveURL(/\/admin\/metadata\/objects/)
   })
 
   test('navigates to roles via sidebar', async ({ page }) => {
     await page.goto('/admin')
     const sidebar = page.locator('aside')
-    await sidebar.getByText('Безопасность').click()
-    await sidebar.getByText('Роли').click()
+    await sidebar.getByText('Security').click()
+    await sidebar.getByText('Roles').click()
     await expect(page).toHaveURL(/\/admin\/security\/roles/)
   })
 
   test('navigates to users via sidebar', async ({ page }) => {
     await page.goto('/admin')
     const sidebar = page.locator('aside')
-    await sidebar.getByText('Пользователи').click()
+    await sidebar.getByText('Users').click()
     await expect(page).toHaveURL(/\/admin\/security\/users/)
   })
 
   test('security section auto-expands when on security route', async ({ page }) => {
     await page.goto('/admin/security/roles')
     const sidebar = page.locator('aside')
-    await expect(sidebar.getByText('Роли')).toBeVisible()
-    await expect(sidebar.getByText('Наборы разрешений')).toBeVisible()
-    await expect(sidebar.getByText('Профили')).toBeVisible()
-    await expect(sidebar.getByText('Группы')).toBeVisible()
-    await expect(sidebar.getByText('Правила доступа')).toBeVisible()
+    await expect(sidebar.getByText('Roles')).toBeVisible()
+    await expect(sidebar.getByText('Permission Sets')).toBeVisible()
+    await expect(sidebar.getByText('Profiles')).toBeVisible()
+    await expect(sidebar.getByText('Groups')).toBeVisible()
+    await expect(sidebar.getByText('Sharing Rules')).toBeVisible()
   })
 
   test('navigates to groups via sidebar', async ({ page }) => {
     await page.goto('/admin')
     const sidebar = page.locator('aside')
-    await sidebar.getByText('Безопасность').click()
-    await sidebar.getByText('Группы').click()
+    await sidebar.getByText('Security').click()
+    await sidebar.getByText('Groups').click()
     await expect(page).toHaveURL(/\/admin\/security\/groups/)
   })
 
   test('navigates to sharing rules via sidebar', async ({ page }) => {
     await page.goto('/admin')
     const sidebar = page.locator('aside')
-    await sidebar.getByText('Безопасность').click()
-    await sidebar.getByText('Правила доступа').click()
+    await sidebar.getByText('Security').click()
+    await sidebar.getByText('Sharing Rules').click()
     await expect(page).toHaveURL(/\/admin\/security\/sharing-rules/)
   })
 })

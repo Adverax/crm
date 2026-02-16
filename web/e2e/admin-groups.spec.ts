@@ -16,30 +16,30 @@ test.describe('Group list page', () => {
   test('shows group labels', async ({ page }) => {
     await page.goto('/admin/security/groups')
     const main = page.locator('main')
-    await expect(main.getByText('Все пользователи')).toBeVisible()
-    await expect(main.getByText('Отдел продаж')).toBeVisible()
+    await expect(main.getByText('All Users')).toBeVisible()
+    await expect(main.getByText('Sales Team')).toBeVisible()
   })
 
-  test('shows group type labels in Russian', async ({ page }) => {
+  test('shows group type labels', async ({ page }) => {
     await page.goto('/admin/security/groups')
     const main = page.locator('main')
-    await expect(main.getByText('Публичная').first()).toBeVisible()
+    await expect(main.getByText('Public').first()).toBeVisible()
   })
 
-  test('shows Роль type for role group', async ({ page }) => {
+  test('shows Role type for role group', async ({ page }) => {
     await page.goto('/admin/security/groups')
     const main = page.locator('main')
-    await expect(main.getByText('Роль', { exact: true }).first()).toBeVisible()
+    await expect(main.getByText('Role', { exact: true }).first()).toBeVisible()
   })
 
   test('has create group button', async ({ page }) => {
     await page.goto('/admin/security/groups')
-    await expect(page.getByText('Создать группу')).toBeVisible()
+    await expect(page.getByText('Create Group')).toBeVisible()
   })
 
   test('create button navigates to create page', async ({ page }) => {
     await page.goto('/admin/security/groups')
-    await page.getByText('Создать группу').click()
+    await page.getByText('Create Group').click()
     await expect(page).toHaveURL(/\/admin\/security\/groups\/new/)
   })
 
@@ -65,20 +65,20 @@ test.describe('Group create page', () => {
 
   test('has group type selector', async ({ page }) => {
     await page.goto('/admin/security/groups/new')
-    await expect(page.getByText('Тип группы').first()).toBeVisible()
+    await expect(page.getByText('Group Type').first()).toBeVisible()
   })
 
   test('has submit and cancel buttons', async ({ page }) => {
     await page.goto('/admin/security/groups/new')
-    await expect(page.getByRole('button', { name: 'Создать' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Отмена' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Create' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible()
   })
 
   test('cancel navigates back to list', async ({ page }) => {
     await page.goto('/admin/security/groups')
-    await page.getByText('Создать группу').click()
+    await page.getByText('Create Group').click()
     await expect(page).toHaveURL(/\/admin\/security\/groups\/new/)
-    await page.getByRole('button', { name: 'Отмена' }).click()
+    await page.getByRole('button', { name: 'Cancel' }).click()
     await expect(page).toHaveURL(/\/admin\/security\/groups/)
   })
 
@@ -86,10 +86,10 @@ test.describe('Group create page', () => {
     await page.goto('/admin/security/groups/new')
 
     await page.locator('#apiName').fill('test_group')
-    await page.locator('#label').fill('Тестовая группа')
+    await page.locator('#label').fill('Test Group')
 
     const requestPromise = page.waitForRequest('**/api/v1/admin/security/groups')
-    await page.getByRole('button', { name: 'Создать' }).click()
+    await page.getByRole('button', { name: 'Create' }).click()
 
     const request = await requestPromise
     expect(request.method()).toBe('POST')
@@ -112,31 +112,31 @@ test.describe('Group detail page', () => {
 
   test('shows tabs: info and members', async ({ page }) => {
     await page.goto(`/admin/security/groups/${group.id}`)
-    await expect(page.getByRole('tab', { name: /Основное/ })).toBeVisible()
-    await expect(page.getByRole('tab', { name: /Участники/ })).toBeVisible()
+    await expect(page.getByRole('tab', { name: /General/ })).toBeVisible()
+    await expect(page.getByRole('tab', { name: /Members/ })).toBeVisible()
   })
 
   test('info tab shows group details', async ({ page }) => {
     await page.goto(`/admin/security/groups/${group.id}`)
     await expect(page.getByText('API Name').first()).toBeVisible()
-    await expect(page.getByText('Тип группы').first()).toBeVisible()
+    await expect(page.getByText('Group Type').first()).toBeVisible()
   })
 
   test('has delete button', async ({ page }) => {
     await page.goto(`/admin/security/groups/${group.id}`)
-    await expect(page.getByRole('button', { name: /Удалить/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Delete/ })).toBeVisible()
   })
 
   test('can switch to members tab', async ({ page }) => {
     await page.goto(`/admin/security/groups/${group.id}`)
-    await page.getByRole('tab', { name: /Участники/ }).click()
-    await expect(page.getByText('Добавить участника')).toBeVisible()
+    await page.getByRole('tab', { name: /Members/ }).click()
+    await expect(page.getByText('Add Member')).toBeVisible()
   })
 
   test('members tab shows member list', async ({ page }) => {
     await page.goto(`/admin/security/groups/${group.id}`)
-    await page.getByRole('tab', { name: /Участники/ }).click()
+    await page.getByRole('tab', { name: /Members/ }).click()
     // Members table should be visible with user info
-    await expect(page.getByText('Иван Иванов').first()).toBeVisible()
+    await expect(page.getByText('John Smith').first()).toBeVisible()
   })
 })

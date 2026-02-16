@@ -60,7 +60,7 @@ async function onAssign() {
   if (!selectedPsId.value) return
   try {
     await store.assignPermissionSet(props.userId, selectedPsId.value)
-    toast.success('Набор разрешений назначен')
+    toast.success('Permission set assigned')
     selectedPsId.value = ''
     emit('assigned')
   } catch (err) {
@@ -78,18 +78,18 @@ function onSelect(value: any) {
   <Dialog :open="props.open" @update:open="emit('update:open', $event)">
     <DialogContent>
       <DialogHeader>
-        <DialogTitle>Назначить набор разрешений</DialogTitle>
+        <DialogTitle>Assign Permission Set</DialogTitle>
         <DialogDescription>
-          Выберите набор разрешений для назначения пользователю
+          Select a permission set to assign to the user
         </DialogDescription>
       </DialogHeader>
 
       <div class="space-y-4 py-4">
         <div class="space-y-2">
-          <Label>Набор разрешений</Label>
+          <Label>Permission Set</Label>
           <Select :model-value="selectedPsId || undefined" @update:model-value="onSelect">
             <SelectTrigger>
-              <SelectValue placeholder="Выберите набор" />
+              <SelectValue placeholder="Select a set" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem v-for="ps in availableSets" :key="ps.id" :value="ps.id">
@@ -100,16 +100,16 @@ function onSelect(value: any) {
         </div>
 
         <p v-if="availableSets.length === 0" class="text-sm text-muted-foreground">
-          Все доступные наборы уже назначены
+          All available sets are already assigned
         </p>
       </div>
 
       <DialogFooter>
         <Button variant="outline" :disabled="permissionSetsLoading" @click="onCancel">
-          Отмена
+          Cancel
         </Button>
         <Button :disabled="!selectedPsId || permissionSetsLoading" @click="onAssign">
-          Назначить
+          Assign
         </Button>
       </DialogFooter>
     </DialogContent>

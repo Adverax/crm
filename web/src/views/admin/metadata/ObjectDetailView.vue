@@ -13,6 +13,8 @@ import FieldEditDialog from '@/components/admin/metadata/FieldEditDialog.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Trash2, X } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -48,30 +50,30 @@ const editingField = ref<FieldDefinition | null>(null)
 
 const flagGroups = [
   {
-    title: 'Разрешения на записи',
+    title: 'Record Permissions',
     items: [
-      { key: 'isCreateable', label: 'Создание записей' },
-      { key: 'isUpdateable', label: 'Обновление записей' },
-      { key: 'isDeleteable', label: 'Удаление записей' },
-      { key: 'isQueryable', label: 'Запросы (SOQL)' },
-      { key: 'isSearchable', label: 'Полнотекстовый поиск' },
+      { key: 'isCreateable', label: 'Create records' },
+      { key: 'isUpdateable', label: 'Update records' },
+      { key: 'isDeleteable', label: 'Delete records' },
+      { key: 'isQueryable', label: 'Queries (SOQL)' },
+      { key: 'isSearchable', label: 'Full-text search' },
     ],
   },
   {
-    title: 'Настройки объекта',
+    title: 'Object Settings',
     items: [
-      { key: 'isVisibleInSetup', label: 'Виден в настройках' },
-      { key: 'isCustomFieldsAllowed', label: 'Разрешены custom-поля' },
-      { key: 'isDeleteableObject', label: 'Можно удалить объект' },
+      { key: 'isVisibleInSetup', label: 'Visible in setup' },
+      { key: 'isCustomFieldsAllowed', label: 'Custom fields allowed' },
+      { key: 'isDeleteableObject', label: 'Object can be deleted' },
     ],
   },
   {
-    title: 'Возможности',
+    title: 'Capabilities',
     items: [
-      { key: 'hasActivities', label: 'Активности' },
-      { key: 'hasNotes', label: 'Заметки' },
-      { key: 'hasHistoryTracking', label: 'История изменений' },
-      { key: 'hasSharingRules', label: 'Правила общего доступа' },
+      { key: 'hasActivities', label: 'Activities' },
+      { key: 'hasNotes', label: 'Notes' },
+      { key: 'hasHistoryTracking', label: 'History tracking' },
+      { key: 'hasSharingRules', label: 'Sharing rules' },
     ],
   },
 ]
@@ -121,7 +123,7 @@ async function onSave() {
   if (!validate()) return
   try {
     await store.updateObject(props.objectId, toUpdateRequest())
-    toast.success('Объект обновлён')
+    toast.success('Object updated')
   } catch (err) {
     toast.errorFromApi(err)
   }
@@ -130,7 +132,7 @@ async function onSave() {
 async function onDeleteObject() {
   try {
     await store.deleteObject(props.objectId)
-    toast.success('Объект удалён')
+    toast.success('Object deleted')
     router.push({ name: 'admin-objects' })
   } catch (err) {
     toast.errorFromApi(err)
@@ -141,20 +143,20 @@ async function onDeleteObject() {
 
 async function onFieldCreated() {
   showFieldCreate.value = false
-  toast.success('Поле создано')
+  toast.success('Field created')
   await store.fetchFields(props.objectId)
 }
 
 async function onFieldUpdated() {
   editingField.value = null
-  toast.success('Поле обновлено')
+  toast.success('Field updated')
   await store.fetchFields(props.objectId)
 }
 
 async function onFieldDelete(field: FieldDefinition) {
   try {
     await store.deleteField(props.objectId, field.id)
-    toast.success('Поле удалено')
+    toast.success('Field deleted')
     await store.fetchFields(props.objectId)
   } catch (err) {
     toast.errorFromApi(err)
@@ -162,8 +164,8 @@ async function onFieldDelete(field: FieldDefinition) {
 }
 
 const breadcrumbs = computed(() => [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Объекты', to: '/admin/metadata/objects' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Objects', to: '/admin/metadata/objects' },
   { label: currentObject.value?.label ?? '...' },
 ])
 </script>
@@ -179,14 +181,13 @@ const breadcrumbs = computed(() => [
       <PageHeader :title="currentObject.label" :breadcrumbs="breadcrumbs">
         <template #actions>
           <ObjectTypeBadge :type="currentObject.objectType" />
-          <Button
+          <IconButton
             v-if="currentObject.isDeleteableObject && !currentObject.isPlatformManaged"
+            :icon="Trash2"
+            tooltip="Delete object"
             variant="destructive"
-            size="sm"
             @click="showDeleteDialog = true"
-          >
-            Удалить объект
-          </Button>
+          />
         </template>
       </PageHeader>
 
@@ -195,16 +196,16 @@ const breadcrumbs = computed(() => [
 
       <Tabs default-value="info">
         <TabsList>
-          <TabsTrigger value="info">Основное</TabsTrigger>
+          <TabsTrigger value="info">General</TabsTrigger>
           <TabsTrigger value="fields">
-            Поля ({{ fields.length }})
+            Fields ({{ fields.length }})
           </TabsTrigger>
           <TabsTrigger value="rules" as-child>
             <RouterLink
               :to="{ name: 'admin-validation-rules', params: { objectId: props.objectId } }"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium"
             >
-              Правила валидации
+              Validation Rules
             </RouterLink>
           </TabsTrigger>
         </TabsList>
@@ -213,7 +214,7 @@ const breadcrumbs = computed(() => [
           <form class="max-w-2xl space-y-6 mt-4" @submit.prevent="onSave">
             <Card>
               <CardContent class="pt-6 space-y-4">
-                <h2 class="text-lg font-semibold">Основная информация</h2>
+                <h2 class="text-lg font-semibold">General Information</h2>
 
                 <div class="space-y-2">
                   <Label>API Name</Label>
@@ -222,39 +223,39 @@ const breadcrumbs = computed(() => [
 
                 <div class="grid grid-cols-2 gap-4">
                   <div class="space-y-2">
-                    <Label for="label">Название</Label>
+                    <Label for="label">Label</Label>
                     <Input id="label" v-model="state.label" />
                     <p v-if="errors.label" class="text-sm text-destructive">{{ errors.label }}</p>
                   </div>
                   <div class="space-y-2">
-                    <Label for="pluralLabel">Мн. число</Label>
+                    <Label for="pluralLabel">Plural Label</Label>
                     <Input id="pluralLabel" v-model="state.pluralLabel" />
                     <p v-if="errors.pluralLabel" class="text-sm text-destructive">{{ errors.pluralLabel }}</p>
                   </div>
                 </div>
 
                 <div class="space-y-2">
-                  <Label>Тип объекта</Label>
+                  <Label>Object Type</Label>
                   <Input :model-value="state.objectType" disabled />
                 </div>
 
                 <div class="space-y-2">
-                  <Label for="visibility">Видимость (OWD)</Label>
+                  <Label for="visibility">Visibility (OWD)</Label>
                   <Select :model-value="state.visibility" @update:model-value="onVisibilityChange">
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="private">Приватный</SelectItem>
-                      <SelectItem value="public_read">Публичный (чтение)</SelectItem>
-                      <SelectItem value="public_read_write">Публичный (чтение/запись)</SelectItem>
-                      <SelectItem value="controlled_by_parent">Управляется родителем</SelectItem>
+                      <SelectItem value="private">Private</SelectItem>
+                      <SelectItem value="public_read">Public Read Only</SelectItem>
+                      <SelectItem value="public_read_write">Public Read/Write</SelectItem>
+                      <SelectItem value="controlled_by_parent">Controlled by Parent</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div class="space-y-2">
-                  <Label for="description">Описание</Label>
+                  <Label for="description">Description</Label>
                   <Textarea id="description" v-model="state.description" rows="3" />
                 </div>
               </CardContent>
@@ -271,13 +272,16 @@ const breadcrumbs = computed(() => [
 
             <Separator />
 
-            <div class="flex gap-2">
+            <div class="flex gap-2 items-center">
               <Button type="submit" :disabled="objectsLoading">
-                Сохранить
+                Save
               </Button>
-              <Button variant="outline" type="button" @click="router.back()">
-                Отмена
-              </Button>
+              <IconButton
+                :icon="X"
+                tooltip="Cancel"
+                variant="outline"
+                @click="router.back()"
+              />
             </div>
           </form>
         </TabsContent>
@@ -297,8 +301,8 @@ const breadcrumbs = computed(() => [
 
       <ConfirmDialog
         :open="showDeleteDialog"
-        title="Удалить объект?"
-        :description="`Объект «${currentObject.label}» (${currentObject.apiName}) и все его поля будут удалены без возможности восстановления.`"
+        title="Delete object?"
+        :description="`Object '${currentObject.label}' (${currentObject.apiName}) and all its fields will be permanently deleted.`"
         @update:open="showDeleteDialog = $event"
         @confirm="onDeleteObject"
       />

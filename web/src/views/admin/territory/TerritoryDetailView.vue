@@ -8,6 +8,8 @@ import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Trash2, X } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -77,7 +79,7 @@ async function onSave() {
   if (!validate()) return
   try {
     await store.updateTerritory(props.territoryId, toUpdateRequest())
-    toast.success('Территория обновлена')
+    toast.success('Territory updated')
   } catch (err) {
     toast.errorFromApi(err)
   }
@@ -86,7 +88,7 @@ async function onSave() {
 async function onDelete() {
   try {
     await store.deleteTerritory(props.territoryId)
-    toast.success('Территория удалена')
+    toast.success('Territory deleted')
     router.push({ name: 'admin-territory-list' })
   } catch (err) {
     toast.errorFromApi(err)
@@ -98,7 +100,7 @@ async function onDelete() {
 async function onRemoveUser(userId: string) {
   try {
     await store.unassignUser(props.territoryId, userId)
-    toast.success('Пользователь удалён из территории')
+    toast.success('User removed from territory')
     await store.fetchTerritoryUsers(props.territoryId)
   } catch (err) {
     toast.errorFromApi(err)
@@ -108,7 +110,7 @@ async function onRemoveUser(userId: string) {
 async function onRemoveObjectDefault(objectId: string) {
   try {
     await store.removeObjectDefault(props.territoryId, objectId)
-    toast.success('Настройка объекта удалена')
+    toast.success('Object default removed')
     await store.fetchObjectDefaults(props.territoryId)
   } catch (err) {
     toast.errorFromApi(err)
@@ -120,8 +122,8 @@ const availableParents = computed(() =>
 )
 
 const breadcrumbs = computed(() => [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Территории', to: '/admin/territory/territories' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Territories', to: '/admin/territory/territories' },
   { label: currentTerritory.value?.label ?? '...' },
 ])
 </script>
@@ -136,13 +138,12 @@ const breadcrumbs = computed(() => [
     <template v-else-if="currentTerritory">
       <PageHeader :title="currentTerritory.label" :breadcrumbs="breadcrumbs">
         <template #actions>
-          <Button
+          <IconButton
+            :icon="Trash2"
+            tooltip="Delete territory"
             variant="destructive"
-            size="sm"
             @click="showDeleteDialog = true"
-          >
-            Удалить территорию
-          </Button>
+          />
         </template>
       </PageHeader>
 
@@ -150,9 +151,9 @@ const breadcrumbs = computed(() => [
 
       <Tabs default-value="info" class="max-w-3xl">
         <TabsList>
-          <TabsTrigger value="info">Основное</TabsTrigger>
-          <TabsTrigger value="users">Пользователи</TabsTrigger>
-          <TabsTrigger value="objects">Объекты</TabsTrigger>
+          <TabsTrigger value="info">General</TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="objects">Objects</TabsTrigger>
         </TabsList>
 
         <TabsContent value="info">
@@ -165,19 +166,19 @@ const breadcrumbs = computed(() => [
                 </div>
 
                 <div class="space-y-2">
-                  <Label for="label">Название</Label>
+                  <Label for="label">Label</Label>
                   <Input id="label" v-model="state.label" />
                   <p v-if="errors.label" class="text-sm text-destructive">{{ errors.label }}</p>
                 </div>
 
                 <div class="space-y-2">
-                  <Label for="parentId">Родительская территория</Label>
+                  <Label for="parentId">Parent Territory</Label>
                   <Select :model-value="state.parentId ?? '__none__'" @update:model-value="onParentChange">
                     <SelectTrigger>
-                      <SelectValue placeholder="Без родителя" />
+                      <SelectValue placeholder="No parent" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">Без родителя</SelectItem>
+                      <SelectItem value="__none__">No parent</SelectItem>
                       <SelectItem v-for="t in availableParents" :key="t.id" :value="t.id">
                         {{ t.label }}
                       </SelectItem>
@@ -186,7 +187,7 @@ const breadcrumbs = computed(() => [
                 </div>
 
                 <div class="space-y-2">
-                  <Label for="description">Описание</Label>
+                  <Label for="description">Description</Label>
                   <Textarea id="description" v-model="state.description" rows="3" />
                 </div>
               </CardContent>
@@ -194,13 +195,16 @@ const breadcrumbs = computed(() => [
 
             <Separator />
 
-            <div class="flex gap-2">
+            <div class="flex gap-2 items-center">
               <Button type="submit" :disabled="territoriesLoading">
-                Сохранить
+                Save
               </Button>
-              <Button variant="outline" type="button" @click="router.back()">
-                Отмена
-              </Button>
+              <IconButton
+                :icon="X"
+                tooltip="Cancel"
+                variant="outline"
+                @click="router.back()"
+              />
             </div>
           </form>
         </TabsContent>
@@ -210,8 +214,8 @@ const breadcrumbs = computed(() => [
             <Table v-if="userAssignments.length > 0">
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID пользователя</TableHead>
-                  <TableHead>Назначен</TableHead>
+                  <TableHead>User ID</TableHead>
+                  <TableHead>Assigned</TableHead>
                   <TableHead class="w-16" />
                 </TableRow>
               </TableHeader>
@@ -219,19 +223,23 @@ const breadcrumbs = computed(() => [
                 <TableRow v-for="assignment in userAssignments" :key="assignment.id">
                   <TableCell class="font-mono text-sm">{{ assignment.userId }}</TableCell>
                   <TableCell class="text-muted-foreground">
-                    {{ new Date(assignment.createdAt).toLocaleDateString('ru-RU') }}
+                    {{ new Date(assignment.createdAt).toLocaleDateString('en-US') }}
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="sm" class="text-destructive" @click="onRemoveUser(assignment.userId)">
-                      Удалить
-                    </Button>
+                    <IconButton
+                      :icon="Trash2"
+                      tooltip="Delete"
+                      variant="ghost"
+                      class="text-destructive"
+                      @click="onRemoveUser(assignment.userId)"
+                    />
                   </TableCell>
                 </TableRow>
               </TableBody>
             </Table>
 
             <p v-else class="text-sm text-muted-foreground">
-              Нет назначенных пользователей
+              No assigned users
             </p>
           </div>
         </TabsContent>
@@ -241,8 +249,8 @@ const breadcrumbs = computed(() => [
             <Table v-if="objectDefaults.length > 0">
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID объекта</TableHead>
-                  <TableHead>Уровень доступа</TableHead>
+                  <TableHead>Object ID</TableHead>
+                  <TableHead>Access Level</TableHead>
                   <TableHead class="w-16" />
                 </TableRow>
               </TableHeader>
@@ -251,16 +259,20 @@ const breadcrumbs = computed(() => [
                   <TableCell class="font-mono text-sm">{{ od.objectId }}</TableCell>
                   <TableCell>{{ od.accessLevel }}</TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="sm" class="text-destructive" @click="onRemoveObjectDefault(od.objectId)">
-                      Удалить
-                    </Button>
+                    <IconButton
+                      :icon="Trash2"
+                      tooltip="Delete"
+                      variant="ghost"
+                      class="text-destructive"
+                      @click="onRemoveObjectDefault(od.objectId)"
+                    />
                   </TableCell>
                 </TableRow>
               </TableBody>
             </Table>
 
             <p v-else class="text-sm text-muted-foreground">
-              Нет настроек объектов для этой территории
+              No object defaults for this territory
             </p>
           </div>
         </TabsContent>
@@ -268,8 +280,8 @@ const breadcrumbs = computed(() => [
 
       <ConfirmDialog
         :open="showDeleteDialog"
-        title="Удалить территорию?"
-        :description="`Территория «${currentTerritory.label}» (${currentTerritory.apiName}) будет удалена без возможности восстановления.`"
+        title="Delete territory?"
+        :description="`Territory '${currentTerritory.label}' (${currentTerritory.apiName}) will be permanently deleted.`"
         @update:open="showDeleteDialog = $event"
         @confirm="onDelete"
       />

@@ -12,6 +12,8 @@ import PsTypeBadge from '@/components/admin/security/PsTypeBadge.vue'
 import ObjectPermissionsEditor from '@/components/admin/security/ObjectPermissionsEditor.vue'
 import FieldPermissionsEditor from '@/components/admin/security/FieldPermissionsEditor.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Trash2, X } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -66,7 +68,7 @@ async function onSave() {
   if (!validate()) return
   try {
     await store.updatePermissionSet(props.permissionSetId, toUpdateRequest())
-    toast.success('Набор разрешений обновлён')
+    toast.success('Permission set updated')
   } catch (err) {
     toast.errorFromApi(err)
   }
@@ -75,7 +77,7 @@ async function onSave() {
 async function onDeletePS() {
   try {
     await store.deletePermissionSet(props.permissionSetId)
-    toast.success('Набор разрешений удалён')
+    toast.success('Permission set deleted')
     router.push({ name: 'admin-permission-sets' })
   } catch (err) {
     toast.errorFromApi(err)
@@ -85,8 +87,8 @@ async function onDeletePS() {
 }
 
 const breadcrumbs = computed(() => [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Наборы разрешений', to: '/admin/security/permission-sets' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Permission Sets', to: '/admin/security/permission-sets' },
   { label: currentPermissionSet.value?.label ?? '...' },
 ])
 </script>
@@ -102,13 +104,12 @@ const breadcrumbs = computed(() => [
       <PageHeader :title="currentPermissionSet.label" :breadcrumbs="breadcrumbs">
         <template #actions>
           <PsTypeBadge :type="currentPermissionSet.psType" />
-          <Button
+          <IconButton
+            :icon="Trash2"
+            tooltip="Delete Permission Set"
             variant="destructive"
-            size="sm"
             @click="showDeleteDialog = true"
-          >
-            Удалить набор
-          </Button>
+          />
         </template>
       </PageHeader>
 
@@ -116,16 +117,16 @@ const breadcrumbs = computed(() => [
 
       <Tabs default-value="info">
         <TabsList>
-          <TabsTrigger value="info">Основное</TabsTrigger>
-          <TabsTrigger value="ols">Права на объекты</TabsTrigger>
-          <TabsTrigger value="fls">Права на поля</TabsTrigger>
+          <TabsTrigger value="info">General</TabsTrigger>
+          <TabsTrigger value="ols">Object Permissions</TabsTrigger>
+          <TabsTrigger value="fls">Field Permissions</TabsTrigger>
         </TabsList>
 
         <TabsContent value="info">
           <form class="max-w-2xl space-y-6 mt-4" @submit.prevent="onSave">
             <Card>
               <CardContent class="pt-6 space-y-4">
-                <h2 class="text-lg font-semibold">Основная информация</h2>
+                <h2 class="text-lg font-semibold">General Information</h2>
 
                 <div class="space-y-2">
                   <Label>API Name</Label>
@@ -133,18 +134,18 @@ const breadcrumbs = computed(() => [
                 </div>
 
                 <div class="space-y-2">
-                  <Label for="label">Название</Label>
+                  <Label for="label">Label</Label>
                   <Input id="label" v-model="state.label" />
                   <p v-if="errors.label" class="text-sm text-destructive">{{ errors.label }}</p>
                 </div>
 
                 <div class="space-y-2">
-                  <Label>Тип</Label>
+                  <Label>Type</Label>
                   <Input :model-value="state.psType === 'grant' ? 'Grant' : 'Deny'" disabled />
                 </div>
 
                 <div class="space-y-2">
-                  <Label for="description">Описание</Label>
+                  <Label for="description">Description</Label>
                   <Textarea id="description" v-model="state.description" rows="3" />
                 </div>
               </CardContent>
@@ -152,13 +153,16 @@ const breadcrumbs = computed(() => [
 
             <Separator />
 
-            <div class="flex gap-2">
+            <div class="flex gap-2 items-center">
               <Button type="submit" :disabled="permissionSetsLoading">
-                Сохранить
+                Save
               </Button>
-              <Button variant="outline" type="button" @click="router.back()">
-                Отмена
-              </Button>
+              <IconButton
+                :icon="X"
+                tooltip="Cancel"
+                variant="outline"
+                @click="router.back()"
+              />
             </div>
           </form>
         </TabsContent>
@@ -178,8 +182,8 @@ const breadcrumbs = computed(() => [
 
       <ConfirmDialog
         :open="showDeleteDialog"
-        title="Удалить набор разрешений?"
-        :description="`Набор «${currentPermissionSet.label}» (${currentPermissionSet.apiName}) будет удалён без возможности восстановления.`"
+        title="Delete Permission Set?"
+        :description="`Permission set '${currentPermissionSet.label}' (${currentPermissionSet.apiName}) will be permanently deleted.`"
         @update:open="showDeleteDialog = $event"
         @confirm="onDeletePS"
       />

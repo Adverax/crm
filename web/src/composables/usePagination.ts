@@ -6,7 +6,7 @@ export function usePagination(pagination: Ref<PaginationMeta | null>, load: (pag
   const isLastPage = computed(() => !pagination.value || pagination.value.page >= pagination.value.totalPages)
   const pageInfo = computed(() => {
     if (!pagination.value) return ''
-    return `Страница ${pagination.value.page} из ${pagination.value.totalPages}`
+    return `Page ${pagination.value.page} of ${pagination.value.totalPages}`
   })
 
   function goToPage(page: number) {

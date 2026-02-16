@@ -8,6 +8,8 @@ import PageHeader from '@/components/admin/PageHeader.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
 import ExpressionBuilder from '@/components/admin/expression-builder/ExpressionBuilder.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Trash2, Plus, X } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -104,8 +106,9 @@ async function onSave() {
           }))
         : undefined,
     })
-    toast.success('Функция обновлена')
+    toast.success('Function updated')
     await functionsStore.invalidate()
+    router.push({ name: 'admin-functions' })
   } catch (err) {
     toast.errorFromApi(err)
   } finally {
@@ -116,7 +119,7 @@ async function onSave() {
 async function onDelete() {
   try {
     await functionsApi.delete(props.functionId)
-    toast.success('Функция удалена')
+    toast.success('Function deleted')
     await functionsStore.invalidate()
     router.push({ name: 'admin-functions' })
   } catch (err) {
@@ -131,8 +134,8 @@ function onCancel() {
 }
 
 const breadcrumbs = computed(() => [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Функции', to: '/admin/metadata/functions' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Functions', to: '/admin/metadata/functions' },
   { label: fn.value ? `fn.${fn.value.name}` : '...' },
 ])
 
@@ -151,14 +154,13 @@ const functionParams = computed(() =>
     <template v-else-if="fn">
       <PageHeader :title="`fn.${fn.name}`" :breadcrumbs="breadcrumbs">
         <template #actions>
-          <Button
+          <IconButton
+            :icon="Trash2"
+            tooltip="Delete function"
             variant="destructive"
-            size="sm"
             data-testid="delete-function-btn"
             @click="showDeleteDialog = true"
-          >
-            Удалить функцию
-          </Button>
+          />
         </template>
       </PageHeader>
 
@@ -167,11 +169,11 @@ const functionParams = computed(() =>
           <CardContent class="pt-6 space-y-4">
             <div class="grid grid-cols-2 gap-4">
               <div class="space-y-2">
-                <Label>Имя функции</Label>
+                <Label>Function Name</Label>
                 <Input :model-value="fn.name" disabled class="font-mono" />
               </div>
               <div class="space-y-2">
-                <Label>Тип возврата</Label>
+                <Label>Return Type</Label>
                 <Select :model-value="form.returnType" @update:model-value="onReturnTypeChange">
                   <SelectTrigger data-testid="field-return-type">
                     <SelectValue />
@@ -189,7 +191,7 @@ const functionParams = computed(() =>
             </div>
 
             <div class="space-y-2">
-              <Label for="description">Описание</Label>
+              <Label for="description">Description</Label>
               <Textarea
                 id="description"
                 v-model="form.description"
@@ -204,16 +206,14 @@ const functionParams = computed(() =>
         <Card>
           <CardContent class="pt-6 space-y-4">
             <div class="flex items-center justify-between">
-              <Label class="text-base">Параметры</Label>
-              <Button
-                type="button"
+              <Label class="text-base">Parameters</Label>
+              <IconButton
+                :icon="Plus"
+                tooltip="Add parameter"
                 variant="outline"
-                size="sm"
                 data-testid="add-param-btn"
                 @click="addParam"
-              >
-                Добавить параметр
-              </Button>
+              />
             </div>
 
             <div
@@ -223,7 +223,7 @@ const functionParams = computed(() =>
               data-testid="param-row"
             >
               <div class="space-y-1">
-                <Label class="text-xs">Имя</Label>
+                <Label class="text-xs">Name</Label>
                 <Input
                   v-model="param.name"
                   required
@@ -233,7 +233,7 @@ const functionParams = computed(() =>
                 />
               </div>
               <div class="space-y-1">
-                <Label class="text-xs">Тип</Label>
+                <Label class="text-xs">Type</Label>
                 <Select :model-value="param.type" @update:model-value="(v) => onParamTypeChange(idx, v)">
                   <SelectTrigger :data-testid="`param-type-${idx}`">
                     <SelectValue />
@@ -249,27 +249,25 @@ const functionParams = computed(() =>
                 </Select>
               </div>
               <div class="space-y-1">
-                <Label class="text-xs">Описание</Label>
+                <Label class="text-xs">Description</Label>
                 <Input
                   v-model="param.description"
-                  placeholder="Описание"
+                  placeholder="Description"
                   :data-testid="`param-desc-${idx}`"
                 />
               </div>
-              <Button
-                type="button"
+              <IconButton
+                :icon="Trash2"
+                tooltip="Delete"
                 variant="ghost"
-                size="sm"
-                class="text-destructive"
+                class="text-destructive hover:text-destructive"
                 :data-testid="`remove-param-${idx}`"
                 @click="removeParam(idx)"
-              >
-                Удалить
-              </Button>
+              />
             </div>
 
             <div v-if="form.params.length === 0" class="text-sm text-muted-foreground">
-              Нет параметров. Функция вызывается как fn.{{ fn.name }}()
+              No parameters. Function is called as fn.{{ fn.name }}()
             </div>
           </CardContent>
         </Card>
@@ -277,7 +275,7 @@ const functionParams = computed(() =>
         <!-- Body -->
         <Card>
           <CardContent class="pt-6 space-y-4">
-            <Label>Тело функции (CEL-выражение)</Label>
+            <Label>Function Body (CEL expression)</Label>
             <ExpressionBuilder
               v-model="form.body"
               context="function_body"
@@ -290,20 +288,24 @@ const functionParams = computed(() =>
 
         <Separator />
 
-        <div class="flex gap-2">
+        <div class="flex gap-2 items-center">
           <Button type="submit" :disabled="submitting" data-testid="save-btn">
-            Сохранить
+            Save
           </Button>
-          <Button variant="outline" type="button" data-testid="cancel-btn" @click="onCancel">
-            Отмена
-          </Button>
+          <IconButton
+            :icon="X"
+            tooltip="Cancel"
+            variant="outline"
+            data-testid="cancel-btn"
+            @click="onCancel"
+          />
         </div>
       </form>
 
       <ConfirmDialog
         :open="showDeleteDialog"
-        title="Удалить функцию?"
-        :description="`Функция «fn.${fn.name}» будет удалена без возможности восстановления.`"
+        title="Delete function?"
+        :description="`Function 'fn.${fn.name}' will be permanently deleted.`"
         @update:open="showDeleteDialog = $event"
         @confirm="onDelete"
       />

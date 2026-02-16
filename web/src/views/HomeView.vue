@@ -18,7 +18,7 @@ onMounted(() => {
   <main class="flex items-center justify-center min-h-screen">
     <div class="text-center">
       <h1 class="text-2xl font-bold mb-2">CRM Platform</h1>
-      <p class="text-muted-foreground">Загрузка...</p>
+      <p class="text-muted-foreground">Loading...</p>
     </div>
   </main>
 </template>

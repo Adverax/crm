@@ -50,10 +50,10 @@ async function onPermissionChange(fieldId: string, value: number) {
     <ErrorAlert v-if="flsError" :message="flsError" class="mb-4" />
 
     <div class="max-w-sm space-y-2">
-      <Label>Объект</Label>
+      <Label>Object</Label>
       <Select :model-value="selectedObjectId ?? undefined" @update:model-value="onObjectSelect">
         <SelectTrigger>
-          <SelectValue placeholder="Выберите объект" />
+          <SelectValue placeholder="Select object" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem v-for="obj in objectDefinitions" :key="obj.id" :value="obj.id">
@@ -68,14 +68,14 @@ async function onPermissionChange(fieldId: string, value: number) {
     </div>
 
     <div v-else-if="!selectedObjectId" class="text-sm text-muted-foreground py-8 text-center">
-      Выберите объект для настройки разрешений на поля
+      Select an object to configure field permissions
     </div>
 
     <Table v-else-if="fieldsForObject.length > 0">
       <TableHeader>
         <TableRow>
-          <TableHead>Поле</TableHead>
-          <TableHead>Разрешения</TableHead>
+          <TableHead>Field</TableHead>
+          <TableHead>Permissions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -96,7 +96,7 @@ async function onPermissionChange(fieldId: string, value: number) {
     </Table>
 
     <div v-else-if="selectedObjectId && fieldsForObject.length === 0" class="text-sm text-muted-foreground py-8 text-center">
-      У выбранного объекта нет полей
+      The selected object has no fields
     </div>
   </div>
 </template>

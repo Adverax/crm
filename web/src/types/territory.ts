@@ -142,7 +142,7 @@ export interface AssignmentRuleFilter {
 }
 
 export const MODEL_STATUS_LABELS: Record<ModelStatus, string> = {
-  planning: 'Планирование',
-  active: 'Активна',
-  archived: 'Архив',
+  planning: 'Planning',
+  active: 'Active',
+  archived: 'Archived',
 }

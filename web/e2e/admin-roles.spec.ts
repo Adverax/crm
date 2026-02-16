@@ -9,25 +9,25 @@ test.describe('Role list page', () => {
   test('displays role api names', async ({ page }) => {
     await page.goto('/admin/security/roles')
     const main = page.locator('main')
-    await expect(main.getByText('ceo')).toBeVisible()
-    await expect(main.getByText('sales_manager')).toBeVisible()
+    await expect(main.getByText('ceo', { exact: true })).toBeVisible()
+    await expect(main.getByText('sales_manager', { exact: true })).toBeVisible()
   })
 
   test('shows role labels in table', async ({ page }) => {
     await page.goto('/admin/security/roles')
     const main = page.locator('main')
-    // "Генеральный директор" appears twice: as label for ceo row and as parent for sales_manager row
-    await expect(main.getByText('Менеджер по продажам')).toBeVisible()
+    // "CEO" appears twice: as label for ceo row and as parent for sales_manager row
+    await expect(main.getByText('Sales Manager')).toBeVisible()
   })
 
   test('has create role button', async ({ page }) => {
     await page.goto('/admin/security/roles')
-    await expect(page.getByText('Создать роль')).toBeVisible()
+    await expect(page.getByText('Create Role')).toBeVisible()
   })
 
   test('create button navigates to create page', async ({ page }) => {
     await page.goto('/admin/security/roles')
-    await page.getByText('Создать роль').click()
+    await page.getByText('Create Role').click()
     await expect(page).toHaveURL(/\/admin\/security\/roles\/new/)
   })
 
@@ -54,20 +54,20 @@ test.describe('Role create page', () => {
 
   test('has parent role selector', async ({ page }) => {
     await page.goto('/admin/security/roles/new')
-    await expect(page.getByText('Родительская роль').first()).toBeVisible()
+    await expect(page.getByText('Parent Role').first()).toBeVisible()
   })
 
   test('has submit and cancel buttons', async ({ page }) => {
     await page.goto('/admin/security/roles/new')
-    await expect(page.getByRole('button', { name: 'Создать' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Отмена' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Create' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible()
   })
 
   test('cancel navigates back to list', async ({ page }) => {
     await page.goto('/admin/security/roles')
-    await page.getByText('Создать роль').click()
+    await page.getByText('Create Role').click()
     await expect(page).toHaveURL(/\/admin\/security\/roles\/new/)
-    await page.getByRole('button', { name: 'Отмена' }).click()
+    await page.getByRole('button', { name: 'Cancel' }).click()
     await expect(page).toHaveURL(/\/admin\/security\/roles/)
   })
 
@@ -75,11 +75,11 @@ test.describe('Role create page', () => {
     await page.goto('/admin/security/roles/new')
 
     await page.locator('#apiName').fill('new_role')
-    await page.locator('#label').fill('Новая роль')
-    await page.locator('#description').fill('Описание новой роли')
+    await page.locator('#label').fill('New Role')
+    await page.locator('#description').fill('New role description')
 
     const requestPromise = page.waitForRequest('**/api/v1/admin/security/roles')
-    await page.getByRole('button', { name: 'Создать' }).click()
+    await page.getByRole('button', { name: 'Create' }).click()
 
     const request = await requestPromise
     expect(request.method()).toBe('POST')
@@ -108,19 +108,19 @@ test.describe('Role detail page', () => {
 
   test('has save, cancel, and delete buttons', async ({ page }) => {
     await page.goto(`/admin/security/roles/${role.id}`)
-    await expect(page.getByRole('button', { name: 'Сохранить' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Отмена' })).toBeVisible()
-    await expect(page.getByRole('button', { name: /Удалить/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Save' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Delete/ })).toBeVisible()
   })
 
   test('can submit updated role', async ({ page }) => {
     await page.goto(`/admin/security/roles/${role.id}`)
-    await page.locator('#label').fill('Обновлённая роль')
+    await page.locator('#label').fill('Updated Role')
 
     const requestPromise = page.waitForRequest(
       `**/api/v1/admin/security/roles/${role.id}`,
     )
-    await page.getByRole('button', { name: 'Сохранить' }).click()
+    await page.getByRole('button', { name: 'Save' }).click()
 
     const request = await requestPromise
     expect(request.method()).toBe('PUT')

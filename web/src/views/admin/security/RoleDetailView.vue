@@ -8,6 +8,8 @@ import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Trash2, X } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -58,7 +60,7 @@ async function onSave() {
   if (!validate()) return
   try {
     await store.updateRole(props.roleId, toUpdateRequest())
-    toast.success('Роль обновлена')
+    toast.success('Role updated')
   } catch (err) {
     toast.errorFromApi(err)
   }
@@ -67,7 +69,7 @@ async function onSave() {
 async function onDeleteRole() {
   try {
     await store.deleteRole(props.roleId)
-    toast.success('Роль удалена')
+    toast.success('Role deleted')
     router.push({ name: 'admin-roles' })
   } catch (err) {
     toast.errorFromApi(err)
@@ -81,8 +83,8 @@ const availableParents = computed(() =>
 )
 
 const breadcrumbs = computed(() => [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Роли', to: '/admin/security/roles' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Roles', to: '/admin/security/roles' },
   { label: currentRole.value?.label ?? '...' },
 ])
 </script>
@@ -97,13 +99,12 @@ const breadcrumbs = computed(() => [
     <template v-else-if="currentRole">
       <PageHeader :title="currentRole.label" :breadcrumbs="breadcrumbs">
         <template #actions>
-          <Button
+          <IconButton
+            :icon="Trash2"
+            tooltip="Delete Role"
             variant="destructive"
-            size="sm"
             @click="showDeleteDialog = true"
-          >
-            Удалить роль
-          </Button>
+          />
         </template>
       </PageHeader>
 
@@ -112,7 +113,7 @@ const breadcrumbs = computed(() => [
       <form class="max-w-2xl space-y-6" @submit.prevent="onSave">
         <Card>
           <CardContent class="pt-6 space-y-4">
-            <h2 class="text-lg font-semibold">Основная информация</h2>
+            <h2 class="text-lg font-semibold">General Information</h2>
 
             <div class="space-y-2">
               <Label>API Name</Label>
@@ -120,19 +121,19 @@ const breadcrumbs = computed(() => [
             </div>
 
             <div class="space-y-2">
-              <Label for="label">Название</Label>
+              <Label for="label">Label</Label>
               <Input id="label" v-model="state.label" />
               <p v-if="errors.label" class="text-sm text-destructive">{{ errors.label }}</p>
             </div>
 
             <div class="space-y-2">
-              <Label for="parentId">Родительская роль</Label>
+              <Label for="parentId">Parent Role</Label>
               <Select :model-value="state.parentId ?? '__none__'" @update:model-value="onParentChange">
                 <SelectTrigger>
-                  <SelectValue placeholder="Без родителя" />
+                  <SelectValue placeholder="No parent" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">Без родителя</SelectItem>
+                  <SelectItem value="__none__">No parent</SelectItem>
                   <SelectItem v-for="role in availableParents" :key="role.id" :value="role.id">
                     {{ role.label }}
                   </SelectItem>
@@ -141,7 +142,7 @@ const breadcrumbs = computed(() => [
             </div>
 
             <div class="space-y-2">
-              <Label for="description">Описание</Label>
+              <Label for="description">Description</Label>
               <Textarea id="description" v-model="state.description" rows="3" />
             </div>
           </CardContent>
@@ -149,20 +150,23 @@ const breadcrumbs = computed(() => [
 
         <Separator />
 
-        <div class="flex gap-2">
+        <div class="flex gap-2 items-center">
           <Button type="submit" :disabled="rolesLoading">
-            Сохранить
+            Save
           </Button>
-          <Button variant="outline" type="button" @click="router.back()">
-            Отмена
-          </Button>
+          <IconButton
+            :icon="X"
+            tooltip="Cancel"
+            variant="outline"
+            @click="router.back()"
+          />
         </div>
       </form>
 
       <ConfirmDialog
         :open="showDeleteDialog"
-        title="Удалить роль?"
-        :description="`Роль «${currentRole.label}» (${currentRole.apiName}) будет удалена без возможности восстановления.`"
+        title="Delete Role?"
+        :description="`Role '${currentRole.label}' (${currentRole.apiName}) will be permanently deleted.`"
         @update:open="showDeleteDialog = $event"
         @confirm="onDeleteRole"
       />

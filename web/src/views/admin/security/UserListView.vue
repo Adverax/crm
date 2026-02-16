@@ -9,6 +9,8 @@ import EmptyState from '@/components/admin/EmptyState.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
 import ActiveStatusBadge from '@/components/admin/security/ActiveStatusBadge.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Plus, ChevronLeft, ChevronRight, MoreVertical } from 'lucide-vue-next'
 import {
   Table,
   TableBody,
@@ -69,7 +71,7 @@ async function onDeleteConfirmed() {
   if (!deleteTarget.value) return
   try {
     await store.deleteUser(deleteTarget.value.id)
-    toast.success('Пользователь удалён')
+    toast.success('User deleted')
     loadUsers()
   } catch (err) {
     toast.errorFromApi(err)
@@ -96,18 +98,21 @@ function getUserDisplayName(user: User): string {
 }
 
 const breadcrumbs = [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Пользователи' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Users' },
 ]
 </script>
 
 <template>
   <div>
-    <PageHeader title="Пользователи" :breadcrumbs="breadcrumbs">
+    <PageHeader title="Users" :breadcrumbs="breadcrumbs">
       <template #actions>
-        <Button @click="router.push({ name: 'admin-user-create' })">
-          Создать пользователя
-        </Button>
+        <IconButton
+          :icon="Plus"
+          tooltip="Create User"
+          variant="default"
+          @click="router.push({ name: 'admin-user-create' })"
+        />
       </template>
     </PageHeader>
 
@@ -117,13 +122,16 @@ const breadcrumbs = [
 
     <EmptyState
       v-else-if="!usersLoading && users.length === 0"
-      title="Нет пользователей"
-      description="Создайте первого пользователя"
+      title="No Users"
+      description="Create your first user"
     >
       <template #action>
-        <Button @click="router.push({ name: 'admin-user-create' })">
-          Создать пользователя
-        </Button>
+        <IconButton
+          :icon="Plus"
+          tooltip="Create User"
+          variant="default"
+          @click="router.push({ name: 'admin-user-create' })"
+        />
       </template>
     </EmptyState>
 
@@ -133,10 +141,10 @@ const breadcrumbs = [
           <TableRow>
             <TableHead>Username</TableHead>
             <TableHead>Email</TableHead>
-            <TableHead>Имя</TableHead>
-            <TableHead>Профиль</TableHead>
-            <TableHead>Роль</TableHead>
-            <TableHead>Статус</TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead>Profile</TableHead>
+            <TableHead>Role</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead class="w-16" />
           </TableRow>
         </TableHeader>
@@ -167,19 +175,19 @@ const breadcrumbs = [
               <DropdownMenu>
                 <DropdownMenuTrigger as-child>
                   <Button variant="ghost" size="sm" class="h-8 w-8 p-0" @click.stop>
-                    <span class="sr-only">Действия</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01" /></svg>
+                    <span class="sr-only">Actions</span>
+                    <MoreVertical />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem @click.stop="goToDetail(user)">
-                    Открыть
+                    Open
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     class="text-destructive"
                     @click.stop="confirmDelete(user)"
                   >
-                    Удалить
+                    Delete
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -191,20 +199,28 @@ const breadcrumbs = [
       <div v-if="usersPagination && usersPagination.totalPages > 1" class="flex items-center justify-between mt-4">
         <span class="text-sm text-muted-foreground">{{ pageInfo }}</span>
         <div class="flex gap-2">
-          <Button variant="outline" size="sm" :disabled="isFirstPage" @click="prevPage">
-            Назад
-          </Button>
-          <Button variant="outline" size="sm" :disabled="isLastPage" @click="nextPage">
-            Вперёд
-          </Button>
+          <IconButton
+            :icon="ChevronLeft"
+            tooltip="Back"
+            variant="outline"
+            :disabled="isFirstPage"
+            @click="prevPage"
+          />
+          <IconButton
+            :icon="ChevronRight"
+            tooltip="Next"
+            variant="outline"
+            :disabled="isLastPage"
+            @click="nextPage"
+          />
         </div>
       </div>
     </template>
 
     <ConfirmDialog
       :open="showDeleteDialog"
-      title="Удалить пользователя?"
-      :description="`Пользователь «${deleteTarget?.username}» будет удалён без возможности восстановления.`"
+      title="Delete User?"
+      :description="`User '${deleteTarget?.username}' will be permanently deleted.`"
       @update:open="showDeleteDialog = $event"
       @confirm="onDeleteConfirmed"
     />

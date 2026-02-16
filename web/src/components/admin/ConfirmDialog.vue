@@ -40,10 +40,10 @@ function onConfirm() {
       </DialogHeader>
       <DialogFooter>
         <Button variant="outline" :disabled="props.loading" @click="onCancel">
-          Отмена
+          Cancel
         </Button>
         <Button variant="destructive" :disabled="props.loading" @click="onConfirm">
-          {{ props.confirmLabel ?? 'Удалить' }}
+          {{ props.confirmLabel ?? 'Delete' }}
         </Button>
       </DialogFooter>
     </DialogContent>

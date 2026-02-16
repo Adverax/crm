@@ -22,7 +22,7 @@ async function onSubmit() {
     await authStore.login(username.value, password.value)
     router.push('/admin')
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Ошибка входа'
+    error.value = err instanceof Error ? err.message : 'Login error'
   } finally {
     loading.value = false
   }
@@ -33,7 +33,7 @@ async function onSubmit() {
   <div class="min-h-screen flex items-center justify-center bg-muted/30">
     <Card class="w-full max-w-sm">
       <CardHeader class="text-center">
-        <CardTitle class="text-2xl">Вход в CRM</CardTitle>
+        <CardTitle class="text-2xl">Sign in to CRM</CardTitle>
       </CardHeader>
       <CardContent>
         <form class="space-y-4" @submit.prevent="onSubmit">
@@ -42,7 +42,7 @@ async function onSubmit() {
           </div>
 
           <div class="space-y-2">
-            <Label for="username">Имя пользователя</Label>
+            <Label for="username">Username</Label>
             <Input
               id="username"
               v-model="username"
@@ -53,7 +53,7 @@ async function onSubmit() {
           </div>
 
           <div class="space-y-2">
-            <Label for="password">Пароль</Label>
+            <Label for="password">Password</Label>
             <Input
               id="password"
               v-model="password"
@@ -64,12 +64,12 @@ async function onSubmit() {
           </div>
 
           <Button type="submit" class="w-full" :disabled="loading">
-            {{ loading ? 'Вход...' : 'Войти' }}
+            {{ loading ? 'Signing in...' : 'Sign in' }}
           </Button>
 
           <div class="text-center text-sm">
             <RouterLink to="/forgot-password" class="text-primary hover:underline">
-              Забыли пароль?
+              Forgot password?
             </RouterLink>
           </div>
         </form>

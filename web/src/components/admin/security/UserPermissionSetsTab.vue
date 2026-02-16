@@ -57,7 +57,7 @@ async function onRevokeConfirmed() {
   if (!revokeTarget.value) return
   try {
     await store.revokePermissionSet(props.userId, revokeTarget.value.id)
-    toast.success('Набор разрешений отозван')
+    toast.success('Permission set revoked')
     await store.fetchUserPermissionSets(props.userId)
   } catch (err) {
     toast.errorFromApi(err)
@@ -73,7 +73,7 @@ async function onAssigned() {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('ru-RU')
+  return new Date(iso).toLocaleDateString('en-US')
 }
 
 function getRevokeLabel(): string {
@@ -86,9 +86,9 @@ function getRevokeLabel(): string {
 <template>
   <div>
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-lg font-semibold">Наборы разрешений</h2>
+      <h2 class="text-lg font-semibold">Permission Sets</h2>
       <Button size="sm" @click="showAssignDialog = true">
-        Назначить набор
+        Assign Set
       </Button>
     </div>
 
@@ -97,15 +97,15 @@ function getRevokeLabel(): string {
     </div>
 
     <div v-else-if="userPermissionSets.length === 0" class="text-sm text-muted-foreground py-8 text-center">
-      Пользователю не назначены дополнительные наборы разрешений
+      No additional permission sets assigned to this user
     </div>
 
     <Table v-else>
       <TableHeader>
         <TableRow>
-          <TableHead>Название</TableHead>
-          <TableHead>Тип</TableHead>
-          <TableHead>Назначен</TableHead>
+          <TableHead>Name</TableHead>
+          <TableHead>Type</TableHead>
+          <TableHead>Assigned</TableHead>
           <TableHead class="w-24" />
         </TableRow>
       </TableHeader>
@@ -123,7 +123,7 @@ function getRevokeLabel(): string {
               class="text-destructive"
               @click="confirmRevoke(assignment)"
             >
-              Отозвать
+              Revoke
             </Button>
           </TableCell>
         </TableRow>
@@ -140,9 +140,9 @@ function getRevokeLabel(): string {
 
     <ConfirmDialog
       :open="showRevokeDialog"
-      title="Отозвать набор разрешений?"
-      :description="`Набор «${getRevokeLabel()}» будет отозван у пользователя.`"
-      confirm-label="Отозвать"
+      title="Revoke permission set?"
+      :description="`Permission set '${getRevokeLabel()}' will be revoked from the user.`"
+      confirm-label="Revoke"
       @update:open="showRevokeDialog = $event"
       @confirm="onRevokeConfirmed"
     />

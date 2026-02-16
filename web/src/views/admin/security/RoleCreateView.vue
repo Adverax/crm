@@ -7,6 +7,8 @@ import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { X } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -40,7 +42,7 @@ async function onSubmit() {
   if (!validate()) return
   try {
     const created = await store.createRole(toCreateRequest())
-    toast.success('Роль создана')
+    toast.success('Role created')
     router.push({ name: 'admin-role-detail', params: { roleId: created.id } })
   } catch (err) {
     toast.errorFromApi(err)
@@ -48,22 +50,22 @@ async function onSubmit() {
 }
 
 const breadcrumbs = [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Роли', to: '/admin/security/roles' },
-  { label: 'Новая роль' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Roles', to: '/admin/security/roles' },
+  { label: 'New Role' },
 ]
 </script>
 
 <template>
   <div>
-    <PageHeader title="Создать роль" :breadcrumbs="breadcrumbs" />
+    <PageHeader title="Create Role" :breadcrumbs="breadcrumbs" />
 
     <ErrorAlert v-if="rolesError" :message="rolesError" class="mb-4" />
 
     <form class="max-w-2xl space-y-6" @submit.prevent="onSubmit">
       <Card>
         <CardContent class="pt-6 space-y-4">
-          <h2 class="text-lg font-semibold">Основная информация</h2>
+          <h2 class="text-lg font-semibold">General Information</h2>
 
           <div class="space-y-2">
             <Label for="apiName">API Name</Label>
@@ -76,19 +78,19 @@ const breadcrumbs = [
           </div>
 
           <div class="space-y-2">
-            <Label for="label">Название</Label>
-            <Input id="label" v-model="state.label" placeholder="Менеджер по продажам" />
+            <Label for="label">Label</Label>
+            <Input id="label" v-model="state.label" placeholder="Sales Manager" />
             <p v-if="errors.label" class="text-sm text-destructive">{{ errors.label }}</p>
           </div>
 
           <div class="space-y-2">
-            <Label for="parentId">Родительская роль</Label>
+            <Label for="parentId">Parent Role</Label>
             <Select :model-value="state.parentId ?? '__none__'" @update:model-value="onParentChange">
               <SelectTrigger>
-                <SelectValue placeholder="Без родителя" />
+                <SelectValue placeholder="No parent" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">Без родителя</SelectItem>
+                <SelectItem value="__none__">No parent</SelectItem>
                 <SelectItem v-for="role in roles" :key="role.id" :value="role.id">
                   {{ role.label }}
                 </SelectItem>
@@ -97,7 +99,7 @@ const breadcrumbs = [
           </div>
 
           <div class="space-y-2">
-            <Label for="description">Описание</Label>
+            <Label for="description">Description</Label>
             <Textarea id="description" v-model="state.description" rows="3" />
           </div>
         </CardContent>
@@ -105,13 +107,16 @@ const breadcrumbs = [
 
       <Separator />
 
-      <div class="flex gap-2">
+      <div class="flex gap-2 items-center">
         <Button type="submit" :disabled="rolesLoading">
-          Создать
+          Create
         </Button>
-        <Button variant="outline" type="button" @click="router.back()">
-          Отмена
-        </Button>
+        <IconButton
+          :icon="X"
+          tooltip="Cancel"
+          variant="outline"
+          @click="router.back()"
+        />
       </div>
     </form>
   </div>

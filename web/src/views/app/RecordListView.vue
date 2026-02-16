@@ -8,7 +8,8 @@ import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import EmptyState from '@/components/admin/EmptyState.vue'
 import FieldDisplay from '@/components/records/FieldDisplay.vue'
-import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Plus, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import {
   Table,
   TableBody,
@@ -74,12 +75,13 @@ const breadcrumbs = computed(() => [
   <div>
     <PageHeader :title="currentDescribe?.pluralLabel ?? objectName" :breadcrumbs="breadcrumbs">
       <template #actions>
-        <Button
+        <IconButton
           v-if="currentDescribe?.isCreateable"
+          :icon="Plus"
+          tooltip="Create"
+          variant="default"
           @click="router.push({ name: 'record-create', params: { objectName } })"
-        >
-          Создать
-        </Button>
+        />
       </template>
     </PageHeader>
 
@@ -89,13 +91,16 @@ const breadcrumbs = computed(() => [
 
     <EmptyState
       v-else-if="!loading && records.length === 0"
-      title="Нет записей"
-      description="Создайте первую запись"
+      title="No records"
+      description="Create your first record"
     >
       <template v-if="currentDescribe?.isCreateable" #action>
-        <Button @click="router.push({ name: 'record-create', params: { objectName } })">
-          Создать
-        </Button>
+        <IconButton
+          :icon="Plus"
+          tooltip="Create"
+          variant="default"
+          @click="router.push({ name: 'record-create', params: { objectName } })"
+        />
       </template>
     </EmptyState>
 
@@ -128,12 +133,20 @@ const breadcrumbs = computed(() => [
       >
         <span class="text-sm text-muted-foreground">{{ pageInfo }}</span>
         <div class="flex gap-2">
-          <Button variant="outline" size="sm" :disabled="isFirstPage" @click="prevPage">
-            Назад
-          </Button>
-          <Button variant="outline" size="sm" :disabled="isLastPage" @click="nextPage">
-            Вперёд
-          </Button>
+          <IconButton
+            :icon="ChevronLeft"
+            tooltip="Back"
+            variant="outline"
+            :disabled="isFirstPage"
+            @click="prevPage"
+          />
+          <IconButton
+            :icon="ChevronRight"
+            tooltip="Forward"
+            variant="outline"
+            :disabled="isLastPage"
+            @click="nextPage"
+          />
         </div>
       </div>
     </template>

@@ -37,13 +37,13 @@ function getConfigValue(key: string): unknown {
 <template>
   <div class="space-y-4">
     <div v-if="showReferencedObject && objects" class="space-y-2">
-      <Label>Связанный объект</Label>
+      <Label>Referenced Object</Label>
       <Select
         :model-value="referencedObjectId ?? ''"
         @update:model-value="emit('update:referencedObjectId', String($event))"
       >
         <SelectTrigger>
-          <SelectValue placeholder="Выберите объект" />
+          <SelectValue placeholder="Select object" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem v-for="obj in objects" :key="obj.id" :value="obj.id">
@@ -89,7 +89,7 @@ function getConfigValue(key: string): unknown {
           @update:model-value="updateConfig(field.key, $event ? String($event) : undefined)"
         >
           <SelectTrigger>
-            <SelectValue placeholder="Выберите..." />
+            <SelectValue placeholder="Select..." />
           </SelectTrigger>
           <SelectContent>
             <SelectItem v-for="opt in field.options" :key="opt.value" :value="opt.value">

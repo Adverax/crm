@@ -67,9 +67,23 @@ func (h *CELHandler) Validate(c *gin.Context) {
 
 	ast, issues := env.Compile(req.Expression)
 	if issues != nil && issues.Err() != nil {
+		errs := make([]celValidateError, 0, len(issues.Errors()))
+		for _, e := range issues.Errors() {
+			ve := celValidateError{Message: e.Message}
+			if loc := e.Location; loc != nil {
+				line := loc.Line()
+				col := loc.Column() + 1 // 0-based → 1-based for API
+				ve.Line = &line
+				ve.Column = &col
+			}
+			errs = append(errs, ve)
+		}
+		if len(errs) == 0 {
+			errs = []celValidateError{{Message: issues.Err().Error()}}
+		}
 		c.JSON(http.StatusOK, celValidateResponse{
 			Valid:  false,
-			Errors: []celValidateError{{Message: issues.Err().Error()}},
+			Errors: errs,
 		})
 		return
 	}

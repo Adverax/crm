@@ -131,7 +131,7 @@ function isTextInput(): boolean {
       @update:model-value="onSelectChange"
     >
       <SelectTrigger>
-        <SelectValue :placeholder="`Выберите ${field.label.toLowerCase()}`" />
+        <SelectValue :placeholder="`Select ${field.label.toLowerCase()}`" />
       </SelectTrigger>
       <SelectContent>
         <SelectItem

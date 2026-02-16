@@ -7,6 +7,8 @@ import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { X } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -51,7 +53,7 @@ async function onSubmit() {
   if (!validate()) return
   try {
     const created = await store.createUser(toCreateRequest())
-    toast.success('Пользователь создан')
+    toast.success('User created')
     router.push({ name: 'admin-user-detail', params: { userId: created.id } })
   } catch (err) {
     toast.errorFromApi(err)
@@ -59,25 +61,25 @@ async function onSubmit() {
 }
 
 const breadcrumbs = [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Пользователи', to: '/admin/security/users' },
-  { label: 'Новый пользователь' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Users', to: '/admin/security/users' },
+  { label: 'New User' },
 ]
 </script>
 
 <template>
   <div>
-    <PageHeader title="Создать пользователя" :breadcrumbs="breadcrumbs" />
+    <PageHeader title="Create User" :breadcrumbs="breadcrumbs" />
 
     <ErrorAlert v-if="usersError" :message="usersError" class="mb-4" />
 
     <form class="max-w-2xl space-y-6" @submit.prevent="onSubmit">
       <Card>
         <CardContent class="pt-6 space-y-4">
-          <h2 class="text-lg font-semibold">Учётные данные</h2>
+          <h2 class="text-lg font-semibold">Credentials</h2>
 
           <div class="space-y-2">
-            <Label for="username">Имя пользователя</Label>
+            <Label for="username">Username</Label>
             <Input
               id="username"
               v-model="state.username"
@@ -101,16 +103,16 @@ const breadcrumbs = [
 
       <Card>
         <CardContent class="pt-6 space-y-4">
-          <h2 class="text-lg font-semibold">Личные данные</h2>
+          <h2 class="text-lg font-semibold">Personal Information</h2>
 
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-2">
-              <Label for="firstName">Имя</Label>
-              <Input id="firstName" v-model="state.firstName" placeholder="Иван" />
+              <Label for="firstName">First Name</Label>
+              <Input id="firstName" v-model="state.firstName" placeholder="John" />
             </div>
             <div class="space-y-2">
-              <Label for="lastName">Фамилия</Label>
-              <Input id="lastName" v-model="state.lastName" placeholder="Иванов" />
+              <Label for="lastName">Last Name</Label>
+              <Input id="lastName" v-model="state.lastName" placeholder="Doe" />
             </div>
           </div>
         </CardContent>
@@ -118,13 +120,13 @@ const breadcrumbs = [
 
       <Card>
         <CardContent class="pt-6 space-y-4">
-          <h2 class="text-lg font-semibold">Безопасность</h2>
+          <h2 class="text-lg font-semibold">Security</h2>
 
           <div class="space-y-2">
-            <Label for="profileId">Профиль</Label>
+            <Label for="profileId">Profile</Label>
             <Select :model-value="state.profileId || undefined" @update:model-value="onProfileChange">
               <SelectTrigger>
-                <SelectValue placeholder="Выберите профиль" />
+                <SelectValue placeholder="Select profile" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem v-for="profile in profiles" :key="profile.id" :value="profile.id">
@@ -136,13 +138,13 @@ const breadcrumbs = [
           </div>
 
           <div class="space-y-2">
-            <Label for="roleId">Роль</Label>
+            <Label for="roleId">Role</Label>
             <Select :model-value="state.roleId ?? '__none__'" @update:model-value="onRoleChange">
               <SelectTrigger>
-                <SelectValue placeholder="Без роли" />
+                <SelectValue placeholder="No role" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">Без роли</SelectItem>
+                <SelectItem value="__none__">No role</SelectItem>
                 <SelectItem v-for="role in roles" :key="role.id" :value="role.id">
                   {{ role.label }}
                 </SelectItem>
@@ -154,13 +156,16 @@ const breadcrumbs = [
 
       <Separator />
 
-      <div class="flex gap-2">
+      <div class="flex gap-2 items-center">
         <Button type="submit" :disabled="usersLoading">
-          Создать
+          Create
         </Button>
-        <Button variant="outline" type="button" @click="router.back()">
-          Отмена
-        </Button>
+        <IconButton
+          :icon="X"
+          tooltip="Cancel"
+          variant="outline"
+          @click="router.back()"
+        />
       </div>
     </form>
   </div>

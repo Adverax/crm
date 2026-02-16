@@ -16,17 +16,17 @@ test.describe('Record list page', () => {
   test('displays table column headers from metadata', async ({ page }) => {
     await page.goto('/app/Account')
     const main = page.locator('main')
-    await expect(main.getByText('Название')).toBeVisible()
+    await expect(main.getByText('Name')).toBeVisible()
   })
 
   test('has create button', async ({ page }) => {
     await page.goto('/app/Account')
-    await expect(page.getByRole('button', { name: 'Создать' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Create' })).toBeVisible()
   })
 
   test('create button navigates to create page', async ({ page }) => {
     await page.goto('/app/Account')
-    await page.getByRole('button', { name: 'Создать' }).click()
+    await page.getByRole('button', { name: 'Create' }).click()
     await expect(page).toHaveURL(/\/app\/Account\/new/)
   })
 
@@ -53,7 +53,7 @@ test.describe('Record list page', () => {
       return route.continue()
     })
     await page.goto('/app/Account')
-    await expect(page.getByText('Нет записей')).toBeVisible()
+    await expect(page.getByText('No records')).toBeVisible()
   })
 })
 
@@ -64,21 +64,22 @@ test.describe('Record create page', () => {
 
   test('renders form with fields from metadata', async ({ page }) => {
     await page.goto('/app/Account/new')
-    await expect(page.getByLabel('Название')).toBeVisible()
-    await expect(page.getByLabel('Телефон')).toBeVisible()
+    await expect(page.getByLabel('Name')).toBeVisible()
+    await expect(page.getByLabel('Phone')).toBeVisible()
   })
 
   test('has create and cancel buttons', async ({ page }) => {
     await page.goto('/app/Account/new')
-    await expect(page.getByRole('button', { name: 'Создать' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Отмена' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Create' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible()
   })
 
   test('cancel button navigates back', async ({ page }) => {
     await page.goto('/app/Account')
-    await page.getByRole('button', { name: 'Создать' }).click()
+    await page.locator('table').waitFor()
+    await page.getByRole('button', { name: 'Create' }).click()
     await expect(page).toHaveURL(/\/app\/Account\/new/)
-    await page.getByRole('button', { name: 'Отмена' }).click()
+    await page.getByRole('button', { name: 'Cancel' }).click()
     await expect(page).toHaveURL(/\/app\/Account$/)
   })
 
@@ -95,8 +96,8 @@ test.describe('Record create page', () => {
       return route.continue()
     })
     await page.goto('/app/Account/new')
-    await page.getByLabel('Название').fill('Test Company')
-    await page.getByRole('button', { name: 'Создать' }).click()
+    await page.getByLabel('Name').fill('Test Company')
+    await page.getByRole('button', { name: 'Create' }).click()
     await page.waitForTimeout(500)
     expect(postCalled).toBe(true)
   })
@@ -114,13 +115,13 @@ test.describe('Record detail page', () => {
 
   test('has save and cancel buttons', async ({ page }) => {
     await page.goto(`/app/Account/${mockRecords[0].Id}`)
-    await expect(page.getByRole('button', { name: 'Сохранить' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Отмена' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Save' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible()
   })
 
   test('has delete button', async ({ page }) => {
     await page.goto(`/app/Account/${mockRecords[0].Id}`)
-    await expect(page.getByRole('button', { name: 'Удалить' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Delete' })).toBeVisible()
   })
 
   test('save button sends PUT request', async ({ page }) => {
@@ -136,7 +137,7 @@ test.describe('Record detail page', () => {
       return route.continue()
     })
     await page.goto(`/app/Account/${mockRecords[0].Id}`)
-    await page.getByRole('button', { name: 'Сохранить' }).click()
+    await page.getByRole('button', { name: 'Save' }).click()
     await page.waitForTimeout(500)
     expect(putCalled).toBe(true)
   })
@@ -154,10 +155,10 @@ test.describe('Record detail page', () => {
       return route.continue()
     })
     await page.goto(`/app/Account/${mockRecords[0].Id}`)
-    await page.getByRole('button', { name: 'Удалить' }).click()
+    await page.getByRole('button', { name: 'Delete' }).click()
     // Confirm delete in dialog
     const dialog = page.locator('[role="dialog"]')
-    await dialog.getByRole('button', { name: 'Удалить' }).click()
+    await dialog.getByRole('button', { name: 'Delete' }).click()
     await page.waitForTimeout(500)
     expect(deleteCalled).toBe(true)
   })
@@ -179,7 +180,7 @@ test.describe('App sidebar', () => {
   test('settings link navigates to admin', async ({ page }) => {
     await page.goto('/app/Account')
     const sidebar = page.locator('aside')
-    await sidebar.getByText('Настройки').click()
+    await sidebar.getByText('Settings').click()
     await expect(page).toHaveURL(/\/admin/)
   })
 })

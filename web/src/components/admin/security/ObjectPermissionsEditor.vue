@@ -43,8 +43,8 @@ async function onPermissionChange(objectId: string, value: number) {
     <Table v-else-if="objectDefinitions.length > 0">
       <TableHeader>
         <TableRow>
-          <TableHead>Объект</TableHead>
-          <TableHead>Разрешения</TableHead>
+          <TableHead>Object</TableHead>
+          <TableHead>Permissions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>

@@ -16,7 +16,7 @@ export function useToast() {
     } else if (err instanceof Error) {
       toast.error(err.message)
     } else {
-      toast.error('Произошла неизвестная ошибка')
+      toast.error('An unknown error occurred')
     }
   }
 

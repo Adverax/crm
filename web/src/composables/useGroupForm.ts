@@ -38,21 +38,21 @@ export function useGroupForm(existing?: Group) {
     let valid = true
 
     if (!state.apiName.trim()) {
-      errors.apiName = 'API имя обязательно'
+      errors.apiName = 'API name is required'
       valid = false
     } else if (state.apiName.length < 2) {
-      errors.apiName = 'Минимум 2 символа'
+      errors.apiName = 'Minimum 2 characters'
       valid = false
     } else if (state.apiName.length > 100) {
-      errors.apiName = 'Максимум 100 символов'
+      errors.apiName = 'Maximum 100 characters'
       valid = false
     } else if (!API_NAME_REGEX.test(state.apiName)) {
-      errors.apiName = 'Только латинские буквы, цифры и подчёркивания. Начинается с буквы.'
+      errors.apiName = 'Only letters, digits, and underscores. Must start with a letter.'
       valid = false
     }
 
     if (!state.label.trim()) {
-      errors.label = 'Название обязательно'
+      errors.label = 'Label is required'
       valid = false
     }
 

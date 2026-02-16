@@ -7,6 +7,8 @@ import { http } from '@/api/http'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import ExpressionBuilder from '@/components/admin/expression-builder/ExpressionBuilder.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { X } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -68,7 +70,7 @@ async function onSubmit() {
       isActive: true,
       description: form.value.description || undefined,
     })
-    toast.success('Правило создано')
+    toast.success('Rule created')
     router.push({
       name: 'admin-validation-rules',
       params: { objectId: props.objectId },
@@ -93,17 +95,17 @@ function onSeverityChange(value: any) {
 }
 
 const breadcrumbs = computed(() => [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Объекты', to: '/admin/metadata/objects' },
-  { label: 'Объект', to: `/admin/metadata/objects/${props.objectId}` },
-  { label: 'Правила', to: `/admin/metadata/objects/${props.objectId}/rules` },
-  { label: 'Создание' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Objects', to: '/admin/metadata/objects' },
+  { label: 'Object', to: `/admin/metadata/objects/${props.objectId}` },
+  { label: 'Rules', to: `/admin/metadata/objects/${props.objectId}/rules` },
+  { label: 'Create' },
 ])
 </script>
 
 <template>
   <div>
-    <PageHeader title="Создание правила валидации" :breadcrumbs="breadcrumbs" />
+    <PageHeader title="Create Validation Rule" :breadcrumbs="breadcrumbs" />
 
     <form class="max-w-2xl space-y-6 mt-4" @submit.prevent="onSubmit">
       <Card>
@@ -114,13 +116,13 @@ const breadcrumbs = computed(() => [
               <Input id="api_name" v-model="form.apiName" required data-testid="field-api-name" />
             </div>
             <div class="space-y-2">
-              <Label for="label">Название</Label>
+              <Label for="label">Label</Label>
               <Input id="label" v-model="form.label" required data-testid="field-label" />
             </div>
           </div>
 
           <div class="space-y-2">
-            <Label>CEL-выражение</Label>
+            <Label>CEL Expression</Label>
             <ExpressionBuilder
               v-model="form.expression"
               context="validation_rule"
@@ -129,12 +131,12 @@ const breadcrumbs = computed(() => [
               data-testid="field-expression"
             />
             <p class="text-xs text-muted-foreground">
-              Выражение должно возвращать true, если данные корректны.
+              Expression must return true if the data is valid.
             </p>
           </div>
 
           <div class="space-y-2">
-            <Label for="error_message">Сообщение об ошибке</Label>
+            <Label for="error_message">Error Message</Label>
             <Input
               id="error_message"
               v-model="form.errorMessage"
@@ -145,25 +147,25 @@ const breadcrumbs = computed(() => [
 
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-2">
-              <Label for="error_code">Код ошибки</Label>
+              <Label for="error_code">Error Code</Label>
               <Input id="error_code" v-model="form.errorCode" />
             </div>
             <div class="space-y-2">
-              <Label>Серьёзность</Label>
+              <Label>Severity</Label>
               <Select :model-value="form.severity" @update:model-value="onSeverityChange">
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="error">Ошибка</SelectItem>
-                  <SelectItem value="warning">Предупреждение</SelectItem>
+                  <SelectItem value="error">Error</SelectItem>
+                  <SelectItem value="warning">Warning</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
           <div class="space-y-2">
-            <Label>Условие применения (CEL, необязательно)</Label>
+            <Label>When Condition (CEL, optional)</Label>
             <ExpressionBuilder
               v-model="form.whenExpression"
               context="when_expression"
@@ -174,24 +176,28 @@ const breadcrumbs = computed(() => [
           </div>
 
           <div class="space-y-2">
-            <Label for="applies_to">Применяется к</Label>
+            <Label for="applies_to">Applies To</Label>
             <Input id="applies_to" v-model="form.appliesTo" placeholder="create,update" />
           </div>
 
           <div class="space-y-2">
-            <Label for="description">Описание</Label>
+            <Label for="description">Description</Label>
             <Textarea id="description" v-model="form.description" rows="2" />
           </div>
         </CardContent>
       </Card>
 
-      <div class="flex gap-2">
+      <div class="flex gap-2 items-center">
         <Button type="submit" :disabled="submitting" data-testid="submit-btn">
-          Создать
+          Create
         </Button>
-        <Button variant="outline" type="button" @click="onCancel" data-testid="cancel-btn">
-          Отмена
-        </Button>
+        <IconButton
+          :icon="X"
+          tooltip="Cancel"
+          variant="outline"
+          data-testid="cancel-btn"
+          @click="onCancel"
+        />
       </div>
     </form>
   </div>

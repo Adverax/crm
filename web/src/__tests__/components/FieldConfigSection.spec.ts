@@ -8,12 +8,12 @@ describe('FieldConfigSection', () => {
     {
       name: 'renders number config fields for text/plain',
       configFields: [
-        { key: 'maxLength', label: 'Макс. длина', type: 'number' as const },
-        { key: 'defaultValue', label: 'Значение по умолчанию', type: 'text' as const },
+        { key: 'maxLength', label: 'Max length', type: 'number' as const },
+        { key: 'defaultValue', label: 'Default value', type: 'text' as const },
       ] satisfies ConfigFieldDef[],
       assert: (wrapper: ReturnType<typeof mount>) => {
-        expect(wrapper.text()).toContain('Макс. длина')
-        expect(wrapper.text()).toContain('Значение по умолчанию')
+        expect(wrapper.text()).toContain('Max length')
+        expect(wrapper.text()).toContain('Default value')
       },
     },
     {
@@ -21,25 +21,25 @@ describe('FieldConfigSection', () => {
       configFields: [
         {
           key: 'onDelete',
-          label: 'При удалении',
+          label: 'On delete',
           type: 'select' as const,
           options: [
-            { value: 'set_null', label: 'Очистить' },
-            { value: 'restrict', label: 'Запретить' },
+            { value: 'set_null', label: 'Set null' },
+            { value: 'restrict', label: 'Restrict' },
           ],
         },
       ] satisfies ConfigFieldDef[],
       assert: (wrapper: ReturnType<typeof mount>) => {
-        expect(wrapper.text()).toContain('При удалении')
+        expect(wrapper.text()).toContain('On delete')
       },
     },
     {
       name: 'renders boolean field for isReparentable',
       configFields: [
-        { key: 'isReparentable', label: 'Можно переназначить родителя', type: 'boolean' as const },
+        { key: 'isReparentable', label: 'Allow reparenting', type: 'boolean' as const },
       ] satisfies ConfigFieldDef[],
       assert: (wrapper: ReturnType<typeof mount>) => {
-        expect(wrapper.text()).toContain('Можно переназначить родителя')
+        expect(wrapper.text()).toContain('Allow reparenting')
       },
     },
     {

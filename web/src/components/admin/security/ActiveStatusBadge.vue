@@ -8,6 +8,6 @@ defineProps<{
 
 <template>
   <Badge :variant="active ? 'default' : 'secondary'">
-    {{ active ? 'Активен' : 'Неактивен' }}
+    {{ active ? 'Active' : 'Inactive' }}
   </Badge>
 </template>

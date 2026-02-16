@@ -9,6 +9,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Plus, MoreVertical } from 'lucide-vue-next'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,19 +54,27 @@ function onDeleteConfirmed() {
 <template>
   <div>
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-lg font-semibold">Поля</h2>
-      <Button size="sm" @click="emit('create')">
-        Добавить поле
-      </Button>
+      <h2 class="text-lg font-semibold">Fields</h2>
+      <IconButton
+        :icon="Plus"
+        tooltip="Add field"
+        variant="outline"
+        @click="emit('create')"
+      />
     </div>
 
     <EmptyState
       v-if="!loading && props.fields.length === 0"
-      title="Нет полей"
-      description="Добавьте первое поле для этого объекта"
+      title="No fields"
+      description="Add the first field for this object"
     >
       <template #action>
-        <Button size="sm" @click="emit('create')">Добавить поле</Button>
+        <IconButton
+          :icon="Plus"
+          tooltip="Add field"
+          variant="outline"
+          @click="emit('create')"
+        />
       </template>
     </EmptyState>
 
@@ -72,11 +82,11 @@ function onDeleteConfirmed() {
       <TableHeader>
         <TableRow>
           <TableHead>API Name</TableHead>
-          <TableHead>Название</TableHead>
-          <TableHead>Тип</TableHead>
-          <TableHead class="text-center">Обязательное</TableHead>
-          <TableHead class="text-center">Уникальное</TableHead>
-          <TableHead class="text-center">Системное</TableHead>
+          <TableHead>Label</TableHead>
+          <TableHead>Type</TableHead>
+          <TableHead class="text-center">Required</TableHead>
+          <TableHead class="text-center">Unique</TableHead>
+          <TableHead class="text-center">System</TableHead>
           <TableHead class="w-16" />
         </TableRow>
       </TableHeader>
@@ -88,32 +98,32 @@ function onDeleteConfirmed() {
             <FieldTypeBadge :field-type="field.fieldType" :field-subtype="field.fieldSubtype" />
           </TableCell>
           <TableCell class="text-center">
-            <Badge v-if="field.isRequired" variant="destructive" class="text-xs">Да</Badge>
+            <Badge v-if="field.isRequired" variant="destructive" class="text-xs">Yes</Badge>
           </TableCell>
           <TableCell class="text-center">
-            <Badge v-if="field.isUnique" variant="outline" class="text-xs">Да</Badge>
+            <Badge v-if="field.isUnique" variant="outline" class="text-xs">Yes</Badge>
           </TableCell>
           <TableCell class="text-center">
-            <Badge v-if="field.isSystemField" variant="secondary" class="text-xs">Системное</Badge>
+            <Badge v-if="field.isSystemField" variant="secondary" class="text-xs">System</Badge>
           </TableCell>
           <TableCell>
             <DropdownMenu>
               <DropdownMenuTrigger as-child>
                 <Button variant="ghost" size="sm" class="h-8 w-8 p-0">
-                  <span class="sr-only">Действия</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01" /></svg>
+                  <span class="sr-only">Actions</span>
+                  <MoreVertical />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem @click="emit('edit', field)">
-                  Редактировать
+                  Edit
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   v-if="!field.isSystemField && !field.isPlatformManaged"
                   class="text-destructive"
                   @click="confirmDelete(field)"
                 >
-                  Удалить
+                  Delete
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -124,8 +134,8 @@ function onDeleteConfirmed() {
 
     <ConfirmDialog
       :open="showDeleteDialog"
-      title="Удалить поле?"
-      :description="`Поле «${deleteTarget?.label}» (${deleteTarget?.apiName}) будет удалено без возможности восстановления.`"
+      title="Delete field?"
+      :description="`Field '${deleteTarget?.label}' (${deleteTarget?.apiName}) will be permanently deleted.`"
       @update:open="showDeleteDialog = $event"
       @confirm="onDeleteConfirmed"
     />

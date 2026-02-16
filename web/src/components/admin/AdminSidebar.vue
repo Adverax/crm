@@ -20,32 +20,32 @@ interface NavGroup {
 }
 
 const topItems: NavItem[] = [
-  { label: 'Объекты', to: '/admin/metadata/objects' },
-  { label: 'Функции', to: '/admin/metadata/functions' },
-  { label: 'Шаблоны', to: '/admin/templates' },
+  { label: 'Objects', to: '/admin/metadata/objects' },
+  { label: 'Functions', to: '/admin/metadata/functions' },
+  { label: 'Templates', to: '/admin/templates' },
 ]
 
 const securityGroup: NavGroup = {
-  label: 'Безопасность',
+  label: 'Security',
   children: [
-    { label: 'Роли', to: '/admin/security/roles' },
-    { label: 'Наборы разрешений', to: '/admin/security/permission-sets' },
-    { label: 'Профили', to: '/admin/security/profiles' },
-    { label: 'Группы', to: '/admin/security/groups' },
-    { label: 'Правила доступа', to: '/admin/security/sharing-rules' },
+    { label: 'Roles', to: '/admin/security/roles' },
+    { label: 'Permission Sets', to: '/admin/security/permission-sets' },
+    { label: 'Profiles', to: '/admin/security/profiles' },
+    { label: 'Groups', to: '/admin/security/groups' },
+    { label: 'Sharing Rules', to: '/admin/security/sharing-rules' },
   ],
 }
 
 const territoryGroup: NavGroup = {
-  label: 'Территории',
+  label: 'Territories',
   children: [
-    { label: 'Модели', to: '/admin/territory/models' },
-    { label: 'Территории', to: '/admin/territory/territories' },
+    { label: 'Models', to: '/admin/territory/models' },
+    { label: 'Territories', to: '/admin/territory/territories' },
   ],
 }
 
 const bottomItems: NavItem[] = [
-  { label: 'Пользователи', to: '/admin/security/users' },
+  { label: 'Users', to: '/admin/security/users' },
 ]
 
 const securityExpanded = ref(false)
@@ -191,10 +191,10 @@ async function onLogout() {
     <Separator />
     <div class="p-3">
       <div class="text-xs text-muted-foreground truncate mb-2">
-        {{ authStore.displayName || 'Пользователь' }}
+        {{ authStore.displayName || 'User' }}
       </div>
       <Button variant="outline" size="sm" class="w-full" @click="onLogout">
-        Выйти
+        Sign out
       </Button>
     </div>
   </aside>

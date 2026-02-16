@@ -9,6 +9,8 @@ import EmptyState from '@/components/admin/EmptyState.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
 import ObjectTypeBadge from '@/components/admin/metadata/ObjectTypeBadge.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Plus, ChevronLeft, ChevronRight, MoreVertical } from 'lucide-vue-next'
 import {
   Select,
   SelectContent,
@@ -72,7 +74,7 @@ async function onDeleteConfirmed() {
   if (!deleteTarget.value) return
   try {
     await store.deleteObject(deleteTarget.value.id)
-    toast.success('Объект удалён')
+    toast.success('Object deleted')
     loadObjects()
   } catch (err) {
     toast.errorFromApi(err)
@@ -83,32 +85,35 @@ async function onDeleteConfirmed() {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('ru-RU')
+  return new Date(iso).toLocaleDateString('en-US')
 }
 
 const breadcrumbs = [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Объекты' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Objects' },
 ]
 </script>
 
 <template>
   <div>
-    <PageHeader title="Объекты" :breadcrumbs="breadcrumbs">
+    <PageHeader title="Objects" :breadcrumbs="breadcrumbs">
       <template #actions>
-        <Button @click="router.push({ name: 'admin-object-create' })">
-          Создать объект
-        </Button>
+        <IconButton
+          :icon="Plus"
+          tooltip="Create object"
+          variant="default"
+          @click="router.push({ name: 'admin-object-create' })"
+        />
       </template>
     </PageHeader>
 
     <div class="mb-4">
       <Select v-model="filterType">
         <SelectTrigger class="w-48">
-          <SelectValue placeholder="Все типы" />
+          <SelectValue placeholder="All types" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">Все типы</SelectItem>
+          <SelectItem value="all">All types</SelectItem>
           <SelectItem value="standard">Standard</SelectItem>
           <SelectItem value="custom">Custom</SelectItem>
         </SelectContent>
@@ -121,13 +126,16 @@ const breadcrumbs = [
 
     <EmptyState
       v-else-if="!objectsLoading && objects.length === 0"
-      title="Нет объектов"
-      description="Создайте первый объект метаданных"
+      title="No objects"
+      description="Create your first metadata object"
     >
       <template #action>
-        <Button @click="router.push({ name: 'admin-object-create' })">
-          Создать объект
-        </Button>
+        <IconButton
+          :icon="Plus"
+          tooltip="Create object"
+          variant="default"
+          @click="router.push({ name: 'admin-object-create' })"
+        />
       </template>
     </EmptyState>
 
@@ -136,9 +144,9 @@ const breadcrumbs = [
         <TableHeader>
           <TableRow>
             <TableHead>API Name</TableHead>
-            <TableHead>Название</TableHead>
-            <TableHead>Тип</TableHead>
-            <TableHead>Создан</TableHead>
+            <TableHead>Label</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Created</TableHead>
             <TableHead class="w-16" />
           </TableRow>
         </TableHeader>
@@ -167,20 +175,20 @@ const breadcrumbs = [
               <DropdownMenu>
                 <DropdownMenuTrigger as-child>
                   <Button variant="ghost" size="sm" class="h-8 w-8 p-0" @click.stop>
-                    <span class="sr-only">Действия</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01" /></svg>
+                    <span class="sr-only">Actions</span>
+                    <MoreVertical />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem @click.stop="goToDetail(obj)">
-                    Открыть
+                    Open
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     v-if="obj.isDeleteableObject && !obj.isPlatformManaged"
                     class="text-destructive"
                     @click.stop="confirmDelete(obj)"
                   >
-                    Удалить
+                    Delete
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -192,20 +200,28 @@ const breadcrumbs = [
       <div v-if="pagination && pagination.totalPages > 1" class="flex items-center justify-between mt-4">
         <span class="text-sm text-muted-foreground">{{ pageInfo }}</span>
         <div class="flex gap-2">
-          <Button variant="outline" size="sm" :disabled="isFirstPage" @click="prevPage">
-            Назад
-          </Button>
-          <Button variant="outline" size="sm" :disabled="isLastPage" @click="nextPage">
-            Вперёд
-          </Button>
+          <IconButton
+            :icon="ChevronLeft"
+            tooltip="Previous"
+            variant="outline"
+            :disabled="isFirstPage"
+            @click="prevPage"
+          />
+          <IconButton
+            :icon="ChevronRight"
+            tooltip="Next"
+            variant="outline"
+            :disabled="isLastPage"
+            @click="nextPage"
+          />
         </div>
       </div>
     </template>
 
     <ConfirmDialog
       :open="showDeleteDialog"
-      title="Удалить объект?"
-      :description="`Объект «${deleteTarget?.label}» (${deleteTarget?.apiName}) и все его поля будут удалены без возможности восстановления.`"
+      title="Delete object?"
+      :description="`Object '${deleteTarget?.label}' (${deleteTarget?.apiName}) and all its fields will be permanently deleted.`"
       @update:open="showDeleteDialog = $event"
       @confirm="onDeleteConfirmed"
     />

@@ -9,6 +9,8 @@ import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Trash2, X } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -67,7 +69,7 @@ async function onSave() {
   if (!validate()) return
   try {
     await securityStore.updateSharingRule(props.ruleId, toUpdateRequest())
-    toast.success('Правило обновлено')
+    toast.success('Rule updated')
   } catch (err) {
     toast.errorFromApi(err)
   }
@@ -76,7 +78,7 @@ async function onSave() {
 async function onDeleteRule() {
   try {
     await securityStore.deleteSharingRule(props.ruleId)
-    toast.success('Правило удалено')
+    toast.success('Rule deleted')
     router.push({ name: 'admin-sharing-rules' })
   } catch (err) {
     toast.errorFromApi(err)
@@ -96,12 +98,12 @@ function groupName(groupId: string): string {
 }
 
 function ruleTypeLabel(type: string): string {
-  return type === 'owner_based' ? 'По владельцу' : 'По критерию'
+  return type === 'owner_based' ? 'Owner-based' : 'Criteria-based'
 }
 
 const breadcrumbs = computed(() => [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Правила совместного доступа', to: '/admin/security/sharing-rules' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Sharing Rules', to: '/admin/security/sharing-rules' },
   { label: currentSharingRule.value ? objectName(currentSharingRule.value.objectId) : '...' },
 ])
 </script>
@@ -114,15 +116,14 @@ const breadcrumbs = computed(() => [
     </div>
 
     <template v-else-if="currentSharingRule">
-      <PageHeader :title="`Правило: ${objectName(currentSharingRule.objectId)}`" :breadcrumbs="breadcrumbs">
+      <PageHeader :title="`Rule: ${objectName(currentSharingRule.objectId)}`" :breadcrumbs="breadcrumbs">
         <template #actions>
-          <Button
+          <IconButton
+            :icon="Trash2"
+            tooltip="Delete Rule"
             variant="destructive"
-            size="sm"
             @click="showDeleteDialog = true"
-          >
-            Удалить правило
-          </Button>
+          />
         </template>
       </PageHeader>
 
@@ -131,28 +132,28 @@ const breadcrumbs = computed(() => [
       <form class="max-w-2xl space-y-6" @submit.prevent="onSave">
         <Card>
           <CardContent class="pt-6 space-y-4">
-            <h2 class="text-lg font-semibold">Основная информация</h2>
+            <h2 class="text-lg font-semibold">General Information</h2>
 
             <div class="space-y-2">
-              <Label>Объект</Label>
+              <Label>Object</Label>
               <Input :model-value="objectName(currentSharingRule.objectId)" disabled />
             </div>
 
             <div class="space-y-2">
-              <Label>Тип правила</Label>
+              <Label>Rule Type</Label>
               <Input :model-value="ruleTypeLabel(currentSharingRule.ruleType)" disabled />
             </div>
 
             <div class="space-y-2">
-              <Label>Группа-источник</Label>
+              <Label>Source Group</Label>
               <Input :model-value="groupName(currentSharingRule.sourceGroupId)" disabled />
             </div>
 
             <div class="space-y-2">
-              <Label>Группа-получатель</Label>
+              <Label>Target Group</Label>
               <Select :model-value="state.targetGroupId" @update:model-value="onTargetGroupChange">
                 <SelectTrigger>
-                  <SelectValue placeholder="Выберите группу" />
+                  <SelectValue placeholder="Select group" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem v-for="group in groups" :key="group.id" :value="group.id">
@@ -164,14 +165,14 @@ const breadcrumbs = computed(() => [
             </div>
 
             <div class="space-y-2">
-              <Label>Уровень доступа</Label>
+              <Label>Access Level</Label>
               <Select :model-value="state.accessLevel" @update:model-value="onAccessLevelChange">
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="read">Чтение</SelectItem>
-                  <SelectItem value="read_write">Чтение/Запись</SelectItem>
+                  <SelectItem value="read">Read</SelectItem>
+                  <SelectItem value="read_write">Read/Write</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -180,22 +181,22 @@ const breadcrumbs = computed(() => [
 
         <Card v-if="currentSharingRule.ruleType === 'criteria_based'">
           <CardContent class="pt-6 space-y-4">
-            <h2 class="text-lg font-semibold">Критерий</h2>
+            <h2 class="text-lg font-semibold">Criteria</h2>
 
             <div class="space-y-2">
-              <Label for="criteriaField">Поле</Label>
+              <Label for="criteriaField">Field</Label>
               <Input id="criteriaField" v-model="state.criteriaField" placeholder="status" />
               <p v-if="errors.criteriaField" class="text-sm text-destructive">{{ errors.criteriaField }}</p>
             </div>
 
             <div class="space-y-2">
-              <Label for="criteriaOp">Оператор</Label>
+              <Label for="criteriaOp">Operator</Label>
               <Input id="criteriaOp" v-model="state.criteriaOp" placeholder="=" />
               <p v-if="errors.criteriaOp" class="text-sm text-destructive">{{ errors.criteriaOp }}</p>
             </div>
 
             <div class="space-y-2">
-              <Label for="criteriaValue">Значение</Label>
+              <Label for="criteriaValue">Value</Label>
               <Input id="criteriaValue" v-model="state.criteriaValue" placeholder="active" />
               <p v-if="errors.criteriaValue" class="text-sm text-destructive">{{ errors.criteriaValue }}</p>
             </div>
@@ -204,20 +205,23 @@ const breadcrumbs = computed(() => [
 
         <Separator />
 
-        <div class="flex gap-2">
+        <div class="flex gap-2 items-center">
           <Button type="submit" :disabled="sharingRulesLoading">
-            Сохранить
+            Save
           </Button>
-          <Button variant="outline" type="button" @click="router.back()">
-            Отмена
-          </Button>
+          <IconButton
+            :icon="X"
+            tooltip="Cancel"
+            variant="outline"
+            @click="router.back()"
+          />
         </div>
       </form>
 
       <ConfirmDialog
         :open="showDeleteDialog"
-        title="Удалить правило?"
-        description="Правило совместного доступа будет удалено без возможности восстановления."
+        title="Delete Rule?"
+        description="This sharing rule will be permanently deleted."
         @update:open="showDeleteDialog = $event"
         @confirm="onDeleteRule"
       />

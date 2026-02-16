@@ -16,18 +16,18 @@ test.describe('Profile list page', () => {
   test('shows profile labels', async ({ page }) => {
     await page.goto('/admin/security/profiles')
     const main = page.locator('main')
-    await expect(main.getByText('Системный администратор')).toBeVisible()
-    await expect(main.getByText('Стандартный пользователь')).toBeVisible()
+    await expect(main.getByText('System Administrator')).toBeVisible()
+    await expect(main.getByText('Standard User')).toBeVisible()
   })
 
   test('has create button', async ({ page }) => {
     await page.goto('/admin/security/profiles')
-    await expect(page.getByText('Создать профиль')).toBeVisible()
+    await expect(page.getByText('Create Profile')).toBeVisible()
   })
 
   test('create button navigates to create page', async ({ page }) => {
     await page.goto('/admin/security/profiles')
-    await page.getByText('Создать профиль').click()
+    await page.getByText('Create Profile').click()
     await expect(page).toHaveURL(/\/admin\/security\/profiles\/new/)
   })
 
@@ -54,15 +54,15 @@ test.describe('Profile create page', () => {
 
   test('has submit and cancel buttons', async ({ page }) => {
     await page.goto('/admin/security/profiles/new')
-    await expect(page.getByRole('button', { name: 'Создать' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Отмена' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Create' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible()
   })
 
   test('cancel navigates back to list', async ({ page }) => {
     await page.goto('/admin/security/profiles')
-    await page.getByText('Создать профиль').click()
+    await page.getByText('Create Profile').click()
     await expect(page).toHaveURL(/\/admin\/security\/profiles\/new/)
-    await page.getByRole('button', { name: 'Отмена' }).click()
+    await page.getByRole('button', { name: 'Cancel' }).click()
     await expect(page).toHaveURL(/\/admin\/security\/profiles/)
   })
 
@@ -70,13 +70,13 @@ test.describe('Profile create page', () => {
     await page.goto('/admin/security/profiles/new')
 
     await page.locator('#apiName').fill('new_profile')
-    await page.locator('#label').fill('Новый профиль')
-    await page.locator('#description').fill('Описание')
+    await page.locator('#label').fill('New Profile')
+    await page.locator('#description').fill('Description')
 
     const requestPromise = page.waitForRequest(
       '**/api/v1/admin/security/profiles',
     )
-    await page.getByRole('button', { name: 'Создать' }).click()
+    await page.getByRole('button', { name: 'Create' }).click()
 
     const request = await requestPromise
     expect(request.method()).toBe('POST')
@@ -106,25 +106,25 @@ test.describe('Profile detail page', () => {
   test('shows link to base permission set', async ({ page }) => {
     await page.goto(`/admin/security/profiles/${profile.id}`)
     await expect(
-      page.getByText('Открыть базовый набор разрешений'),
+      page.getByText('Open Base Permission Set'),
     ).toBeVisible()
   })
 
   test('has save, cancel, and delete buttons', async ({ page }) => {
     await page.goto(`/admin/security/profiles/${profile.id}`)
-    await expect(page.getByRole('button', { name: 'Сохранить' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Отмена' })).toBeVisible()
-    await expect(page.getByRole('button', { name: /Удалить/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Save' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Delete/ })).toBeVisible()
   })
 
   test('can submit updated profile', async ({ page }) => {
     await page.goto(`/admin/security/profiles/${profile.id}`)
-    await page.locator('#label').fill('Обновлённый профиль')
+    await page.locator('#label').fill('Updated Profile')
 
     const requestPromise = page.waitForRequest(
       `**/api/v1/admin/security/profiles/${profile.id}`,
     )
-    await page.getByRole('button', { name: 'Сохранить' }).click()
+    await page.getByRole('button', { name: 'Save' }).click()
 
     const request = await requestPromise
     expect(request.method()).toBe('PUT')

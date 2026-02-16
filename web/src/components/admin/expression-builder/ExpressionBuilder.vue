@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import type { Extension } from '@codemirror/state'
-import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Code, Type, Check, Eye, EyeOff } from 'lucide-vue-next'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CodeMirrorEditor from './CodeMirrorEditor.vue'
@@ -104,10 +105,10 @@ async function onValidate() {
       returnType.value = response.returnType ?? null
       errors.value = []
     } else {
-      errors.value = response.errors ?? [{ message: 'Выражение невалидно' }]
+      errors.value = response.errors ?? [{ message: 'Expression is invalid' }]
     }
   } catch {
-    errors.value = [{ message: 'Ошибка при валидации выражения' }]
+    errors.value = [{ message: 'Error validating expression' }]
   } finally {
     validating.value = false
   }
@@ -125,6 +126,18 @@ function onInput(value: string | number) {
   emit('update:modelValue', String(value))
 }
 
+function onJumpToPosition(position: number) {
+  if (mode.value === 'editor' && editorRef.value) {
+    editorRef.value.setCursorAt(position)
+  }
+}
+
+function onJumpToError(line: number, column: number) {
+  if (mode.value === 'editor' && editorRef.value) {
+    editorRef.value.setCursorAtLineCol(line, column)
+  }
+}
+
 const showSidePanel = computed(() => {
   if (!props.showFieldPicker) return false
   return fields.value.length > 0 ||
@@ -139,37 +152,37 @@ const hasFunctions = computed(() => functionsStore.functions.length > 0)
 <template>
   <div class="space-y-2" data-testid="expression-builder">
     <!-- Toolbar -->
-    <div class="flex items-center gap-2">
-      <Button
+    <div class="flex items-center gap-1">
+      <IconButton
         type="button"
+        :icon="mode === 'editor' ? Type : Code"
+        :tooltip="mode === 'editor' ? 'Switch to plain text' : 'Switch to editor'"
         variant="ghost"
-        size="sm"
-        class="h-7 px-2 text-xs"
+        size="icon-sm"
+        class="h-7 w-7"
         @click="mode = mode === 'editor' ? 'plain' : 'editor'"
-      >
-        {{ mode === 'editor' ? 'Текст' : 'Редактор' }}
-      </Button>
-      <Button
+      />
+      <IconButton
         type="button"
+        :icon="Check"
+        :tooltip="validating ? 'Validating...' : 'Validate'"
         variant="outline"
-        size="sm"
-        class="h-7 px-2 text-xs"
+        size="icon-sm"
+        class="h-7 w-7"
         :disabled="validating || !modelValue"
         data-testid="validate-btn"
         @click="onValidate"
-      >
-        {{ validating ? 'Проверка...' : 'Проверить' }}
-      </Button>
-      <Button
+      />
+      <IconButton
         type="button"
+        :icon="showPreview ? EyeOff : Eye"
+        :tooltip="showPreview ? 'Hide preview' : 'Preview'"
         variant="ghost"
-        size="sm"
-        class="h-7 px-2 text-xs"
+        size="icon-sm"
+        class="h-7 w-7"
         data-testid="preview-toggle"
         @click="showPreview = !showPreview"
-      >
-        {{ showPreview ? 'Скрыть превью' : 'Превью' }}
-      </Button>
+      />
       <span
         v-if="returnType"
         class="text-xs text-muted-foreground"
@@ -208,7 +221,7 @@ const hasFunctions = computed(() => functionsStore.functions.length > 0)
         <Tabs v-model="pickerTab" class="w-full">
           <TabsList class="h-8 w-full" data-testid="picker-tabs">
             <TabsTrigger value="fields" class="text-xs h-7 flex-1">
-              Поля
+              Fields
             </TabsTrigger>
             <TabsTrigger
               v-if="hasFunctions || context !== 'function_body'"
@@ -216,7 +229,7 @@ const hasFunctions = computed(() => functionsStore.functions.length > 0)
               class="text-xs h-7 flex-1"
               data-testid="functions-tab"
             >
-              Функции
+              Functions
             </TabsTrigger>
           </TabsList>
 
@@ -243,9 +256,10 @@ const hasFunctions = computed(() => functionsStore.functions.length > 0)
       :expression="modelValue"
       :context="context"
       :function-params="functionParams"
+      @jump-to-position="onJumpToPosition"
     />
 
     <!-- Errors -->
-    <ExpressionErrors :errors="errors" />
+    <ExpressionErrors :errors="errors" @jump-to-error="onJumpToError" />
   </div>
 </template>

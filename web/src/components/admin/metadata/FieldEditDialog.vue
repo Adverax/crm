@@ -84,7 +84,7 @@ const isReferenceType = () => state.fieldType === 'reference'
   <Dialog :open="props.open" @update:open="onClose">
     <DialogContent class="max-w-lg max-h-[85vh] overflow-y-auto">
       <DialogHeader>
-        <DialogTitle>Редактировать поле</DialogTitle>
+        <DialogTitle>Edit Field</DialogTitle>
         <DialogDescription>
           {{ props.field.apiName }}
         </DialogDescription>
@@ -99,47 +99,47 @@ const isReferenceType = () => state.fieldType === 'reference'
         </div>
 
         <div class="space-y-2">
-          <Label>Тип</Label>
+          <Label>Type</Label>
           <div>
             <FieldTypeBadge :field-type="state.fieldType" :field-subtype="state.fieldSubtype || undefined" />
           </div>
         </div>
 
         <div class="space-y-2">
-          <Label for="editFieldLabel">Название</Label>
+          <Label for="editFieldLabel">Label</Label>
           <Input id="editFieldLabel" v-model="state.label" />
           <p v-if="errors.label" class="text-sm text-destructive">{{ errors.label }}</p>
         </div>
 
         <div class="space-y-2">
-          <Label for="editFieldDescription">Описание</Label>
+          <Label for="editFieldDescription">Description</Label>
           <Textarea id="editFieldDescription" v-model="state.description" rows="2" />
         </div>
 
         <div class="space-y-2">
-          <Label for="editFieldHelpText">Подсказка</Label>
+          <Label for="editFieldHelpText">Help Text</Label>
           <Input id="editFieldHelpText" v-model="state.helpText" />
         </div>
 
         <div class="flex items-center gap-6">
           <div class="flex items-center gap-2">
             <Switch id="editFieldRequired" v-model:checked="state.isRequired" />
-            <Label for="editFieldRequired">Обязательное</Label>
+            <Label for="editFieldRequired">Required</Label>
           </div>
           <div class="flex items-center gap-2">
             <Switch id="editFieldUnique" v-model:checked="state.isUnique" />
-            <Label for="editFieldUnique">Уникальное</Label>
+            <Label for="editFieldUnique">Unique</Label>
           </div>
         </div>
 
         <div class="space-y-2">
-          <Label for="editFieldSortOrder">Порядок сортировки</Label>
+          <Label for="editFieldSortOrder">Sort Order</Label>
           <Input id="editFieldSortOrder" type="number" v-model.number="state.sortOrder" />
         </div>
 
         <template v-if="configFields.length > 0 || isReferenceType()">
           <Separator />
-          <h3 class="text-sm font-medium">Конфигурация</h3>
+          <h3 class="text-sm font-medium">Configuration</h3>
           <FieldConfigSection
             :config-fields="configFields"
             v-model="state.config"
@@ -150,8 +150,8 @@ const isReferenceType = () => state.fieldType === 'reference'
         </template>
 
         <DialogFooter>
-          <Button variant="outline" type="button" @click="onClose">Отмена</Button>
-          <Button type="submit" :disabled="saving">Сохранить</Button>
+          <Button variant="outline" type="button" @click="onClose">Cancel</Button>
+          <Button type="submit" :disabled="saving">Save</Button>
         </DialogFooter>
       </form>
     </DialogContent>

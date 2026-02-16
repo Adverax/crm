@@ -8,6 +8,8 @@ import PageHeader from '@/components/admin/PageHeader.vue'
 import EmptyState from '@/components/admin/EmptyState.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Plus, ChevronLeft, ChevronRight, MoreVertical } from 'lucide-vue-next'
 import {
   Table,
   TableBody,
@@ -58,7 +60,7 @@ async function onDeleteConfirmed() {
   if (!deleteTarget.value) return
   try {
     await store.deleteGroup(deleteTarget.value.id)
-    toast.success('Группа удалена')
+    toast.success('Group deleted')
     loadGroups()
   } catch (err) {
     toast.errorFromApi(err)
@@ -70,32 +72,35 @@ async function onDeleteConfirmed() {
 
 function groupTypeLabel(type: string): string {
   const labels: Record<string, string> = {
-    personal: 'Персональная',
-    role: 'Роль',
-    role_and_subordinates: 'Роль и подчинённые',
-    public: 'Публичная',
-    territory: 'Территория',
+    personal: 'Personal',
+    role: 'Role',
+    role_and_subordinates: 'Role & Subordinates',
+    public: 'Public',
+    territory: 'Territory',
   }
   return labels[type] ?? type
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('ru-RU')
+  return new Date(iso).toLocaleDateString('en-US')
 }
 
 const breadcrumbs = [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Группы' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Groups' },
 ]
 </script>
 
 <template>
   <div>
-    <PageHeader title="Группы" :breadcrumbs="breadcrumbs">
+    <PageHeader title="Groups" :breadcrumbs="breadcrumbs">
       <template #actions>
-        <Button @click="router.push({ name: 'admin-group-create' })">
-          Создать группу
-        </Button>
+        <IconButton
+          :icon="Plus"
+          tooltip="Create Group"
+          variant="default"
+          @click="router.push({ name: 'admin-group-create' })"
+        />
       </template>
     </PageHeader>
 
@@ -105,13 +110,16 @@ const breadcrumbs = [
 
     <EmptyState
       v-else-if="!groupsLoading && groups.length === 0"
-      title="Нет групп"
-      description="Создайте первую группу"
+      title="No Groups"
+      description="Create your first group"
     >
       <template #action>
-        <Button @click="router.push({ name: 'admin-group-create' })">
-          Создать группу
-        </Button>
+        <IconButton
+          :icon="Plus"
+          tooltip="Create Group"
+          variant="default"
+          @click="router.push({ name: 'admin-group-create' })"
+        />
       </template>
     </EmptyState>
 
@@ -119,10 +127,10 @@ const breadcrumbs = [
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Название</TableHead>
+            <TableHead>Label</TableHead>
             <TableHead>API Name</TableHead>
-            <TableHead>Тип</TableHead>
-            <TableHead>Создан</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Created</TableHead>
             <TableHead class="w-16" />
           </TableRow>
         </TableHeader>
@@ -149,19 +157,19 @@ const breadcrumbs = [
               <DropdownMenu>
                 <DropdownMenuTrigger as-child>
                   <Button variant="ghost" size="sm" class="h-8 w-8 p-0" @click.stop>
-                    <span class="sr-only">Действия</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01" /></svg>
+                    <span class="sr-only">Actions</span>
+                    <MoreVertical />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem @click.stop="goToDetail(group)">
-                    Открыть
+                    Open
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     class="text-destructive"
                     @click.stop="confirmDelete(group)"
                   >
-                    Удалить
+                    Delete
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -173,20 +181,28 @@ const breadcrumbs = [
       <div v-if="groupsPagination && groupsPagination.totalPages > 1" class="flex items-center justify-between mt-4">
         <span class="text-sm text-muted-foreground">{{ pageInfo }}</span>
         <div class="flex gap-2">
-          <Button variant="outline" size="sm" :disabled="isFirstPage" @click="prevPage">
-            Назад
-          </Button>
-          <Button variant="outline" size="sm" :disabled="isLastPage" @click="nextPage">
-            Вперёд
-          </Button>
+          <IconButton
+            :icon="ChevronLeft"
+            tooltip="Back"
+            variant="outline"
+            :disabled="isFirstPage"
+            @click="prevPage"
+          />
+          <IconButton
+            :icon="ChevronRight"
+            tooltip="Next"
+            variant="outline"
+            :disabled="isLastPage"
+            @click="nextPage"
+          />
         </div>
       </div>
     </template>
 
     <ConfirmDialog
       :open="showDeleteDialog"
-      title="Удалить группу?"
-      :description="`Группа «${deleteTarget?.label}» (${deleteTarget?.apiName}) будет удалена без возможности восстановления.`"
+      title="Delete Group?"
+      :description="`Group '${deleteTarget?.label}' (${deleteTarget?.apiName}) will be permanently deleted.`"
       @update:open="showDeleteDialog = $event"
       @confirm="onDeleteConfirmed"
     />

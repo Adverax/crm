@@ -8,6 +8,8 @@ import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Trash2, X } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -44,7 +46,7 @@ async function onSave() {
   if (!validate()) return
   try {
     await store.updateProfile(props.profileId, toUpdateRequest())
-    toast.success('Профиль обновлён')
+    toast.success('Profile updated')
   } catch (err) {
     toast.errorFromApi(err)
   }
@@ -53,7 +55,7 @@ async function onSave() {
 async function onDeleteProfile() {
   try {
     await store.deleteProfile(props.profileId)
-    toast.success('Профиль удалён')
+    toast.success('Profile deleted')
     router.push({ name: 'admin-profiles' })
   } catch (err) {
     toast.errorFromApi(err)
@@ -63,8 +65,8 @@ async function onDeleteProfile() {
 }
 
 const breadcrumbs = computed(() => [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Профили', to: '/admin/security/profiles' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Profiles', to: '/admin/security/profiles' },
   { label: currentProfile.value?.label ?? '...' },
 ])
 </script>
@@ -79,13 +81,12 @@ const breadcrumbs = computed(() => [
     <template v-else-if="currentProfile">
       <PageHeader :title="currentProfile.label" :breadcrumbs="breadcrumbs">
         <template #actions>
-          <Button
+          <IconButton
+            :icon="Trash2"
+            tooltip="Delete Profile"
             variant="destructive"
-            size="sm"
             @click="showDeleteDialog = true"
-          >
-            Удалить профиль
-          </Button>
+          />
         </template>
       </PageHeader>
 
@@ -94,7 +95,7 @@ const breadcrumbs = computed(() => [
       <form class="max-w-2xl space-y-6" @submit.prevent="onSave">
         <Card>
           <CardContent class="pt-6 space-y-4">
-            <h2 class="text-lg font-semibold">Основная информация</h2>
+            <h2 class="text-lg font-semibold">General Information</h2>
 
             <div class="space-y-2">
               <Label>API Name</Label>
@@ -102,23 +103,23 @@ const breadcrumbs = computed(() => [
             </div>
 
             <div class="space-y-2">
-              <Label for="label">Название</Label>
+              <Label for="label">Label</Label>
               <Input id="label" v-model="state.label" />
               <p v-if="errors.label" class="text-sm text-destructive">{{ errors.label }}</p>
             </div>
 
             <div class="space-y-2">
-              <Label for="description">Описание</Label>
+              <Label for="description">Description</Label>
               <Textarea id="description" v-model="state.description" rows="3" />
             </div>
 
             <div class="space-y-2">
-              <Label>Базовый набор разрешений</Label>
+              <Label>Base Permission Set</Label>
               <RouterLink
                 :to="{ name: 'admin-permission-set-detail', params: { permissionSetId: currentProfile.basePermissionSetId } }"
                 class="text-sm text-primary hover:underline block"
               >
-                Открыть базовый набор разрешений
+                Open Base Permission Set
               </RouterLink>
             </div>
           </CardContent>
@@ -126,20 +127,23 @@ const breadcrumbs = computed(() => [
 
         <Separator />
 
-        <div class="flex gap-2">
+        <div class="flex gap-2 items-center">
           <Button type="submit" :disabled="profilesLoading">
-            Сохранить
+            Save
           </Button>
-          <Button variant="outline" type="button" @click="router.back()">
-            Отмена
-          </Button>
+          <IconButton
+            :icon="X"
+            tooltip="Cancel"
+            variant="outline"
+            @click="router.back()"
+          />
         </div>
       </form>
 
       <ConfirmDialog
         :open="showDeleteDialog"
-        title="Удалить профиль?"
-        :description="`Профиль «${currentProfile.label}» (${currentProfile.apiName}) будет удалён без возможности восстановления.`"
+        title="Delete Profile?"
+        :description="`Profile '${currentProfile.label}' (${currentProfile.apiName}) will be permanently deleted.`"
         @update:open="showDeleteDialog = $event"
         @confirm="onDeleteProfile"
       />

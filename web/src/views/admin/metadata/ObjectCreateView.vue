@@ -7,6 +7,8 @@ import PageHeader from '@/components/admin/PageHeader.vue'
 import ObjectFlagsSection from '@/components/admin/metadata/ObjectFlagsSection.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { X } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -31,30 +33,30 @@ const { state, errors, validate, toCreateRequest } = useObjectForm()
 
 const flagGroups = [
   {
-    title: 'Разрешения на записи',
+    title: 'Record Permissions',
     items: [
-      { key: 'isCreateable', label: 'Создание записей' },
-      { key: 'isUpdateable', label: 'Обновление записей' },
-      { key: 'isDeleteable', label: 'Удаление записей' },
-      { key: 'isQueryable', label: 'Запросы (SOQL)' },
-      { key: 'isSearchable', label: 'Полнотекстовый поиск' },
+      { key: 'isCreateable', label: 'Create records' },
+      { key: 'isUpdateable', label: 'Update records' },
+      { key: 'isDeleteable', label: 'Delete records' },
+      { key: 'isQueryable', label: 'Queries (SOQL)' },
+      { key: 'isSearchable', label: 'Full-text search' },
     ],
   },
   {
-    title: 'Настройки объекта',
+    title: 'Object Settings',
     items: [
-      { key: 'isVisibleInSetup', label: 'Виден в настройках' },
-      { key: 'isCustomFieldsAllowed', label: 'Разрешены custom-поля' },
-      { key: 'isDeleteableObject', label: 'Можно удалить объект' },
+      { key: 'isVisibleInSetup', label: 'Visible in setup' },
+      { key: 'isCustomFieldsAllowed', label: 'Custom fields allowed' },
+      { key: 'isDeleteableObject', label: 'Object can be deleted' },
     ],
   },
   {
-    title: 'Возможности',
+    title: 'Capabilities',
     items: [
-      { key: 'hasActivities', label: 'Активности' },
-      { key: 'hasNotes', label: 'Заметки' },
-      { key: 'hasHistoryTracking', label: 'История изменений' },
-      { key: 'hasSharingRules', label: 'Правила общего доступа' },
+      { key: 'hasActivities', label: 'Activities' },
+      { key: 'hasNotes', label: 'Notes' },
+      { key: 'hasHistoryTracking', label: 'History tracking' },
+      { key: 'hasSharingRules', label: 'Sharing rules' },
     ],
   },
 ]
@@ -94,7 +96,7 @@ async function onSubmit() {
 
   try {
     const created = await store.createObject(toCreateRequest())
-    toast.success('Объект создан')
+    toast.success('Object created')
     router.push({ name: 'admin-object-detail', params: { objectId: created.id } })
   } catch (err) {
     toast.errorFromApi(err)
@@ -102,22 +104,22 @@ async function onSubmit() {
 }
 
 const breadcrumbs = [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Объекты', to: '/admin/metadata/objects' },
-  { label: 'Новый объект' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Objects', to: '/admin/metadata/objects' },
+  { label: 'New Object' },
 ]
 </script>
 
 <template>
   <div>
-    <PageHeader title="Создать объект" :breadcrumbs="breadcrumbs" />
+    <PageHeader title="Create Object" :breadcrumbs="breadcrumbs" />
 
     <ErrorAlert v-if="objectsError" :message="objectsError" class="mb-4" />
 
     <form class="max-w-2xl space-y-6" @submit.prevent="onSubmit">
       <Card>
         <CardContent class="pt-6 space-y-4">
-          <h2 class="text-lg font-semibold">Основная информация</h2>
+          <h2 class="text-lg font-semibold">General Information</h2>
 
           <div class="space-y-2">
             <Label for="apiName">API Name</Label>
@@ -131,19 +133,19 @@ const breadcrumbs = [
 
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-2">
-              <Label for="label">Название</Label>
-              <Input id="label" v-model="state.label" placeholder="Счёт" />
+              <Label for="label">Label</Label>
+              <Input id="label" v-model="state.label" placeholder="Invoice" />
               <p v-if="errors.label" class="text-sm text-destructive">{{ errors.label }}</p>
             </div>
             <div class="space-y-2">
-              <Label for="pluralLabel">Мн. число</Label>
-              <Input id="pluralLabel" v-model="state.pluralLabel" placeholder="Счета" />
+              <Label for="pluralLabel">Plural Label</Label>
+              <Input id="pluralLabel" v-model="state.pluralLabel" placeholder="Invoices" />
               <p v-if="errors.pluralLabel" class="text-sm text-destructive">{{ errors.pluralLabel }}</p>
             </div>
           </div>
 
           <div class="space-y-2">
-            <Label for="objectType">Тип объекта</Label>
+            <Label for="objectType">Object Type</Label>
             <Select :model-value="state.objectType" @update:model-value="onObjectTypeChange">
               <SelectTrigger>
                 <SelectValue />
@@ -156,22 +158,22 @@ const breadcrumbs = [
           </div>
 
           <div class="space-y-2">
-            <Label for="visibility">Видимость (OWD)</Label>
+            <Label for="visibility">Visibility (OWD)</Label>
             <Select :model-value="state.visibility" @update:model-value="onVisibilityChange">
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="private">Приватный</SelectItem>
-                <SelectItem value="public_read">Публичный (чтение)</SelectItem>
-                <SelectItem value="public_read_write">Публичный (чтение/запись)</SelectItem>
-                <SelectItem value="controlled_by_parent">Управляется родителем</SelectItem>
+                <SelectItem value="private">Private</SelectItem>
+                <SelectItem value="public_read">Public Read Only</SelectItem>
+                <SelectItem value="public_read_write">Public Read/Write</SelectItem>
+                <SelectItem value="controlled_by_parent">Controlled by Parent</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div class="space-y-2">
-            <Label for="description">Описание</Label>
+            <Label for="description">Description</Label>
             <Textarea id="description" v-model="state.description" rows="3" />
           </div>
         </CardContent>
@@ -188,13 +190,16 @@ const breadcrumbs = [
 
       <Separator />
 
-      <div class="flex gap-2">
+      <div class="flex gap-2 items-center">
         <Button type="submit" :disabled="objectsLoading">
-          Создать
+          Create
         </Button>
-        <Button variant="outline" type="button" @click="router.back()">
-          Отмена
-        </Button>
+        <IconButton
+          :icon="X"
+          tooltip="Cancel"
+          variant="outline"
+          @click="router.back()"
+        />
       </div>
     </form>
   </div>

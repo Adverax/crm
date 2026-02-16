@@ -6,6 +6,8 @@ import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { X } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -36,7 +38,7 @@ async function onSubmit() {
   if (!validate()) return
   try {
     const created = await store.createPermissionSet(toCreateRequest())
-    toast.success('Набор разрешений создан')
+    toast.success('Permission set created')
     router.push({ name: 'admin-permission-set-detail', params: { permissionSetId: created.id } })
   } catch (err) {
     toast.errorFromApi(err)
@@ -44,22 +46,22 @@ async function onSubmit() {
 }
 
 const breadcrumbs = [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Наборы разрешений', to: '/admin/security/permission-sets' },
-  { label: 'Новый набор' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Permission Sets', to: '/admin/security/permission-sets' },
+  { label: 'New Permission Set' },
 ]
 </script>
 
 <template>
   <div>
-    <PageHeader title="Создать набор разрешений" :breadcrumbs="breadcrumbs" />
+    <PageHeader title="Create Permission Set" :breadcrumbs="breadcrumbs" />
 
     <ErrorAlert v-if="permissionSetsError" :message="permissionSetsError" class="mb-4" />
 
     <form class="max-w-2xl space-y-6" @submit.prevent="onSubmit">
       <Card>
         <CardContent class="pt-6 space-y-4">
-          <h2 class="text-lg font-semibold">Основная информация</h2>
+          <h2 class="text-lg font-semibold">General Information</h2>
 
           <div class="space-y-2">
             <Label for="apiName">API Name</Label>
@@ -72,27 +74,27 @@ const breadcrumbs = [
           </div>
 
           <div class="space-y-2">
-            <Label for="label">Название</Label>
-            <Input id="label" v-model="state.label" placeholder="Доступ на чтение продаж" />
+            <Label for="label">Label</Label>
+            <Input id="label" v-model="state.label" placeholder="Sales Read Access" />
             <p v-if="errors.label" class="text-sm text-destructive">{{ errors.label }}</p>
           </div>
 
           <div class="space-y-2">
-            <Label for="psType">Тип</Label>
+            <Label for="psType">Type</Label>
             <Select :model-value="state.psType" @update:model-value="onPsTypeChange">
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="grant">Grant (разрешает)</SelectItem>
-                <SelectItem value="deny">Deny (запрещает)</SelectItem>
+                <SelectItem value="grant">Grant (allows)</SelectItem>
+                <SelectItem value="deny">Deny (restricts)</SelectItem>
               </SelectContent>
             </Select>
             <p v-if="errors.psType" class="text-sm text-destructive">{{ errors.psType }}</p>
           </div>
 
           <div class="space-y-2">
-            <Label for="description">Описание</Label>
+            <Label for="description">Description</Label>
             <Textarea id="description" v-model="state.description" rows="3" />
           </div>
         </CardContent>
@@ -100,13 +102,16 @@ const breadcrumbs = [
 
       <Separator />
 
-      <div class="flex gap-2">
+      <div class="flex gap-2 items-center">
         <Button type="submit" :disabled="permissionSetsLoading">
-          Создать
+          Create
         </Button>
-        <Button variant="outline" type="button" @click="router.back()">
-          Отмена
-        </Button>
+        <IconButton
+          :icon="X"
+          tooltip="Cancel"
+          variant="outline"
+          @click="router.back()"
+        />
       </div>
     </form>
   </div>

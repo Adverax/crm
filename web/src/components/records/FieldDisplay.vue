@@ -11,16 +11,16 @@ function formatValue(): string {
   if (val == null || val === '') return '—'
 
   if (props.field.fieldType === 'boolean') {
-    return val ? 'Да' : 'Нет'
+    return val ? 'Yes' : 'No'
   }
 
   if (props.field.fieldType === 'datetime') {
     try {
       const date = new Date(String(val))
       if (props.field.fieldSubtype === 'date') {
-        return date.toLocaleDateString('ru-RU')
+        return date.toLocaleDateString('en-US')
       }
-      return date.toLocaleString('ru-RU')
+      return date.toLocaleString('en-US')
     } catch {
       return String(val)
     }

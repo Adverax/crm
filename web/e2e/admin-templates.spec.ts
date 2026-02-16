@@ -23,13 +23,13 @@ test.describe('Template list page', () => {
   test('displays object and field counts', async ({ page }) => {
     await page.goto('/admin/templates')
     const main = page.locator('main')
-    await expect(main.getByText('4 объектов, 36 полей')).toBeVisible()
-    await expect(main.getByText('4 объектов, 28 полей')).toBeVisible()
+    await expect(main.getByText('4 objects, 36 fields')).toBeVisible()
+    await expect(main.getByText('4 objects, 28 fields')).toBeVisible()
   })
 
   test('has apply buttons for each template', async ({ page }) => {
     await page.goto('/admin/templates')
-    const buttons = page.getByRole('button', { name: 'Применить' })
+    const buttons = page.getByRole('button', { name: 'Apply' })
     await expect(buttons).toHaveCount(2)
   })
 
@@ -42,7 +42,7 @@ test.describe('Template list page', () => {
         req.method() === 'POST',
     )
 
-    const buttons = page.getByRole('button', { name: 'Применить' })
+    const buttons = page.getByRole('button', { name: 'Apply' })
     await buttons.first().click()
 
     const request = await requestPromise
@@ -52,14 +52,14 @@ test.describe('Template list page', () => {
   test('shows page header', async ({ page }) => {
     await page.goto('/admin/templates')
     await expect(
-      page.getByRole('heading', { name: 'Шаблоны приложений' }),
+      page.getByRole('heading', { name: 'App Templates' }),
     ).toBeVisible()
   })
 
   test('shows description text', async ({ page }) => {
     await page.goto('/admin/templates')
     await expect(
-      page.getByText('Выберите шаблон для создания стандартных объектов и полей'),
+      page.getByText('Choose a template to create standard objects and fields'),
     ).toBeVisible()
   })
 })
@@ -69,16 +69,16 @@ test.describe('Sidebar navigation — Templates', () => {
     await setupAllRoutes(page)
   })
 
-  test('sidebar has Шаблоны link', async ({ page }) => {
+  test('sidebar has Templates link', async ({ page }) => {
     await page.goto('/admin/templates')
     const sidebar = page.locator('aside')
-    await expect(sidebar.getByText('Шаблоны')).toBeVisible()
+    await expect(sidebar.getByText('Templates')).toBeVisible()
   })
 
-  test('clicking Шаблоны navigates to templates page', async ({ page }) => {
+  test('clicking Templates navigates to templates page', async ({ page }) => {
     await page.goto('/admin/metadata/objects')
     const sidebar = page.locator('aside')
-    await sidebar.getByText('Шаблоны').click()
+    await sidebar.getByText('Templates').click()
     await expect(page).toHaveURL(/\/admin\/templates/)
   })
 })

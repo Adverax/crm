@@ -6,7 +6,8 @@ import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import EmptyState from '@/components/admin/EmptyState.vue'
-import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Plus } from 'lucide-vue-next'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
@@ -30,7 +31,7 @@ async function loadRules() {
     const response = await validationRulesApi.list(props.objectId)
     rules.value = response.data ?? []
   } catch (err) {
-    error.value = 'Не удалось загрузить правила валидации'
+    error.value = 'Failed to load validation rules'
     toast.errorFromApi(err)
   } finally {
     loading.value = false
@@ -54,20 +55,24 @@ function goToDetail(ruleId: string) {
 }
 
 const breadcrumbs = computed(() => [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Объекты', to: '/admin/metadata/objects' },
-  { label: 'Объект', to: `/admin/metadata/objects/${props.objectId}` },
-  { label: 'Правила валидации' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Objects', to: '/admin/metadata/objects' },
+  { label: 'Object', to: `/admin/metadata/objects/${props.objectId}` },
+  { label: 'Validation Rules' },
 ])
 </script>
 
 <template>
   <div>
-    <PageHeader title="Правила валидации" :breadcrumbs="breadcrumbs">
+    <PageHeader title="Validation Rules" :breadcrumbs="breadcrumbs">
       <template #actions>
-        <Button size="sm" data-testid="create-rule-btn" @click="goToCreate">
-          Создать правило
-        </Button>
+        <IconButton
+          :icon="Plus"
+          tooltip="Create rule"
+          variant="default"
+          data-testid="create-rule-btn"
+          @click="goToCreate"
+        />
       </template>
     </PageHeader>
 
@@ -80,8 +85,8 @@ const breadcrumbs = computed(() => [
 
     <EmptyState
       v-else-if="rules.length === 0"
-      title="Нет правил валидации"
-      description="Создайте первое правило валидации для этого объекта."
+      title="No validation rules"
+      description="Create the first validation rule for this object."
     />
 
     <div v-else class="space-y-2">
@@ -102,7 +107,7 @@ const breadcrumbs = computed(() => [
               {{ rule.severity }}
             </Badge>
             <Badge v-if="!rule.isActive" variant="outline">
-              Неактивно
+              Inactive
             </Badge>
           </div>
         </CardContent>

@@ -87,9 +87,9 @@ describe('useObjectForm', () => {
       const existing: ObjectDefinition = {
         id: 'uuid-1',
         apiName: 'Account',
-        label: 'Аккаунт',
-        pluralLabel: 'Аккаунты',
-        description: 'Описание',
+        label: 'Account',
+        pluralLabel: 'Accounts',
+        description: 'Description',
         objectType: 'standard',
         isPlatformManaged: false,
         isVisibleInSetup: true,
@@ -112,7 +112,7 @@ describe('useObjectForm', () => {
       initFrom(existing)
 
       expect(state.apiName).toBe('Account')
-      expect(state.label).toBe('Аккаунт')
+      expect(state.label).toBe('Account')
       expect(state.objectType).toBe('standard')
       expect(state.isSearchable).toBe(true)
       expect(state.hasActivities).toBe(true)

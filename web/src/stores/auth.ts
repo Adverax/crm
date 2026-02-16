@@ -57,7 +57,7 @@ export const useAuthStore = defineStore('auth', () => {
       setTokens(response.data.accessToken, response.data.refreshToken)
       await fetchMe()
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Ошибка входа'
+      error.value = err instanceof Error ? err.message : 'Login error'
       throw err
     } finally {
       loading.value = false

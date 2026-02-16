@@ -10,6 +10,8 @@ import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
 import ActiveStatusBadge from '@/components/admin/security/ActiveStatusBadge.vue'
 import UserPermissionSetsTab from '@/components/admin/security/UserPermissionSetsTab.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Trash2, X } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -68,7 +70,7 @@ async function onSave() {
   if (!validate()) return
   try {
     await store.updateUser(props.userId, toUpdateRequest())
-    toast.success('Пользователь обновлён')
+    toast.success('User updated')
   } catch (err) {
     toast.errorFromApi(err)
   }
@@ -77,7 +79,7 @@ async function onSave() {
 async function onDeleteUser() {
   try {
     await store.deleteUser(props.userId)
-    toast.success('Пользователь удалён')
+    toast.success('User deleted')
     router.push({ name: 'admin-users' })
   } catch (err) {
     toast.errorFromApi(err)
@@ -87,8 +89,8 @@ async function onDeleteUser() {
 }
 
 const breadcrumbs = computed(() => [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Пользователи', to: '/admin/security/users' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Users', to: '/admin/security/users' },
   { label: currentUser.value?.username ?? '...' },
 ])
 </script>
@@ -104,13 +106,12 @@ const breadcrumbs = computed(() => [
       <PageHeader :title="currentUser.username" :breadcrumbs="breadcrumbs">
         <template #actions>
           <ActiveStatusBadge :active="currentUser.isActive" />
-          <Button
+          <IconButton
+            :icon="Trash2"
+            tooltip="Delete User"
             variant="destructive"
-            size="sm"
             @click="showDeleteDialog = true"
-          >
-            Удалить пользователя
-          </Button>
+          />
         </template>
       </PageHeader>
 
@@ -118,18 +119,18 @@ const breadcrumbs = computed(() => [
 
       <Tabs default-value="info">
         <TabsList>
-          <TabsTrigger value="info">Основное</TabsTrigger>
-          <TabsTrigger value="permission-sets">Наборы разрешений</TabsTrigger>
+          <TabsTrigger value="info">General</TabsTrigger>
+          <TabsTrigger value="permission-sets">Permission Sets</TabsTrigger>
         </TabsList>
 
         <TabsContent value="info">
           <form class="max-w-2xl space-y-6 mt-4" @submit.prevent="onSave">
             <Card>
               <CardContent class="pt-6 space-y-4">
-                <h2 class="text-lg font-semibold">Учётные данные</h2>
+                <h2 class="text-lg font-semibold">Credentials</h2>
 
                 <div class="space-y-2">
-                  <Label>Имя пользователя</Label>
+                  <Label>Username</Label>
                   <Input :model-value="state.username" disabled />
                 </div>
 
@@ -143,15 +144,15 @@ const breadcrumbs = computed(() => [
 
             <Card>
               <CardContent class="pt-6 space-y-4">
-                <h2 class="text-lg font-semibold">Личные данные</h2>
+                <h2 class="text-lg font-semibold">Personal Information</h2>
 
                 <div class="grid grid-cols-2 gap-4">
                   <div class="space-y-2">
-                    <Label for="firstName">Имя</Label>
+                    <Label for="firstName">First Name</Label>
                     <Input id="firstName" v-model="state.firstName" />
                   </div>
                   <div class="space-y-2">
-                    <Label for="lastName">Фамилия</Label>
+                    <Label for="lastName">Last Name</Label>
                     <Input id="lastName" v-model="state.lastName" />
                   </div>
                 </div>
@@ -160,13 +161,13 @@ const breadcrumbs = computed(() => [
 
             <Card>
               <CardContent class="pt-6 space-y-4">
-                <h2 class="text-lg font-semibold">Безопасность</h2>
+                <h2 class="text-lg font-semibold">Security</h2>
 
                 <div class="space-y-2">
-                  <Label for="profileId">Профиль</Label>
+                  <Label for="profileId">Profile</Label>
                   <Select :model-value="state.profileId || undefined" @update:model-value="onProfileChange">
                     <SelectTrigger>
-                      <SelectValue placeholder="Выберите профиль" />
+                      <SelectValue placeholder="Select profile" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem v-for="profile in profiles" :key="profile.id" :value="profile.id">
@@ -178,13 +179,13 @@ const breadcrumbs = computed(() => [
                 </div>
 
                 <div class="space-y-2">
-                  <Label for="roleId">Роль</Label>
+                  <Label for="roleId">Role</Label>
                   <Select :model-value="state.roleId ?? '__none__'" @update:model-value="onRoleChange">
                     <SelectTrigger>
-                      <SelectValue placeholder="Без роли" />
+                      <SelectValue placeholder="No role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">Без роли</SelectItem>
+                      <SelectItem value="__none__">No role</SelectItem>
                       <SelectItem v-for="role in roles" :key="role.id" :value="role.id">
                         {{ role.label }}
                       </SelectItem>
@@ -197,20 +198,23 @@ const breadcrumbs = computed(() => [
                     :checked="state.isActive"
                     @update:checked="state.isActive = $event"
                   />
-                  <Label>Активен</Label>
+                  <Label>Active</Label>
                 </div>
               </CardContent>
             </Card>
 
             <Separator />
 
-            <div class="flex gap-2">
+            <div class="flex gap-2 items-center">
               <Button type="submit" :disabled="usersLoading">
-                Сохранить
+                Save
               </Button>
-              <Button variant="outline" type="button" @click="router.back()">
-                Отмена
-              </Button>
+              <IconButton
+                :icon="X"
+                tooltip="Cancel"
+                variant="outline"
+                @click="router.back()"
+              />
             </div>
           </form>
         </TabsContent>
@@ -224,8 +228,8 @@ const breadcrumbs = computed(() => [
 
       <ConfirmDialog
         :open="showDeleteDialog"
-        title="Удалить пользователя?"
-        :description="`Пользователь «${currentUser.username}» будет удалён без возможности восстановления.`"
+        title="Delete User?"
+        :description="`User '${currentUser.username}' will be permanently deleted.`"
         @update:open="showDeleteDialog = $event"
         @confirm="onDeleteUser"
       />

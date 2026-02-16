@@ -8,6 +8,8 @@ import PageHeader from '@/components/admin/PageHeader.vue'
 import EmptyState from '@/components/admin/EmptyState.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Plus, ChevronLeft, ChevronRight, MoreVertical } from 'lucide-vue-next'
 import {
   Table,
   TableBody,
@@ -58,7 +60,7 @@ async function onDeleteConfirmed() {
   if (!deleteTarget.value) return
   try {
     await store.deleteProfile(deleteTarget.value.id)
-    toast.success('Профиль удалён')
+    toast.success('Profile deleted')
     loadProfiles()
   } catch (err) {
     toast.errorFromApi(err)
@@ -69,22 +71,25 @@ async function onDeleteConfirmed() {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('ru-RU')
+  return new Date(iso).toLocaleDateString('en-US')
 }
 
 const breadcrumbs = [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Профили' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Profiles' },
 ]
 </script>
 
 <template>
   <div>
-    <PageHeader title="Профили" :breadcrumbs="breadcrumbs">
+    <PageHeader title="Profiles" :breadcrumbs="breadcrumbs">
       <template #actions>
-        <Button @click="router.push({ name: 'admin-profile-create' })">
-          Создать профиль
-        </Button>
+        <IconButton
+          :icon="Plus"
+          tooltip="Create Profile"
+          variant="default"
+          @click="router.push({ name: 'admin-profile-create' })"
+        />
       </template>
     </PageHeader>
 
@@ -94,13 +99,16 @@ const breadcrumbs = [
 
     <EmptyState
       v-else-if="!profilesLoading && profiles.length === 0"
-      title="Нет профилей"
-      description="Создайте первый профиль безопасности"
+      title="No Profiles"
+      description="Create your first security profile"
     >
       <template #action>
-        <Button @click="router.push({ name: 'admin-profile-create' })">
-          Создать профиль
-        </Button>
+        <IconButton
+          :icon="Plus"
+          tooltip="Create Profile"
+          variant="default"
+          @click="router.push({ name: 'admin-profile-create' })"
+        />
       </template>
     </EmptyState>
 
@@ -109,8 +117,8 @@ const breadcrumbs = [
         <TableHeader>
           <TableRow>
             <TableHead>API Name</TableHead>
-            <TableHead>Название</TableHead>
-            <TableHead>Создан</TableHead>
+            <TableHead>Label</TableHead>
+            <TableHead>Created</TableHead>
             <TableHead class="w-16" />
           </TableRow>
         </TableHeader>
@@ -136,19 +144,19 @@ const breadcrumbs = [
               <DropdownMenu>
                 <DropdownMenuTrigger as-child>
                   <Button variant="ghost" size="sm" class="h-8 w-8 p-0" @click.stop>
-                    <span class="sr-only">Действия</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01" /></svg>
+                    <span class="sr-only">Actions</span>
+                    <MoreVertical />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem @click.stop="goToDetail(profile)">
-                    Открыть
+                    Open
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     class="text-destructive"
                     @click.stop="confirmDelete(profile)"
                   >
-                    Удалить
+                    Delete
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -160,20 +168,28 @@ const breadcrumbs = [
       <div v-if="profilesPagination && profilesPagination.totalPages > 1" class="flex items-center justify-between mt-4">
         <span class="text-sm text-muted-foreground">{{ pageInfo }}</span>
         <div class="flex gap-2">
-          <Button variant="outline" size="sm" :disabled="isFirstPage" @click="prevPage">
-            Назад
-          </Button>
-          <Button variant="outline" size="sm" :disabled="isLastPage" @click="nextPage">
-            Вперёд
-          </Button>
+          <IconButton
+            :icon="ChevronLeft"
+            tooltip="Back"
+            variant="outline"
+            :disabled="isFirstPage"
+            @click="prevPage"
+          />
+          <IconButton
+            :icon="ChevronRight"
+            tooltip="Next"
+            variant="outline"
+            :disabled="isLastPage"
+            @click="nextPage"
+          />
         </div>
       </div>
     </template>
 
     <ConfirmDialog
       :open="showDeleteDialog"
-      title="Удалить профиль?"
-      :description="`Профиль «${deleteTarget?.label}» (${deleteTarget?.apiName}) будет удалён без возможности восстановления.`"
+      title="Delete Profile?"
+      :description="`Profile '${deleteTarget?.label}' (${deleteTarget?.apiName}) will be permanently deleted.`"
       @update:open="showDeleteDialog = $event"
       @confirm="onDeleteConfirmed"
     />

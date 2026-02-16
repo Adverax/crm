@@ -14,7 +14,7 @@ test.describe('Function list page', () => {
 
   test('shows description', async ({ page }) => {
     await page.goto('/admin/metadata/functions')
-    await expect(page.getByText('Рассчитывает скидку по сумме')).toBeVisible()
+    await expect(page.getByText('Calculates discount by amount')).toBeVisible()
   })
 
   test('shows return type badge', async ({ page }) => {
@@ -24,7 +24,7 @@ test.describe('Function list page', () => {
 
   test('shows params count badge', async ({ page }) => {
     await page.goto('/admin/metadata/functions')
-    await expect(page.getByText('2 пар.')).toBeVisible()
+    await expect(page.getByText('2 params')).toBeVisible()
   })
 
   test('has create function button', async ({ page }) => {
@@ -55,7 +55,7 @@ test.describe('Function list page', () => {
       return route.continue()
     })
     await page.goto('/admin/metadata/functions')
-    await expect(page.getByText('Нет функций')).toBeVisible()
+    await expect(page.getByText('No functions')).toBeVisible()
   })
 })
 
@@ -127,13 +127,13 @@ test.describe('Function create page', () => {
   test('shows fn.name preview', async ({ page }) => {
     await page.goto('/admin/metadata/functions/new')
     await page.locator('[data-testid="field-name"]').fill('my_func')
-    await expect(page.getByText('Вызывается как fn.my_func()')).toBeVisible()
+    await expect(page.getByText('Called as fn.my_func()', { exact: true })).toBeVisible()
   })
 
   test('shows breadcrumbs', async ({ page }) => {
     await page.goto('/admin/metadata/functions/new')
-    await expect(page.getByText('Функции').first()).toBeVisible()
-    await expect(page.getByText('Создание').first()).toBeVisible()
+    await expect(page.getByText('Functions').first()).toBeVisible()
+    await expect(page.getByText('Create').first()).toBeVisible()
   })
 })
 
@@ -187,7 +187,7 @@ test.describe('Function detail page', () => {
   test('delete button shows confirmation dialog', async ({ page }) => {
     await page.goto(`/admin/metadata/functions/${fn.id}`)
     await page.locator('[data-testid="delete-function-btn"]').click()
-    await expect(page.getByText('Удалить функцию?')).toBeVisible()
+    await expect(page.getByText('Delete function?')).toBeVisible()
   })
 
   test('shows parameter rows', async ({ page }) => {
@@ -204,12 +204,12 @@ test.describe('Sidebar navigation', () => {
 
   test('functions link appears in sidebar', async ({ page }) => {
     await page.goto('/admin/metadata/objects')
-    await expect(page.getByRole('link', { name: 'Функции' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Functions' })).toBeVisible()
   })
 
   test('functions link navigates to functions list', async ({ page }) => {
     await page.goto('/admin/metadata/objects')
-    await page.getByRole('link', { name: 'Функции' }).click()
+    await page.getByRole('link', { name: 'Functions' }).click()
     await expect(page).toHaveURL(/\/admin\/metadata\/functions/)
   })
 })

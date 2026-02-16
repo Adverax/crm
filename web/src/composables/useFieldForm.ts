@@ -80,26 +80,26 @@ export function useFieldForm(existing?: FieldDefinition) {
     let valid = true
 
     if (!state.apiName.trim()) {
-      errors.apiName = 'API имя обязательно'
+      errors.apiName = 'API name is required'
       valid = false
     } else if (state.apiName.length < 2) {
-      errors.apiName = 'Минимум 2 символа'
+      errors.apiName = 'Minimum 2 characters'
       valid = false
     } else if (state.apiName.length > 100) {
-      errors.apiName = 'Максимум 100 символов'
+      errors.apiName = 'Maximum 100 characters'
       valid = false
     } else if (!API_NAME_REGEX.test(state.apiName)) {
-      errors.apiName = 'Только латинские буквы, цифры и подчёркивания'
+      errors.apiName = 'Only letters, digits, and underscores'
       valid = false
     }
 
     if (!state.label.trim()) {
-      errors.label = 'Название обязательно'
+      errors.label = 'Label is required'
       valid = false
     }
 
     if (!state.fieldType) {
-      errors.fieldType = 'Тип поля обязателен'
+      errors.fieldType = 'Field type is required'
       valid = false
     }
 

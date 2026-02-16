@@ -255,13 +255,13 @@ export interface BitmaskFlag {
 }
 
 export const OLS_FLAGS: BitmaskFlag[] = [
-  { bit: OLS_READ, label: 'Чтение', key: 'read' },
-  { bit: OLS_CREATE, label: 'Создание', key: 'create' },
-  { bit: OLS_UPDATE, label: 'Обновление', key: 'update' },
-  { bit: OLS_DELETE, label: 'Удаление', key: 'delete' },
+  { bit: OLS_READ, label: 'Read', key: 'read' },
+  { bit: OLS_CREATE, label: 'Create', key: 'create' },
+  { bit: OLS_UPDATE, label: 'Update', key: 'update' },
+  { bit: OLS_DELETE, label: 'Delete', key: 'delete' },
 ]
 
 export const FLS_FLAGS: BitmaskFlag[] = [
-  { bit: FLS_READ, label: 'Чтение', key: 'read' },
-  { bit: FLS_WRITE, label: 'Запись', key: 'write' },
+  { bit: FLS_READ, label: 'Read', key: 'read' },
+  { bit: FLS_WRITE, label: 'Write', key: 'write' },
 ]

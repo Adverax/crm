@@ -9,6 +9,8 @@ import EmptyState from '@/components/admin/EmptyState.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
 import PsTypeBadge from '@/components/admin/security/PsTypeBadge.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Plus, ChevronLeft, ChevronRight, MoreVertical } from 'lucide-vue-next'
 import {
   Select,
   SelectContent,
@@ -72,7 +74,7 @@ async function onDeleteConfirmed() {
   if (!deleteTarget.value) return
   try {
     await store.deletePermissionSet(deleteTarget.value.id)
-    toast.success('Набор разрешений удалён')
+    toast.success('Permission set deleted')
     loadPermissionSets()
   } catch (err) {
     toast.errorFromApi(err)
@@ -83,32 +85,35 @@ async function onDeleteConfirmed() {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('ru-RU')
+  return new Date(iso).toLocaleDateString('en-US')
 }
 
 const breadcrumbs = [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Наборы разрешений' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Permission Sets' },
 ]
 </script>
 
 <template>
   <div>
-    <PageHeader title="Наборы разрешений" :breadcrumbs="breadcrumbs">
+    <PageHeader title="Permission Sets" :breadcrumbs="breadcrumbs">
       <template #actions>
-        <Button @click="router.push({ name: 'admin-permission-set-create' })">
-          Создать набор
-        </Button>
+        <IconButton
+          :icon="Plus"
+          tooltip="Create Permission Set"
+          variant="default"
+          @click="router.push({ name: 'admin-permission-set-create' })"
+        />
       </template>
     </PageHeader>
 
     <div class="mb-4">
       <Select v-model="filterType">
         <SelectTrigger class="w-48">
-          <SelectValue placeholder="Все типы" />
+          <SelectValue placeholder="All Types" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">Все типы</SelectItem>
+          <SelectItem value="all">All Types</SelectItem>
           <SelectItem value="grant">Grant</SelectItem>
           <SelectItem value="deny">Deny</SelectItem>
         </SelectContent>
@@ -121,13 +126,16 @@ const breadcrumbs = [
 
     <EmptyState
       v-else-if="!permissionSetsLoading && permissionSets.length === 0"
-      title="Нет наборов разрешений"
-      description="Создайте первый набор разрешений"
+      title="No Permission Sets"
+      description="Create your first permission set"
     >
       <template #action>
-        <Button @click="router.push({ name: 'admin-permission-set-create' })">
-          Создать набор
-        </Button>
+        <IconButton
+          :icon="Plus"
+          tooltip="Create Permission Set"
+          variant="default"
+          @click="router.push({ name: 'admin-permission-set-create' })"
+        />
       </template>
     </EmptyState>
 
@@ -136,9 +144,9 @@ const breadcrumbs = [
         <TableHeader>
           <TableRow>
             <TableHead>API Name</TableHead>
-            <TableHead>Название</TableHead>
-            <TableHead>Тип</TableHead>
-            <TableHead>Создан</TableHead>
+            <TableHead>Label</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Created</TableHead>
             <TableHead class="w-16" />
           </TableRow>
         </TableHeader>
@@ -167,19 +175,19 @@ const breadcrumbs = [
               <DropdownMenu>
                 <DropdownMenuTrigger as-child>
                   <Button variant="ghost" size="sm" class="h-8 w-8 p-0" @click.stop>
-                    <span class="sr-only">Действия</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01" /></svg>
+                    <span class="sr-only">Actions</span>
+                    <MoreVertical />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem @click.stop="goToDetail(ps)">
-                    Открыть
+                    Open
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     class="text-destructive"
                     @click.stop="confirmDelete(ps)"
                   >
-                    Удалить
+                    Delete
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -191,20 +199,28 @@ const breadcrumbs = [
       <div v-if="permissionSetsPagination && permissionSetsPagination.totalPages > 1" class="flex items-center justify-between mt-4">
         <span class="text-sm text-muted-foreground">{{ pageInfo }}</span>
         <div class="flex gap-2">
-          <Button variant="outline" size="sm" :disabled="isFirstPage" @click="prevPage">
-            Назад
-          </Button>
-          <Button variant="outline" size="sm" :disabled="isLastPage" @click="nextPage">
-            Вперёд
-          </Button>
+          <IconButton
+            :icon="ChevronLeft"
+            tooltip="Back"
+            variant="outline"
+            :disabled="isFirstPage"
+            @click="prevPage"
+          />
+          <IconButton
+            :icon="ChevronRight"
+            tooltip="Next"
+            variant="outline"
+            :disabled="isLastPage"
+            @click="nextPage"
+          />
         </div>
       </div>
     </template>
 
     <ConfirmDialog
       :open="showDeleteDialog"
-      title="Удалить набор разрешений?"
-      :description="`Набор «${deleteTarget?.label}» (${deleteTarget?.apiName}) будет удалён без возможности восстановления.`"
+      title="Delete Permission Set?"
+      :description="`Permission set '${deleteTarget?.label}' (${deleteTarget?.apiName}) will be permanently deleted.`"
       @update:open="showDeleteDialog = $event"
       @confirm="onDeleteConfirmed"
     />

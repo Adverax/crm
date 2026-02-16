@@ -73,7 +73,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       roles.value = response.data ?? []
       rolesPagination.value = response.pagination
     } catch (err) {
-      rolesError.value = err instanceof Error ? err.message : 'Ошибка загрузки ролей'
+      rolesError.value = err instanceof Error ? err.message : 'Failed to load roles'
       throw err
     } finally {
       rolesLoading.value = false
@@ -88,7 +88,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       currentRole.value = response.data
       return response.data
     } catch (err) {
-      rolesError.value = err instanceof Error ? err.message : 'Ошибка загрузки роли'
+      rolesError.value = err instanceof Error ? err.message : 'Failed to load role'
       throw err
     } finally {
       rolesLoading.value = false
@@ -102,7 +102,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       const response = await securityApi.createRole(data)
       return response.data
     } catch (err) {
-      rolesError.value = err instanceof Error ? err.message : 'Ошибка создания роли'
+      rolesError.value = err instanceof Error ? err.message : 'Failed to create role'
       throw err
     } finally {
       rolesLoading.value = false
@@ -117,7 +117,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       currentRole.value = response.data
       return response.data
     } catch (err) {
-      rolesError.value = err instanceof Error ? err.message : 'Ошибка обновления роли'
+      rolesError.value = err instanceof Error ? err.message : 'Failed to update role'
       throw err
     } finally {
       rolesLoading.value = false
@@ -130,7 +130,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
     try {
       await securityApi.deleteRole(roleId)
     } catch (err) {
-      rolesError.value = err instanceof Error ? err.message : 'Ошибка удаления роли'
+      rolesError.value = err instanceof Error ? err.message : 'Failed to delete role'
       throw err
     } finally {
       rolesLoading.value = false
@@ -147,7 +147,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       permissionSets.value = response.data ?? []
       permissionSetsPagination.value = response.pagination
     } catch (err) {
-      permissionSetsError.value = err instanceof Error ? err.message : 'Ошибка загрузки наборов разрешений'
+      permissionSetsError.value = err instanceof Error ? err.message : 'Failed to load permission sets'
       throw err
     } finally {
       permissionSetsLoading.value = false
@@ -162,7 +162,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       currentPermissionSet.value = response.data
       return response.data
     } catch (err) {
-      permissionSetsError.value = err instanceof Error ? err.message : 'Ошибка загрузки набора разрешений'
+      permissionSetsError.value = err instanceof Error ? err.message : 'Failed to load permission set'
       throw err
     } finally {
       permissionSetsLoading.value = false
@@ -176,7 +176,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       const response = await securityApi.createPermissionSet(data)
       return response.data
     } catch (err) {
-      permissionSetsError.value = err instanceof Error ? err.message : 'Ошибка создания набора разрешений'
+      permissionSetsError.value = err instanceof Error ? err.message : 'Failed to create permission set'
       throw err
     } finally {
       permissionSetsLoading.value = false
@@ -191,7 +191,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       currentPermissionSet.value = response.data
       return response.data
     } catch (err) {
-      permissionSetsError.value = err instanceof Error ? err.message : 'Ошибка обновления набора разрешений'
+      permissionSetsError.value = err instanceof Error ? err.message : 'Failed to update permission set'
       throw err
     } finally {
       permissionSetsLoading.value = false
@@ -204,7 +204,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
     try {
       await securityApi.deletePermissionSet(psId)
     } catch (err) {
-      permissionSetsError.value = err instanceof Error ? err.message : 'Ошибка удаления набора разрешений'
+      permissionSetsError.value = err instanceof Error ? err.message : 'Failed to delete permission set'
       throw err
     } finally {
       permissionSetsLoading.value = false
@@ -221,7 +221,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       profiles.value = response.data ?? []
       profilesPagination.value = response.pagination
     } catch (err) {
-      profilesError.value = err instanceof Error ? err.message : 'Ошибка загрузки профилей'
+      profilesError.value = err instanceof Error ? err.message : 'Failed to load profiles'
       throw err
     } finally {
       profilesLoading.value = false
@@ -236,7 +236,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       currentProfile.value = response.data
       return response.data
     } catch (err) {
-      profilesError.value = err instanceof Error ? err.message : 'Ошибка загрузки профиля'
+      profilesError.value = err instanceof Error ? err.message : 'Failed to load profile'
       throw err
     } finally {
       profilesLoading.value = false
@@ -250,7 +250,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       const response = await securityApi.createProfile(data)
       return response.data
     } catch (err) {
-      profilesError.value = err instanceof Error ? err.message : 'Ошибка создания профиля'
+      profilesError.value = err instanceof Error ? err.message : 'Failed to create profile'
       throw err
     } finally {
       profilesLoading.value = false
@@ -265,7 +265,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       currentProfile.value = response.data
       return response.data
     } catch (err) {
-      profilesError.value = err instanceof Error ? err.message : 'Ошибка обновления профиля'
+      profilesError.value = err instanceof Error ? err.message : 'Failed to update profile'
       throw err
     } finally {
       profilesLoading.value = false
@@ -278,7 +278,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
     try {
       await securityApi.deleteProfile(profileId)
     } catch (err) {
-      profilesError.value = err instanceof Error ? err.message : 'Ошибка удаления профиля'
+      profilesError.value = err instanceof Error ? err.message : 'Failed to delete profile'
       throw err
     } finally {
       profilesLoading.value = false
@@ -295,7 +295,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       users.value = response.data ?? []
       usersPagination.value = response.pagination
     } catch (err) {
-      usersError.value = err instanceof Error ? err.message : 'Ошибка загрузки пользователей'
+      usersError.value = err instanceof Error ? err.message : 'Failed to load users'
       throw err
     } finally {
       usersLoading.value = false
@@ -310,7 +310,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       currentUser.value = response.data
       return response.data
     } catch (err) {
-      usersError.value = err instanceof Error ? err.message : 'Ошибка загрузки пользователя'
+      usersError.value = err instanceof Error ? err.message : 'Failed to load user'
       throw err
     } finally {
       usersLoading.value = false
@@ -324,7 +324,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       const response = await securityApi.createUser(data)
       return response.data
     } catch (err) {
-      usersError.value = err instanceof Error ? err.message : 'Ошибка создания пользователя'
+      usersError.value = err instanceof Error ? err.message : 'Failed to create user'
       throw err
     } finally {
       usersLoading.value = false
@@ -339,7 +339,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       currentUser.value = response.data
       return response.data
     } catch (err) {
-      usersError.value = err instanceof Error ? err.message : 'Ошибка обновления пользователя'
+      usersError.value = err instanceof Error ? err.message : 'Failed to update user'
       throw err
     } finally {
       usersLoading.value = false
@@ -352,7 +352,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
     try {
       await securityApi.deleteUser(userId)
     } catch (err) {
-      usersError.value = err instanceof Error ? err.message : 'Ошибка удаления пользователя'
+      usersError.value = err instanceof Error ? err.message : 'Failed to delete user'
       throw err
     } finally {
       usersLoading.value = false
@@ -368,7 +368,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       const response = await securityApi.listUserPermissionSets(userId)
       userPermissionSets.value = response.data ?? []
     } catch (err) {
-      usersError.value = err instanceof Error ? err.message : 'Ошибка загрузки назначенных наборов'
+      usersError.value = err instanceof Error ? err.message : 'Failed to load assigned permission sets'
       throw err
     } finally {
       usersLoading.value = false
@@ -381,7 +381,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
     try {
       await securityApi.assignPermissionSet(userId, permissionSetId)
     } catch (err) {
-      usersError.value = err instanceof Error ? err.message : 'Ошибка назначения набора разрешений'
+      usersError.value = err instanceof Error ? err.message : 'Failed to assign permission set'
       throw err
     } finally {
       usersLoading.value = false
@@ -394,7 +394,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
     try {
       await securityApi.revokePermissionSet(userId, assignmentId)
     } catch (err) {
-      usersError.value = err instanceof Error ? err.message : 'Ошибка отзыва набора разрешений'
+      usersError.value = err instanceof Error ? err.message : 'Failed to revoke permission set'
       throw err
     } finally {
       usersLoading.value = false
@@ -418,7 +418,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       groups.value = response.data ?? []
       groupsPagination.value = response.pagination
     } catch (err) {
-      groupsError.value = err instanceof Error ? err.message : 'Ошибка загрузки групп'
+      groupsError.value = err instanceof Error ? err.message : 'Failed to load groups'
       throw err
     } finally {
       groupsLoading.value = false
@@ -433,7 +433,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       currentGroup.value = response.data
       return response.data
     } catch (err) {
-      groupsError.value = err instanceof Error ? err.message : 'Ошибка загрузки группы'
+      groupsError.value = err instanceof Error ? err.message : 'Failed to load group'
       throw err
     } finally {
       groupsLoading.value = false
@@ -447,7 +447,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       const response = await securityApi.createGroup(data)
       return response.data
     } catch (err) {
-      groupsError.value = err instanceof Error ? err.message : 'Ошибка создания группы'
+      groupsError.value = err instanceof Error ? err.message : 'Failed to create group'
       throw err
     } finally {
       groupsLoading.value = false
@@ -460,7 +460,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
     try {
       await securityApi.deleteGroup(groupId)
     } catch (err) {
-      groupsError.value = err instanceof Error ? err.message : 'Ошибка удаления группы'
+      groupsError.value = err instanceof Error ? err.message : 'Failed to delete group'
       throw err
     } finally {
       groupsLoading.value = false
@@ -474,7 +474,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       const response = await securityApi.listGroupMembers(groupId)
       groupMembers.value = response.data ?? []
     } catch (err) {
-      groupsError.value = err instanceof Error ? err.message : 'Ошибка загрузки членов группы'
+      groupsError.value = err instanceof Error ? err.message : 'Failed to load group members'
       throw err
     } finally {
       groupsLoading.value = false
@@ -488,7 +488,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       const response = await securityApi.addGroupMember(groupId, data)
       return response.data
     } catch (err) {
-      groupsError.value = err instanceof Error ? err.message : 'Ошибка добавления члена группы'
+      groupsError.value = err instanceof Error ? err.message : 'Failed to add group member'
       throw err
     } finally {
       groupsLoading.value = false
@@ -501,7 +501,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
     try {
       await securityApi.removeGroupMember(groupId, memberId)
     } catch (err) {
-      groupsError.value = err instanceof Error ? err.message : 'Ошибка удаления члена группы'
+      groupsError.value = err instanceof Error ? err.message : 'Failed to remove group member'
       throw err
     } finally {
       groupsLoading.value = false
@@ -522,7 +522,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       const response = await securityApi.listSharingRules(filter)
       sharingRules.value = response.data ?? []
     } catch (err) {
-      sharingRulesError.value = err instanceof Error ? err.message : 'Ошибка загрузки правил'
+      sharingRulesError.value = err instanceof Error ? err.message : 'Failed to load rules'
       throw err
     } finally {
       sharingRulesLoading.value = false
@@ -537,7 +537,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       currentSharingRule.value = response.data
       return response.data
     } catch (err) {
-      sharingRulesError.value = err instanceof Error ? err.message : 'Ошибка загрузки правила'
+      sharingRulesError.value = err instanceof Error ? err.message : 'Failed to load rule'
       throw err
     } finally {
       sharingRulesLoading.value = false
@@ -551,7 +551,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       const response = await securityApi.createSharingRule(data)
       return response.data
     } catch (err) {
-      sharingRulesError.value = err instanceof Error ? err.message : 'Ошибка создания правила'
+      sharingRulesError.value = err instanceof Error ? err.message : 'Failed to create rule'
       throw err
     } finally {
       sharingRulesLoading.value = false
@@ -566,7 +566,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
       currentSharingRule.value = response.data
       return response.data
     } catch (err) {
-      sharingRulesError.value = err instanceof Error ? err.message : 'Ошибка обновления правила'
+      sharingRulesError.value = err instanceof Error ? err.message : 'Failed to update rule'
       throw err
     } finally {
       sharingRulesLoading.value = false
@@ -579,7 +579,7 @@ export const useSecurityAdminStore = defineStore('securityAdmin', () => {
     try {
       await securityApi.deleteSharingRule(ruleId)
     } catch (err) {
-      sharingRulesError.value = err instanceof Error ? err.message : 'Ошибка удаления правила'
+      sharingRulesError.value = err instanceof Error ? err.message : 'Failed to delete rule'
       throw err
     } finally {
       sharingRulesLoading.value = false

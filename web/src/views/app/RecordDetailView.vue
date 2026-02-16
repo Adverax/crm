@@ -9,6 +9,8 @@ import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
 import FieldRenderer from '@/components/records/FieldRenderer.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Trash2, X } from 'lucide-vue-next'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 
@@ -55,7 +57,7 @@ async function onSave() {
       data[field.apiName] = formData[field.apiName]
     }
     await store.updateRecord(props.objectName, props.recordId, data)
-    toast.success('Запись обновлена')
+    toast.success('Record updated')
   } catch (err) {
     toast.errorFromApi(err)
   }
@@ -64,7 +66,7 @@ async function onSave() {
 async function onDeleteConfirmed() {
   try {
     await store.deleteRecord(props.objectName, props.recordId)
-    toast.success('Запись удалена')
+    toast.success('Record deleted')
     router.push({ name: 'record-list', params: { objectName: props.objectName } })
   } catch (err) {
     toast.errorFromApi(err)
@@ -90,13 +92,13 @@ const breadcrumbs = computed(() => [
   <div>
     <PageHeader :title="getRecordTitle()" :breadcrumbs="breadcrumbs">
       <template #actions>
-        <Button
+        <IconButton
           v-if="currentDescribe?.isDeleteable"
+          :icon="Trash2"
+          tooltip="Delete"
           variant="destructive"
           @click="showDeleteDialog = true"
-        >
-          Удалить
-        </Button>
+        />
       </template>
     </PageHeader>
 
@@ -117,24 +119,27 @@ const breadcrumbs = computed(() => [
 
       <Separator />
 
-      <div class="flex gap-2">
+      <div class="flex gap-2 items-center">
         <Button
           v-if="currentDescribe?.isUpdateable"
           type="submit"
           :disabled="loading"
         >
-          Сохранить
+          Save
         </Button>
-        <Button variant="outline" type="button" @click="router.back()">
-          Отмена
-        </Button>
+        <IconButton
+          :icon="X"
+          tooltip="Cancel"
+          variant="outline"
+          @click="router.back()"
+        />
       </div>
     </form>
 
     <ConfirmDialog
       :open="showDeleteDialog"
-      title="Удалить запись?"
-      description="Запись будет удалена без возможности восстановления."
+      title="Delete record?"
+      description="The record will be permanently deleted."
       @update:open="showDeleteDialog = $event"
       @confirm="onDeleteConfirmed"
     />

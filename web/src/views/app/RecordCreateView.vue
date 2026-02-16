@@ -8,6 +8,8 @@ import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import FieldRenderer from '@/components/records/FieldRenderer.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { X } from 'lucide-vue-next'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 
@@ -46,7 +48,7 @@ async function onSubmit() {
       }
     }
     const id = await store.createRecord(props.objectName, data)
-    toast.success('Запись создана')
+    toast.success('Record created')
     router.push({ name: 'record-detail', params: { objectName: props.objectName, recordId: id } })
   } catch (err) {
     toast.errorFromApi(err)
@@ -56,14 +58,14 @@ async function onSubmit() {
 const breadcrumbs = computed(() => [
   { label: 'CRM', to: '/app' },
   { label: currentDescribe.value?.pluralLabel ?? props.objectName, to: `/app/${props.objectName}` },
-  { label: 'Новая запись' },
+  { label: 'New Record' },
 ])
 </script>
 
 <template>
   <div>
     <PageHeader
-      :title="`Создать ${currentDescribe?.label ?? objectName}`"
+      :title="`Create ${currentDescribe?.label ?? objectName}`"
       :breadcrumbs="breadcrumbs"
     />
 
@@ -84,13 +86,16 @@ const breadcrumbs = computed(() => [
 
       <Separator />
 
-      <div class="flex gap-2">
+      <div class="flex gap-2 items-center">
         <Button type="submit" :disabled="loading">
-          Создать
+          Create
         </Button>
-        <Button variant="outline" type="button" @click="router.back()">
-          Отмена
-        </Button>
+        <IconButton
+          :icon="X"
+          tooltip="Cancel"
+          variant="outline"
+          @click="router.back()"
+        />
       </div>
     </form>
   </div>

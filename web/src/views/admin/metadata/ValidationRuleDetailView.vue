@@ -8,6 +8,8 @@ import PageHeader from '@/components/admin/PageHeader.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
 import ExpressionBuilder from '@/components/admin/expression-builder/ExpressionBuilder.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Trash2, X } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -109,7 +111,7 @@ async function onSave() {
       isActive: form.value.isActive,
       description: form.value.description || undefined,
     })
-    toast.success('Правило обновлено')
+    toast.success('Rule updated')
   } catch (err) {
     toast.errorFromApi(err)
   } finally {
@@ -120,7 +122,7 @@ async function onSave() {
 async function onDeleteRule() {
   try {
     await validationRulesApi.delete(props.objectId, props.ruleId)
-    toast.success('Правило удалено')
+    toast.success('Rule deleted')
     router.push({
       name: 'admin-validation-rules',
       params: { objectId: props.objectId },
@@ -140,10 +142,10 @@ function onCancel() {
 }
 
 const breadcrumbs = computed(() => [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Объекты', to: '/admin/metadata/objects' },
-  { label: 'Объект', to: `/admin/metadata/objects/${props.objectId}` },
-  { label: 'Правила', to: `/admin/metadata/objects/${props.objectId}/rules` },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Objects', to: '/admin/metadata/objects' },
+  { label: 'Object', to: `/admin/metadata/objects/${props.objectId}` },
+  { label: 'Rules', to: `/admin/metadata/objects/${props.objectId}/rules` },
   { label: rule.value?.label ?? '...' },
 ])
 </script>
@@ -158,14 +160,13 @@ const breadcrumbs = computed(() => [
     <template v-else-if="rule">
       <PageHeader :title="rule.label" :breadcrumbs="breadcrumbs">
         <template #actions>
-          <Button
+          <IconButton
+            :icon="Trash2"
+            tooltip="Delete rule"
             variant="destructive"
-            size="sm"
             data-testid="delete-rule-btn"
             @click="showDeleteDialog = true"
-          >
-            Удалить правило
-          </Button>
+          />
         </template>
       </PageHeader>
 
@@ -178,12 +179,12 @@ const breadcrumbs = computed(() => [
             </div>
 
             <div class="space-y-2">
-              <Label for="label">Название</Label>
+              <Label for="label">Label</Label>
               <Input id="label" v-model="form.label" required data-testid="field-label" />
             </div>
 
             <div class="space-y-2">
-              <Label>CEL-выражение</Label>
+              <Label>CEL Expression</Label>
               <ExpressionBuilder
                 v-model="form.expression"
                 context="validation_rule"
@@ -193,7 +194,7 @@ const breadcrumbs = computed(() => [
             </div>
 
             <div class="space-y-2">
-              <Label for="error_message">Сообщение об ошибке</Label>
+              <Label for="error_message">Error Message</Label>
               <Input
                 id="error_message"
                 v-model="form.errorMessage"
@@ -204,25 +205,25 @@ const breadcrumbs = computed(() => [
 
             <div class="grid grid-cols-2 gap-4">
               <div class="space-y-2">
-                <Label for="error_code">Код ошибки</Label>
+                <Label for="error_code">Error Code</Label>
                 <Input id="error_code" v-model="form.errorCode" />
               </div>
               <div class="space-y-2">
-                <Label>Серьёзность</Label>
+                <Label>Severity</Label>
                 <Select :model-value="form.severity" @update:model-value="onSeverityChange">
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="error">Ошибка</SelectItem>
-                    <SelectItem value="warning">Предупреждение</SelectItem>
+                    <SelectItem value="error">Error</SelectItem>
+                    <SelectItem value="warning">Warning</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
             <div class="space-y-2">
-              <Label>Условие применения (CEL, необязательно)</Label>
+              <Label>When Condition (CEL, optional)</Label>
               <ExpressionBuilder
                 v-model="form.whenExpression"
                 context="when_expression"
@@ -233,11 +234,11 @@ const breadcrumbs = computed(() => [
 
             <div class="grid grid-cols-2 gap-4">
               <div class="space-y-2">
-                <Label for="applies_to">Применяется к</Label>
+                <Label for="applies_to">Applies To</Label>
                 <Input id="applies_to" v-model="form.appliesTo" placeholder="create,update" />
               </div>
               <div class="space-y-2">
-                <Label for="sort_order">Порядок</Label>
+                <Label for="sort_order">Sort Order</Label>
                 <Input id="sort_order" v-model.number="form.sortOrder" type="number" />
               </div>
             </div>
@@ -250,11 +251,11 @@ const breadcrumbs = computed(() => [
                 class="h-4 w-4"
                 data-testid="field-is-active"
               />
-              <Label for="is_active">Активно</Label>
+              <Label for="is_active">Active</Label>
             </div>
 
             <div class="space-y-2">
-              <Label for="description">Описание</Label>
+              <Label for="description">Description</Label>
               <Textarea id="description" v-model="form.description" rows="2" />
             </div>
           </CardContent>
@@ -262,20 +263,24 @@ const breadcrumbs = computed(() => [
 
         <Separator />
 
-        <div class="flex gap-2">
+        <div class="flex gap-2 items-center">
           <Button type="submit" :disabled="submitting" data-testid="save-btn">
-            Сохранить
+            Save
           </Button>
-          <Button variant="outline" type="button" data-testid="cancel-btn" @click="onCancel">
-            Отмена
-          </Button>
+          <IconButton
+            :icon="X"
+            tooltip="Cancel"
+            variant="outline"
+            data-testid="cancel-btn"
+            @click="onCancel"
+          />
         </div>
       </form>
 
       <ConfirmDialog
         :open="showDeleteDialog"
-        title="Удалить правило?"
-        :description="`Правило «${rule.label}» будет удалено без возможности восстановления.`"
+        title="Delete rule?"
+        :description="`Rule '${rule.label}' will be permanently deleted.`"
         @update:open="showDeleteDialog = $event"
         @confirm="onDeleteRule"
       />

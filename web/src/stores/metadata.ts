@@ -32,7 +32,7 @@ export const useMetadataStore = defineStore('metadata', () => {
       objects.value = response.data ?? []
       pagination.value = response.pagination
     } catch (err) {
-      objectsError.value = err instanceof Error ? err.message : 'Ошибка загрузки объектов'
+      objectsError.value = err instanceof Error ? err.message : 'Failed to load objects'
       throw err
     } finally {
       objectsLoading.value = false
@@ -47,7 +47,7 @@ export const useMetadataStore = defineStore('metadata', () => {
       currentObject.value = response.data
       return response.data
     } catch (err) {
-      objectsError.value = err instanceof Error ? err.message : 'Ошибка загрузки объекта'
+      objectsError.value = err instanceof Error ? err.message : 'Failed to load object'
       throw err
     } finally {
       objectsLoading.value = false
@@ -61,7 +61,7 @@ export const useMetadataStore = defineStore('metadata', () => {
       const response = await metadataApi.createObject(data)
       return response.data
     } catch (err) {
-      objectsError.value = err instanceof Error ? err.message : 'Ошибка создания объекта'
+      objectsError.value = err instanceof Error ? err.message : 'Failed to create object'
       throw err
     } finally {
       objectsLoading.value = false
@@ -76,7 +76,7 @@ export const useMetadataStore = defineStore('metadata', () => {
       currentObject.value = response.data
       return response.data
     } catch (err) {
-      objectsError.value = err instanceof Error ? err.message : 'Ошибка обновления объекта'
+      objectsError.value = err instanceof Error ? err.message : 'Failed to update object'
       throw err
     } finally {
       objectsLoading.value = false
@@ -89,7 +89,7 @@ export const useMetadataStore = defineStore('metadata', () => {
     try {
       await metadataApi.deleteObject(objectId)
     } catch (err) {
-      objectsError.value = err instanceof Error ? err.message : 'Ошибка удаления объекта'
+      objectsError.value = err instanceof Error ? err.message : 'Failed to delete object'
       throw err
     } finally {
       objectsLoading.value = false
@@ -103,7 +103,7 @@ export const useMetadataStore = defineStore('metadata', () => {
       const response = await metadataApi.listFields(objectId)
       fields.value = response.data ?? []
     } catch (err) {
-      fieldsError.value = err instanceof Error ? err.message : 'Ошибка загрузки полей'
+      fieldsError.value = err instanceof Error ? err.message : 'Failed to load fields'
       throw err
     } finally {
       fieldsLoading.value = false
@@ -117,7 +117,7 @@ export const useMetadataStore = defineStore('metadata', () => {
       const response = await metadataApi.createField(objectId, data)
       return response.data
     } catch (err) {
-      fieldsError.value = err instanceof Error ? err.message : 'Ошибка создания поля'
+      fieldsError.value = err instanceof Error ? err.message : 'Failed to create field'
       throw err
     } finally {
       fieldsLoading.value = false
@@ -131,7 +131,7 @@ export const useMetadataStore = defineStore('metadata', () => {
       const response = await metadataApi.updateField(objectId, fieldId, data)
       return response.data
     } catch (err) {
-      fieldsError.value = err instanceof Error ? err.message : 'Ошибка обновления поля'
+      fieldsError.value = err instanceof Error ? err.message : 'Failed to update field'
       throw err
     } finally {
       fieldsLoading.value = false
@@ -144,7 +144,7 @@ export const useMetadataStore = defineStore('metadata', () => {
     try {
       await metadataApi.deleteField(objectId, fieldId)
     } catch (err) {
-      fieldsError.value = err instanceof Error ? err.message : 'Ошибка удаления поля'
+      fieldsError.value = err instanceof Error ? err.message : 'Failed to delete field'
       throw err
     } finally {
       fieldsLoading.value = false

@@ -10,7 +10,7 @@ test.describe('Validation rule list page', () => {
 
   test('shows validation rules', async ({ page }) => {
     await page.goto(`/admin/metadata/objects/${objectId}/rules`)
-    await expect(page.getByText('Имя обязательно')).toBeVisible()
+    await expect(page.getByText('Name required')).toBeVisible()
     await expect(page.getByText('name_required')).toBeVisible()
   })
 
@@ -21,7 +21,7 @@ test.describe('Validation rule list page', () => {
 
   test('shows inactive badge for inactive rules', async ({ page }) => {
     await page.goto(`/admin/metadata/objects/${objectId}/rules`)
-    await expect(page.getByText('Неактивно')).toBeVisible()
+    await expect(page.getByText('Inactive')).toBeVisible()
   })
 
   test('has create rule button', async ({ page }) => {
@@ -46,7 +46,7 @@ test.describe('Validation rule list page', () => {
   test('shows empty state when no rules', async ({ page }) => {
     const emptyObjectId = mockObjects[1].id
     await page.goto(`/admin/metadata/objects/${emptyObjectId}/rules`)
-    await expect(page.getByText('Нет правил валидации')).toBeVisible()
+    await expect(page.getByText('No validation rules')).toBeVisible()
   })
 })
 
@@ -101,8 +101,8 @@ test.describe('Validation rule create page', () => {
 
   test('shows breadcrumbs', async ({ page }) => {
     await page.goto(`/admin/metadata/objects/${objectId}/rules/new`)
-    await expect(page.getByText('Правила').first()).toBeVisible()
-    await expect(page.getByText('Создание').first()).toBeVisible()
+    await expect(page.getByText('Rules').first()).toBeVisible()
+    await expect(page.getByText('Create').first()).toBeVisible()
   })
 })
 
@@ -156,6 +156,6 @@ test.describe('Validation rule detail page', () => {
   test('delete button shows confirmation dialog', async ({ page }) => {
     await page.goto(`/admin/metadata/objects/${objectId}/rules/${rule.id}`)
     await page.locator('[data-testid="delete-rule-btn"]').click()
-    await expect(page.getByText('Удалить правило?')).toBeVisible()
+    await expect(page.getByText('Delete rule?')).toBeVisible()
   })
 })

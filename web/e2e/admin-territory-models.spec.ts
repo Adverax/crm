@@ -23,18 +23,18 @@ test.describe('Territory model list page', () => {
   test('shows status badges', async ({ page }) => {
     await page.goto('/admin/territory/models')
     const main = page.locator('main')
-    await expect(main.getByText('Планирование').first()).toBeVisible()
-    await expect(main.getByText('Активна').first()).toBeVisible()
+    await expect(main.getByText('Planning').first()).toBeVisible()
+    await expect(main.getByText('Active').first()).toBeVisible()
   })
 
   test('has create model button', async ({ page }) => {
     await page.goto('/admin/territory/models')
-    await expect(page.getByText('Создать модель')).toBeVisible()
+    await expect(page.getByText('Create model')).toBeVisible()
   })
 
   test('create button navigates to create page', async ({ page }) => {
     await page.goto('/admin/territory/models')
-    await page.getByText('Создать модель').click()
+    await page.getByText('Create model').click()
     await expect(page).toHaveURL(/\/admin\/territory\/models\/new/)
   })
 
@@ -57,7 +57,7 @@ test.describe('Territory model list page', () => {
       return route.continue()
     })
     await page.goto('/admin/territory/models')
-    await expect(page.getByText('Нет моделей территорий')).toBeVisible()
+    await expect(page.getByText('No territory models')).toBeVisible()
   })
 })
 
@@ -74,15 +74,15 @@ test.describe('Territory model create page', () => {
 
   test('has submit and cancel buttons', async ({ page }) => {
     await page.goto('/admin/territory/models/new')
-    await expect(page.getByRole('button', { name: 'Создать' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Отмена' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Create' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible()
   })
 
   test('cancel navigates back to list', async ({ page }) => {
     await page.goto('/admin/territory/models')
-    await page.getByText('Создать модель').click()
+    await page.getByText('Create model').click()
     await expect(page).toHaveURL(/\/admin\/territory\/models\/new/)
-    await page.getByRole('button', { name: 'Отмена' }).click()
+    await page.getByRole('button', { name: 'Cancel' }).click()
     await expect(page).toHaveURL(/\/admin\/territory\/models/)
   })
 
@@ -90,10 +90,10 @@ test.describe('Territory model create page', () => {
     await page.goto('/admin/territory/models/new')
 
     await page.locator('#apiName').fill('test_model')
-    await page.locator('#label').fill('Тестовая модель')
+    await page.locator('#label').fill('Test Model')
 
     const requestPromise = page.waitForRequest('**/api/v1/admin/territory/models')
-    await page.getByRole('button', { name: 'Создать' }).click()
+    await page.getByRole('button', { name: 'Create' }).click()
 
     const request = await requestPromise
     expect(request.method()).toBe('POST')
@@ -116,28 +116,28 @@ test.describe('Territory model detail page', () => {
 
   test('shows status badge', async ({ page }) => {
     await page.goto(`/admin/territory/models/${model.id}`)
-    await expect(page.getByText('Планирование').first()).toBeVisible()
+    await expect(page.getByText('Planning').first()).toBeVisible()
   })
 
   test('has activate button for planning model', async ({ page }) => {
     await page.goto(`/admin/territory/models/${model.id}`)
-    await expect(page.getByRole('button', { name: /Активировать/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Activate/ })).toBeVisible()
   })
 
   test('has delete button', async ({ page }) => {
     await page.goto(`/admin/territory/models/${model.id}`)
-    await expect(page.getByRole('button', { name: /Удалить/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Delete/ })).toBeVisible()
   })
 
   test('has territories link', async ({ page }) => {
     await page.goto(`/admin/territory/models/${model.id}`)
-    await expect(page.locator('main').getByRole('button', { name: /Территории/ })).toBeVisible()
+    await expect(page.locator('main').getByRole('button', { name: /Territories/ })).toBeVisible()
   })
 
   test('shows save and cancel buttons', async ({ page }) => {
     await page.goto(`/admin/territory/models/${model.id}`)
-    await expect(page.getByRole('button', { name: 'Сохранить' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Отмена' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Save' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible()
   })
 })
 
@@ -156,14 +156,14 @@ test.describe('Territory list page', () => {
   test('shows territory labels', async ({ page }) => {
     await page.goto('/admin/territory/territories')
     await page.waitForResponse('**/api/v1/admin/territory/models?*')
-    await expect(page.locator('main').getByText('Северная Америка').first()).toBeVisible()
-    await expect(page.locator('main').getByText('Восток США')).toBeVisible()
+    await expect(page.locator('main').getByText('North America').first()).toBeVisible()
+    await expect(page.locator('main').getByText('US East')).toBeVisible()
   })
 
   test('has create territory button', async ({ page }) => {
     await page.goto('/admin/territory/territories')
     await page.waitForResponse('**/api/v1/admin/territory/models?*')
-    await expect(page.getByText('Создать территорию')).toBeVisible()
+    await expect(page.getByText('Create territory')).toBeVisible()
   })
 
   test('clicking territory navigates to detail', async ({ page }) => {
@@ -189,8 +189,8 @@ test.describe('Territory create page', () => {
 
   test('has submit and cancel buttons', async ({ page }) => {
     await page.goto('/admin/territory/territories/new')
-    await expect(page.getByRole('button', { name: 'Создать' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Отмена' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Create' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible()
   })
 })
 
@@ -210,32 +210,32 @@ test.describe('Territory detail page', () => {
 
   test('shows tabs: info, users, objects', async ({ page }) => {
     await page.goto(`/admin/territory/territories/${territory.id}`)
-    await expect(page.getByRole('tab', { name: /Основное/ })).toBeVisible()
-    await expect(page.getByRole('tab', { name: /Пользователи/ })).toBeVisible()
-    await expect(page.getByRole('tab', { name: /Объекты/ })).toBeVisible()
+    await expect(page.getByRole('tab', { name: /General/ })).toBeVisible()
+    await expect(page.getByRole('tab', { name: /Users/ })).toBeVisible()
+    await expect(page.getByRole('tab', { name: /Objects/ })).toBeVisible()
   })
 
   test('has delete button', async ({ page }) => {
     await page.goto(`/admin/territory/territories/${territory.id}`)
-    await expect(page.getByRole('button', { name: /Удалить/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Delete/ })).toBeVisible()
   })
 
   test('has save and cancel buttons on info tab', async ({ page }) => {
     await page.goto(`/admin/territory/territories/${territory.id}`)
-    await expect(page.getByRole('button', { name: 'Сохранить' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Отмена' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Save' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible()
   })
 
   test('can switch to users tab', async ({ page }) => {
     await page.goto(`/admin/territory/territories/${territory.id}`)
-    await page.getByRole('tab', { name: /Пользователи/ }).click()
+    await page.getByRole('tab', { name: /Users/ }).click()
     // Should show the user ID from mock data
     await expect(page.getByText('u1111111').first()).toBeVisible()
   })
 
   test('can switch to objects tab', async ({ page }) => {
     await page.goto(`/admin/territory/territories/${territory.id}`)
-    await page.getByRole('tab', { name: /Объекты/ }).click()
+    await page.getByRole('tab', { name: /Objects/ }).click()
     // Should show the access level from mock data
     await expect(page.getByText('read_write').first()).toBeVisible()
   })

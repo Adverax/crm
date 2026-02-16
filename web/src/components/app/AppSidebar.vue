@@ -60,16 +60,16 @@ async function onLogout() {
         to="/admin"
         class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
       >
-        Настройки
+        Settings
       </RouterLink>
     </div>
     <Separator />
     <div class="p-3">
       <div class="text-xs text-muted-foreground truncate mb-2">
-        {{ authStore.displayName || 'Пользователь' }}
+        {{ authStore.displayName || 'User' }}
       </div>
       <Button variant="outline" size="sm" class="w-full" @click="onLogout">
-        Выйти
+        Sign out
       </Button>
     </div>
   </aside>

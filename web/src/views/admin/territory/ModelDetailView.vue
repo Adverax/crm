@@ -8,6 +8,8 @@ import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Trash2, X } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -48,7 +50,7 @@ async function onSave() {
   if (!validate()) return
   try {
     await store.updateModel(props.modelId, toUpdateRequest())
-    toast.success('Модель обновлена')
+    toast.success('Model updated')
   } catch (err) {
     toast.errorFromApi(err)
   }
@@ -57,7 +59,7 @@ async function onSave() {
 async function onActivate() {
   try {
     await store.activateModel(props.modelId)
-    toast.success('Модель активирована')
+    toast.success('Model activated')
     if (currentModel.value) initFrom(currentModel.value)
   } catch (err) {
     toast.errorFromApi(err)
@@ -69,7 +71,7 @@ async function onActivate() {
 async function onArchive() {
   try {
     await store.archiveModel(props.modelId)
-    toast.success('Модель архивирована')
+    toast.success('Model archived')
     if (currentModel.value) initFrom(currentModel.value)
   } catch (err) {
     toast.errorFromApi(err)
@@ -81,7 +83,7 @@ async function onArchive() {
 async function onDelete() {
   try {
     await store.deleteModel(props.modelId)
-    toast.success('Модель удалена')
+    toast.success('Model deleted')
     router.push({ name: 'admin-territory-models' })
   } catch (err) {
     toast.errorFromApi(err)
@@ -99,8 +101,8 @@ function statusVariant(status: string): 'default' | 'secondary' | 'destructive' 
 }
 
 const breadcrumbs = computed(() => [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Модели территорий', to: '/admin/territory/models' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Territory Models', to: '/admin/territory/models' },
   { label: currentModel.value?.label ?? '...' },
 ])
 </script>
@@ -125,7 +127,7 @@ const breadcrumbs = computed(() => [
               size="sm"
               @click="showActivateDialog = true"
             >
-              Активировать
+              Activate
             </Button>
             <Button
               v-if="currentModel.status === 'active'"
@@ -133,22 +135,21 @@ const breadcrumbs = computed(() => [
               size="sm"
               @click="showArchiveDialog = true"
             >
-              Архивировать
+              Archive
             </Button>
             <Button
               variant="outline"
               size="sm"
               @click="router.push({ name: 'admin-territory-list', query: { modelId: props.modelId } })"
             >
-              Территории
+              Territories
             </Button>
-            <Button
+            <IconButton
+              :icon="Trash2"
+              tooltip="Delete"
               variant="destructive"
-              size="sm"
               @click="showDeleteDialog = true"
-            >
-              Удалить
-            </Button>
+            />
           </div>
         </template>
       </PageHeader>
@@ -158,7 +159,7 @@ const breadcrumbs = computed(() => [
       <form class="max-w-2xl space-y-6" @submit.prevent="onSave">
         <Card>
           <CardContent class="pt-6 space-y-4">
-            <h2 class="text-lg font-semibold">Основная информация</h2>
+            <h2 class="text-lg font-semibold">General Information</h2>
 
             <div class="space-y-2">
               <Label>API Name</Label>
@@ -166,13 +167,13 @@ const breadcrumbs = computed(() => [
             </div>
 
             <div class="space-y-2">
-              <Label for="label">Название</Label>
+              <Label for="label">Label</Label>
               <Input id="label" v-model="state.label" />
               <p v-if="errors.label" class="text-sm text-destructive">{{ errors.label }}</p>
             </div>
 
             <div class="space-y-2">
-              <Label for="description">Описание</Label>
+              <Label for="description">Description</Label>
               <Textarea id="description" v-model="state.description" rows="3" />
             </div>
           </CardContent>
@@ -180,36 +181,39 @@ const breadcrumbs = computed(() => [
 
         <Separator />
 
-        <div class="flex gap-2">
+        <div class="flex gap-2 items-center">
           <Button type="submit" :disabled="modelsLoading">
-            Сохранить
+            Save
           </Button>
-          <Button variant="outline" type="button" @click="router.back()">
-            Отмена
-          </Button>
+          <IconButton
+            :icon="X"
+            tooltip="Cancel"
+            variant="outline"
+            @click="router.back()"
+          />
         </div>
       </form>
 
       <ConfirmDialog
         :open="showDeleteDialog"
-        title="Удалить модель?"
-        :description="`Модель «${currentModel.label}» (${currentModel.apiName}) будет удалена без возможности восстановления.`"
+        title="Delete model?"
+        :description="`Model '${currentModel.label}' (${currentModel.apiName}) will be permanently deleted.`"
         @update:open="showDeleteDialog = $event"
         @confirm="onDelete"
       />
 
       <ConfirmDialog
         :open="showActivateDialog"
-        title="Активировать модель?"
-        :description="`Модель «${currentModel.label}» будет активирована. Территории станут участвовать в определении доступа к записям.`"
+        title="Activate model?"
+        :description="`Model '${currentModel.label}' will be activated. Territories will start participating in record access determination.`"
         @update:open="showActivateDialog = $event"
         @confirm="onActivate"
       />
 
       <ConfirmDialog
         :open="showArchiveDialog"
-        title="Архивировать модель?"
-        :description="`Модель «${currentModel.label}» будет архивирована. Территории перестанут влиять на доступ.`"
+        title="Archive model?"
+        :description="`Model '${currentModel.label}' will be archived. Territories will no longer affect access.`"
         @update:open="showArchiveDialog = $event"
         @confirm="onArchive"
       />

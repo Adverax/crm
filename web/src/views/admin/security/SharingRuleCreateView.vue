@@ -8,6 +8,8 @@ import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { X } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -69,7 +71,7 @@ async function onSubmit() {
   if (!validate()) return
   try {
     const created = await securityStore.createSharingRule(toCreateRequest())
-    toast.success('Правило создано')
+    toast.success('Rule created')
     router.push({ name: 'admin-sharing-rule-detail', params: { ruleId: created.id } })
   } catch (err) {
     toast.errorFromApi(err)
@@ -77,28 +79,28 @@ async function onSubmit() {
 }
 
 const breadcrumbs = [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Правила совместного доступа', to: '/admin/security/sharing-rules' },
-  { label: 'Новое правило' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Sharing Rules', to: '/admin/security/sharing-rules' },
+  { label: 'New Rule' },
 ]
 </script>
 
 <template>
   <div>
-    <PageHeader title="Создать правило совместного доступа" :breadcrumbs="breadcrumbs" />
+    <PageHeader title="Create Sharing Rule" :breadcrumbs="breadcrumbs" />
 
     <ErrorAlert v-if="sharingRulesError" :message="sharingRulesError" class="mb-4" />
 
     <form class="max-w-2xl space-y-6" @submit.prevent="onSubmit">
       <Card>
         <CardContent class="pt-6 space-y-4">
-          <h2 class="text-lg font-semibold">Основная информация</h2>
+          <h2 class="text-lg font-semibold">General Information</h2>
 
           <div class="space-y-2">
-            <Label>Объект</Label>
+            <Label>Object</Label>
             <Select :model-value="state.objectId" @update:model-value="onObjectChange">
               <SelectTrigger>
-                <SelectValue placeholder="Выберите объект" />
+                <SelectValue placeholder="Select object" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem v-for="obj in objects" :key="obj.id" :value="obj.id">
@@ -110,23 +112,23 @@ const breadcrumbs = [
           </div>
 
           <div class="space-y-2">
-            <Label>Тип правила</Label>
+            <Label>Rule Type</Label>
             <Select :model-value="state.ruleType" @update:model-value="onRuleTypeChange">
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="owner_based">По владельцу</SelectItem>
-                <SelectItem value="criteria_based">По критерию</SelectItem>
+                <SelectItem value="owner_based">Owner-based</SelectItem>
+                <SelectItem value="criteria_based">Criteria-based</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div class="space-y-2">
-            <Label>Группа-источник</Label>
+            <Label>Source Group</Label>
             <Select :model-value="state.sourceGroupId" @update:model-value="onSourceGroupChange">
               <SelectTrigger>
-                <SelectValue placeholder="Выберите группу" />
+                <SelectValue placeholder="Select group" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem v-for="group in groups" :key="group.id" :value="group.id">
@@ -138,10 +140,10 @@ const breadcrumbs = [
           </div>
 
           <div class="space-y-2">
-            <Label>Группа-получатель</Label>
+            <Label>Target Group</Label>
             <Select :model-value="state.targetGroupId" @update:model-value="onTargetGroupChange">
               <SelectTrigger>
-                <SelectValue placeholder="Выберите группу" />
+                <SelectValue placeholder="Select group" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem v-for="group in groups" :key="group.id" :value="group.id">
@@ -153,14 +155,14 @@ const breadcrumbs = [
           </div>
 
           <div class="space-y-2">
-            <Label>Уровень доступа</Label>
+            <Label>Access Level</Label>
             <Select :model-value="state.accessLevel" @update:model-value="onAccessLevelChange">
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="read">Чтение</SelectItem>
-                <SelectItem value="read_write">Чтение/Запись</SelectItem>
+                <SelectItem value="read">Read</SelectItem>
+                <SelectItem value="read_write">Read/Write</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -169,22 +171,22 @@ const breadcrumbs = [
 
       <Card v-if="state.ruleType === 'criteria_based'">
         <CardContent class="pt-6 space-y-4">
-          <h2 class="text-lg font-semibold">Критерий</h2>
+          <h2 class="text-lg font-semibold">Criteria</h2>
 
           <div class="space-y-2">
-            <Label for="criteriaField">Поле</Label>
+            <Label for="criteriaField">Field</Label>
             <Input id="criteriaField" v-model="state.criteriaField" placeholder="status" />
             <p v-if="errors.criteriaField" class="text-sm text-destructive">{{ errors.criteriaField }}</p>
           </div>
 
           <div class="space-y-2">
-            <Label for="criteriaOp">Оператор</Label>
+            <Label for="criteriaOp">Operator</Label>
             <Input id="criteriaOp" v-model="state.criteriaOp" placeholder="=" />
             <p v-if="errors.criteriaOp" class="text-sm text-destructive">{{ errors.criteriaOp }}</p>
           </div>
 
           <div class="space-y-2">
-            <Label for="criteriaValue">Значение</Label>
+            <Label for="criteriaValue">Value</Label>
             <Input id="criteriaValue" v-model="state.criteriaValue" placeholder="active" />
             <p v-if="errors.criteriaValue" class="text-sm text-destructive">{{ errors.criteriaValue }}</p>
           </div>
@@ -193,13 +195,16 @@ const breadcrumbs = [
 
       <Separator />
 
-      <div class="flex gap-2">
+      <div class="flex gap-2 items-center">
         <Button type="submit" :disabled="sharingRulesLoading">
-          Создать
+          Create
         </Button>
-        <Button variant="outline" type="button" @click="router.back()">
-          Отмена
-        </Button>
+        <IconButton
+          :icon="X"
+          tooltip="Cancel"
+          variant="outline"
+          @click="router.back()"
+        />
       </div>
     </form>
   </div>

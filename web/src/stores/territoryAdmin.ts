@@ -64,7 +64,7 @@ export const useTerritoryAdminStore = defineStore('territoryAdmin', () => {
       models.value = response.data ?? []
       modelsPagination.value = response.pagination
     } catch (err) {
-      modelsError.value = err instanceof Error ? err.message : 'Ошибка загрузки моделей'
+      modelsError.value = err instanceof Error ? err.message : 'Failed to load models'
       throw err
     } finally {
       modelsLoading.value = false
@@ -79,7 +79,7 @@ export const useTerritoryAdminStore = defineStore('territoryAdmin', () => {
       currentModel.value = response.data
       return response.data
     } catch (err) {
-      modelsError.value = err instanceof Error ? err.message : 'Ошибка загрузки модели'
+      modelsError.value = err instanceof Error ? err.message : 'Failed to load model'
       throw err
     } finally {
       modelsLoading.value = false
@@ -93,7 +93,7 @@ export const useTerritoryAdminStore = defineStore('territoryAdmin', () => {
       const response = await territoryApi.createModel(data)
       return response.data
     } catch (err) {
-      modelsError.value = err instanceof Error ? err.message : 'Ошибка создания модели'
+      modelsError.value = err instanceof Error ? err.message : 'Failed to create model'
       throw err
     } finally {
       modelsLoading.value = false
@@ -108,7 +108,7 @@ export const useTerritoryAdminStore = defineStore('territoryAdmin', () => {
       currentModel.value = response.data
       return response.data
     } catch (err) {
-      modelsError.value = err instanceof Error ? err.message : 'Ошибка обновления модели'
+      modelsError.value = err instanceof Error ? err.message : 'Failed to update model'
       throw err
     } finally {
       modelsLoading.value = false
@@ -121,7 +121,7 @@ export const useTerritoryAdminStore = defineStore('territoryAdmin', () => {
     try {
       await territoryApi.deleteModel(modelId)
     } catch (err) {
-      modelsError.value = err instanceof Error ? err.message : 'Ошибка удаления модели'
+      modelsError.value = err instanceof Error ? err.message : 'Failed to delete model'
       throw err
     } finally {
       modelsLoading.value = false
@@ -137,7 +137,7 @@ export const useTerritoryAdminStore = defineStore('territoryAdmin', () => {
         await fetchModel(modelId)
       }
     } catch (err) {
-      modelsError.value = err instanceof Error ? err.message : 'Ошибка активации модели'
+      modelsError.value = err instanceof Error ? err.message : 'Failed to activate model'
       throw err
     } finally {
       modelsLoading.value = false
@@ -153,7 +153,7 @@ export const useTerritoryAdminStore = defineStore('territoryAdmin', () => {
         await fetchModel(modelId)
       }
     } catch (err) {
-      modelsError.value = err instanceof Error ? err.message : 'Ошибка архивации модели'
+      modelsError.value = err instanceof Error ? err.message : 'Failed to archive model'
       throw err
     } finally {
       modelsLoading.value = false
@@ -170,7 +170,7 @@ export const useTerritoryAdminStore = defineStore('territoryAdmin', () => {
       territories.value = response.data ?? []
       territoriesPagination.value = response.pagination
     } catch (err) {
-      territoriesError.value = err instanceof Error ? err.message : 'Ошибка загрузки территорий'
+      territoriesError.value = err instanceof Error ? err.message : 'Failed to load territories'
       throw err
     } finally {
       territoriesLoading.value = false
@@ -185,7 +185,7 @@ export const useTerritoryAdminStore = defineStore('territoryAdmin', () => {
       currentTerritory.value = response.data
       return response.data
     } catch (err) {
-      territoriesError.value = err instanceof Error ? err.message : 'Ошибка загрузки территории'
+      territoriesError.value = err instanceof Error ? err.message : 'Failed to load territory'
       throw err
     } finally {
       territoriesLoading.value = false
@@ -199,7 +199,7 @@ export const useTerritoryAdminStore = defineStore('territoryAdmin', () => {
       const response = await territoryApi.createTerritory(data)
       return response.data
     } catch (err) {
-      territoriesError.value = err instanceof Error ? err.message : 'Ошибка создания территории'
+      territoriesError.value = err instanceof Error ? err.message : 'Failed to create territory'
       throw err
     } finally {
       territoriesLoading.value = false
@@ -214,7 +214,7 @@ export const useTerritoryAdminStore = defineStore('territoryAdmin', () => {
       currentTerritory.value = response.data
       return response.data
     } catch (err) {
-      territoriesError.value = err instanceof Error ? err.message : 'Ошибка обновления территории'
+      territoriesError.value = err instanceof Error ? err.message : 'Failed to update territory'
       throw err
     } finally {
       territoriesLoading.value = false
@@ -227,7 +227,7 @@ export const useTerritoryAdminStore = defineStore('territoryAdmin', () => {
     try {
       await territoryApi.deleteTerritory(territoryId)
     } catch (err) {
-      territoriesError.value = err instanceof Error ? err.message : 'Ошибка удаления территории'
+      territoriesError.value = err instanceof Error ? err.message : 'Failed to delete territory'
       throw err
     } finally {
       territoriesLoading.value = false
@@ -243,7 +243,7 @@ export const useTerritoryAdminStore = defineStore('territoryAdmin', () => {
       const response = await territoryApi.listObjectDefaults(territoryId)
       objectDefaults.value = response.data ?? []
     } catch (err) {
-      territoriesError.value = err instanceof Error ? err.message : 'Ошибка загрузки настроек объектов'
+      territoriesError.value = err instanceof Error ? err.message : 'Failed to load object defaults'
       throw err
     } finally {
       territoriesLoading.value = false
@@ -257,7 +257,7 @@ export const useTerritoryAdminStore = defineStore('territoryAdmin', () => {
       const response = await territoryApi.setObjectDefault(territoryId, data)
       return response.data
     } catch (err) {
-      territoriesError.value = err instanceof Error ? err.message : 'Ошибка настройки объекта'
+      territoriesError.value = err instanceof Error ? err.message : 'Failed to set object default'
       throw err
     } finally {
       territoriesLoading.value = false
@@ -270,7 +270,7 @@ export const useTerritoryAdminStore = defineStore('territoryAdmin', () => {
     try {
       await territoryApi.removeObjectDefault(territoryId, objectId)
     } catch (err) {
-      territoriesError.value = err instanceof Error ? err.message : 'Ошибка удаления настройки объекта'
+      territoriesError.value = err instanceof Error ? err.message : 'Failed to remove object default'
       throw err
     } finally {
       territoriesLoading.value = false
@@ -286,7 +286,7 @@ export const useTerritoryAdminStore = defineStore('territoryAdmin', () => {
       const response = await territoryApi.listTerritoryUsers(territoryId)
       userAssignments.value = response.data ?? []
     } catch (err) {
-      territoriesError.value = err instanceof Error ? err.message : 'Ошибка загрузки пользователей'
+      territoriesError.value = err instanceof Error ? err.message : 'Failed to load users'
       throw err
     } finally {
       territoriesLoading.value = false
@@ -300,7 +300,7 @@ export const useTerritoryAdminStore = defineStore('territoryAdmin', () => {
       const response = await territoryApi.assignUser(territoryId, data)
       return response.data
     } catch (err) {
-      territoriesError.value = err instanceof Error ? err.message : 'Ошибка назначения пользователя'
+      territoriesError.value = err instanceof Error ? err.message : 'Failed to assign user'
       throw err
     } finally {
       territoriesLoading.value = false
@@ -313,7 +313,7 @@ export const useTerritoryAdminStore = defineStore('territoryAdmin', () => {
     try {
       await territoryApi.unassignUser(territoryId, userId)
     } catch (err) {
-      territoriesError.value = err instanceof Error ? err.message : 'Ошибка удаления пользователя'
+      territoriesError.value = err instanceof Error ? err.message : 'Failed to unassign user'
       throw err
     } finally {
       territoriesLoading.value = false
@@ -330,7 +330,7 @@ export const useTerritoryAdminStore = defineStore('territoryAdmin', () => {
       assignmentRules.value = response.data ?? []
       assignmentRulesPagination.value = response.pagination
     } catch (err) {
-      assignmentRulesError.value = err instanceof Error ? err.message : 'Ошибка загрузки правил'
+      assignmentRulesError.value = err instanceof Error ? err.message : 'Failed to load rules'
       throw err
     } finally {
       assignmentRulesLoading.value = false
@@ -345,7 +345,7 @@ export const useTerritoryAdminStore = defineStore('territoryAdmin', () => {
       currentAssignmentRule.value = response.data
       return response.data
     } catch (err) {
-      assignmentRulesError.value = err instanceof Error ? err.message : 'Ошибка загрузки правила'
+      assignmentRulesError.value = err instanceof Error ? err.message : 'Failed to load rule'
       throw err
     } finally {
       assignmentRulesLoading.value = false
@@ -359,7 +359,7 @@ export const useTerritoryAdminStore = defineStore('territoryAdmin', () => {
       const response = await territoryApi.createAssignmentRule(data)
       return response.data
     } catch (err) {
-      assignmentRulesError.value = err instanceof Error ? err.message : 'Ошибка создания правила'
+      assignmentRulesError.value = err instanceof Error ? err.message : 'Failed to create rule'
       throw err
     } finally {
       assignmentRulesLoading.value = false
@@ -374,7 +374,7 @@ export const useTerritoryAdminStore = defineStore('territoryAdmin', () => {
       currentAssignmentRule.value = response.data
       return response.data
     } catch (err) {
-      assignmentRulesError.value = err instanceof Error ? err.message : 'Ошибка обновления правила'
+      assignmentRulesError.value = err instanceof Error ? err.message : 'Failed to update rule'
       throw err
     } finally {
       assignmentRulesLoading.value = false
@@ -387,7 +387,7 @@ export const useTerritoryAdminStore = defineStore('territoryAdmin', () => {
     try {
       await territoryApi.deleteAssignmentRule(ruleId)
     } catch (err) {
-      assignmentRulesError.value = err instanceof Error ? err.message : 'Ошибка удаления правила'
+      assignmentRulesError.value = err instanceof Error ? err.message : 'Failed to delete rule'
       throw err
     } finally {
       assignmentRulesLoading.value = false

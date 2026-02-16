@@ -8,6 +8,8 @@ import PageHeader from '@/components/admin/PageHeader.vue'
 import EmptyState from '@/components/admin/EmptyState.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Plus, ChevronLeft, ChevronRight, MoreVertical } from 'lucide-vue-next'
 import {
   Table,
   TableBody,
@@ -83,7 +85,7 @@ async function onDeleteConfirmed() {
   if (!deleteTarget.value) return
   try {
     await store.deleteTerritory(deleteTarget.value.id)
-    toast.success('Территория удалена')
+    toast.success('Territory deleted')
     loadTerritories()
   } catch (err) {
     toast.errorFromApi(err)
@@ -100,7 +102,7 @@ function getParentLabel(parentId: string | null): string {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('ru-RU')
+  return new Date(iso).toLocaleDateString('en-US')
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -109,28 +111,29 @@ function onModelChange(value: any) {
 }
 
 const breadcrumbs = [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Территории' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Territories' },
 ]
 </script>
 
 <template>
   <div>
-    <PageHeader title="Территории" :breadcrumbs="breadcrumbs">
+    <PageHeader title="Territories" :breadcrumbs="breadcrumbs">
       <template #actions>
-        <Button
+        <IconButton
+          :icon="Plus"
+          tooltip="Create territory"
+          variant="default"
           :disabled="!selectedModelId"
           @click="router.push({ name: 'admin-territory-create', query: { modelId: selectedModelId } })"
-        >
-          Создать территорию
-        </Button>
+        />
       </template>
     </PageHeader>
 
     <div class="mb-4 max-w-xs">
       <Select :model-value="selectedModelId" @update:model-value="onModelChange">
         <SelectTrigger>
-          <SelectValue placeholder="Выберите модель" />
+          <SelectValue placeholder="Select model" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem v-for="model in models" :key="model.id" :value="model.id">
@@ -146,20 +149,23 @@ const breadcrumbs = [
 
     <EmptyState
       v-else-if="!territoriesLoading && territories.length === 0 && selectedModelId"
-      title="Нет территорий"
-      description="Создайте первую территорию в выбранной модели"
+      title="No territories"
+      description="Create the first territory in the selected model"
     >
       <template #action>
-        <Button @click="router.push({ name: 'admin-territory-create', query: { modelId: selectedModelId } })">
-          Создать территорию
-        </Button>
+        <IconButton
+          :icon="Plus"
+          tooltip="Create territory"
+          variant="default"
+          @click="router.push({ name: 'admin-territory-create', query: { modelId: selectedModelId } })"
+        />
       </template>
     </EmptyState>
 
     <EmptyState
       v-else-if="!selectedModelId"
-      title="Выберите модель"
-      description="Для просмотра территорий выберите модель из списка выше"
+      title="Select a model"
+      description="Select a model from the list above to view territories"
     />
 
     <template v-else>
@@ -167,9 +173,9 @@ const breadcrumbs = [
         <TableHeader>
           <TableRow>
             <TableHead>API Name</TableHead>
-            <TableHead>Название</TableHead>
-            <TableHead>Родительская</TableHead>
-            <TableHead>Создана</TableHead>
+            <TableHead>Label</TableHead>
+            <TableHead>Parent</TableHead>
+            <TableHead>Created</TableHead>
             <TableHead class="w-16" />
           </TableRow>
         </TableHeader>
@@ -196,19 +202,19 @@ const breadcrumbs = [
               <DropdownMenu>
                 <DropdownMenuTrigger as-child>
                   <Button variant="ghost" size="sm" class="h-8 w-8 p-0" @click.stop>
-                    <span class="sr-only">Действия</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01" /></svg>
+                    <span class="sr-only">Actions</span>
+                    <MoreVertical />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem @click.stop="goToDetail(territory)">
-                    Открыть
+                    Open
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     class="text-destructive"
                     @click.stop="confirmDelete(territory)"
                   >
-                    Удалить
+                    Delete
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -220,20 +226,28 @@ const breadcrumbs = [
       <div v-if="territoriesPagination && territoriesPagination.totalPages > 1" class="flex items-center justify-between mt-4">
         <span class="text-sm text-muted-foreground">{{ pageInfo }}</span>
         <div class="flex gap-2">
-          <Button variant="outline" size="sm" :disabled="isFirstPage" @click="prevPage">
-            Назад
-          </Button>
-          <Button variant="outline" size="sm" :disabled="isLastPage" @click="nextPage">
-            Вперёд
-          </Button>
+          <IconButton
+            :icon="ChevronLeft"
+            tooltip="Back"
+            variant="outline"
+            :disabled="isFirstPage"
+            @click="prevPage"
+          />
+          <IconButton
+            :icon="ChevronRight"
+            tooltip="Forward"
+            variant="outline"
+            :disabled="isLastPage"
+            @click="nextPage"
+          />
         </div>
       </div>
     </template>
 
     <ConfirmDialog
       :open="showDeleteDialog"
-      title="Удалить территорию?"
-      :description="`Территория «${deleteTarget?.label}» (${deleteTarget?.apiName}) будет удалена без возможности восстановления.`"
+      title="Delete territory?"
+      :description="`Territory '${deleteTarget?.label}' (${deleteTarget?.apiName}) will be permanently deleted.`"
       @update:open="showDeleteDialog = $event"
       @confirm="onDeleteConfirmed"
     />

@@ -107,8 +107,8 @@ const isReferenceType = () => state.fieldType === 'reference'
   <Dialog :open="props.open" @update:open="onClose">
     <DialogContent class="max-w-lg max-h-[85vh] overflow-y-auto">
       <DialogHeader>
-        <DialogTitle>Создать поле</DialogTitle>
-        <DialogDescription>Добавьте новое поле для объекта</DialogDescription>
+        <DialogTitle>Create Field</DialogTitle>
+        <DialogDescription>Add a new field for the object</DialogDescription>
       </DialogHeader>
 
       <ErrorAlert v-if="apiError" :message="apiError" class="mb-2" />
@@ -121,14 +121,14 @@ const isReferenceType = () => state.fieldType === 'reference'
         </div>
 
         <div class="space-y-2">
-          <Label for="fieldLabel">Название</Label>
-          <Input id="fieldLabel" v-model="state.label" placeholder="Номер счёта" />
+          <Label for="fieldLabel">Label</Label>
+          <Input id="fieldLabel" v-model="state.label" placeholder="Invoice Number" />
           <p v-if="errors.label" class="text-sm text-destructive">{{ errors.label }}</p>
         </div>
 
         <div class="grid grid-cols-2 gap-4">
           <div class="space-y-2">
-            <Label>Тип поля</Label>
+            <Label>Field Type</Label>
             <Select :model-value="state.fieldType" @update:model-value="handleTypeChange">
               <SelectTrigger>
                 <SelectValue />
@@ -142,7 +142,7 @@ const isReferenceType = () => state.fieldType === 'reference'
           </div>
 
           <div v-if="availableSubtypes.length > 0" class="space-y-2">
-            <Label>Подтип</Label>
+            <Label>Subtype</Label>
             <Select :model-value="state.fieldSubtype" @update:model-value="handleSubtypeChange">
               <SelectTrigger>
                 <SelectValue />
@@ -157,34 +157,34 @@ const isReferenceType = () => state.fieldType === 'reference'
         </div>
 
         <div class="space-y-2">
-          <Label for="fieldDescription">Описание</Label>
+          <Label for="fieldDescription">Description</Label>
           <Textarea id="fieldDescription" v-model="state.description" rows="2" />
         </div>
 
         <div class="space-y-2">
-          <Label for="fieldHelpText">Подсказка</Label>
+          <Label for="fieldHelpText">Help Text</Label>
           <Input id="fieldHelpText" v-model="state.helpText" />
         </div>
 
         <div class="flex items-center gap-6">
           <div class="flex items-center gap-2">
             <Switch id="fieldRequired" v-model:checked="state.isRequired" />
-            <Label for="fieldRequired">Обязательное</Label>
+            <Label for="fieldRequired">Required</Label>
           </div>
           <div class="flex items-center gap-2">
             <Switch id="fieldUnique" v-model:checked="state.isUnique" />
-            <Label for="fieldUnique">Уникальное</Label>
+            <Label for="fieldUnique">Unique</Label>
           </div>
         </div>
 
         <div class="space-y-2">
-          <Label for="fieldSortOrder">Порядок сортировки</Label>
+          <Label for="fieldSortOrder">Sort Order</Label>
           <Input id="fieldSortOrder" type="number" v-model.number="state.sortOrder" />
         </div>
 
         <template v-if="configFields.length > 0 || isReferenceType()">
           <Separator />
-          <h3 class="text-sm font-medium">Конфигурация</h3>
+          <h3 class="text-sm font-medium">Configuration</h3>
           <FieldConfigSection
             :config-fields="configFields"
             v-model="state.config"
@@ -195,8 +195,8 @@ const isReferenceType = () => state.fieldType === 'reference'
         </template>
 
         <DialogFooter>
-          <Button variant="outline" type="button" @click="onClose">Отмена</Button>
-          <Button type="submit" :disabled="saving">Создать</Button>
+          <Button variant="outline" type="button" @click="onClose">Cancel</Button>
+          <Button type="submit" :disabled="saving">Create</Button>
         </DialogFooter>
       </form>
     </DialogContent>

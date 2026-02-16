@@ -6,6 +6,8 @@ import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { X } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -23,7 +25,7 @@ async function onSubmit() {
   if (!validate()) return
   try {
     const created = await store.createModel(toCreateRequest())
-    toast.success('Модель создана')
+    toast.success('Model created')
     router.push({ name: 'admin-territory-model-detail', params: { modelId: created.id } })
   } catch (err) {
     toast.errorFromApi(err)
@@ -31,22 +33,22 @@ async function onSubmit() {
 }
 
 const breadcrumbs = [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Модели территорий', to: '/admin/territory/models' },
-  { label: 'Новая модель' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Territory Models', to: '/admin/territory/models' },
+  { label: 'New Model' },
 ]
 </script>
 
 <template>
   <div>
-    <PageHeader title="Создать модель территорий" :breadcrumbs="breadcrumbs" />
+    <PageHeader title="Create Territory Model" :breadcrumbs="breadcrumbs" />
 
     <ErrorAlert v-if="modelsError" :message="modelsError" class="mb-4" />
 
     <form class="max-w-2xl space-y-6" @submit.prevent="onSubmit">
       <Card>
         <CardContent class="pt-6 space-y-4">
-          <h2 class="text-lg font-semibold">Основная информация</h2>
+          <h2 class="text-lg font-semibold">General Information</h2>
 
           <div class="space-y-2">
             <Label for="apiName">API Name</Label>
@@ -59,13 +61,13 @@ const breadcrumbs = [
           </div>
 
           <div class="space-y-2">
-            <Label for="label">Название</Label>
+            <Label for="label">Label</Label>
             <Input id="label" v-model="state.label" placeholder="Q1 2026" />
             <p v-if="errors.label" class="text-sm text-destructive">{{ errors.label }}</p>
           </div>
 
           <div class="space-y-2">
-            <Label for="description">Описание</Label>
+            <Label for="description">Description</Label>
             <Textarea id="description" v-model="state.description" rows="3" />
           </div>
         </CardContent>
@@ -73,13 +75,16 @@ const breadcrumbs = [
 
       <Separator />
 
-      <div class="flex gap-2">
+      <div class="flex gap-2 items-center">
         <Button type="submit" :disabled="modelsLoading">
-          Создать
+          Create
         </Button>
-        <Button variant="outline" type="button" @click="router.back()">
-          Отмена
-        </Button>
+        <IconButton
+          :icon="X"
+          tooltip="Cancel"
+          variant="outline"
+          @click="router.back()"
+        />
       </div>
     </form>
   </div>

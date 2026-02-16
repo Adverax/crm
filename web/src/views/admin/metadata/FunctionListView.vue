@@ -6,7 +6,8 @@ import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import EmptyState from '@/components/admin/EmptyState.vue'
-import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Plus } from 'lucide-vue-next'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
@@ -27,7 +28,7 @@ async function loadFunctions() {
     functions.value = response.data ?? []
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err)
-    error.value = `Не удалось загрузить функции: ${detail}`
+    error.value = `Failed to load functions: ${detail}`
     toast.errorFromApi(err)
   } finally {
     loading.value = false
@@ -45,18 +46,23 @@ function goToDetail(functionId: string) {
 }
 
 const breadcrumbs = [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Функции' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Functions' },
 ]
 </script>
 
 <template>
   <div>
-    <PageHeader title="Функции" :breadcrumbs="breadcrumbs">
+    <PageHeader title="Functions" :breadcrumbs="breadcrumbs">
       <template #actions>
-        <Button size="sm" data-testid="create-function-btn" @click="goToCreate">
-          Создать функцию
-        </Button>
+        <IconButton
+          :icon="Plus"
+          tooltip="Create function"
+          variant="default"
+          size="icon-sm"
+          data-testid="create-function-btn"
+          @click="goToCreate"
+        />
       </template>
     </PageHeader>
 
@@ -69,8 +75,8 @@ const breadcrumbs = [
 
     <EmptyState
       v-else-if="functions.length === 0"
-      title="Нет функций"
-      description="Создайте первую пользовательскую функцию для использования в CEL-выражениях."
+      title="No functions"
+      description="Create your first custom function for use in CEL expressions."
     />
 
     <div v-else class="space-y-2">
@@ -93,7 +99,7 @@ const breadcrumbs = [
               {{ fn.returnType ?? 'any' }}
             </Badge>
             <Badge v-if="fn.params && fn.params.length > 0" variant="outline">
-              {{ fn.params.length }} пар.
+              {{ fn.params.length }} params
             </Badge>
           </div>
         </CardContent>

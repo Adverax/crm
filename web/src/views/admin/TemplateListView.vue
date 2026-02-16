@@ -19,8 +19,8 @@ const loading = ref(false)
 const applying = ref<string | null>(null)
 
 const breadcrumbs = [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Шаблоны' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Templates' },
 ]
 
 async function loadTemplates() {
@@ -39,7 +39,7 @@ async function applyTemplate(tmpl: TemplateInfo) {
   applying.value = tmpl.id
   try {
     await templatesApi.apply(tmpl.id)
-    toast.success(`Шаблон "${tmpl.label}" применён`)
+    toast.success(`Template "${tmpl.label}" applied`)
     await loadTemplates()
   } catch (err) {
     toast.errorFromApi(err)
@@ -53,10 +53,10 @@ onMounted(loadTemplates)
 
 <template>
   <div>
-    <PageHeader title="Шаблоны приложений" :breadcrumbs="breadcrumbs" />
+    <PageHeader title="App Templates" :breadcrumbs="breadcrumbs" />
 
     <p class="text-sm text-muted-foreground mb-6">
-      Выберите шаблон для создания стандартных объектов и полей. Шаблон можно применить только один раз на пустую базу.
+      Choose a template to create standard objects and fields. A template can only be applied once to an empty database.
     </p>
 
     <div v-if="loading" class="space-y-4">
@@ -71,15 +71,15 @@ onMounted(loadTemplates)
         </CardHeader>
         <CardContent class="flex-1 flex flex-col justify-between">
           <div class="text-sm text-muted-foreground mb-4">
-            {{ tmpl.objects }} объектов, {{ tmpl.fields }} полей
+            {{ tmpl.objects }} objects, {{ tmpl.fields }} fields
           </div>
           <Button
             class="w-full"
             :disabled="applying !== null"
             @click="applyTemplate(tmpl)"
           >
-            <template v-if="applying === tmpl.id">Применяется...</template>
-            <template v-else>Применить</template>
+            <template v-if="applying === tmpl.id">Applying...</template>
+            <template v-else>Apply</template>
           </Button>
         </CardContent>
       </Card>

@@ -22,12 +22,12 @@ async function onSubmit() {
   error.value = null
 
   if (password.value !== confirmPassword.value) {
-    error.value = 'Пароли не совпадают'
+    error.value = 'Passwords do not match'
     return
   }
 
   if (password.value.length < 8) {
-    error.value = 'Пароль должен быть не менее 8 символов'
+    error.value = 'Password must be at least 8 characters'
     return
   }
 
@@ -37,7 +37,7 @@ async function onSubmit() {
     success.value = true
     setTimeout(() => router.push('/login'), 3000)
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Ошибка сброса пароля'
+    error.value = err instanceof Error ? err.message : 'Password reset error'
   } finally {
     loading.value = false
   }
@@ -48,21 +48,21 @@ async function onSubmit() {
   <div class="min-h-screen flex items-center justify-center bg-muted/30">
     <Card class="w-full max-w-sm">
       <CardHeader class="text-center">
-        <CardTitle class="text-2xl">Новый пароль</CardTitle>
+        <CardTitle class="text-2xl">New Password</CardTitle>
       </CardHeader>
       <CardContent>
         <div v-if="success" class="space-y-4">
           <div class="rounded-md bg-green-50 p-3 text-sm text-green-800">
-            Пароль успешно изменён. Перенаправление на страницу входа...
+            Password changed successfully. Redirecting to login...
           </div>
         </div>
 
         <div v-else-if="!token" class="space-y-4">
           <div class="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-            Ссылка для сброса пароля недействительна.
+            The password reset link is invalid.
           </div>
           <RouterLink to="/login" class="block text-center text-sm text-primary hover:underline">
-            Вернуться ко входу
+            Back to login
           </RouterLink>
         </div>
 
@@ -72,7 +72,7 @@ async function onSubmit() {
           </div>
 
           <div class="space-y-2">
-            <Label for="password">Новый пароль</Label>
+            <Label for="password">New Password</Label>
             <Input
               id="password"
               v-model="password"
@@ -83,7 +83,7 @@ async function onSubmit() {
           </div>
 
           <div class="space-y-2">
-            <Label for="confirmPassword">Повторите пароль</Label>
+            <Label for="confirmPassword">Confirm Password</Label>
             <Input
               id="confirmPassword"
               v-model="confirmPassword"
@@ -94,7 +94,7 @@ async function onSubmit() {
           </div>
 
           <Button type="submit" class="w-full" :disabled="loading">
-            {{ loading ? 'Сохранение...' : 'Сбросить пароль' }}
+            {{ loading ? 'Saving...' : 'Reset Password' }}
           </Button>
         </form>
       </CardContent>

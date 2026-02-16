@@ -6,6 +6,8 @@ import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { X } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -35,7 +37,7 @@ async function onSubmit() {
   if (!validate()) return
   try {
     const created = await store.createGroup(toCreateRequest())
-    toast.success('Группа создана')
+    toast.success('Group created')
     router.push({ name: 'admin-group-detail', params: { groupId: created.id } })
   } catch (err) {
     toast.errorFromApi(err)
@@ -43,22 +45,22 @@ async function onSubmit() {
 }
 
 const breadcrumbs = [
-  { label: 'Админ', to: '/admin' },
-  { label: 'Группы', to: '/admin/security/groups' },
-  { label: 'Новая группа' },
+  { label: 'Admin', to: '/admin' },
+  { label: 'Groups', to: '/admin/security/groups' },
+  { label: 'New Group' },
 ]
 </script>
 
 <template>
   <div>
-    <PageHeader title="Создать группу" :breadcrumbs="breadcrumbs" />
+    <PageHeader title="Create Group" :breadcrumbs="breadcrumbs" />
 
     <ErrorAlert v-if="groupsError" :message="groupsError" class="mb-4" />
 
     <form class="max-w-2xl space-y-6" @submit.prevent="onSubmit">
       <Card>
         <CardContent class="pt-6 space-y-4">
-          <h2 class="text-lg font-semibold">Основная информация</h2>
+          <h2 class="text-lg font-semibold">General Information</h2>
 
           <div class="space-y-2">
             <Label for="apiName">API Name</Label>
@@ -71,22 +73,22 @@ const breadcrumbs = [
           </div>
 
           <div class="space-y-2">
-            <Label for="label">Название</Label>
-            <Input id="label" v-model="state.label" placeholder="Отдел продаж" />
+            <Label for="label">Label</Label>
+            <Input id="label" v-model="state.label" placeholder="Sales Team" />
             <p v-if="errors.label" class="text-sm text-destructive">{{ errors.label }}</p>
           </div>
 
           <div class="space-y-2">
-            <Label for="groupType">Тип группы</Label>
+            <Label for="groupType">Group Type</Label>
             <Select :model-value="state.groupType" @update:model-value="onGroupTypeChange">
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="public">Публичная</SelectItem>
-                <SelectItem value="personal">Персональная</SelectItem>
-                <SelectItem value="role">Роль</SelectItem>
-                <SelectItem value="role_and_subordinates">Роль и подчинённые</SelectItem>
+                <SelectItem value="public">Public</SelectItem>
+                <SelectItem value="personal">Personal</SelectItem>
+                <SelectItem value="role">Role</SelectItem>
+                <SelectItem value="role_and_subordinates">Role & Subordinates</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -95,13 +97,16 @@ const breadcrumbs = [
 
       <Separator />
 
-      <div class="flex gap-2">
+      <div class="flex gap-2 items-center">
         <Button type="submit" :disabled="groupsLoading">
-          Создать
+          Create
         </Button>
-        <Button variant="outline" type="button" @click="router.back()">
-          Отмена
-        </Button>
+        <IconButton
+          :icon="X"
+          tooltip="Cancel"
+          variant="outline"
+          @click="router.back()"
+        />
       </div>
     </form>
   </div>

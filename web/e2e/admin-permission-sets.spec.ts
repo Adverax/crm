@@ -16,18 +16,18 @@ test.describe('Permission set list page', () => {
   test('shows permission set labels', async ({ page }) => {
     await page.goto('/admin/security/permission-sets')
     const main = page.locator('main')
-    await expect(main.getByText('Чтение всего')).toBeVisible()
-    await expect(main.getByText('Запрет удаления')).toBeVisible()
+    await expect(main.getByText('Read All')).toBeVisible()
+    await expect(main.getByText('Deny Delete')).toBeVisible()
   })
 
   test('has create button', async ({ page }) => {
     await page.goto('/admin/security/permission-sets')
-    await expect(page.getByText('Создать набор')).toBeVisible()
+    await expect(page.getByText('Create Permission Set')).toBeVisible()
   })
 
   test('create button navigates to create page', async ({ page }) => {
     await page.goto('/admin/security/permission-sets')
-    await page.getByText('Создать набор').click()
+    await page.getByText('Create Permission Set').click()
     await expect(page).toHaveURL(/\/admin\/security\/permission-sets\/new/)
   })
 
@@ -61,20 +61,20 @@ test.describe('Permission set create page', () => {
 
   test('has type selector (grant/deny)', async ({ page }) => {
     await page.goto('/admin/security/permission-sets/new')
-    await expect(page.getByText('Тип').first()).toBeVisible()
+    await expect(page.getByText('Type').first()).toBeVisible()
   })
 
   test('has submit and cancel buttons', async ({ page }) => {
     await page.goto('/admin/security/permission-sets/new')
-    await expect(page.getByRole('button', { name: 'Создать' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Отмена' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Create' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible()
   })
 
   test('cancel navigates back to list', async ({ page }) => {
     await page.goto('/admin/security/permission-sets')
-    await page.getByText('Создать набор').click()
+    await page.getByText('Create Permission Set').click()
     await expect(page).toHaveURL(/\/admin\/security\/permission-sets\/new/)
-    await page.getByRole('button', { name: 'Отмена' }).click()
+    await page.getByRole('button', { name: 'Cancel' }).click()
     await expect(page).toHaveURL(/\/admin\/security\/permission-sets/)
   })
 
@@ -82,13 +82,13 @@ test.describe('Permission set create page', () => {
     await page.goto('/admin/security/permission-sets/new')
 
     await page.locator('#apiName').fill('new_ps')
-    await page.locator('#label').fill('Новый набор')
-    await page.locator('#description').fill('Описание')
+    await page.locator('#label').fill('New Permission Set')
+    await page.locator('#description').fill('Description')
 
     const requestPromise = page.waitForRequest(
       '**/api/v1/admin/security/permission-sets',
     )
-    await page.getByRole('button', { name: 'Создать' }).click()
+    await page.getByRole('button', { name: 'Create' }).click()
 
     const request = await requestPromise
     expect(request.method()).toBe('POST')
@@ -111,12 +111,12 @@ test.describe('Permission set detail page', () => {
 
   test('shows tabs: info, OLS, FLS', async ({ page }) => {
     await page.goto(`/admin/security/permission-sets/${ps.id}`)
-    await expect(page.getByRole('tab', { name: /Основное/ })).toBeVisible()
+    await expect(page.getByRole('tab', { name: /General/ })).toBeVisible()
     await expect(
-      page.getByRole('tab', { name: /Права на объекты/ }),
+      page.getByRole('tab', { name: /Object Permissions/ }),
     ).toBeVisible()
     await expect(
-      page.getByRole('tab', { name: /Права на поля/ }),
+      page.getByRole('tab', { name: /Field Permissions/ }),
     ).toBeVisible()
   })
 
@@ -128,31 +128,31 @@ test.describe('Permission set detail page', () => {
 
   test('can switch to OLS tab', async ({ page }) => {
     await page.goto(`/admin/security/permission-sets/${ps.id}`)
-    await page.getByRole('tab', { name: /Права на объекты/ }).click()
+    await page.getByRole('tab', { name: /Object Permissions/ }).click()
     await expect(page.locator('main')).toBeVisible()
   })
 
   test('can switch to FLS tab', async ({ page }) => {
     await page.goto(`/admin/security/permission-sets/${ps.id}`)
-    await page.getByRole('tab', { name: /Права на поля/ }).click()
+    await page.getByRole('tab', { name: /Field Permissions/ }).click()
     await expect(page.locator('main')).toBeVisible()
   })
 
   test('has save, cancel, and delete buttons', async ({ page }) => {
     await page.goto(`/admin/security/permission-sets/${ps.id}`)
-    await expect(page.getByRole('button', { name: 'Сохранить' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Отмена' })).toBeVisible()
-    await expect(page.getByRole('button', { name: /Удалить/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Save' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Delete/ })).toBeVisible()
   })
 
   test('can submit updated permission set', async ({ page }) => {
     await page.goto(`/admin/security/permission-sets/${ps.id}`)
-    await page.locator('#label').fill('Обновлённый набор')
+    await page.locator('#label').fill('Updated Permission Set')
 
     const requestPromise = page.waitForRequest(
       `**/api/v1/admin/security/permission-sets/${ps.id}`,
     )
-    await page.getByRole('button', { name: 'Сохранить' }).click()
+    await page.getByRole('button', { name: 'Save' }).click()
 
     const request = await requestPromise
     expect(request.method()).toBe('PUT')
