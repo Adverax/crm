@@ -1,87 +1,87 @@
-# Roadmap: путь к Salesforce-grade платформе
+# Roadmap: Path to a Salesforce-Grade Platform
 
-**Дата:** 2026-02-08
-**Стек:** Go 1.25 · PostgreSQL 16 · Vue.js 3 · Redis
-**Модель:** Open Core (AGPL v3 + Enterprise `ee/`)
+**Date:** 2026-02-08
+**Stack:** Go 1.25 · PostgreSQL 16 · Vue.js 3 · Redis
+**Model:** Open Core (AGPL v3 + Enterprise `ee/`)
 
 ---
 
-## Зрелость по доменам
+## Domain Maturity
 
-Карта текущего состояния и целевого покрытия относительно Salesforce Platform.
+Current state and target coverage relative to Salesforce Platform.
 
-| Домен | Salesforce | Мы сейчас | Целевой уровень |
-|-------|-----------|-----------|-----------------|
-| Metadata Engine | Custom Objects, Fields, Relationships, Record Types, Layouts | Objects, Fields (все типы), Relationships (assoc/comp/poly), Table-per-object DDL | 80% SF |
+| Domain | Salesforce | Current State | Target Level |
+|--------|-----------|---------------|--------------|
+| Metadata Engine | Custom Objects, Fields, Relationships, Record Types, Layouts | Objects, Fields (all types), Relationships (assoc/comp/poly), Table-per-object DDL | 80% SF |
 | Security (OLS/FLS) | Profile, Permission Set, Permission Set Group, Muting PS | Profile, Grant/Deny PS, OLS bitmask, FLS bitmask, effective caches | 90% SF |
-| Security (RLS) | OWD, Role Hierarchy, Sharing Rules, Manual Sharing, Apex Sharing, Teams, Territory | OWD, Groups (4 типа), Share tables, Role hierarchy, Sharing Rules (owner+criteria), Manual Sharing, RLS enforcer, effective caches, Territory Management (ee/) | 85% SF |
-| Data Access (SOQL) | SOQL с relationship queries, aggregates, security enforcement | SOQL parser (participle), validator, compiler, executor с OLS+FLS+RLS enforcement, relationship queries, aggregates, date literals, subqueries | 70% SF |
-| Data Mutation (DML) | Insert, Update, Upsert, Delete, Undelete, Merge + triggers | INSERT/UPDATE/DELETE/UPSERT, OLS+FLS enforcement, RLS injection для UPDATE/DELETE, batch operations, Custom Functions (fn.* dual-stack), validation rules (CEL), dynamic defaults (CEL) | 65% SF |
+| Security (RLS) | OWD, Role Hierarchy, Sharing Rules, Manual Sharing, Apex Sharing, Teams, Territory | OWD, Groups (4 types), Share tables, Role hierarchy, Sharing Rules (owner+criteria), Manual Sharing, RLS enforcer, effective caches, Territory Management (ee/) | 85% SF |
+| Data Access (SOQL) | SOQL with relationship queries, aggregates, security enforcement | SOQL parser (participle), validator, compiler, executor with OLS+FLS+RLS enforcement, relationship queries, aggregates, date literals, subqueries | 70% SF |
+| Data Mutation (DML) | Insert, Update, Upsert, Delete, Undelete, Merge + triggers | INSERT/UPDATE/DELETE/UPSERT, OLS+FLS enforcement, RLS injection for UPDATE/DELETE, batch operations, Custom Functions (fn.* dual-stack), validation rules (CEL), dynamic defaults (CEL) | 65% SF |
 | Auth | OAuth 2.0, SAML, MFA, Connected Apps | JWT (access + refresh), login, password reset, rate limiting | JWT + refresh tokens |
-| Automation | Flow Builder, Triggers, Workflow Rules, Approval Processes | Не реализовано | Triggers + базовые Flows |
+| Automation | Flow Builder, Triggers, Workflow Rules, Approval Processes | Not implemented | Triggers + basic Flows |
 | UI Framework | Lightning App Builder, LWC, Dynamic Forms | Vue.js admin + metadata-driven CRM UI (AppLayout, dynamic record views, FieldRenderer), Expression Builder (CodeMirror + autocomplete + live preview) | Admin + Record UI + Object Views |
 | APIs | REST, SOAP, Bulk, Streaming, Metadata, Tooling, GraphQL | REST admin endpoints (metadata + security + groups + sharing rules) | REST + Streaming |
-| Analytics | Reports, Dashboards, Einstein | Не реализовано | Базовые отчёты |
-| Integration | Platform Events, CDC, External Services | Не реализовано | CDC + webhooks |
+| Analytics | Reports, Dashboards, Einstein | Not implemented | Basic reports |
+| Integration | Platform Events, CDC, External Services | Not implemented | CDC + webhooks |
 | Developer Tools | Apex, CLI, Sandboxes, Packaging | — | CLI + migration tools |
-| Standard Objects | Account, Contact, Opportunity, Lead, Case, Task и др. | App Templates (Sales CRM: 4 obj, Recruiting: 4 obj) | 6-8 core objects |
+| Standard Objects | Account, Contact, Opportunity, Lead, Case, Task, etc. | App Templates (Sales CRM: 4 obj, Recruiting: 4 obj) | 6-8 core objects |
 
 ---
 
-## Фазы реализации
+## Implementation Phases
 
 ### Phase 0: Scaffolding ✅
 
-Инфраструктура проекта.
+Project infrastructure.
 
-- [x] Docker + docker-compose для локальной разработки
+- [x] Docker + docker-compose for local development
 - [x] PostgreSQL 16 + pgTAP
 - [x] Makefile, CI (GitHub Actions)
-- [x] Структура проекта (cmd, internal, web, ee, migrations, tests)
-- [x] HTTP-клиент, роутинг (Gin), structured logging (slog)
+- [x] Project structure (cmd, internal, web, ee, migrations, tests)
+- [x] HTTP client, routing (Gin), structured logging (slog)
 - [x] Typed errors (apperror), pagination helpers
-- [x] Базовая Vue.js оболочка (AdminLayout, ui-компоненты)
+- [x] Basic Vue.js shell (AdminLayout, UI components)
 
 ---
 
 ### Phase 1: Metadata Engine ✅
 
-Ядро платформы — динамическое определение объектов и полей.
+Platform core — dynamic object and field definitions.
 
-- [x] Object Definitions (standard/custom, поведенческие флаги)
+- [x] Object Definitions (standard/custom, behavioral flags)
 - [x] Field Definitions (type/subtype, config, validation)
-- [x] Типы полей: text, number, boolean, datetime, picklist, reference
+- [x] Field types: text, number, boolean, datetime, picklist, reference
 - [x] Reference types: association, composition, polymorphic
-- [x] Table-per-object: DDL генерация (`obj_{api_name}`)
+- [x] Table-per-object: DDL generation (`obj_{api_name}`)
 - [x] Constraints: FK, unique, not null, check
 - [x] REST API: CRUD objects + fields
-- [x] Vue.js admin: objects, fields, detail с табами
-- [x] pgTAP тесты на схему
+- [x] Vue.js admin: objects, fields, detail with tabs
+- [x] pgTAP tests for schema
 
-**Что отличает от Salesforce и будет добавлено позже:**
+**What differs from Salesforce and will be added later:**
 
-| Возможность SF | Наш статус | Когда |
-|----------------|-----------|-------|
-| Record Types | Не реализовано | Phase 9c |
-| Object Views (role-based layouts) | Не реализовано | Phase 9a (ADR-0022) |
-| Compact Layouts (highlight fields) | Не реализовано | Phase 9a (ADR-0022) |
-| Formula Fields | Не реализовано | Phase 12 |
-| Roll-Up Summary Fields | Не реализовано | Phase 12 |
-| Validation Rules (formula-based) | Не реализовано | Phase 12 |
-| Field History Tracking | Не реализовано | Phase N (ee/) |
-| Custom Metadata Types (`__mdt`) | Не реализовано | Phase 14 |
-| Big Objects | Не реализовано | Далёкая перспектива |
-| External Objects | Не реализовано | Далёкая перспектива |
+| SF Capability | Our Status | When |
+|---------------|-----------|------|
+| Record Types | Not implemented | Phase 9c |
+| Object Views (role-based layouts) | Not implemented | Phase 9a (ADR-0022) |
+| Compact Layouts (highlight fields) | Not implemented | Phase 9a (ADR-0022) |
+| Formula Fields | Not implemented | Phase 12 |
+| Roll-Up Summary Fields | Not implemented | Phase 12 |
+| Validation Rules (formula-based) | Not implemented | Phase 12 |
+| Field History Tracking | Not implemented | Phase N (ee/) |
+| Custom Metadata Types (`__mdt`) | Not implemented | Phase 14 |
+| Big Objects | Not implemented | Far future |
+| External Objects | Not implemented | Far future |
 
 ---
 
 ### Phase 2: Security Engine ✅
 
-Три слоя безопасности — фундамент enterprise-grade платформы.
+Three security layers — the foundation of an enterprise-grade platform.
 
 #### Phase 2a: Identity + Permission Engine ✅
 
-- [x] User Roles (иерархия через parent_id)
+- [x] User Roles (hierarchy via parent_id)
 - [x] Permission Sets (grant/deny, bitmask)
 - [x] Profiles (auto-created base PS)
 - [x] Users (username, email, profile, role, is_active)
@@ -89,81 +89,81 @@
 - [x] Object Permissions (OLS: CRUD bitmask 0-15)
 - [x] Field Permissions (FLS: RW bitmask 0-3)
 - [x] Effective caches (effective_ols, effective_fls)
-- [x] Outbox pattern для инвалидации кэшей
-- [x] REST API: полный CRUD для всех сущностей
-- [x] Vue.js admin: роли, PS, профили, пользователи, OLS/FLS редактор
+- [x] Outbox pattern for cache invalidation
+- [x] REST API: full CRUD for all entities
+- [x] Vue.js admin: roles, PS, profiles, users, OLS/FLS editor
 
 #### Phase 2b: RLS Core ✅
 
-Row-Level Security — кто видит какие записи.
+Row-Level Security — who can see which records.
 
 - [x] Org-Wide Defaults (OWD) per object: private, public_read, public_read_write, controlled_by_parent
 - [x] Share tables: `obj_{name}__share` (grantee_id, access_level, share_reason)
 - [x] Role Hierarchy: closure table `effective_role_hierarchy`
 - [x] Sharing Rules (ownership-based): source group → target group, access level
 - [x] Sharing Rules (criteria-based): field conditions → target group, access level
-- [x] Manual Sharing: owner/admin расшаривает запись конкретному user/group
-- [x] Record ownership model: OwnerId на каждой записи
+- [x] Manual Sharing: owner/admin shares a record with a specific user/group
+- [x] Record ownership model: OwnerId on every record
 - [x] Effective visibility cache: `effective_visible_owners`
 - [x] REST API: OWD settings, sharing rules CRUD, manual sharing
-- [x] Vue.js admin: OWD настройки (visibility в object create/edit), sharing rules UI (list/create/detail)
-- [x] E2E тесты: sharing rules (14 тестов), visibility в объектах
+- [x] Vue.js admin: OWD settings (visibility in object create/edit), sharing rules UI (list/create/detail)
+- [x] E2E tests: sharing rules (14 tests), visibility in objects
 
 #### Phase 2c: Groups ✅
 
-Группы — единый grantee для всех sharing-операций.
+Groups — unified grantee for all sharing operations.
 
-- [x] Типы групп: personal, role, role_and_subordinates, public
-- [x] Auto-generation: при создании user → personal group; при создании role → role group + role_and_sub group
-- [x] Public group: админ создаёт, добавляет участников (users, roles, other groups)
+- [x] Group types: personal, role, role_and_subordinates, public
+- [x] Auto-generation: on user creation → personal group; on role creation → role group + role_and_sub group
+- [x] Public group: admin creates, adds members (users, roles, other groups)
 - [x] Effective group members cache: `effective_group_members` (closure table)
-- [x] Единый grantee (всегда group_id) для share tables и sharing rules
+- [x] Unified grantee (always group_id) for share tables and sharing rules
 - [x] REST API: groups CRUD, membership management
-- [x] Vue.js admin: управление группами (list/create/detail + members tab)
-- [x] E2E тесты: groups (18 тестов), sidebar навигация
+- [x] Vue.js admin: group management (list/create/detail + members tab)
+- [x] E2E tests: groups (18 tests), sidebar navigation
 
-**Что отличает от Salesforce и будет добавлено позже:**
+**What differs from Salesforce and will be added later:**
 
-| Возможность SF | Наш статус | Когда |
-|----------------|-----------|-------|
-| Permission Set Groups | Не реализовано | Phase 2d |
-| Muting Permission Sets | Grant/Deny PS покрывает этот кейс | — |
-| View All / Modify All per object | Не реализовано | Phase 2d |
-| Implicit Sharing (parent↔child) | Не реализовано | Phase 2d |
-| Queues (ownership) | Не реализовано | Phase 6 |
-| Territory Management | ✅ Реализовано (ee/) | — |
+| SF Capability | Our Status | When |
+|---------------|-----------|------|
+| Permission Set Groups | Not implemented | Phase 2d |
+| Muting Permission Sets | Grant/Deny PS covers this case | — |
+| View All / Modify All per object | Not implemented | Phase 2d |
+| Implicit Sharing (parent↔child) | Not implemented | Phase 2d |
+| Queues (ownership) | Not implemented | Phase 6 |
+| Territory Management | ✅ Implemented (ee/) | — |
 
 ---
 
-### Phase 3: SOQL — язык запросов ✅
+### Phase 3: SOQL — Query Language ✅
 
-Единая точка входа для всех чтений данных с автоматическим security enforcement.
+Single entry point for all data reads with automatic security enforcement.
 
 - [x] Parser (participle/v2): SELECT, FROM, WHERE, AND, OR, NOT, ORDER BY, LIMIT, OFFSET, GROUP BY, HAVING
 - [x] AST: SelectStatement, FieldExpr, WhereClause, OrderByClause, LimitExpr
-- [x] Dot-notation для parent fields: `Account.Name` (до 5 уровней)
-- [x] Subquery для child relationships: `(SELECT Id FROM Contacts)`
-- [x] Литералы: string, number, boolean, null, date/datetime
-- [x] Date literals: TODAY, YESTERDAY, THIS_WEEK, LAST_N_DAYS:N и др.
+- [x] Dot-notation for parent fields: `Account.Name` (up to 5 levels)
+- [x] Subquery for child relationships: `(SELECT Id FROM Contacts)`
+- [x] Literals: string, number, boolean, null, date/datetime
+- [x] Date literals: TODAY, YESTERDAY, THIS_WEEK, LAST_N_DAYS:N, etc.
 - [x] Aggregate functions: COUNT, COUNT_DISTINCT, SUM, AVG, MIN, MAX
-- [x] Built-in functions: UPPER, LOWER, TRIM, CONCAT, LENGTH, ABS, ROUND, COALESCE, NULLIF и др.
-- [x] Операторы: =, !=, <>, >, <, >=, <=, IN, NOT IN, LIKE, IS NULL, IS NOT NULL
+- [x] Built-in functions: UPPER, LOWER, TRIM, CONCAT, LENGTH, ABS, ROUND, COALESCE, NULLIF, etc.
+- [x] Operators: =, !=, <>, >, <, >=, <=, IN, NOT IN, LIKE, IS NULL, IS NOT NULL
 - [x] FOR UPDATE, WITH SECURITY_ENFORCED, TYPEOF (polymorphic fields)
 - [x] Semi-joins: `WHERE Id IN (SELECT ... FROM ...)`
 - [x] Field aliases: `SELECT Name AS ContactName`
-- [x] Validator: проверка полей/объектов через MetadataProvider + AccessController
-- [x] Compiler: AST → PostgreSQL SQL с параметризацией
-- [x] MetadataAdapter: мост MetadataCache → engine.MetadataProvider
-- [x] AccessControllerAdapter: мост OLS/FLS → engine.AccessController (CanAccessObject, CanAccessField)
-- [x] Executor (pgx): выполнение SQL с RLS WHERE injection
-- [x] QueryService: фасад parse → validate → compile → execute
+- [x] Validator: field/object validation via MetadataProvider + AccessController
+- [x] Compiler: AST → PostgreSQL SQL with parameterization
+- [x] MetadataAdapter: bridge MetadataCache → engine.MetadataProvider
+- [x] AccessControllerAdapter: bridge OLS/FLS → engine.AccessController (CanAccessObject, CanAccessField)
+- [x] Executor (pgx): SQL execution with RLS WHERE injection
+- [x] QueryService: facade parse → validate → compile → execute
 - [x] REST API: `GET /api/v1/query?q=...`, `POST /api/v1/query`
 - [x] OpenAPI spec: endpoints + schemas
 
-**Salesforce SOQL features для будущих фаз:**
+**Salesforce SOQL features for future phases:**
 
-| Возможность | Фаза |
-|-------------|------|
+| Capability | Phase |
+|------------|-------|
 | Cursor-based pagination (queryLocator) | Phase 3d |
 | SOSL (full-text search) | Phase 15 |
 | `GET /api/v1/soql/describe/{objectName}` | Phase 3d |
@@ -172,29 +172,29 @@ Row-Level Security — кто видит какие записи.
 
 ### Phase 4: DML Engine ✅
 
-Единая точка входа для всех записей данных с security enforcement.
+Single entry point for all data writes with security enforcement.
 
 - [x] Parser (participle/v2): INSERT INTO, UPDATE SET, DELETE FROM, UPSERT ON
 - [x] AST: DMLStatement, InsertStmt, UpdateStmt, DeleteStmt, UpsertStmt
-- [x] INSERT: single + multi-row batch (до 10 000 строк)
+- [x] INSERT: single + multi-row batch (up to 10,000 rows)
 - [x] UPDATE: SET clause + WHERE clause, OLS/FLS/RLS enforcement
-- [x] DELETE: WHERE clause (обязателен по умолчанию), OLS/RLS enforcement
-- [x] UPSERT: INSERT ON CONFLICT по external ID field
-- [x] WHERE в DML: =, !=, <>, >, <, >=, <=, IN, NOT IN, LIKE, IS NULL, AND, OR, NOT
-- [x] Built-in functions в VALUES/SET: UPPER, LOWER, CONCAT, COALESCE, ROUND и др.
-- [x] Validator: проверка полей/объектов через MetadataProvider + WriteAccessController
-- [x] Compiler: AST → PostgreSQL SQL с RETURNING clause
-- [x] MetadataAdapter: мост MetadataCache → engine.MetadataProvider (с ReadOnly, Required, HasDefault)
-- [x] WriteAccessControllerAdapter: мост OLS/FLS → engine.WriteAccessController (CanCreate/CanUpdate/CanDelete + CheckWritableFields)
-- [x] RLS Executor: pgx-based, с RLS WHERE injection для UPDATE/DELETE
-- [x] DMLService: фасад parse → validate → compile → execute
+- [x] DELETE: WHERE clause (required by default), OLS/RLS enforcement
+- [x] UPSERT: INSERT ON CONFLICT by external ID field
+- [x] WHERE in DML: =, !=, <>, >, <, >=, <=, IN, NOT IN, LIKE, IS NULL, AND, OR, NOT
+- [x] Built-in functions in VALUES/SET: UPPER, LOWER, CONCAT, COALESCE, ROUND, etc.
+- [x] Validator: field/object validation via MetadataProvider + WriteAccessController
+- [x] Compiler: AST → PostgreSQL SQL with RETURNING clause
+- [x] MetadataAdapter: bridge MetadataCache → engine.MetadataProvider (with ReadOnly, Required, HasDefault)
+- [x] WriteAccessControllerAdapter: bridge OLS/FLS → engine.WriteAccessController (CanCreate/CanUpdate/CanDelete + CheckWritableFields)
+- [x] RLS Executor: pgx-based, with RLS WHERE injection for UPDATE/DELETE
+- [x] DMLService: facade parse → validate → compile → execute
 - [x] REST API: `POST /api/v1/data`
 - [x] OpenAPI spec: endpoint + schemas
 
-**DML features для будущих фаз:**
+**DML features for future phases:**
 
-| Возможность | Фаза |
-|-------------|------|
+| Capability | Phase |
+|------------|-------|
 | Automation Rules triggers (before/after insert/update/delete) | Phase 10 |
 | Undelete (Recycle Bin) | Phase 4d |
 | Merge | Phase 4d |
@@ -208,29 +208,29 @@ Row-Level Security — кто видит какие записи.
 
 ### Phase 5: Auth Module ✅
 
-Аутентификация и управление сессиями.
+Authentication and session management.
 
-- [x] `POST /auth/login` — вход по username + password → JWT access + refresh tokens
-- [x] `POST /auth/refresh` — обновление access token (с ротацией refresh token)
-- [x] `POST /auth/logout` — инвалидация refresh token
-- [x] `GET /auth/me` — текущий пользователь
-- [x] JWT middleware: проверка access token (HMAC-SHA256) на каждом запросе
-- [x] Refresh tokens: хранение SHA-256 хэшей в `iam.refresh_tokens`, ротация при использовании
-- [x] Password hashing: bcrypt (cost=12), `password_hash` в `iam.users`
+- [x] `POST /auth/login` — sign in with username + password → JWT access + refresh tokens
+- [x] `POST /auth/refresh` — access token renewal (with refresh token rotation)
+- [x] `POST /auth/logout` — refresh token invalidation
+- [x] `GET /auth/me` — current user
+- [x] JWT middleware: access token verification (HMAC-SHA256) on every request
+- [x] Refresh tokens: SHA-256 hash storage in `iam.refresh_tokens`, rotation on use
+- [x] Password hashing: bcrypt (cost=12), `password_hash` in `iam.users`
 - [x] Rate limiting: in-memory sliding window per IP (5 attempts / 15 min)
 - [x] Password reset flow: `POST /auth/forgot-password` + `POST /auth/reset-password` (token + email)
 - [x] Admin password set: `PUT /admin/security/users/:id/password`
-- [x] User ↔ security.User интеграция: JWT claims → UserContext (userId, profileId, roleId)
-- [x] Admin-only регистрация через существующий CRUD `POST /admin/security/users`
-- [x] Seed admin password: `ADMIN_INITIAL_PASSWORD` env var при первом запуске
+- [x] User ↔ security.User integration: JWT claims → UserContext (userId, profileId, roleId)
+- [x] Admin-only registration via existing CRUD `POST /admin/security/users`
+- [x] Seed admin password: `ADMIN_INITIAL_PASSWORD` env var on first launch
 - [x] Vue.js frontend: Login, ForgotPassword, ResetPassword views, auth store (Pinia), router guards, 401 interceptor
-- [x] pgTAP тесты: password_hash, refresh_tokens, password_reset_tokens
-- [x] E2E тесты: 15 тестов (login, forgot-password, reset-password, guards)
+- [x] pgTAP tests: password_hash, refresh_tokens, password_reset_tokens
+- [x] E2E tests: 15 tests (login, forgot-password, reset-password, guards)
 
-**Auth features для будущих фаз:**
+**Auth features for future phases:**
 
-| Возможность | Фаза |
-|-------------|------|
+| Capability | Phase |
+|------------|-------|
 | OAuth 2.0 provider | Phase N |
 | SAML 2.0 SSO | Phase N (ee/) |
 | MFA (TOTP) | Phase N (ee/) |
@@ -242,30 +242,30 @@ Row-Level Security — кто видит какие записи.
 
 ### Phase 6: App Templates ✅
 
-Вместо хардкода стандартных объектов — система шаблонов приложений (ADR-0018).
-Админ выбирает шаблон через UI, платформа создаёт объекты и поля через metadata engine.
+Instead of hardcoded standard objects — an application template system (ADR-0018).
+Admin selects a template via UI, the platform creates objects and fields through the metadata engine.
 
-#### Реализовано
+#### Implemented
 
-- [x] **App Templates engine**: Registry + Applier pattern, двухпроходное создание (objects → fields)
-- [x] **Sales CRM шаблон**: Account, Contact, Opportunity, Task (4 объекта, 36 полей)
-- [x] **Recruiting шаблон**: Position, Candidate, Application, Interview (4 объекта, 28 полей)
-- [x] **REST API**: `GET /api/v1/admin/templates` (список), `POST /api/v1/admin/templates/:id/apply` (применить)
-- [x] **Guard**: шаблон можно применить только на пустую базу (object_definitions.count == 0)
-- [x] **OLS/FLS**: автоматическое назначение full CRUD + full RW для admin PS
-- [x] **Vue.js admin**: страница шаблонов с карточками, кнопки «Применить»
-- [x] **E2E тесты**: 9 тестов (list page + sidebar navigation)
-- [x] **Go тесты**: 95%+ покрытие (applier + registry + template structure validation)
+- [x] **App Templates engine**: Registry + Applier pattern, two-pass creation (objects → fields)
+- [x] **Sales CRM template**: Account, Contact, Opportunity, Task (4 objects, 36 fields)
+- [x] **Recruiting template**: Position, Candidate, Application, Interview (4 objects, 28 fields)
+- [x] **REST API**: `GET /api/v1/admin/templates` (list), `POST /api/v1/admin/templates/:id/apply` (apply)
+- [x] **Guard**: template can only be applied to an empty database (object_definitions.count == 0)
+- [x] **OLS/FLS**: automatic full CRUD + full RW assignment for admin PS
+- [x] **Vue.js admin**: templates page with cards, "Apply" buttons
+- [x] **E2E tests**: 9 tests (list page + sidebar navigation)
+- [x] **Go tests**: 95%+ coverage (applier + registry + template structure validation)
 - [x] **OpenAPI spec**: endpoints + schemas
 
-#### Шаблоны — Go-код (type-safe)
+#### Templates — Go Code (Type-Safe)
 
-Шаблоны встроены в бинарник как Go-код. Добавление нового шаблона = новый файл в `internal/platform/templates/`.
+Templates are embedded in the binary as Go code. Adding a new template = a new file in `internal/platform/templates/`.
 
-**Standard Objects для будущих фаз (дополнительные шаблоны):**
+**Standard Objects for future phases (additional templates):**
 
-| Шаблон | Объекты | Фаза |
-|--------|---------|------|
+| Template | Objects | Phase |
+|----------|---------|-------|
 | Customer Support | Case, Knowledge Article, Entitlement | Phase 14 |
 | Marketing | Campaign, CampaignMember, Lead | Phase 14 |
 | Commerce | Product, PriceBook, Order, OrderItem | Phase 14 |
@@ -275,34 +275,34 @@ Row-Level Security — кто видит какие записи.
 
 ### Phase 7: Generic CRUD + Vue.js Frontend ✅
 
-Переход от admin-only к полноценному CRM-интерфейсу. Backend: generic CRUD endpoints + DML pipeline расширение. Frontend: metadata-driven UI.
+Transition from admin-only to a full CRM interface. Backend: generic CRUD endpoints + DML pipeline extension. Frontend: metadata-driven UI.
 
-#### Phase 7a: Generic CRUD + Metadata-driven UI ✅
+#### Phase 7a: Generic CRUD + Metadata-Driven UI ✅
 
 **Backend:**
-- [x] Generic CRUD endpoints (один набор handlers для всех объектов через SOQL/DML)
-- [x] Static defaults: инжект `FieldConfig.default_value` для отсутствующих полей при Create
+- [x] Generic CRUD endpoints (single set of handlers for all objects via SOQL/DML)
+- [x] Static defaults: inject `FieldConfig.default_value` for missing fields on Create
 - [x] System fields injection: `owner_id`, `created_by_id`, `updated_by_id` (RecordService)
-- [x] Describe API: `GET /api/v1/describe` (список объектов), `GET /api/v1/describe/:objectName` (поля + metadata)
-- [x] OLS/FLS фильтрация в Describe API
+- [x] Describe API: `GET /api/v1/describe` (object list), `GET /api/v1/describe/:objectName` (fields + metadata)
+- [x] OLS/FLS filtering in Describe API
 
 **Frontend:**
-- [x] AppLayout + AppSidebar (CRM-зона `/app/*`, навигация из describe API)
-- [x] Object list page (dynamic): SOQL-driven таблица для любого объекта (RecordListView)
-- [x] Record detail page (dynamic): поля из metadata + save/delete (RecordDetailView)
-- [x] Record create form (dynamic): поля из metadata, pre-fill defaults (RecordCreateView)
+- [x] AppLayout + AppSidebar (CRM zone `/app/*`, navigation from describe API)
+- [x] Object list page (dynamic): SOQL-driven table for any object (RecordListView)
+- [x] Record detail page (dynamic): fields from metadata + save/delete (RecordDetailView)
+- [x] Record create form (dynamic): fields from metadata, pre-fill defaults (RecordCreateView)
 - [x] FieldRenderer (type/subtype → input component) + FieldDisplay (read-only formatting)
-- [x] Переключение Admin ↔ CRM (ссылки в sidebar'ах)
-- [x] E2E тесты: 17 тестов (record list, create, detail, sidebar)
-- [x] Go unit тесты: RecordService 87%+ coverage
+- [x] Admin ↔ CRM switching (links in sidebars)
+- [x] E2E tests: 17 tests (record list, create, detail, sidebar)
+- [x] Go unit tests: RecordService 87%+ coverage
 
-*Auth UI (login, forgot-password, auth store, guards) завершено в Phase 5.*
+*Auth UI (login, forgot-password, auth store, guards) completed in Phase 5.*
 
 #### Phase 7b: CEL Engine + Validation Rules + Dynamic Defaults ✅
 
 **Backend (ADR-0019, ADR-0020):**
-- [x] CEL engine интеграция (`cel-go`) — reusable ProgramCache, StandardEnv/DefaultEnv, EvaluateBool/EvaluateAny
-- [x] Validation Rules: таблица `metadata.validation_rules`, CEL-проверки в DML (Stage 4b)
+- [x] CEL engine integration (`cel-go`) — reusable ProgramCache, StandardEnv/DefaultEnv, EvaluateBool/EvaluateAny
+- [x] Validation Rules: `metadata.validation_rules` table, CEL checks in DML (Stage 4b)
 - [x] Dynamic defaults: `FieldConfig.default_expr` (CEL), DML Stage 3 dynamic
 - [x] DML pipeline extension: typed interfaces (`DefaultResolver`, `RuleValidator`), Option pattern
 - [x] Admin REST API: CRUD validation rules (5 endpoints)
@@ -310,31 +310,31 @@ Row-Level Security — кто видит какие записи.
 
 **Frontend:**
 - [x] Admin UI: validation rules list/create/detail views
-- [x] ObjectDetailView: tab "Правила валидации" → ссылка на list
-- [x] E2E тесты: 14 тестов (list, create, detail)
-- [ ] Related lists: child objects на detail page (SOQL subqueries)
-- [ ] Inline edit: click-to-edit на detail page
-- [ ] List views: saved filters (мои записи, все записи, custom)
-- [ ] Global search (placeholder → SOSL в Phase 15)
+- [x] ObjectDetailView: "Validation Rules" tab → link to list
+- [x] E2E tests: 14 tests (list, create, detail)
+- [ ] Related lists: child objects on detail page (SOQL subqueries)
+- [ ] Inline edit: click-to-edit on detail page
+- [ ] List views: saved filters (my records, all records, custom)
+- [ ] Global search (placeholder → SOSL in Phase 15)
 - [ ] Recent items
 
-**UI features для будущих фаз:**
+**UI features for future phases:**
 
-| Возможность | Фаза |
-|-------------|------|
+| Capability | Phase |
+|------------|-------|
 | Kanban view (Opportunity stages) | Phase 11 |
 | Calendar view (Events) | Phase 11 |
-| Home page с dashboards | Phase 11 |
+| Home page with dashboards | Phase 11 |
 | Dynamic Forms (visibility rules) | Phase 9c |
 | Object Views per profile (role-based UI) | Phase 9a |
 | Navigation + Dashboard per profile | Phase 9b |
-| Mobile-responsive layout | Phase 7a (базовый) |
+| Mobile-responsive layout | Phase 7a (basic) |
 
 ---
 
 ### Phase 8: Custom Functions (ADR-0026) ✅
 
-Именованные чистые CEL-выражения — фундамент для переиспользования вычислительной логики.
+Named pure CEL expressions — foundation for reusable computational logic.
 
 #### Phase 8a: Backend + Admin UI ✅
 
@@ -345,84 +345,84 @@ Row-Level Security — кто видит какие записи.
 - [x] **Admin REST API**: CRUD functions (5 endpoints) + deletion protection (409 Conflict, FindUsages)
 - [x] **Admin Vue.js UI**: function list/create/detail views
 - [x] **Migration + pgTAP tests**: UP/DOWN + schema tests for metadata.functions
-- [x] **E2E tests**: admin function CRUD (14 тестов)
+- [x] **E2E tests**: admin function CRUD (14 tests)
 
 #### Phase 8b: Expression Builder + cel-js ✅
 
-- [x] **Dual-stack**: cel-js на фронтенде (`@marcbachmann/cel-js`), FnNamespace pattern для fn.* вызовов
-- [x] **Pinia functions store**: кэш функций с `ensureLoaded()` / `invalidate()`
-- [x] **cel-js wrapper**: `createCelEnvironment()`, `evaluateCel()`, `evaluateCelSafe()` с BigInt→Number конвертацией
-- [x] **useCelEnvironment composable**: reactive, пересоздаёт environment при изменении функций
+- [x] **Dual-stack**: cel-js on frontend (`@marcbachmann/cel-js`), FnNamespace pattern for fn.* calls
+- [x] **Pinia functions store**: function cache with `ensureLoaded()` / `invalidate()`
+- [x] **cel-js wrapper**: `createCelEnvironment()`, `evaluateCel()`, `evaluateCelSafe()` with BigInt→Number conversion
+- [x] **useCelEnvironment composable**: reactive, recreates environment on function changes
 - [x] **CodeMirror autocomplete**: context-aware (record., old., user., fn., params), `@codemirror/autocomplete`
-- [x] **CodeMirrorEditor Compartment**: динамическая реконфигурация extensions без пересоздания редактора
-- [x] **ExpressionPreview**: live client-side CEL evaluation с debounce 300ms, parameter test inputs
-- [x] **FunctionPicker**: каталог built-in + custom функций (5 групп), insert в редактор
-- [x] **ExpressionBuilder integration**: Tabs (Поля/Функции), autocomplete, preview toggle
-- [x] **Unit тесты**: cel-environment (12 тестов)
-- [x] **E2E тесты**: Expression Builder (9 тестов — Functions tab, Preview, Autocomplete)
+- [x] **CodeMirrorEditor Compartment**: dynamic extension reconfiguration without recreating editor
+- [x] **ExpressionPreview**: live client-side CEL evaluation with 300ms debounce, parameter test inputs
+- [x] **FunctionPicker**: catalog of built-in + custom functions (5 groups), insert into editor
+- [x] **ExpressionBuilder integration**: Tabs (Fields/Functions), autocomplete, preview toggle
+- [x] **Unit tests**: cel-environment (12 tests)
+- [x] **E2E tests**: Expression Builder (9 tests — Functions tab, Preview, Autocomplete)
 
 ---
 
 ### Phase 9: Object View — Role-Based UI (ADR-0022) ⬜
 
-Адаптер bounded context: один объект — разные представления для разных ролей.
-Пользователи одной системы (Sales, Warehouse, Management) видят role-specific интерфейс без дублирования кода.
+Bounded context adapter: one object — different presentations for different roles.
+Users of the same system (Sales, Warehouse, Management) see a role-specific interface without code duplication.
 
 #### Phase 9a: Object View Core
 
 - [ ] **object_views table**: `metadata.object_views (object_id, profile_id, config JSONB)`
 - [ ] **Config schema**: sections (field grouping), highlight_fields (compact layout), actions (visibility_expr CEL), related_lists, list_fields, list_default_sort/filter
 - [ ] **Resolution logic**: profile-specific → default → fallback (auto-generate from FLS)
-- [ ] **FLS intersection**: Object View fields ∩ FLS-доступные поля
-- [ ] **Describe API extension**: `GET /api/v1/describe/:objectName` включает resolved Object View
-- [ ] **Admin REST API**: CRUD для Object Views (6 endpoints)
+- [ ] **FLS intersection**: Object View fields ∩ FLS-accessible fields
+- [ ] **Describe API extension**: `GET /api/v1/describe/:objectName` includes resolved Object View
+- [ ] **Admin REST API**: CRUD for Object Views (6 endpoints)
 - [ ] **Vue.js Admin UI**: Object View list/create/detail + preview
-- [ ] **Frontend renderer**: RecordDetailView/RecordCreateView рендерят по Object View config (sections, field order, actions)
-- [ ] **Fallback**: без Object View — текущее поведение (все FLS-доступные поля)
+- [ ] **Frontend renderer**: RecordDetailView/RecordCreateView render based on Object View config (sections, field order, actions)
+- [ ] **Fallback**: without Object View — current behavior (all FLS-accessible fields)
 - [ ] **Layout (ADR-0027)**: `metadata.layouts` table, Layout per (object_view, form_factor: desktop/tablet/mobile)
 - [ ] **Layout config**: section_config (columns, collapsed, visibility_expr), field_config (col_span, ui_kind, required_expr, readonly_expr, reference_config), list_columns (width, align, sortable)
-- [ ] **Form (computed)**: merge OV + Layout → Form в Describe API response. Frontend работает только с Form
-- [ ] **Admin Layout UI**: CRUD layouts, preview per form factor, sync с OV lifecycle
-- [ ] **ui_kind enum**: 20+ типов (auto, text, textarea, badge, lookup, rating, slider, toggle, etc.)
+- [ ] **Form (computed)**: merge OV + Layout → Form in Describe API response. Frontend works only with Form
+- [ ] **Admin Layout UI**: CRUD layouts, preview per form factor, sync with OV lifecycle
+- [ ] **ui_kind enum**: 20+ types (auto, text, textarea, badge, lookup, rating, slider, toggle, etc.)
 
 #### Phase 9b: Navigation + Dashboard per Profile
 
 - [ ] **profile_navigation table**: sidebar config per profile (groups, items, order)
 - [ ] **profile_dashboards table**: home page widgets per profile (list, metric, chart)
 - [ ] **Admin UI**: Navigation editor, Dashboard editor per profile
-- [ ] **Sidebar per profile**: OLS-фильтрация + profile_navigation grouping
-- [ ] **Home dashboard per profile**: виджеты с SOQL-запросами (list, metric)
-- [ ] **Fallback**: без config → текущее поведение (OLS-filtered alphabetical sidebar, default home)
+- [ ] **Sidebar per profile**: OLS filtering + profile_navigation grouping
+- [ ] **Home dashboard per profile**: widgets with SOQL queries (list, metric)
+- [ ] **Fallback**: without config → current behavior (OLS-filtered alphabetical sidebar, default home)
 
 #### Phase 9c: Advanced Metadata
 
-- [ ] **Record Types**: разные picklist values и Object View per record type
-- [ ] **Dynamic Forms**: visibility rules на поля (CEL: `record.status == 'closed'`)
-- [ ] **Notes & Attachments**: polymorphic note/file объекты, привязка к любой записи
-- [ ] **Activity History**: unified view tasks + events для любого объекта с hasActivities
-- [ ] **Field History Tracking** (ee/): до 20 полей per object, changelog table
+- [ ] **Record Types**: different picklist values and Object View per record type
+- [ ] **Dynamic Forms**: field visibility rules (CEL: `record.status == 'closed'`)
+- [ ] **Notes & Attachments**: polymorphic note/file objects, linked to any record
+- [ ] **Activity History**: unified view of tasks + events for any object with hasActivities
+- [ ] **Field History Tracking** (ee/): up to 20 fields per object, changelog table
 
 ---
 
 ### Phase 10: Procedure Engine + Automation Rules (ADR-0024) ⬜
 
-Декларативная автоматизация: от атомарных команд до составных процедур.
+Declarative automation: from atomic commands to composite procedures.
 
 #### Phase 10a: Procedure Engine Core
 
 - [ ] **Procedure runtime**: JSON DSL parsing, CEL evaluation, command execution
-- [ ] **Command types**: `record.*` (CRUD через DML), `notification.*` (email/in-app), `integration.*` (HTTP), `compute.*` (transform/validate/fail), `flow.*` (call/if/match)
+- [ ] **Command types**: `record.*` (CRUD via DML), `notification.*` (email/in-app), `integration.*` (HTTP), `compute.*` (transform/validate/fail), `flow.*` (call/if/match)
 - [ ] **Conditional logic**: `when` (per-command), `flow.if` (condition/then/else), `flow.match` (expression/cases)
 - [ ] **Rollback (Saga)**: LIFO compensating commands
-- [ ] **Security sandbox**: лимиты (30s timeout, 50 commands, 10 HTTP calls), OLS/FLS/RLS enforcement
+- [ ] **Security sandbox**: limits (30s timeout, 50 commands, 10 HTTP calls), OLS/FLS/RLS enforcement
 - [ ] **Named Credentials (ADR-0028)**: `metadata.credentials` + `credential_tokens` + `credential_usage_log`
 - [ ] **Credential encryption**: AES-256-GCM, master key from ENV, unique nonce per record
 - [ ] **Credential types**: api_key (header/query), basic (username/password), oauth2_client (auto token refresh)
 - [ ] **SSRF protection**: base_url constraint, host match, internal IP blocklist, HTTPS only
 - [ ] **Credential Admin API + UI**: CRUD + test connection + usage log + deactivate/activate
 - [ ] **Versioning (ADR-0029)**: `metadata.procedure_versions` (draft/published/superseded), auto-increment version counter
-- [ ] **Draft/Publish workflow**: save draft → dry-run test → publish; rollback к предыдущей published
-- [ ] **Storage**: `metadata.procedures` + `procedure_versions` (definition в versions, не inline)
+- [ ] **Draft/Publish workflow**: save draft → dry-run test → publish; rollback to previous published
+- [ ] **Storage**: `metadata.procedures` + `procedure_versions` (definition in versions, not inline)
 - [ ] **Admin REST API**: CRUD procedures + versions + test (dry-run on draft) + publish + rollback
 - [ ] **Procedure Constructor UI**: visual form-based builder → JSON
 - [ ] **pgTAP tests**: schema tests for metadata.procedures + credentials
@@ -437,14 +437,14 @@ Row-Level Security — кто видит какие записи.
 - [ ] **Admin REST API + UI**: CRUD automation rules
 - [ ] **pgTAP tests + E2E tests**
 
-**Automation features для далёкой перспективы:**
+**Automation features for far future:**
 
-| Возможность SF | Аналог |
-|----------------|--------|
+| SF Capability | Equivalent |
+|---------------|-----------|
 | Apex (custom language) | Go trigger handlers (compiled) |
-| Process Builder | Procedure Engine покрывает |
-| Workflow Rules | Procedure Engine + Automation Rules покрывает |
-| Flow Builder (visual) | Visual Builder поверх JSON DSL (Phase N) |
+| Process Builder | Procedure Engine covers this |
+| Workflow Rules | Procedure Engine + Automation Rules covers this |
+| Flow Builder (visual) | Visual Builder on top of JSON DSL (Phase N) |
 | Assignment Rules | Automation Rule + Procedure |
 | Escalation Rules | Scenario + timers |
 
@@ -452,7 +452,7 @@ Row-Level Security — кто видит какие записи.
 
 ### Phase 11: Notifications, Activity & CRM UX ⬜
 
-CRM как ежедневный рабочий инструмент. Notifications построены на Procedure Engine.
+CRM as a daily working tool. Notifications built on Procedure Engine.
 
 #### Phase 11a: Notifications & Activity
 
@@ -474,34 +474,34 @@ CRM как ежедневный рабочий инструмент. Notificatio
 
 ### Phase 12: Formula Engine ⬜
 
-Вычисляемые поля и расширенная валидация на формулах.
+Computed fields and advanced formula-based validation.
 
-- [ ] **Formula parser**: арифметика, строковые функции, date math, IF/CASE, cross-object refs
-- [ ] **Formula fields**: read-only computed at SOQL level (SQL expression в SELECT)
-- [ ] **Roll-Up Summary fields**: COUNT, SUM, MIN, MAX на master-detail parent
+- [ ] **Formula parser**: arithmetic, string functions, date math, IF/CASE, cross-object refs
+- [ ] **Formula fields**: read-only computed at SOQL level (SQL expression in SELECT)
+- [ ] **Roll-Up Summary fields**: COUNT, SUM, MIN, MAX on master-detail parent
 - [ ] **Validation Rules (formula-based)**: boolean formula → error message, pre-DML
-- [ ] **Default values (formula)**: formula или literal, applied on insert
-- [ ] **Auto-number fields**: sequence-based auto-increment с форматом (INV-{0000})
+- [ ] **Default values (formula)**: formula or literal, applied on insert
+- [ ] **Auto-number fields**: sequence-based auto-increment with format (INV-{0000})
 
 ---
 
 ### Phase 13: Scenario Engine + Approval Processes (ADR-0025) ⬜
 
-Оркестрация долгоживущих процессов с durability и approval workflow.
+Long-running process orchestration with durability and approval workflow.
 
 #### Phase 13a: Scenario Engine
 
 - [ ] **Orchestrator**: sequential workflow + goto + loop
-- [ ] **Steps**: вызов Procedure, inline Command, wait signal/timer
-- [ ] **Signals**: внешние события (approval, webhook, email confirm)
+- [ ] **Steps**: invoke Procedure, inline Command, wait signal/timer
+- [ ] **Signals**: external events (approval, webhook, email confirm)
 - [ ] **Timers**: delay, until, timeout, reminder
-- [ ] **Rollback (Saga)**: LIFO компенсация завершённых steps
+- [ ] **Rollback (Saga)**: LIFO compensation of completed steps
 - [ ] **Durability**: PostgreSQL persistence (`scenario_executions`, `scenario_step_history`)
-- [ ] **Recovery**: restart-safe — возобновление с последнего checkpoint
+- [ ] **Recovery**: restart-safe — resume from last checkpoint
 - [ ] **Idempotency**: `{executionId}-{stepCode}` key per step
 - [ ] **Versioning (ADR-0029)**: `metadata.scenario_versions` (draft/published/superseded), auto-increment version counter
 - [ ] **Draft/Publish workflow**: save draft → test → publish; rollback
-- [ ] **Run snapshots**: `scenario_run_snapshots` фиксирует procedure_version_id при старте run
+- [ ] **Run snapshots**: `scenario_run_snapshots` captures procedure_version_id at run start
 - [ ] **Signal API**: `POST /executions/{id}/signal`
 - [ ] **Admin REST API + Constructor UI**: CRUD scenarios + versions, execution monitoring
 
@@ -512,13 +512,13 @@ CRM как ежедневный рабочий инструмент. Notificatio
 - [ ] Email notifications per step (via Procedure Engine)
 - [ ] Field updates on approve/reject (via Procedure Engine)
 - [ ] Approval history on record detail
-- [ ] Реализация как built-in Scenario + approval commands
+- [ ] Implemented as built-in Scenario + approval commands
 
 ---
 
 ### Phase 14: Advanced CRM Objects ⬜
 
-Расширение набора стандартных объектов для полноценного CRM.
+Expanding the set of standard objects for a full-featured CRM.
 
 - [ ] **Product**: name, code, description, is_active, family
 - [ ] **PriceBook**: name, is_standard, is_active
@@ -530,73 +530,73 @@ CRM как ежедневный рабочий инструмент. Notificatio
 - [ ] **Campaign**: name, type, status, start_date, end_date, budget
 - [ ] **CampaignMember**: campaign_id + lead_id/contact_id + status
 - [ ] **Case**: account_id, contact_id, subject, description, status, priority, origin
-- [ ] **Custom Metadata Types** (`__mdt`): deployable config-as-data, queryable через SOQL
+- [ ] **Custom Metadata Types** (`__mdt`): deployable config-as-data, queryable via SOQL
 
 ---
 
 ### Phase 15: Full-Text Search (SOSL) ⬜
 
-Поиск по всем объектам одновременно.
+Search across all objects simultaneously.
 
-- [ ] PostgreSQL full-text search (tsvector/tsquery) или Elasticsearch/Meilisearch
+- [ ] PostgreSQL full-text search (tsvector/tsquery) or Elasticsearch/Meilisearch
 - [ ] SOSL parser: `FIND {term} IN ALL FIELDS RETURNING Account(Name), Contact(Name, Email)`
-- [ ] Индексация: trigger-based обновление search index при DML
+- [ ] Indexing: trigger-based search index update on DML
 - [ ] REST API: `POST /api/v1/sosl/search`
-- [ ] Global search в UI: typeahead с SOSL backend
+- [ ] Global search in UI: typeahead with SOSL backend
 
 ---
 
 ### Phase 16: Streaming & Integration ⬜
 
-Event-driven архитектура для интеграций.
+Event-driven architecture for integrations.
 
-- [ ] **Change Data Capture (CDC)**: PostgreSQL LISTEN/NOTIFY или WAL-based
-- [ ] CDC events: create, update, delete с changed fields
+- [ ] **Change Data Capture (CDC)**: PostgreSQL LISTEN/NOTIFY or WAL-based
+- [ ] CDC events: create, update, delete with changed fields
 - [ ] **Platform Events**: custom event definitions (metadata), publish/subscribe
-- [ ] Event bus: Redis Streams или PostgreSQL pg_notify
-- [ ] **Webhooks**: подписка на события с HTTP callback
-- [ ] **Outbound Messages**: SOAP/REST callout при trigger/flow
-- [ ] REST endpoint для publish: `POST /api/v1/events/{eventName}`
-- [ ] WebSocket endpoint для subscribe: `WS /api/v1/events/stream`
+- [ ] Event bus: Redis Streams or PostgreSQL pg_notify
+- [ ] **Webhooks**: event subscription with HTTP callback
+- [ ] **Outbound Messages**: SOAP/REST callout on trigger/flow
+- [ ] REST endpoint for publish: `POST /api/v1/events/{eventName}`
+- [ ] WebSocket endpoint for subscribe: `WS /api/v1/events/stream`
 
 ---
 
 ### Phase 17: Analytics — Reports & Dashboards ⬜
 
-Бизнес-аналитика поверх SOQL.
+Business analytics on top of SOQL.
 
-- [ ] **Report Types**: metadata → какие объекты и relationships доступны
-- [ ] **Report Builder** (UI): выбор полей, фильтров, группировок
-- [ ] **Форматы**: tabular, summary (с группировками), matrix
-- [ ] **Aggregate формулы**: SUM, AVG, COUNT, MIN, MAX по группам
+- [ ] **Report Types**: metadata → which objects and relationships are available
+- [ ] **Report Builder** (UI): field, filter, and grouping selection
+- [ ] **Formats**: tabular, summary (with groupings), matrix
+- [ ] **Aggregate formulas**: SUM, AVG, COUNT, MIN, MAX per group
 - [ ] **Cross-filters**: Accounts with/without Opportunities
-- [ ] **Dashboard Builder** (UI): компоненты (chart, table, metric), привязка к reports
+- [ ] **Dashboard Builder** (UI): components (chart, table, metric), linked to reports
 - [ ] **Chart types**: bar, line, pie, donut, funnel, gauge
-- [ ] **Scheduled reports**: email delivery по расписанию
+- [ ] **Scheduled reports**: email delivery on schedule
 - [ ] **Dynamic dashboards**: running user = viewing user (RLS-aware)
 
 ---
 
 ### Phase N: Enterprise Features (ee/) ⬜
 
-Проприетарные возможности, требующие коммерческой лицензии.
+Proprietary capabilities requiring a commercial license.
 
-| Возможность | Описание | Аналог SF |
-|-------------|----------|-----------|
-| **Territory Management** ✅ | Иерархия территорий, модели (planning/active/archived), user/record assignment, object defaults, assignment rules, territory-based sharing | Territory2 |
-| **Audit Trail** | Полный журнал всех изменений данных (field-level, 10+ лет) | Field Audit Trail (Shield) |
-| **SSO (SAML 2.0)** | Single Sign-On через corporate IdP | SAML SSO |
+| Capability | Description | SF Equivalent |
+|------------|-------------|---------------|
+| **Territory Management** ✅ | Territory hierarchy, models (planning/active/archived), user/record assignment, object defaults, assignment rules, territory-based sharing | Territory2 |
+| **Audit Trail** | Full journal of all data changes (field-level, 10+ years) | Field Audit Trail (Shield) |
+| **SSO (SAML 2.0)** | Single Sign-On via corporate IdP | SAML SSO |
 | **Advanced Analytics** | Embedded BI, SAQL-like query language, predictive | CRM Analytics |
-| **Encryption at Rest** | Шифрование чувствительных полей на уровне БД | Platform Encryption (Shield) |
-| **Event Monitoring** | Login events, API events, report events для compliance | Event Monitoring (Shield) |
-| **Sandbox Management** | Full/partial copy environments для dev/test | Sandboxes |
+| **Encryption at Rest** | Sensitive field encryption at DB level | Platform Encryption (Shield) |
+| **Event Monitoring** | Login events, API events, report events for compliance | Event Monitoring (Shield) |
+| **Sandbox Management** | Full/partial copy environments for dev/test | Sandboxes |
 | **API Governor Limits** | Per-tenant rate limiting, usage metering | API Limits |
-| **Multi-org / Multi-tenant** | Единый instance для нескольких организаций | Multi-tenant kernel |
-| **Custom Branding** | White-label UI, custom domain, логотип | My Domain, Branding |
+| **Multi-org / Multi-tenant** | Single instance for multiple organizations | Multi-tenant kernel |
+| **Custom Branding** | White-label UI, custom domain, logo | My Domain, Branding |
 
 ---
 
-## Приоритеты и зависимости
+## Priorities and Dependencies
 
 ```
 Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ✅ ──→ Phase 4 ✅ ──→ Phase 5 ✅ ──→ Phase 6 ✅
@@ -623,25 +623,25 @@ Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ✅ �
                                                                                                              Phase 13
                                                                                                            (Scenarios)
 
-                              Phase 15 (SOSL) — независимый, после Phase 3
-                              Phase 16 (CDC) — независимый, после Phase 4
-                              Phase 17 (Reports) — после Phase 3 + Phase 12
-                              Phase N (ee/) — параллельно, после Phase 2
+                              Phase 15 (SOSL) — independent, after Phase 3
+                              Phase 16 (CDC) — independent, after Phase 4
+                              Phase 17 (Reports) — after Phase 3 + Phase 12
+                              Phase N (ee/) — parallel, after Phase 2
 ```
 
-### Критический путь (MVP)
+### Critical Path (MVP)
 
-Минимальный набор для рабочей CRM:
+Minimum set for a working CRM:
 
 ```
 Phase 2b/2c ✅ → Phase 3 ✅ → Phase 4 ✅ → Phase 5 ✅ → Phase 6 ✅ → Phase 7 → v0.1.0
 ```
 
-Это покрывает: security → query → mutation → auth → standard objects → UI.
+This covers: security → query → mutation → auth → standard objects → UI.
 
-### Рекомендованный порядок после MVP
+### Recommended Order After MVP
 
-Принцип: **платформа перед фичами** — фичи, построенные на платформенных слоях, дешевле, гибче и не требуют переписывания.
+Principle: **platform before features** — features built on platform layers are cheaper, more flexible, and don't require rewrites.
 
 1. **Phase 8** — Custom Functions (CEL reuse foundation, ADR-0026)
 2. **Phase 9a** — Object View core (role-based UI, ADR-0022)
@@ -661,30 +661,30 @@ Phase 2b/2c ✅ → Phase 3 ✅ → Phase 4 ✅ → Phase 5 ✅ → Phase 6 ✅ 
 
 ---
 
-## Что мы сознательно не копируем у Salesforce
+## What We Deliberately Don't Copy from Salesforce
 
-| SF Feature | Причина отказа | Альтернатива |
-|------------|---------------|--------------|
-| Apex (custom language) | Сложность разработки и поддержки runtime | Go trigger handlers (compiled, type-safe) |
-| Visualforce | Устаревшая технология | Vue.js компоненты |
-| SOAP API | Legacy, избыточен | Только REST + WebSocket |
-| Multi-tenant kernel | Overengineering для self-hosted | Single-tenant, простое развёртывание |
-| Governor Limits | Не нужны для single-tenant | Конфигурируемые rate limits |
-| Key Prefix (3-char) | UUID v4 покрывает все кейсы (ADR-0001) | Polymorphic ссылки через (object_type, record_id) |
+| SF Feature | Reason for Exclusion | Alternative |
+|------------|---------------------|-------------|
+| Apex (custom language) | Development and runtime maintenance complexity | Go trigger handlers (compiled, type-safe) |
+| Visualforce | Deprecated technology | Vue.js components |
+| SOAP API | Legacy, redundant | REST + WebSocket only |
+| Multi-tenant kernel | Overengineering for self-hosted | Single-tenant, simple deployment |
+| Governor Limits | Not needed for single-tenant | Configurable rate limits |
+| Key Prefix (3-char) | UUID v4 covers all cases (ADR-0001) | Polymorphic references via (object_type, record_id) |
 | 15/18-char record IDs | UUID v4 | Standard UUID format |
-| AppExchange / ISV packaging | Преждевременно | Plugin system в далёкой перспективе |
+| AppExchange / ISV packaging | Premature | Plugin system in far future |
 | Aura Components | Legacy | — |
-| Sandboxes (full copy) | Инфраструктурная сложность | Docker-based dev environments |
+| Sandboxes (full copy) | Infrastructure complexity | Docker-based dev environments |
 
 ---
 
-## Версионирование релизов
+## Release Versioning
 
-| Версия | Фазы | Что пользователь получает |
-|--------|-------|--------------------------|
-| **v0.1.0-alpha** | 0-2 | Metadata engine + полный security (OLS/FLS/RLS + Groups + Sharing Rules) + Territory Management (ee/) ✅ |
-| **v0.2.0-alpha** | 3-5 | SOQL + DML + Auth — данные можно читать/писать с security enforcement, JWT-аутентификация ✅ |
-| **v0.3.0-beta** | 6-7 | App Templates + Record UI — можно логиниться и работать с CRM-данными ✅ |
+| Version | Phases | What the User Gets |
+|---------|--------|-------------------|
+| **v0.1.0-alpha** | 0-2 | Metadata engine + full security (OLS/FLS/RLS + Groups + Sharing Rules) + Territory Management (ee/) ✅ |
+| **v0.2.0-alpha** | 3-5 | SOQL + DML + Auth — data can be read/written with security enforcement, JWT authentication ✅ |
+| **v0.3.0-beta** | 6-7 | App Templates + Record UI — can log in and work with CRM data ✅ |
 | **v0.4.0-beta** | 8-9 | Custom Functions + Object Views — CEL reuse, role-based UI |
 | **v0.5.0-beta** | 10-11 | Procedure Engine + Notifications — declarative automation, daily CRM tool |
 | **v1.0.0** | 12-13 | Formulas + Scenarios + Approvals — production-ready |
@@ -693,12 +693,12 @@ Phase 2b/2c ✅ → Phase 3 ✅ → Phase 4 ✅ → Phase 5 ✅ → Phase 6 ✅ 
 
 ---
 
-## Метрики зрелости платформы
+## Platform Maturity Metrics
 
-Критерии для оценки «Salesforce-grade» готовности по каждому домену.
+Criteria for assessing "Salesforce-grade" readiness by domain.
 
-| Домен | Bronze (MVP) | Silver (v1.0) | Gold (v2.0) |
-|-------|-------------|---------------|-------------|
+| Domain | Bronze (MVP) | Silver (v1.0) | Gold (v2.0) |
+|--------|-------------|---------------|-------------|
 | Metadata | Objects + Fields + References | + Record Types + Layouts + Formulas | + Custom Metadata Types + Big Objects |
 | Security | OLS + FLS + RLS (OWD + Sharing Rules) | + Groups + Manual Sharing + Implicit | + Territory + Encryption + Audit |
 | Data Access | SOQL: basic SELECT/WHERE/JOIN | + Aggregates + Subqueries + Date literals | + SOSL + FOR UPDATE + Polymorphic |
@@ -710,4 +710,4 @@ Phase 2b/2c ✅ → Phase 3 ✅ → Phase 4 ✅ → Phase 5 ✅ → Phase 6 ✅ 
 
 ---
 
-*Этот документ обновляется по мере завершения фаз. Последнее обновление: 2026-02-15.*
+*This document is updated as phases are completed. Last update: 2026-02-16.*
