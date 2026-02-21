@@ -16,7 +16,7 @@ import (
 
 // DescribeHandler exposes public metadata for frontend consumption.
 type DescribeHandler struct {
-	cache       *metadata.MetadataCache
+	cache       metadata.MetadataReader
 	olsEnforcer ols.Enforcer
 	flsEnforcer fls.Enforcer
 	ovService   metadata.ObjectViewService
@@ -24,7 +24,7 @@ type DescribeHandler struct {
 
 // NewDescribeHandler creates a new DescribeHandler.
 func NewDescribeHandler(
-	cache *metadata.MetadataCache,
+	cache metadata.MetadataReader,
 	olsEnforcer ols.Enforcer,
 	flsEnforcer fls.Enforcer,
 	ovService metadata.ObjectViewService,

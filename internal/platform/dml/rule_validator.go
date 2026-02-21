@@ -10,15 +10,15 @@ import (
 	"github.com/adverax/crm/internal/platform/metadata"
 )
 
-// CELRuleValidator evaluates CEL-based validation rules from MetadataCache.
+// CELRuleValidator evaluates CEL-based validation rules from MetadataReader.
 type CELRuleValidator struct {
-	cache    *metadata.MetadataCache
+	cache    metadata.MetadataReader
 	celCache *celengine.ProgramCache
 }
 
 // NewCELRuleValidator creates a new CELRuleValidator with an optional FunctionRegistry.
 // If registry is nil, a plain StandardEnv is used.
-func NewCELRuleValidator(cache *metadata.MetadataCache, registry *celengine.FunctionRegistry) (*CELRuleValidator, error) {
+func NewCELRuleValidator(cache metadata.MetadataReader, registry *celengine.FunctionRegistry) (*CELRuleValidator, error) {
 	env, err := buildStandardEnv(registry)
 	if err != nil {
 		return nil, fmt.Errorf("newCELRuleValidator: %w", err)

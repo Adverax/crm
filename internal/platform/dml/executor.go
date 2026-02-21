@@ -19,12 +19,12 @@ import (
 type rlsExecutor struct {
 	inner       engine.Executor
 	pool        *pgxpool.Pool
-	cache       *metadata.MetadataCache
+	cache       metadata.MetadataReader
 	rlsEnforcer rls.Enforcer
 }
 
 // NewRLSExecutor creates a DML executor with RLS enforcement.
-func NewRLSExecutor(pool *pgxpool.Pool, cache *metadata.MetadataCache, rlsEnforcer rls.Enforcer) engine.Executor {
+func NewRLSExecutor(pool *pgxpool.Pool, cache metadata.MetadataReader, rlsEnforcer rls.Enforcer) engine.Executor {
 	return &rlsExecutor{
 		inner:       engine.NewDefaultExecutor(pool),
 		pool:        pool,
@@ -104,7 +104,7 @@ func injectDMLRLSClause(sql string, params []any, rlsClause string, rlsParams []
 }
 
 // resolveObjectID resolves an API name to a UUID via the metadata cache.
-func resolveObjectID(cache *metadata.MetadataCache, apiName string) (uuid.UUID, error) {
+func resolveObjectID(cache metadata.MetadataReader, apiName string) (uuid.UUID, error) {
 	objDef, ok := cache.GetObjectByAPIName(apiName)
 	if !ok {
 		return uuid.Nil, fmt.Errorf("object %q not found", apiName)

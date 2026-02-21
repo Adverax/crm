@@ -30,14 +30,14 @@ type RecordService interface {
 }
 
 type recordService struct {
-	cache       *metadata.MetadataCache
+	cache       metadata.MetadataReader
 	soqlService soql.QueryService
 	dmlService  dml.DMLService
 }
 
 // NewRecordService creates a new RecordService.
 func NewRecordService(
-	cache *metadata.MetadataCache,
+	cache metadata.MetadataReader,
 	soqlService soql.QueryService,
 	dmlService dml.DMLService,
 ) RecordService {

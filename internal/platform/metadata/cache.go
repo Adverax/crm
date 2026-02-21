@@ -19,6 +19,22 @@ type CacheLoader interface {
 	RefreshMaterializedView(ctx context.Context) error
 }
 
+// MetadataReader provides read-only access to cached metadata (ADR-0030).
+// All consumers should depend on this interface, not *MetadataCache.
+type MetadataReader interface {
+	GetObjectByID(id uuid.UUID) (ObjectDefinition, bool)
+	GetObjectByAPIName(apiName string) (ObjectDefinition, bool)
+	GetFieldByID(id uuid.UUID) (FieldDefinition, bool)
+	GetFieldsByObjectID(objectID uuid.UUID) []FieldDefinition
+	GetForwardRelationships(childObjectID uuid.UUID) []RelationshipInfo
+	GetReverseRelationships(parentObjectID uuid.UUID) []RelationshipInfo
+	ListObjectAPINames() []string
+	GetValidationRules(objectID uuid.UUID) []ValidationRule
+	GetFunctions() []Function
+	GetFunctionByName(name string) (Function, bool)
+	GetObjectViews(objectID uuid.UUID) []ObjectView
+}
+
 // MetadataCache is an in-memory cache of metadata backed by a PostgreSQL materialized view
 // for the relationship registry (ADR-0006).
 type MetadataCache struct {

@@ -1,18 +1,21 @@
 package security
 
-import "context"
+import (
+	"context"
 
-type contextKey struct{}
+	"github.com/adverax/crm/internal/pkg/identity"
+)
 
 // ContextWithUser stores UserContext in a standard context.Context.
-// This allows non-Gin code (SOQL/DML engines) to access user identity.
-func ContextWithUser(ctx context.Context, uc UserContext) context.Context {
-	return context.WithValue(ctx, contextKey{}, uc)
-}
+// Delegates to the identity shared kernel (ADR-0030).
+var ContextWithUser = identity.ContextWithUser
 
 // UserFromContext retrieves UserContext from a standard context.Context.
-// Returns the zero value and false if no UserContext is present.
-func UserFromContext(ctx context.Context) (UserContext, bool) {
-	uc, ok := ctx.Value(contextKey{}).(UserContext)
-	return uc, ok
-}
+// Delegates to the identity shared kernel (ADR-0030).
+var UserFromContext = identity.UserFromContext
+
+// Ensure compatibility: these vars have the same signatures as before.
+var (
+	_ func(context.Context, UserContext) context.Context = ContextWithUser
+	_ func(context.Context) (UserContext, bool)          = UserFromContext
+)

@@ -11,12 +11,12 @@ import (
 
 // CELHandler handles CEL expression validation requests.
 type CELHandler struct {
-	cache    *metadata.MetadataCache
+	cache    metadata.MetadataReader
 	registry *celengine.FunctionRegistry
 }
 
 // NewCELHandler creates a new CELHandler.
-func NewCELHandler(cache *metadata.MetadataCache, registry *celengine.FunctionRegistry) *CELHandler {
+func NewCELHandler(cache metadata.MetadataReader, registry *celengine.FunctionRegistry) *CELHandler {
 	return &CELHandler{cache: cache, registry: registry}
 }
 

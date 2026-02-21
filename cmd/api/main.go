@@ -51,12 +51,19 @@ func main() {
 	defer pool.Close()
 	slog.Info("database connected", "host", cfg.DB.Host, "db", cfg.DB.Name)
 
-	router := setupRouter(pool, cfg)
+	// --- Metadata cache (shared between router and outbox worker) ---
+	cacheLoader := metadata.NewPgCacheLoader(pool)
+	metadataCache := metadata.NewMetadataCache(cacheLoader)
+	if err := metadataCache.Load(ctx); err != nil {
+		slog.Warn("metadata cache initial load failed (empty database?)", "error", err)
+	}
+
+	router := setupRouter(pool, metadataCache, cfg)
 
 	// Start outbox worker
 	workerCtx, workerCancel := context.WithCancel(ctx)
 	defer workerCancel()
-	startOutboxWorker(workerCtx, pool, cfg.DB.DSN(), logger)
+	startOutboxWorker(workerCtx, pool, metadataCache, cfg.DB.DSN(), logger)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Port),
@@ -92,7 +99,7 @@ func main() {
 	slog.Info("server stopped")
 }
 
-func setupRouter(pool *pgxpool.Pool, cfg config.Config) *gin.Engine {
+func setupRouter(pool *pgxpool.Pool, metadataCache *metadata.MetadataCache, cfg config.Config) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 
@@ -106,13 +113,7 @@ func setupRouter(pool *pgxpool.Pool, cfg config.Config) *gin.Engine {
 	polyRepo := metadata.NewPgPolymorphicTargetRepository(pool)
 	ddlExec := ddl.NewExecutor()
 
-	cacheLoader := metadata.NewPgCacheLoader(pool)
-	metadataCache := metadata.NewMetadataCache(cacheLoader)
-
 	ctx := context.Background()
-	if err := metadataCache.Load(ctx); err != nil {
-		slog.Warn("metadata cache initial load failed (empty database?)", "error", err)
-	}
 
 	objectService := metadata.NewObjectService(pool, objectRepo, fieldRepo, ddlExec, metadataCache)
 	fieldService := metadata.NewFieldService(pool, objectRepo, fieldRepo, polyRepo, ddlExec, metadataCache)
@@ -211,7 +212,7 @@ func setupRouter(pool *pgxpool.Pool, cfg config.Config) *gin.Engine {
 	rlsCacheRepo := security.NewPgRLSEffectiveCacheRepository(pool)
 	olsEnforcer := ols.NewEnforcer(effectivePermRepo)
 	flsEnforcer := fls.NewEnforcer(effectivePermRepo)
-	rlsMetadataAdapter := security.NewPgMetadataFieldLister(pool)
+	rlsMetadataAdapter := security.NewCacheBackedMetadataLister(metadataCache)
 	rlsEnforcer := rls.NewEnforcer(rlsCacheRepo, rlsMetadataAdapter)
 
 	// --- SOQL engine ---
@@ -304,7 +305,7 @@ func setupRouter(pool *pgxpool.Pool, cfg config.Config) *gin.Engine {
 	return router
 }
 
-func startOutboxWorker(ctx context.Context, pool *pgxpool.Pool, dsn string, logger *slog.Logger) {
+func startOutboxWorker(ctx context.Context, pool *pgxpool.Pool, metadataCache metadata.MetadataReader, dsn string, logger *slog.Logger) {
 	connConfig, err := security.ParseConnConfig(dsn)
 	if err != nil {
 		slog.Error("failed to parse conn config for outbox worker", "error", err)
@@ -319,7 +320,7 @@ func startOutboxWorker(ctx context.Context, pool *pgxpool.Pool, dsn string, logg
 	objPermRepo := security.NewPgObjectPermissionRepository(pool)
 	fieldPermRepo := security.NewPgFieldPermissionRepository(pool)
 	effectiveRepo := security.NewPgEffectivePermissionRepository(pool)
-	metadataLister := security.NewPgMetadataFieldLister(pool)
+	metadataLister := security.NewCacheBackedMetadataLister(metadataCache)
 
 	computer := security.NewEffectiveComputer(
 		pool, userRepo, profileRepo, psToUserRepo, psRepo,

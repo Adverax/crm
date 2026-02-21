@@ -17,12 +17,12 @@ import (
 // Executor executes compiled SOQL queries against PostgreSQL.
 type Executor struct {
 	pool        *pgxpool.Pool
-	cache       *metadata.MetadataCache
+	cache       metadata.MetadataReader
 	rlsEnforcer rls.Enforcer
 }
 
 // NewExecutor creates a new pgx-based SOQL executor.
-func NewExecutor(pool *pgxpool.Pool, cache *metadata.MetadataCache, rlsEnforcer rls.Enforcer) *Executor {
+func NewExecutor(pool *pgxpool.Pool, cache metadata.MetadataReader, rlsEnforcer rls.Enforcer) *Executor {
 	return &Executor{
 		pool:        pool,
 		cache:       cache,

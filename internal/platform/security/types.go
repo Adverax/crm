@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/adverax/crm/internal/pkg/identity"
 )
 
 // PSType represents permission set type (grant or deny).
@@ -125,12 +127,9 @@ type OutboxEvent struct {
 	ProcessedAt *time.Time `json:"processed_at"`
 }
 
-// UserContext holds the security identity of the current request user.
-type UserContext struct {
-	UserID    uuid.UUID
-	ProfileID uuid.UUID
-	RoleID    *uuid.UUID
-}
+// UserContext is an alias for identity.UserContext (ADR-0030 shared kernel).
+// Existing consumers continue to use security.UserContext without changes.
+type UserContext = identity.UserContext
 
 // GroupType represents the type of a group (ADR-0013).
 type GroupType string

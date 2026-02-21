@@ -714,4 +714,16 @@ Criteria for assessing "Salesforce-grade" readiness by domain.
 
 ---
 
-*This document is updated as phases are completed. Last update: 2026-02-16.*
+### Infrastructure: Modular Monolith Preparation (ADR-0030) ✅
+
+Architectural hygiene for microservices readiness.
+
+- [x] **MetadataReader interface**: all 13 consumers depend on interface, not `*MetadataCache`
+- [x] **Identity shared kernel**: `internal/pkg/identity` — `UserContext` without security import
+- [x] **CacheBackedMetadataLister**: eliminates cross-schema SQL from security package
+- [ ] **P2**: Generalized event bus from outbox pattern
+- [ ] **P3**: Per-module narrow interfaces at consumer sites
+
+---
+
+*This document is updated as phases are completed. Last update: 2026-02-21.*

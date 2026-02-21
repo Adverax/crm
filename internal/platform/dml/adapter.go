@@ -13,13 +13,13 @@ import (
 	"github.com/adverax/crm/internal/platform/security/ols"
 )
 
-// MetadataAdapter bridges metadata.MetadataCache → engine.MetadataProvider.
+// MetadataAdapter bridges metadata.MetadataReader → engine.MetadataProvider.
 type MetadataAdapter struct {
-	cache *metadata.MetadataCache
+	cache metadata.MetadataReader
 }
 
 // NewMetadataAdapter creates a new DML MetadataAdapter.
-func NewMetadataAdapter(cache *metadata.MetadataCache) *MetadataAdapter {
+func NewMetadataAdapter(cache metadata.MetadataReader) *MetadataAdapter {
 	return &MetadataAdapter{cache: cache}
 }
 
@@ -116,14 +116,14 @@ var systemWriteFieldNames = map[string]bool{
 
 // WriteAccessControllerAdapter bridges OLS/FLS enforcers → engine.WriteAccessController.
 type WriteAccessControllerAdapter struct {
-	cache       *metadata.MetadataCache
+	cache       metadata.MetadataReader
 	olsEnforcer ols.Enforcer
 	flsEnforcer fls.Enforcer
 }
 
 // NewWriteAccessControllerAdapter creates a new adapter.
 func NewWriteAccessControllerAdapter(
-	cache *metadata.MetadataCache,
+	cache metadata.MetadataReader,
 	olsEnforcer ols.Enforcer,
 	flsEnforcer fls.Enforcer,
 ) *WriteAccessControllerAdapter {
@@ -197,7 +197,7 @@ func (ac *WriteAccessControllerAdapter) CheckWritableFields(ctx context.Context,
 	return nil
 }
 
-func findFieldID(cache *metadata.MetadataCache, objectID uuid.UUID, fieldAPIName string) (uuid.UUID, bool) {
+func findFieldID(cache metadata.MetadataReader, objectID uuid.UUID, fieldAPIName string) (uuid.UUID, bool) {
 	fields := cache.GetFieldsByObjectID(objectID)
 	for _, f := range fields {
 		if f.APIName == fieldAPIName {

@@ -14,13 +14,13 @@ import (
 	"github.com/adverax/crm/internal/platform/soql/engine"
 )
 
-// MetadataAdapter bridges metadata.MetadataCache → engine.MetadataProvider.
+// MetadataAdapter bridges metadata.MetadataReader → engine.MetadataProvider.
 type MetadataAdapter struct {
-	cache *metadata.MetadataCache
+	cache metadata.MetadataReader
 }
 
 // NewMetadataAdapter creates a new MetadataAdapter.
-func NewMetadataAdapter(cache *metadata.MetadataCache) *MetadataAdapter {
+func NewMetadataAdapter(cache metadata.MetadataReader) *MetadataAdapter {
 	return &MetadataAdapter{cache: cache}
 }
 
@@ -168,14 +168,14 @@ var systemFieldNames = map[string]bool{
 
 // AccessControllerAdapter bridges OLS/FLS enforcers → engine.AccessController.
 type AccessControllerAdapter struct {
-	cache       *metadata.MetadataCache
+	cache       metadata.MetadataReader
 	olsEnforcer ols.Enforcer
 	flsEnforcer fls.Enforcer
 }
 
 // NewAccessControllerAdapter creates a new adapter.
 func NewAccessControllerAdapter(
-	cache *metadata.MetadataCache,
+	cache metadata.MetadataReader,
 	olsEnforcer ols.Enforcer,
 	flsEnforcer fls.Enforcer,
 ) *AccessControllerAdapter {
@@ -242,7 +242,7 @@ func (ac *AccessControllerAdapter) findFieldID(objectID uuid.UUID, fieldAPIName 
 }
 
 // resolveObjectID resolves an API name to a UUID via the metadata cache.
-func resolveObjectID(cache *metadata.MetadataCache, apiName string) (uuid.UUID, error) {
+func resolveObjectID(cache metadata.MetadataReader, apiName string) (uuid.UUID, error) {
 	objDef, ok := cache.GetObjectByAPIName(apiName)
 	if !ok {
 		return uuid.Nil, fmt.Errorf("object %q not found", apiName)
