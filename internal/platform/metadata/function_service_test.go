@@ -99,6 +99,9 @@ func (m *mockFnCacheLoader) LoadAllValidationRules(_ context.Context) ([]Validat
 func (m *mockFnCacheLoader) LoadAllFunctions(_ context.Context) ([]Function, error) {
 	return m.functions, nil
 }
+func (m *mockFnCacheLoader) LoadAllObjectViews(_ context.Context) ([]ObjectView, error) {
+	return nil, nil
+}
 func (m *mockFnCacheLoader) RefreshMaterializedView(_ context.Context) error {
 	return nil
 }

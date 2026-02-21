@@ -51,6 +51,11 @@ func (l *testCacheLoader) LoadAllValidationRules(_ context.Context) ([]metadata.
 func (l *testCacheLoader) LoadAllFunctions(_ context.Context) ([]metadata.Function, error) {
 	return nil, nil
 }
+
+func (l *testCacheLoader) LoadAllObjectViews(_ context.Context) ([]metadata.ObjectView, error) {
+	return nil, nil
+}
+
 func (l *testCacheLoader) RefreshMaterializedView(_ context.Context) error {
 	return nil
 }

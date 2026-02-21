@@ -19,7 +19,7 @@ Current state and target coverage relative to Salesforce Platform.
 | Data Mutation (DML) | Insert, Update, Upsert, Delete, Undelete, Merge + triggers | INSERT/UPDATE/DELETE/UPSERT, OLS+FLS enforcement, RLS injection for UPDATE/DELETE, batch operations, Custom Functions (fn.* dual-stack), validation rules (CEL), dynamic defaults (CEL) | 65% SF |
 | Auth | OAuth 2.0, SAML, MFA, Connected Apps | JWT (access + refresh), login, password reset, rate limiting | JWT + refresh tokens |
 | Automation | Flow Builder, Triggers, Workflow Rules, Approval Processes | Not implemented | Triggers + basic Flows |
-| UI Framework | Lightning App Builder, LWC, Dynamic Forms | Vue.js admin + metadata-driven CRM UI (AppLayout, dynamic record views, FieldRenderer), Expression Builder (CodeMirror + autocomplete + live preview) | Admin + Record UI + Object Views |
+| UI Framework | Lightning App Builder, LWC, Dynamic Forms | Vue.js admin + metadata-driven CRM UI (AppLayout, dynamic record views, FieldRenderer), Expression Builder (CodeMirror + autocomplete + live preview), Object View (role-based sections, actions, highlights, related lists) | Admin + Record UI + Object Views |
 | APIs | REST, SOAP, Bulk, Streaming, Metadata, Tooling, GraphQL | REST admin endpoints (metadata + security + groups + sharing rules) | REST + Streaming |
 | Analytics | Reports, Dashboards, Einstein | Not implemented | Basic reports |
 | Integration | Platform Events, CDC, External Services | Not implemented | CDC + webhooks |
@@ -63,8 +63,8 @@ Platform core — dynamic object and field definitions.
 | SF Capability | Our Status | When |
 |---------------|-----------|------|
 | Record Types | Not implemented | Phase 9c |
-| Object Views (role-based layouts) | Not implemented | Phase 9a (ADR-0022) |
-| Compact Layouts (highlight fields) | Not implemented | Phase 9a (ADR-0022) |
+| Object Views (role-based layouts) | ✅ Implemented (Phase 9a) | — |
+| Compact Layouts (highlight fields) | ✅ Implemented (highlight_fields in OV config) | — |
 | Formula Fields | Not implemented | Phase 12 |
 | Roll-Up Summary Fields | Not implemented | Phase 12 |
 | Validation Rules (formula-based) | Not implemented | Phase 12 |
@@ -326,7 +326,7 @@ Transition from admin-only to a full CRM interface. Backend: generic CRUD endpoi
 | Calendar view (Events) | Phase 11 |
 | Home page with dashboards | Phase 11 |
 | Dynamic Forms (visibility rules) | Phase 9c |
-| Object Views per profile (role-based UI) | Phase 9a |
+| Object Views per profile (role-based UI) | ✅ Phase 9a |
 | Navigation + Dashboard per profile | Phase 9b |
 | Mobile-responsive layout | Phase 7a (basic) |
 
@@ -363,27 +363,31 @@ Named pure CEL expressions — foundation for reusable computational logic.
 
 ---
 
-### Phase 9: Object View — Role-Based UI (ADR-0022) ⬜
+### Phase 9: Object View — Role-Based UI (ADR-0022) 🔄
 
 Bounded context adapter: one object — different presentations for different roles.
 Users of the same system (Sales, Warehouse, Management) see a role-specific interface without code duplication.
 
-#### Phase 9a: Object View Core
+#### Phase 9a: Object View Core ✅
 
-- [ ] **object_views table**: `metadata.object_views (object_id, profile_id, config JSONB)`
-- [ ] **Config schema**: sections (field grouping), highlight_fields (compact layout), actions (visibility_expr CEL), related_lists, list_fields, list_default_sort/filter
-- [ ] **Resolution logic**: profile-specific → default → fallback (auto-generate from FLS)
-- [ ] **FLS intersection**: Object View fields ∩ FLS-accessible fields
-- [ ] **Describe API extension**: `GET /api/v1/describe/:objectName` includes resolved Object View
-- [ ] **Admin REST API**: CRUD for Object Views (6 endpoints)
-- [ ] **Vue.js Admin UI**: Object View list/create/detail + preview
-- [ ] **Frontend renderer**: RecordDetailView/RecordCreateView render based on Object View config (sections, field order, actions)
-- [ ] **Fallback**: without Object View — current behavior (all FLS-accessible fields)
-- [ ] **Layout (ADR-0027)**: `metadata.layouts` table, Layout per (object_view, form_factor: desktop/tablet/mobile)
-- [ ] **Layout config**: section_config (columns, collapsed, visibility_expr), field_config (col_span, ui_kind, required_expr, readonly_expr, reference_config), list_columns (width, align, sortable)
-- [ ] **Form (computed)**: merge OV + Layout → Form in Describe API response. Frontend works only with Form
-- [ ] **Admin Layout UI**: CRUD layouts, preview per form factor, sync with OV lifecycle
-- [ ] **ui_kind enum**: 20+ types (auto, text, textarea, badge, lookup, rating, slider, toggle, etc.)
+- [x] **object_views table**: `metadata.object_views (object_id, profile_id, config JSONB)`
+- [x] **Config schema**: Read (fields, actions, queries, computed) + Write (optional: validation, defaults, computed, mutations)
+- [x] **Resolution logic**: profile-specific → default → fallback (auto-generate from FLS)
+- [x] **FLS intersection**: Object View fields ∩ FLS-accessible fields
+- [x] **Describe API extension**: `GET /api/v1/describe/:objectName` includes resolved `form`
+- [x] **Admin REST API**: CRUD for Object Views (5 endpoints)
+- [x] **Vue.js Admin UI**: Object View list/create/detail (visual constructor: Read tabs (General, Fields, Actions, Queries, Computed) + Write tabs (Validation, Defaults, Computed, Mutations))
+- [x] **Frontend renderer**: RecordDetailView/RecordCreateView render based on Object View config (sections, field order, actions with cel-js visibility)
+- [x] **Fallback**: without Object View — current behavior (all FLS-accessible fields, auto-generated form)
+- [x] **MetadataCache extension**: object views cached in memory, partial reload
+- [x] **Go unit tests**: service + handler with OpenAPI response validation
+- [x] **pgTAP tests**: schema tests for metadata.object_views
+- [x] **E2E tests**: 24 tests (list, create, detail, sidebar)
+- [ ] **Layout (ADR-0027)**: `metadata.layouts` table, Layout per (object_view, form_factor: desktop/tablet/mobile) — deferred to Phase 9d
+- [ ] **Layout config**: section_config (columns, collapsed, visibility_expr), field_config (col_span, ui_kind, required_expr, readonly_expr, reference_config), list_columns (width, align, sortable) — deferred to Phase 9d
+- [ ] **Form (computed)**: merge OV + Layout → Form in Describe API response. Frontend works only with Form — deferred to Phase 9d
+- [ ] **Admin Layout UI**: CRUD layouts, preview per form factor, sync with OV lifecycle — deferred to Phase 9d
+- [ ] **ui_kind enum**: 20+ types (auto, text, textarea, badge, lookup, rating, slider, toggle, etc.) — deferred to Phase 9d
 
 #### Phase 9b: Navigation + Dashboard per Profile
 
@@ -605,7 +609,7 @@ Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ✅ �
                                                                                     Phase 7a ✅──→ Phase 7b ✅──→ Phase 8 ✅
                                                                                (generic CRUD)  (CEL+valid.)   (functions)
                                                                                                                    │
-                                                                                                             Phase 9a
+                                                                                                             Phase 9a ✅
                                                                                                           (Object View)
                                                                                                                    │
                                                                                                              Phase 10

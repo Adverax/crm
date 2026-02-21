@@ -514,3 +514,7 @@ func (s *stubCacheLoader) LoadAllValidationRules(_ context.Context) ([]metadata.
 func (s *stubCacheLoader) LoadAllFunctions(_ context.Context) ([]metadata.Function, error) {
 	return nil, nil
 }
+
+func (s *stubCacheLoader) LoadAllObjectViews(_ context.Context) ([]metadata.ObjectView, error) {
+	return nil, nil
+}

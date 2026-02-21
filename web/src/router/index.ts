@@ -110,6 +110,23 @@ const router = createRouter({
           component: () => import('../views/admin/metadata/FunctionDetailView.vue'),
           props: true,
         },
+        // Object Views
+        {
+          path: 'metadata/object-views',
+          name: 'admin-object-views',
+          component: () => import('../views/admin/metadata/ObjectViewListView.vue'),
+        },
+        {
+          path: 'metadata/object-views/new',
+          name: 'admin-object-view-create',
+          component: () => import('../views/admin/metadata/ObjectViewCreateView.vue'),
+        },
+        {
+          path: 'metadata/object-views/:viewId',
+          name: 'admin-object-view-detail',
+          component: () => import('../views/admin/metadata/ObjectViewDetailView.vue'),
+          props: true,
+        },
         // Templates
         {
           path: 'templates',

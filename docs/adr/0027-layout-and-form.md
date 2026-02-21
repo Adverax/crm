@@ -173,7 +173,7 @@ Responsiveness through CSS media queries. Minimal configuration.
 +--------------------------+
 ```
 
-### Object View Config (WHAT — unchanged from ADR-0022)
+### Object View Config (WHAT — see ADR-0022 for full schema including data contract)
 
 ```jsonc
 {

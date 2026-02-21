@@ -108,7 +108,7 @@ const breadcrumbs = computed(() => [
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead v-for="field in store.tableFields" :key="field.apiName">
+            <TableHead v-for="field in store.formListFields" :key="field.apiName">
               {{ field.label }}
             </TableHead>
           </TableRow>
@@ -120,7 +120,7 @@ const breadcrumbs = computed(() => [
             class="cursor-pointer"
             @click="goToDetail(record)"
           >
-            <TableCell v-for="field in store.tableFields" :key="field.apiName">
+            <TableCell v-for="field in store.formListFields" :key="field.apiName">
               <FieldDisplay :field="field" :value="record[field.apiName]" />
             </TableCell>
           </TableRow>

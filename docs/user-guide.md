@@ -73,7 +73,17 @@
     - [Expression Builder](#126-expression-builder)
     - [API](#127-api)
     - [Limits](#128-limits)
-13. [Common Scenarios](#13-common-scenarios)
+13. [Object Views](#13-object-views)
+    - [Overview](#131-overview)
+    - [Creating an Object View](#132-creating-an-object-view)
+    - [Config Structure](#133-config-structure)
+    - [Visual Constructor](#134-visual-constructor)
+    - [Resolution Logic](#135-resolution-logic)
+    - [FLS Intersection](#136-fls-intersection)
+    - [Describe API Extension](#137-describe-api-extension)
+    - [CRM UI Rendering](#138-crm-ui-rendering)
+    - [API](#139-api)
+14. [Common Scenarios](#14-common-scenarios)
 
 ---
 
@@ -88,6 +98,7 @@ The CRM admin panel is designed for system administrators and allows:
 - Applying **app templates** — bootstrapping the system with pre-configured objects and fields.
 - Configuring **validation rules** — CEL expressions that check data on every save.
 - Creating **custom functions** — reusable CEL expressions callable from any context.
+- Configuring **object views** — role-based UI per profile with read config (fields, actions, queries, computed) and optional write config (validation, defaults, computed, mutations).
 - Working with **records** — creating, editing, and deleting records of any object through a universal CRUD interface.
 
 ### Audience
@@ -1648,7 +1659,7 @@ Only objects where the user has OLS Read permission appear in the list.
 GET /api/v1/describe/{objectName}
 ```
 
-Returns complete object metadata including all fields the user can see (filtered by FLS).
+Returns complete object metadata including all fields the user can see (filtered by FLS). Also includes a resolved `form` property from Object Views (see [section 13.7](#137-describe-api-extension)).
 
 **Response:**
 ```json
@@ -2290,7 +2301,375 @@ Returns `204 No Content` on success. Returns `409 Conflict` if the function is r
 
 ---
 
-## 13. Common Scenarios
+## 13. Object Views
+
+### 13.1 Overview
+
+Object Views allow administrators to configure **role-based UI** for each object. Different profiles (Sales, Support, Management) can see different field sets and action buttons — all without code changes. Object Views also serve as a **bounded context adapter** (ADR-0022), encapsulating data contract logic (queries, computed fields, mutations, validation, defaults) alongside the presentation config. Related lists are deferred to the Layout layer (ADR-0027).
+
+Every Object View is stored as a JSONB config in the `metadata.object_views` table and is linked to a specific object. Optionally, it can be linked to a specific profile (profile-specific view) or left global (accessible as a default fallback).
+
+**Why profiles, not roles?** Object Views are bound to **profiles** rather than roles because profiles and roles serve fundamentally different purposes in the security model (ADR-0009):
+
+- **Profile** defines *what a user can do* — OLS (CRUD on objects) and FLS (read/write on fields). It represents the user's **functional role**: Sales Rep, Support Agent, Manager. Since Object Views configure *which fields to display and how*, this directly aligns with FLS — the profile already determines which fields a user can access, so binding the UI configuration to the same entity ensures consistency. The resolved Object View config is intersected with the profile's FLS permissions (see [section 13.6](#136-fls-intersection)).
+- **Role** defines *what a user can see* — the position in the organizational hierarchy used for RLS (record visibility via role hierarchy, sharing rules). A "Sales Manager" and "Sales Director" may share the same UI but see different sets of records. Binding Object Views to roles would conflate presentation with data visibility.
+
+This follows the Salesforce pattern: page layouts (the analog of Object Views) are assigned per profile, not per role.
+
+Key capabilities:
+
+**Read (`read`):**
+- **Fields** — flat list of field `api_name` values to include in this view (WHAT to show). Sections and highlight fields are auto-generated from this list in the computed form.
+- **Actions** — custom buttons with CEL visibility expressions (e.g., show "Send Proposal" only when `record.Status == 'draft'`)
+- **Queries** — named SOQL queries scoped to this Object View context
+- **Computed** — computed fields derived from CEL expressions, scoped to this view (display-only, not persisted)
+
+**Write (`write`, optional):**
+- **Validation** — view-scoped validation rules (additive with metadata-level rules)
+- **Defaults** — view-scoped default expressions (replace metadata-level defaults)
+- **Computed** — fields whose values are computed from CEL expressions on save
+- **Mutations** — DML operations scoped to this Object View context
+
+### 13.2 Creating an Object View
+
+Object Views are created through the admin panel at `/admin/metadata/object-views` or via the REST API.
+
+**Admin UI:**
+1. Navigate to **Object Views** (`/admin/metadata/object-views`).
+2. Click the **"+"** button.
+3. Fill in the required fields:
+   - **API Name:** `account_sales_view` (lowercase with underscores)
+   - **Label:** "Account Sales View"
+   - **Object:** Select the target object (e.g., Account)
+   - **Profile:** Optionally select a profile (e.g., Sales). Leave empty for a global view.
+   - **Is Default:** Check if this should be the default view for the object.
+4. Click **"Create"**. You are redirected to the visual constructor.
+
+### 13.3 Config Structure
+
+The Object View config is a JSON object with two top-level sections: `read` (presentation and read-time data contract) and `write` (write-time data contract):
+
+```json
+{
+  "read": {
+    "fields": ["Name", "Industry", "Phone", "Revenue", "AnnualBudget"],
+    "actions": [
+      {
+        "key": "send_proposal",
+        "label": "Send Proposal",
+        "type": "primary",
+        "icon": "mail",
+        "visibility_expr": "record.Status == 'draft'"
+      },
+      {
+        "key": "mark_urgent",
+        "label": "Mark Urgent",
+        "type": "danger",
+        "icon": "alert-triangle",
+        "visibility_expr": "record.Priority != 'high'"
+      }
+    ],
+    "queries": [
+      {
+        "name": "recent_activities",
+        "soql": "SELECT Id, Subject, Type FROM Activity WHERE AccountId = :recordId ORDER BY CreatedAt DESC LIMIT 5",
+        "when": "record.status == 'active'"
+      }
+    ],
+    "computed": [
+      {
+        "name": "total_with_tax",
+        "type": "float",
+        "expr": "record.amount * 1.2"
+      }
+    ]
+  },
+  "write": {
+    "validation": [
+      {
+        "expr": "record.amount > 0",
+        "message": "Amount must be positive",
+        "code": "invalid_amount",
+        "severity": "error"
+      }
+    ],
+    "defaults": [
+      {
+        "field": "status",
+        "expr": "'draft'",
+        "on": "create"
+      }
+    ],
+    "computed": [
+      {
+        "field": "total_with_tax",
+        "expr": "record.amount * (1 + record.tax_rate / 100)"
+      }
+    ],
+    "mutations": [
+      {
+        "dml": "UPDATE Account SET last_contacted_at = now() WHERE id = :recordId",
+        "when": "record.status == 'active'"
+      }
+    ]
+  }
+}
+```
+
+**Property reference:**
+
+**Read properties (`read.*`):**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `read.fields` | string[] | Field `api_name` values included in this view. Order matters — first 3 are used as highlights in the computed form. |
+| `read.actions` | array | Custom action buttons |
+| `read.actions[].key` | string | Unique action identifier |
+| `read.actions[].label` | string | Button text |
+| `read.actions[].type` | string | `primary`, `secondary`, or `danger` |
+| `read.actions[].icon` | string | Lucide icon name (e.g., `mail`, `check`, `alert-triangle`) |
+| `read.actions[].visibility_expr` | string | CEL expression evaluated against the current record |
+| `read.queries` | array | Named SOQL queries scoped to this Object View context |
+| `read.queries[].name` | string | Query identifier (e.g., `recent_activities`) |
+| `read.queries[].soql` | string | SOQL query with `:recordId` parameter binding |
+| `read.queries[].when` | string | Optional CEL condition for when query executes |
+| `read.computed` | array | Computed fields (read) — derived from CEL expressions, display-only |
+| `read.computed[].name` | string | Computed field name |
+| `read.computed[].type` | string | `string`, `int`, `float`, `bool`, or `timestamp` |
+| `read.computed[].expr` | string | CEL expression computing the value |
+| `read.computed[].when` | string | Optional CEL condition for when field applies |
+
+**Write properties (`write.*`):**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `write.validation` | array | View-scoped validation rules (additive with metadata-level rules) |
+| `write.validation[].expr` | string | CEL expression that must evaluate to `true` |
+| `write.validation[].message` | string | Error message shown when validation fails |
+| `write.validation[].code` | string | Optional error code identifier |
+| `write.validation[].severity` | string | `error` (blocks save) or `warning` (advisory) |
+| `write.validation[].when` | string | Optional CEL condition for when rule applies |
+| `write.defaults` | array | View-scoped default expressions (replace metadata-level defaults) |
+| `write.defaults[].field` | string | Target field `api_name` |
+| `write.defaults[].expr` | string | CEL expression computing the default value |
+| `write.defaults[].on` | string | `create`, `update`, or `create,update` |
+| `write.defaults[].when` | string | Optional CEL condition for when default applies |
+| `write.computed` | array | Computed fields (write) — values computed from CEL expressions on save |
+| `write.computed[].field` | string | Target field `api_name` |
+| `write.computed[].expr` | string | CEL expression computing the value |
+| `write.mutations` | array | DML operations scoped to this Object View |
+| `write.mutations[].dml` | string | DML statement with `:recordId` parameter binding |
+| `write.mutations[].foreach` | string | Optional CEL expression for iteration (e.g., `queries.line_items`) |
+| `write.mutations[].sync` | object | Optional sync mapping (`key`, `value` fields) |
+| `write.mutations[].when` | string | Optional CEL condition for when mutation executes |
+
+### 13.4 Visual Constructor
+
+The Object View detail page provides a tab-based visual constructor for editing the config without writing JSON. Tabs are organized as follows:
+
+**Read tabs:**
+
+1. **General** — edit label, description, is_default flag. Read-only: api_name, object, profile.
+2. **Fields** — add/remove field api_names to include in this view. Order matters — first 3 become highlights in the computed form.
+3. **Actions** — add action buttons with key, label, type, icon, and a CEL visibility expression (uses the Expression Builder from Phase 8).
+4. **Queries** — define named SOQL queries scoped to this view (name, SOQL statement, optional `when` condition).
+5. **Computed (Read)** — define computed fields from CEL expressions (name, type, expression, optional `when` condition). These are display-only and not persisted.
+
+**Write tabs:**
+
+6. **Validation** — define view-scoped validation rules (CEL expression, error message, optional code, severity: error/warning, optional `when` condition). These are additive with metadata-level validation rules.
+7. **Defaults** — define view-scoped default expressions (field, CEL expression, trigger: create/update/create,update, optional `when` condition). These replace metadata-level defaults.
+8. **Computed (Write)** — define fields whose values are computed from CEL expressions on save (field, CEL expression).
+9. **Mutations** — define DML operations scoped to this view (DML statement, optional `foreach` iteration, optional `sync` mapping, optional `when` condition).
+
+Click **"Save"** to persist changes. All changes take effect immediately.
+
+### 13.5 Resolution Logic
+
+When the CRM UI loads a record page, the Describe API resolves the Object View using a 3-step cascade:
+
+1. **Profile-specific view** — look for an Object View where `object_id` matches AND `profile_id` matches the current user's profile.
+2. **Default view** — if no profile-specific view exists, look for an Object View where `is_default = true` for this object.
+3. **Fallback** — if no Object View exists at all, the system auto-generates a form: one "Details" section with all FLS-accessible fields, first 3 fields as highlights, first 5 fields as list columns.
+
+This allows gradual adoption — the system works without any Object Views configured, and administrators can add views incrementally.
+
+### 13.6 FLS Intersection
+
+The resolved Object View config is intersected with the current user's Field-Level Security (FLS) permissions:
+
+- **Fields** — fields the user cannot read are removed from the flat field list (and consequently from the auto-generated sections and highlights)
+- **List fields** — inaccessible columns are removed
+- **Related lists** — related objects the user cannot read (OLS) are excluded
+
+This ensures that even if an administrator includes a field in the Object View, users without FLS access will never see it.
+
+### 13.7 Describe API Extension
+
+The Describe API response now includes an optional `form` property alongside the existing `fields` array:
+
+```
+GET /api/v1/describe/{objectName}
+```
+
+**Response with Object View:**
+```json
+{
+  "data": {
+    "api_name": "Account",
+    "label": "Account",
+    "plural_label": "Accounts",
+    "is_createable": true,
+    "is_updateable": true,
+    "is_deleteable": true,
+    "fields": [...],
+    "form": {
+      "sections": [
+        {
+          "key": "client_info",
+          "label": "Client Information",
+          "columns": 2,
+          "collapsed": false,
+          "fields": ["Name", "Industry", "Phone"]
+        }
+      ],
+      "highlight_fields": ["Name", "Industry"],
+      "actions": [
+        {
+          "key": "send_proposal",
+          "label": "Send Proposal",
+          "type": "primary",
+          "icon": "mail",
+          "visibility_expr": "record.Status == 'draft'"
+        }
+      ],
+      "list_fields": ["Name", "Industry", "Phone"],
+      "list_default_sort": "created_at DESC"
+    }
+  }
+}
+```
+
+The `fields` array remains for backward compatibility. The `form` property is always present — either resolved from an Object View or auto-generated as a fallback.
+
+### 13.8 CRM UI Rendering
+
+When the CRM frontend (`/app/*`) receives a `form` in the Describe response, it renders:
+
+- **Record detail page:**
+  - Highlight fields at the top in a compact card
+  - Action buttons (filtered by `visibility_expr` evaluated via cel-js)
+  - Collapsible sections with fields arranged in the specified column layout
+- **Record create page:**
+  - Sections with fields (without highlights or actions)
+
+- **Record list page:**
+  - Columns from `list_fields` with `list_default_sort` as the default sort order
+
+If no `form` is present (backward compatibility), the UI falls back to the original single-card layout with all fields.
+
+### 13.9 API
+
+#### List Object Views
+
+```
+GET /api/v1/admin/object-views
+GET /api/v1/admin/object-views?object_id={objectId}
+```
+
+Returns all Object Views, optionally filtered by object.
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "object_id": "660e8400-e29b-41d4-a716-446655440000",
+      "profile_id": null,
+      "api_name": "account_default",
+      "label": "Account Default View",
+      "description": "Default view for all users",
+      "is_default": true,
+      "config": { "read": { "fields": [...], ... }, "write": { ... } },
+      "created_at": "2026-02-17T10:00:00Z",
+      "updated_at": "2026-02-17T10:00:00Z"
+    }
+  ]
+}
+```
+
+#### Get a Single Object View
+
+```
+GET /api/v1/admin/object-views/{viewId}
+```
+
+#### Create an Object View
+
+```
+POST /api/v1/admin/object-views
+
+{
+  "object_id": "660e8400-e29b-41d4-a716-446655440000",
+  "profile_id": null,
+  "api_name": "account_default",
+  "label": "Account Default View",
+  "description": "Default view for all users",
+  "is_default": true,
+  "config": {
+    "read": {
+      "fields": [],
+      "actions": [],
+      "queries": [],
+      "computed": []
+    },
+    "write": {
+      "validation": [],
+      "defaults": [],
+      "computed": [],
+      "mutations": []
+    }
+  }
+}
+```
+
+Returns `201 Created` with the created Object View.
+
+#### Update an Object View
+
+```
+PUT /api/v1/admin/object-views/{viewId}
+
+{
+  "label": "Updated Account View",
+  "description": "Updated description",
+  "is_default": true,
+  "config": { ... }
+}
+```
+
+Note: `api_name`, `object_id`, and `profile_id` cannot be changed after creation.
+
+#### Delete an Object View
+
+```
+DELETE /api/v1/admin/object-views/{viewId}
+```
+
+Returns `204 No Content` on success.
+
+**Error responses:**
+
+| HTTP Code | Condition |
+|-----------|-----------|
+| 400 | Invalid api_name format, missing required fields |
+| 404 | Object View not found |
+| 409 | Duplicate (object_id, profile_id) pair |
+
+---
+
+## 14. Common Scenarios
 
 ### Scenario 1: First Login
 
@@ -2545,8 +2924,35 @@ The entry will appear in the `obj_invoice__share` share table with reason `manua
    - **Function picker** (tab "Functions") — click a function name to insert `fn.function_name()` at the cursor.
    - **Real-time validation** — the expression is checked as you type; errors are shown with line and column numbers.
    - **Return type display** — shows the inferred return type of the expression.
-2. The same Expression Builder component is used across all CEL contexts: validation rules, when-expressions, default expressions, and function bodies.
+2. The same Expression Builder component is used across all CEL contexts: validation rules, when-expressions, default expressions, function bodies, and action visibility expressions.
+
+### Scenario 22: Create an Object View for Sales
+
+1. Navigate to **Object Views** (`/admin/metadata/object-views`).
+2. Click **"+"** to create a new view.
+3. Fill in:
+   - **API Name:** `account_sales`
+   - **Label:** "Account Sales View"
+   - **Object:** Account
+   - **Profile:** Sales Manager (or leave empty for a global view)
+   - **Is Default:** leave unchecked (unless this should be the fallback)
+4. Click **"Create"** — you are redirected to the visual constructor.
+5. Switch to the **Fields** tab:
+   - Add fields: Name, Industry, Phone, Revenue, AnnualBudget, Employees.
+   - Order matters — first 3 (Name, Industry, Phone) become highlights in the computed form.
+6. Switch to the **Actions** tab:
+   - Add an action: key `send_proposal`, label "Send Proposal", type `primary`, icon `mail`.
+   - Set visibility expression: `record.Status == 'draft'` (uses the Expression Builder).
+7. Click **"Save"**.
+9. Log in as a user with the Sales Manager profile. Navigate to Accounts — the record detail page now shows fields, highlights, and the "Send Proposal" button (when Status is 'draft').
+
+### Scenario 23: Set Up a Default Object View for All Users
+
+1. Create an Object View with **Is Default** checked and **Profile** left empty.
+2. Configure fields in the visual constructor.
+3. All users who don't have a profile-specific view will see this layout.
+4. To override for a specific profile — create another Object View for the same object with that profile selected.
 
 ---
 
-*Document created for CRM Platform. Current for Phase 0–8 (Scaffolding, Metadata engine, Security engine, SOQL, DML, Auth, App Templates, Generic CRUD, CEL engine, Validation Rules, Dynamic Defaults, Custom Functions) + Territory Management (Enterprise).*
+*Document created for CRM Platform. Current for Phase 0–9a (Scaffolding, Metadata engine, Security engine, SOQL, DML, Auth, App Templates, Generic CRUD, CEL engine, Validation Rules, Dynamic Defaults, Custom Functions, Object Views with Read/Write config) + Territory Management (Enterprise).*

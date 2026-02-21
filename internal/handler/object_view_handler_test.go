@@ -1,0 +1,745 @@
+package handler
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/adverax/crm/internal/pkg/apperror"
+	"github.com/adverax/crm/internal/platform/metadata"
+)
+
+// --- Mock ObjectViewService ---
+
+type mockObjectViewService struct {
+	createFn         func(ctx context.Context, input metadata.CreateObjectViewInput) (*metadata.ObjectView, error)
+	getByIDFn        func(ctx context.Context, id uuid.UUID) (*metadata.ObjectView, error)
+	listAllFn        func(ctx context.Context) ([]metadata.ObjectView, error)
+	listByObjectIDFn func(ctx context.Context, objectID uuid.UUID) ([]metadata.ObjectView, error)
+	updateFn         func(ctx context.Context, id uuid.UUID, input metadata.UpdateObjectViewInput) (*metadata.ObjectView, error)
+	deleteFn         func(ctx context.Context, id uuid.UUID) error
+	resolveForProfFn func(ctx context.Context, objectID uuid.UUID, profileID uuid.UUID) (*metadata.ObjectView, error)
+}
+
+func (m *mockObjectViewService) Create(ctx context.Context, input metadata.CreateObjectViewInput) (*metadata.ObjectView, error) {
+	if m.createFn != nil {
+		return m.createFn(ctx, input)
+	}
+	return &metadata.ObjectView{
+		ID:       uuid.New(),
+		ObjectID: input.ObjectID,
+		APIName:  input.APIName,
+		Label:    input.Label,
+	}, nil
+}
+
+func (m *mockObjectViewService) GetByID(ctx context.Context, id uuid.UUID) (*metadata.ObjectView, error) {
+	if m.getByIDFn != nil {
+		return m.getByIDFn(ctx, id)
+	}
+	return nil, fmt.Errorf("%w", apperror.NotFound("object_view", id.String()))
+}
+
+func (m *mockObjectViewService) ListAll(ctx context.Context) ([]metadata.ObjectView, error) {
+	if m.listAllFn != nil {
+		return m.listAllFn(ctx)
+	}
+	return []metadata.ObjectView{}, nil
+}
+
+func (m *mockObjectViewService) ListByObjectID(ctx context.Context, objectID uuid.UUID) ([]metadata.ObjectView, error) {
+	if m.listByObjectIDFn != nil {
+		return m.listByObjectIDFn(ctx, objectID)
+	}
+	return []metadata.ObjectView{}, nil
+}
+
+func (m *mockObjectViewService) Update(ctx context.Context, id uuid.UUID, input metadata.UpdateObjectViewInput) (*metadata.ObjectView, error) {
+	if m.updateFn != nil {
+		return m.updateFn(ctx, id, input)
+	}
+	return nil, fmt.Errorf("%w", apperror.NotFound("object_view", id.String()))
+}
+
+func (m *mockObjectViewService) Delete(ctx context.Context, id uuid.UUID) error {
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, id)
+	}
+	return nil
+}
+
+func (m *mockObjectViewService) ResolveForProfile(ctx context.Context, objectID uuid.UUID, profileID uuid.UUID) (*metadata.ObjectView, error) {
+	if m.resolveForProfFn != nil {
+		return m.resolveForProfFn(ctx, objectID, profileID)
+	}
+	return nil, nil
+}
+
+func setupObjectViewRouter(t *testing.T, svc *mockObjectViewService) *gin.Engine {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	admin := r.Group("/api/v1/admin")
+	h := NewObjectViewHandler(svc)
+	h.RegisterRoutes(admin)
+	return r
+}
+
+func TestObjectViewHandler_Create(t *testing.T) {
+	t.Parallel()
+
+	objectID := uuid.New()
+	profileID := uuid.New()
+
+	tests := []struct {
+		name       string
+		body       interface{}
+		setupSvc   func(*mockObjectViewService)
+		wantStatus int
+	}{
+		{
+			name: "creates object view successfully",
+			body: map[string]interface{}{
+				"object_id":  objectID.String(),
+				"api_name":   "default_view",
+				"label":      "Default View",
+				"is_default": true,
+				"config": map[string]interface{}{
+					"read": map[string]interface{}{
+						"fields": []string{"first_name", "last_name"},
+					},
+				},
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name: "creates object view with profile_id",
+			body: map[string]interface{}{
+				"object_id":  objectID.String(),
+				"profile_id": profileID.String(),
+				"api_name":   "sales_view",
+				"label":      "Sales View",
+			},
+			setupSvc: func(m *mockObjectViewService) {
+				m.createFn = func(_ context.Context, input metadata.CreateObjectViewInput) (*metadata.ObjectView, error) {
+					if input.ProfileID == nil {
+						return nil, fmt.Errorf("expected profile_id to be set")
+					}
+					if *input.ProfileID != profileID {
+						return nil, fmt.Errorf("expected profile_id %s, got %s", profileID, *input.ProfileID)
+					}
+					return &metadata.ObjectView{
+						ID:        uuid.New(),
+						ObjectID:  input.ObjectID,
+						ProfileID: input.ProfileID,
+						APIName:   input.APIName,
+						Label:     input.Label,
+					}, nil
+				}
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name: "passes description to service",
+			body: map[string]interface{}{
+				"object_id":   objectID.String(),
+				"api_name":    "detailed_view",
+				"label":       "Detailed View",
+				"description": "A detailed view for contacts",
+			},
+			setupSvc: func(m *mockObjectViewService) {
+				m.createFn = func(_ context.Context, input metadata.CreateObjectViewInput) (*metadata.ObjectView, error) {
+					if input.Description != "A detailed view for contacts" {
+						return nil, fmt.Errorf("expected description 'A detailed view for contacts', got %q", input.Description)
+					}
+					return &metadata.ObjectView{
+						ID:          uuid.New(),
+						ObjectID:    input.ObjectID,
+						APIName:     input.APIName,
+						Label:       input.Label,
+						Description: input.Description,
+					}, nil
+				}
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name:       "returns 400 for invalid JSON",
+			body:       "not json",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "returns 400 for missing object_id",
+			body: map[string]interface{}{
+				"api_name": "test_view",
+				"label":    "Test View",
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "returns 400 for missing api_name",
+			body: map[string]interface{}{
+				"object_id": objectID.String(),
+				"label":     "Test View",
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "returns 400 for missing label",
+			body: map[string]interface{}{
+				"object_id": objectID.String(),
+				"api_name":  "test_view",
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "returns 400 for invalid object_id",
+			body: map[string]interface{}{
+				"object_id": "not-a-uuid",
+				"api_name":  "test_view",
+				"label":     "Test View",
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "returns 400 for invalid profile_id",
+			body: map[string]interface{}{
+				"object_id":  objectID.String(),
+				"profile_id": "bad-uuid",
+				"api_name":   "test_view",
+				"label":      "Test View",
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "returns error from service",
+			body: map[string]interface{}{
+				"object_id": objectID.String(),
+				"api_name":  "test_view",
+				"label":     "Test View",
+			},
+			setupSvc: func(m *mockObjectViewService) {
+				m.createFn = func(_ context.Context, _ metadata.CreateObjectViewInput) (*metadata.ObjectView, error) {
+					return nil, fmt.Errorf("%w", apperror.BadRequest("api_name must match ^[a-z][a-z0-9_]*$"))
+				}
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "returns 404 when object not found",
+			body: map[string]interface{}{
+				"object_id": objectID.String(),
+				"api_name":  "test_view",
+				"label":     "Test View",
+			},
+			setupSvc: func(m *mockObjectViewService) {
+				m.createFn = func(_ context.Context, _ metadata.CreateObjectViewInput) (*metadata.ObjectView, error) {
+					return nil, fmt.Errorf("%w", apperror.NotFound("object", objectID.String()))
+				}
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name: "returns 409 for duplicate api_name",
+			body: map[string]interface{}{
+				"object_id": objectID.String(),
+				"api_name":  "existing_view",
+				"label":     "Existing View",
+			},
+			setupSvc: func(m *mockObjectViewService) {
+				m.createFn = func(_ context.Context, _ metadata.CreateObjectViewInput) (*metadata.ObjectView, error) {
+					return nil, fmt.Errorf("%w", apperror.Conflict("object view with this api_name already exists"))
+				}
+			},
+			wantStatus: http.StatusConflict,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			svc := &mockObjectViewService{}
+			if tt.setupSvc != nil {
+				tt.setupSvc(svc)
+			}
+			r := setupObjectViewRouter(t, svc)
+
+			body, _ := json.Marshal(tt.body)
+			w := httptest.NewRecorder()
+			req, _ := http.NewRequest(http.MethodPost, "/api/v1/admin/object-views", bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.wantStatus, w.Code, "body: %s", w.Body.String())
+		})
+	}
+}
+
+func TestObjectViewHandler_List(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+
+	tests := []struct {
+		name       string
+		setupSvc   func(*mockObjectViewService)
+		wantStatus int
+		wantCount  int
+	}{
+		{
+			name:       "returns empty list",
+			wantStatus: http.StatusOK,
+			wantCount:  0,
+		},
+		{
+			name: "returns all object views",
+			setupSvc: func(m *mockObjectViewService) {
+				m.listAllFn = func(_ context.Context) ([]metadata.ObjectView, error) {
+					return []metadata.ObjectView{
+						{
+							ID:        uuid.New(),
+							ObjectID:  uuid.New(),
+							APIName:   "view_a",
+							Label:     "View A",
+							IsDefault: true,
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+						{
+							ID:        uuid.New(),
+							ObjectID:  uuid.New(),
+							APIName:   "view_b",
+							Label:     "View B",
+							IsDefault: false,
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil
+				}
+			},
+			wantStatus: http.StatusOK,
+			wantCount:  2,
+		},
+		{
+			name: "returns 500 on service error",
+			setupSvc: func(m *mockObjectViewService) {
+				m.listAllFn = func(_ context.Context) ([]metadata.ObjectView, error) {
+					return nil, fmt.Errorf("database connection failed")
+				}
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			svc := &mockObjectViewService{}
+			if tt.setupSvc != nil {
+				tt.setupSvc(svc)
+			}
+			r := setupObjectViewRouter(t, svc)
+
+			w := httptest.NewRecorder()
+			req, _ := http.NewRequest(http.MethodGet, "/api/v1/admin/object-views", nil)
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+
+			if tt.wantStatus == http.StatusOK {
+				var resp struct {
+					Data []metadata.ObjectView `json:"data"`
+				}
+				err := json.Unmarshal(w.Body.Bytes(), &resp)
+				assert.NoError(t, err)
+				assert.Len(t, resp.Data, tt.wantCount)
+			}
+		})
+	}
+}
+
+func TestObjectViewHandler_ListByObjectID(t *testing.T) {
+	t.Parallel()
+
+	objectID := uuid.New()
+	now := time.Now()
+
+	tests := []struct {
+		name       string
+		objectID   string
+		setupSvc   func(*mockObjectViewService)
+		wantStatus int
+		wantCount  int
+	}{
+		{
+			name:     "returns views for specific object",
+			objectID: objectID.String(),
+			setupSvc: func(m *mockObjectViewService) {
+				m.listByObjectIDFn = func(_ context.Context, oid uuid.UUID) ([]metadata.ObjectView, error) {
+					if oid != objectID {
+						return nil, fmt.Errorf("expected objectID %s, got %s", objectID, oid)
+					}
+					return []metadata.ObjectView{
+						{
+							ID:        uuid.New(),
+							ObjectID:  objectID,
+							APIName:   "default_view",
+							Label:     "Default",
+							IsDefault: true,
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil
+				}
+			},
+			wantStatus: http.StatusOK,
+			wantCount:  1,
+		},
+		{
+			name:     "returns empty list when object has no views",
+			objectID: objectID.String(),
+			setupSvc: func(m *mockObjectViewService) {
+				m.listByObjectIDFn = func(_ context.Context, _ uuid.UUID) ([]metadata.ObjectView, error) {
+					return []metadata.ObjectView{}, nil
+				}
+			},
+			wantStatus: http.StatusOK,
+			wantCount:  0,
+		},
+		{
+			name:       "returns 400 for invalid object_id query param",
+			objectID:   "not-a-uuid",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			objectID: objectID.String(),
+			setupSvc: func(m *mockObjectViewService) {
+				m.listByObjectIDFn = func(_ context.Context, _ uuid.UUID) ([]metadata.ObjectView, error) {
+					return nil, fmt.Errorf("database error")
+				}
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			svc := &mockObjectViewService{}
+			if tt.setupSvc != nil {
+				tt.setupSvc(svc)
+			}
+			r := setupObjectViewRouter(t, svc)
+
+			w := httptest.NewRecorder()
+			req, _ := http.NewRequest(http.MethodGet, "/api/v1/admin/object-views?object_id="+tt.objectID, nil)
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.wantStatus, w.Code, "body: %s", w.Body.String())
+
+			if tt.wantStatus == http.StatusOK {
+				var resp struct {
+					Data []metadata.ObjectView `json:"data"`
+				}
+				err := json.Unmarshal(w.Body.Bytes(), &resp)
+				assert.NoError(t, err)
+				assert.Len(t, resp.Data, tt.wantCount)
+			}
+		})
+	}
+}
+
+func TestObjectViewHandler_Get(t *testing.T) {
+	t.Parallel()
+
+	existingID := uuid.New()
+	objectID := uuid.New()
+	now := time.Now()
+
+	tests := []struct {
+		name       string
+		id         string
+		setupSvc   func(*mockObjectViewService)
+		wantStatus int
+	}{
+		{
+			name: "returns object view",
+			id:   existingID.String(),
+			setupSvc: func(m *mockObjectViewService) {
+				m.getByIDFn = func(_ context.Context, id uuid.UUID) (*metadata.ObjectView, error) {
+					return &metadata.ObjectView{
+						ID:        id,
+						ObjectID:  objectID,
+						APIName:   "default_view",
+						Label:     "Default View",
+						IsDefault: true,
+						Config: metadata.OVConfig{
+							Read: metadata.OVReadConfig{
+								Fields: []string{"name"},
+							},
+						},
+						CreatedAt: now,
+						UpdatedAt: now,
+					}, nil
+				}
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 404 for nonexistent",
+			id:         uuid.New().String(),
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:       "returns 400 for invalid UUID",
+			id:         "not-a-uuid",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "returns 500 on service error",
+			id:   existingID.String(),
+			setupSvc: func(m *mockObjectViewService) {
+				m.getByIDFn = func(_ context.Context, _ uuid.UUID) (*metadata.ObjectView, error) {
+					return nil, fmt.Errorf("unexpected database error")
+				}
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			svc := &mockObjectViewService{}
+			if tt.setupSvc != nil {
+				tt.setupSvc(svc)
+			}
+			r := setupObjectViewRouter(t, svc)
+
+			w := httptest.NewRecorder()
+			req, _ := http.NewRequest(http.MethodGet, "/api/v1/admin/object-views/"+tt.id, nil)
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.wantStatus, w.Code, "body: %s", w.Body.String())
+
+			if tt.wantStatus == http.StatusOK {
+				var resp struct {
+					Data metadata.ObjectView `json:"data"`
+				}
+				err := json.Unmarshal(w.Body.Bytes(), &resp)
+				assert.NoError(t, err)
+				assert.Equal(t, existingID, resp.Data.ID)
+				assert.Equal(t, "default_view", resp.Data.APIName)
+			}
+		})
+	}
+}
+
+func TestObjectViewHandler_Update(t *testing.T) {
+	t.Parallel()
+
+	existingID := uuid.New()
+	objectID := uuid.New()
+	now := time.Now()
+
+	tests := []struct {
+		name       string
+		id         string
+		body       interface{}
+		setupSvc   func(*mockObjectViewService)
+		wantStatus int
+	}{
+		{
+			name: "updates successfully",
+			id:   existingID.String(),
+			body: map[string]interface{}{
+				"label":      "Updated View",
+				"is_default": true,
+				"config": map[string]interface{}{
+					"read": map[string]interface{}{
+						"fields": []string{"email", "phone"},
+					},
+				},
+			},
+			setupSvc: func(m *mockObjectViewService) {
+				m.updateFn = func(_ context.Context, id uuid.UUID, input metadata.UpdateObjectViewInput) (*metadata.ObjectView, error) {
+					return &metadata.ObjectView{
+						ID:        id,
+						ObjectID:  objectID,
+						APIName:   "default_view",
+						Label:     input.Label,
+						IsDefault: input.IsDefault,
+						Config:    input.Config,
+						CreatedAt: now,
+						UpdatedAt: time.Now(),
+					}, nil
+				}
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name: "passes description to service",
+			id:   existingID.String(),
+			body: map[string]interface{}{
+				"label":       "Updated View",
+				"description": "Updated description",
+			},
+			setupSvc: func(m *mockObjectViewService) {
+				m.updateFn = func(_ context.Context, id uuid.UUID, input metadata.UpdateObjectViewInput) (*metadata.ObjectView, error) {
+					if input.Description != "Updated description" {
+						return nil, fmt.Errorf("expected description 'Updated description', got %q", input.Description)
+					}
+					return &metadata.ObjectView{
+						ID:          id,
+						ObjectID:    objectID,
+						APIName:     "test_view",
+						Label:       input.Label,
+						Description: input.Description,
+						CreatedAt:   now,
+						UpdatedAt:   time.Now(),
+					}, nil
+				}
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 400 for invalid UUID",
+			id:         "bad-uuid",
+			body:       map[string]interface{}{"label": "Test"},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid JSON",
+			id:         existingID.String(),
+			body:       "not json",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "returns 400 for missing label",
+			id:   existingID.String(),
+			body: map[string]interface{}{
+				"is_default": true,
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "returns 404 for nonexistent",
+			id:   uuid.New().String(),
+			body: map[string]interface{}{
+				"label": "Updated View",
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name: "returns error from service",
+			id:   existingID.String(),
+			body: map[string]interface{}{
+				"label": "Updated View",
+			},
+			setupSvc: func(m *mockObjectViewService) {
+				m.updateFn = func(_ context.Context, _ uuid.UUID, _ metadata.UpdateObjectViewInput) (*metadata.ObjectView, error) {
+					return nil, fmt.Errorf("%w", apperror.BadRequest("label must be at most 255 characters"))
+				}
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			svc := &mockObjectViewService{}
+			if tt.setupSvc != nil {
+				tt.setupSvc(svc)
+			}
+			r := setupObjectViewRouter(t, svc)
+
+			body, _ := json.Marshal(tt.body)
+			w := httptest.NewRecorder()
+			req, _ := http.NewRequest(http.MethodPut, "/api/v1/admin/object-views/"+tt.id, bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.wantStatus, w.Code, "body: %s", w.Body.String())
+		})
+	}
+}
+
+func TestObjectViewHandler_Delete(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		id         string
+		setupSvc   func(*mockObjectViewService)
+		wantStatus int
+	}{
+		{
+			name:       "deletes successfully",
+			id:         uuid.New().String(),
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:       "returns 400 for invalid UUID",
+			id:         "bad-uuid",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "returns 404 for nonexistent",
+			id:   uuid.New().String(),
+			setupSvc: func(m *mockObjectViewService) {
+				m.deleteFn = func(_ context.Context, id uuid.UUID) error {
+					return fmt.Errorf("%w", apperror.NotFound("object_view", id.String()))
+				}
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name: "returns 409 when view is in use",
+			id:   uuid.New().String(),
+			setupSvc: func(m *mockObjectViewService) {
+				m.deleteFn = func(_ context.Context, _ uuid.UUID) error {
+					return fmt.Errorf("%w", apperror.Conflict("object view is referenced by layouts"))
+				}
+			},
+			wantStatus: http.StatusConflict,
+		},
+		{
+			name: "returns 500 on service error",
+			id:   uuid.New().String(),
+			setupSvc: func(m *mockObjectViewService) {
+				m.deleteFn = func(_ context.Context, _ uuid.UUID) error {
+					return fmt.Errorf("unexpected database error")
+				}
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			svc := &mockObjectViewService{}
+			if tt.setupSvc != nil {
+				tt.setupSvc(svc)
+			}
+			r := setupObjectViewRouter(t, svc)
+
+			w := httptest.NewRecorder()
+			req, _ := http.NewRequest(http.MethodDelete, "/api/v1/admin/object-views/"+tt.id, nil)
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.wantStatus, w.Code, "body: %s", w.Body.String())
+		})
+	}
+}

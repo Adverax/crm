@@ -8,6 +8,7 @@ import type {
   RecordData,
   RecordPagination,
 } from '@/types/records'
+import type { FormDescribe } from '@/types/object-views'
 
 export const useRecordsStore = defineStore('records', () => {
   const navObjects = ref<ObjectNavItem[]>([])
@@ -17,6 +18,19 @@ export const useRecordsStore = defineStore('records', () => {
   const recordsPagination = ref<RecordPagination | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
+
+  const currentForm = computed<FormDescribe | undefined>(() => {
+    return currentDescribe.value?.form
+  })
+
+  const fieldMap = computed<Map<string, FieldDescribe>>(() => {
+    const map = new Map<string, FieldDescribe>()
+    if (!currentDescribe.value) return map
+    for (const f of currentDescribe.value.fields) {
+      map.set(f.apiName, f)
+    }
+    return map
+  })
 
   const editableFields = computed<FieldDescribe[]>(() => {
     if (!currentDescribe.value) return []
@@ -32,6 +46,27 @@ export const useRecordsStore = defineStore('records', () => {
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .slice(0, 8)
   })
+
+  const formListFields = computed<FieldDescribe[]>(() => {
+    const form = currentForm.value
+    if (!form?.listFields?.length) return tableFields.value
+    return resolveFields(form.listFields)
+  })
+
+  const formHighlightFields = computed<FieldDescribe[]>(() => {
+    const form = currentForm.value
+    if (!form?.highlightFields?.length) return []
+    return resolveFields(form.highlightFields)
+  })
+
+  function resolveFields(apiNames: string[]): FieldDescribe[] {
+    const result: FieldDescribe[] = []
+    for (const name of apiNames) {
+      const f = fieldMap.value.get(name)
+      if (f) result.push(f)
+    }
+    return result
+  }
 
   async function fetchNavObjects() {
     const res = await recordsApi.listObjects()
@@ -129,8 +164,13 @@ export const useRecordsStore = defineStore('records', () => {
     recordsPagination,
     loading,
     error,
+    currentForm,
+    fieldMap,
     editableFields,
     tableFields,
+    formListFields,
+    formHighlightFields,
+    resolveFields,
     fetchNavObjects,
     fetchDescribe,
     fetchRecords,

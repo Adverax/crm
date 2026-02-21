@@ -8,11 +8,14 @@ import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
 import FieldRenderer from '@/components/records/FieldRenderer.vue'
+import FieldDisplay from '@/components/records/FieldDisplay.vue'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
-import { Trash2, X } from 'lucide-vue-next'
-import { Card, CardContent } from '@/components/ui/card'
+import { Trash2, X, ChevronDown } from 'lucide-vue-next'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import type { FieldDescribe } from '@/types/records'
+import type { FormSection } from '@/types/object-views'
 
 const props = defineProps<{
   objectName: string
@@ -22,10 +25,35 @@ const props = defineProps<{
 const router = useRouter()
 const store = useRecordsStore()
 const toast = useToast()
-const { currentDescribe, currentRecord, loading, error } = storeToRefs(store)
+const { currentDescribe, currentRecord, currentForm, loading, error } = storeToRefs(store)
 
 const formData = reactive<Record<string, unknown>>({})
 const showDeleteDialog = ref(false)
+const collapsedSections = ref<Set<string>>(new Set())
+
+const hasSections = computed(() => {
+  return (currentForm.value?.sections?.length ?? 0) > 0
+})
+
+function sectionFields(section: FormSection): FieldDescribe[] {
+  if (!section.fields) return []
+  return store.resolveFields(section.fields).filter(
+    (f) => !f.isSystemField && !f.isReadOnly,
+  )
+}
+
+function isSectionOpen(key: string, collapsed?: boolean): boolean {
+  if (collapsedSections.value.has(key)) return false
+  return !collapsed
+}
+
+function toggleSection(key: string, collapsed?: boolean) {
+  if (isSectionOpen(key, collapsed)) {
+    collapsedSections.value.add(key)
+  } else {
+    collapsedSections.value.delete(key)
+  }
+}
 
 onMounted(loadData)
 
@@ -105,7 +133,59 @@ const breadcrumbs = computed(() => [
     <ErrorAlert v-if="error" :message="error" class="mb-4" />
 
     <form class="max-w-2xl space-y-6" @submit.prevent="onSave">
-      <Card>
+      <!-- Highlight fields -->
+      <Card v-if="store.formHighlightFields.length && currentRecord" class="mb-4">
+        <CardContent class="pt-4">
+          <div class="grid grid-cols-3 gap-4">
+            <div v-for="field in store.formHighlightFields" :key="field.apiName">
+              <span class="text-xs text-muted-foreground">{{ field.label }}</span>
+              <div class="font-medium">
+                <FieldDisplay :field="field" :value="currentRecord[field.apiName]" />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <!-- Section-based layout when form has sections -->
+      <template v-if="hasSections">
+        <Card
+          v-for="section in currentForm!.sections"
+          :key="section.key"
+          class="mb-4"
+        >
+          <CardHeader
+            class="cursor-pointer select-none py-3"
+            @click="toggleSection(section.key!, section.collapsed)"
+          >
+            <div class="flex items-center justify-between">
+              <CardTitle class="text-base">{{ section.label }}</CardTitle>
+              <ChevronDown
+                class="h-4 w-4 transition-transform"
+                :class="{ '-rotate-180': !isSectionOpen(section.key!, section.collapsed) }"
+              />
+            </div>
+          </CardHeader>
+          <CardContent
+            v-show="isSectionOpen(section.key!, section.collapsed)"
+          >
+            <div
+              :class="section.columns === 2 ? 'grid grid-cols-2 gap-4' : 'space-y-4'"
+            >
+              <FieldRenderer
+                v-for="field in sectionFields(section)"
+                :key="field.apiName"
+                :field="field"
+                :model-value="formData[field.apiName]"
+                @update:model-value="formData[field.apiName] = $event"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </template>
+
+      <!-- Fallback: single card with all editable fields -->
+      <Card v-else>
         <CardContent class="pt-6 space-y-4">
           <FieldRenderer
             v-for="field in store.editableFields"

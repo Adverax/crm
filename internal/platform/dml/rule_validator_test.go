@@ -39,6 +39,10 @@ func (m *mockCacheLoader) LoadAllFunctions(_ context.Context) ([]metadata.Functi
 	return nil, nil
 }
 
+func (m *mockCacheLoader) LoadAllObjectViews(_ context.Context) ([]metadata.ObjectView, error) {
+	return nil, nil
+}
+
 func (m *mockCacheLoader) RefreshMaterializedView(_ context.Context) error {
 	return nil
 }

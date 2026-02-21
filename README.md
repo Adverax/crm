@@ -224,15 +224,16 @@ make docker-reset     # Reset all data and restart
 | Phase 7a | Done | Generic CRUD + metadata-driven UI — dynamic record views, describe API |
 | Phase 7b | Done | CEL engine, validation rules, dynamic defaults, DML pipeline extension |
 | Phase 8 | Done | Custom Functions — fn.* namespace, dual-stack (cel-go + cel-js), Expression Builder |
-| Phase 9 | Planned | Object View — role-based UI per profile, Layout + Form model |
+| Phase 9a | Done | Object View Core — metadata.object_views, visual constructor (12 tabs: presentation + data contract), Describe API form resolution, section-based CRM rendering |
+| Phase 9b-d | Planned | Navigation/Dashboard per profile, Layout + Form model, Advanced Metadata |
 | Phase 10 | Planned | Procedure Engine + Automation Rules — declarative JSON DSL |
 | Phase 11 | Planned | Notifications, Activity & CRM UX — dashboard, kanban, calendar |
 | Phase 12 | Planned | Formula Engine — computed fields, roll-up summaries |
 | Phase 13 | Planned | Scenario Engine + Approval Processes — long-lived workflows |
 
-The platform is **fully functional** across 12 completed phases (29 ADRs). It can create objects via metadata engine or App Templates, manage permissions, enforce 3-layer security (OLS/FLS/RLS), query data through SOQL, perform all DML operations with CEL-based validation rules and dynamic defaults, authenticate users via JWT, work with records through a dynamic metadata-driven UI, and define reusable Custom Functions with fn.* namespace (dual-stack: cel-go backend + cel-js frontend with Expression Builder, autocomplete, and live preview).
+The platform is **fully functional** across 13 completed phases (29 ADRs). It can create objects via metadata engine or App Templates, manage permissions, enforce 3-layer security (OLS/FLS/RLS), query data through SOQL, perform all DML operations with CEL-based validation rules and dynamic defaults, authenticate users via JWT, work with records through a dynamic metadata-driven UI, define reusable Custom Functions with fn.* namespace (dual-stack: cel-go backend + cel-js frontend with Expression Builder), and configure **Object Views** as full bounded context adapters per profile (presentation: sections, highlight fields, actions with CEL visibility, related lists, list fields; data contract: queries, virtual fields, mutations, validation, defaults, computed).
 
-Roadmap principle: **platform before features** — Object View → Procedures, then Notifications/Dashboard. See [full roadmap](docs/roadmap.md) for details.
+Roadmap principle: **platform before features** — Procedures next, then Notifications/Dashboard. See [full roadmap](docs/roadmap.md) for details.
 
 ---
 

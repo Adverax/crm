@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -18,6 +19,7 @@ type DescribeHandler struct {
 	cache       *metadata.MetadataCache
 	olsEnforcer ols.Enforcer
 	flsEnforcer fls.Enforcer
+	ovService   metadata.ObjectViewService
 }
 
 // NewDescribeHandler creates a new DescribeHandler.
@@ -25,11 +27,13 @@ func NewDescribeHandler(
 	cache *metadata.MetadataCache,
 	olsEnforcer ols.Enforcer,
 	flsEnforcer fls.Enforcer,
+	ovService metadata.ObjectViewService,
 ) *DescribeHandler {
 	return &DescribeHandler{
 		cache:       cache,
 		olsEnforcer: olsEnforcer,
 		flsEnforcer: flsEnforcer,
+		ovService:   ovService,
 	}
 }
 
@@ -75,6 +79,40 @@ type objectDescribe struct {
 	IsUpdateable bool            `json:"is_updateable"`
 	IsDeleteable bool            `json:"is_deleteable"`
 	Fields       []fieldDescribe `json:"fields"`
+	Form         *formDescribe   `json:"form,omitempty"`
+}
+
+type formDescribe struct {
+	Sections        []formSection     `json:"sections"`
+	HighlightFields []string          `json:"highlight_fields"`
+	Actions         []formAction      `json:"actions"`
+	RelatedLists    []formRelatedList `json:"related_lists"`
+	ListFields      []string          `json:"list_fields"`
+	ListDefaultSort string            `json:"list_default_sort"`
+}
+
+type formSection struct {
+	Key       string   `json:"key"`
+	Label     string   `json:"label"`
+	Columns   int      `json:"columns"`
+	Collapsed bool     `json:"collapsed"`
+	Fields    []string `json:"fields"`
+}
+
+type formAction struct {
+	Key            string `json:"key"`
+	Label          string `json:"label"`
+	Type           string `json:"type"`
+	Icon           string `json:"icon"`
+	VisibilityExpr string `json:"visibility_expr"`
+}
+
+type formRelatedList struct {
+	Object string   `json:"object"`
+	Label  string   `json:"label"`
+	Fields []string `json:"fields"`
+	Sort   string   `json:"sort"`
+	Limit  int      `json:"limit"`
 }
 
 // ListObjects returns all objects the current user can read (for navigation).
@@ -140,6 +178,27 @@ func (h *DescribeHandler) DescribeObject(c *gin.Context) {
 
 	allFields := append(systemFields, userFields...)
 
+	// Build accessible field set for FLS intersection
+	accessibleFields := make(map[string]bool, len(allFields))
+	for _, f := range allFields {
+		accessibleFields[f.APIName] = true
+	}
+
+	// Resolve Object View form
+	var form *formDescribe
+	if h.ovService != nil {
+		ov, err := h.ovService.ResolveForProfile(c.Request.Context(), objDef.ID, uc.ProfileID)
+		if err != nil {
+			slog.Warn("describeHandler: failed to resolve object view", "error", err, "object", objectName)
+		}
+		if ov != nil {
+			form = buildFormFromOV(ov, accessibleFields)
+		}
+	}
+	if form == nil {
+		form = buildFallbackForm(allFields)
+	}
+
 	desc := objectDescribe{
 		APIName:      objDef.APIName,
 		Label:        objDef.Label,
@@ -148,6 +207,7 @@ func (h *DescribeHandler) DescribeObject(c *gin.Context) {
 		IsUpdateable: objDef.IsUpdateable,
 		IsDeleteable: objDef.IsDeleteable,
 		Fields:       allFields,
+		Form:         form,
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": desc})
@@ -162,6 +222,109 @@ func buildSystemFieldDescriptions() []fieldDescribe {
 		{APIName: "CreatedById", Label: "Кем создано", FieldType: "reference", IsReadOnly: true, IsSystemField: true, SortOrder: -2},
 		{APIName: "UpdatedById", Label: "Кем обновлено", FieldType: "reference", IsReadOnly: true, IsSystemField: true, SortOrder: -1},
 	}
+}
+
+func buildFormFromOV(ov *metadata.ObjectView, accessible map[string]bool) *formDescribe {
+	cfg := ov.Config
+
+	// FLS-intersect fields
+	fields := filterAccessible(cfg.Read.Fields, accessible)
+
+	// Auto-generate single "Details" section from flat field list
+	sections := []formSection{}
+	if len(fields) > 0 {
+		sections = append(sections, formSection{
+			Key:     "details",
+			Label:   "Details",
+			Columns: 2,
+			Fields:  fields,
+		})
+	}
+
+	// Auto-generate highlight: first 3 fields
+	highlightFields := fields
+	if len(highlightFields) > 3 {
+		highlightFields = highlightFields[:3]
+	}
+
+	// Actions — pass through (visibility checked on frontend via CEL-js)
+	actions := make([]formAction, len(cfg.Read.Actions))
+	for i, a := range cfg.Read.Actions {
+		actions[i] = formAction{
+			Key:            a.Key,
+			Label:          a.Label,
+			Type:           a.Type,
+			Icon:           a.Icon,
+			VisibilityExpr: a.VisibilityExpr,
+		}
+	}
+
+	// Related lists — empty until Layout phase (ADR-0027)
+	relatedLists := []formRelatedList{}
+
+	// Auto-generate list fields from fields (FLS already applied above)
+	listFields := fields
+
+	return &formDescribe{
+		Sections:        sections,
+		HighlightFields: highlightFields,
+		Actions:         actions,
+		RelatedLists:    relatedLists,
+		ListFields:      listFields,
+		ListDefaultSort: "created_at DESC",
+	}
+}
+
+func buildFallbackForm(fields []fieldDescribe) *formDescribe {
+	editableNames := make([]string, 0)
+	for _, f := range fields {
+		if !f.IsSystemField && !f.IsReadOnly {
+			editableNames = append(editableNames, f.APIName)
+		}
+	}
+
+	highlightFields := make([]string, 0, 3)
+	for i, f := range fields {
+		if i >= 3 {
+			break
+		}
+		if !f.IsSystemField {
+			highlightFields = append(highlightFields, f.APIName)
+		}
+	}
+
+	listFields := make([]string, 0, 5)
+	for _, f := range fields {
+		if len(listFields) >= 5 {
+			break
+		}
+		if !f.IsSystemField || f.APIName == "Id" {
+			listFields = append(listFields, f.APIName)
+		}
+	}
+
+	return &formDescribe{
+		Sections: []formSection{{
+			Key:     "details",
+			Label:   "Details",
+			Columns: 2,
+			Fields:  editableNames,
+		}},
+		HighlightFields: highlightFields,
+		Actions:         []formAction{},
+		RelatedLists:    []formRelatedList{},
+		ListFields:      listFields,
+	}
+}
+
+func filterAccessible(names []string, accessible map[string]bool) []string {
+	result := make([]string, 0, len(names))
+	for _, name := range names {
+		if accessible[name] {
+			result = append(result, name)
+		}
+	}
+	return result
 }
 
 func (h *DescribeHandler) buildUserFields(c *gin.Context, userID uuid.UUID, objDef metadata.ObjectDefinition) []fieldDescribe {

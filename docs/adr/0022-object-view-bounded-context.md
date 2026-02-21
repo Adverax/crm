@@ -4,6 +4,67 @@
 **Date:** 2026-02-15
 **Participants:** @roman_myakotin
 
+## Amendment: Read/Write Config Split (2026-02-21)
+
+### Motivation
+
+The original flat OVConfig mixed read and write concerns into a single level. Fields like `queries`, `computed`, `list_fields`, and `highlight_fields` (read-only concerns) lived alongside `validation`, `defaults`, and `mutations` (write concerns). This caused:
+
+1. **Cognitive overload** — administrators editing OV config had to mentally separate "what affects display" from "what affects data entry", with no structural guidance.
+2. **Ambiguous API contract** — the frontend received a single config blob and had to decide which parts apply to record viewing vs. record creation/editing.
+3. **Unnecessary payload on read-only objects** — objects without create/update operations (e.g. audit logs, reports) still carried empty write-side fields.
+
+### Changes
+
+1. **Split OVConfig into `read` / `write` sub-objects.** All display, query, and presentation concerns move under `read` (fields, actions, queries, computed); all mutation, validation, and default concerns move under `write`.
+
+2. **Rename `virtual_fields` to `computed` in read context (`read.computed`).** The term "virtual fields" was ambiguous — it conflicted with the write-side `computed` (fields evaluated on save). In the read context, these are display-time computed values, now consistently named `OVReadComputed`.
+
+3. **`write` is optional (pointer/nullable).** When an object view describes a read-only context (e.g. a report view, an audit log), `write` is omitted entirely. The API returns `null` / omits the key, and the frontend disables create/edit forms.
+
+4. **`write.fields` is nullable.** When `write.fields` is `null`, the frontend falls back to `read.fields` for form rendering. This avoids duplicating the field list when read and write use the same fields. When `write.fields` is explicitly set, it overrides the read field list for create/edit forms.
+
+5. **Sections removed from OV config.** Per ADR-0027, sections and layout concerns belong to Layout, not Object View. OV defines WHAT data is relevant; Layout defines HOW it is presented (sections, columns, collapsed state). This amendment confirms their removal from the OV config schema.
+
+### New Config JSON Format
+
+```jsonc
+{
+  // READ side: presentation + display-time data
+  "read": {
+    "fields": ["client_name", "contact_phone", "deal", "products", "total_amount", "discount"],
+    "actions": [
+      { "key": "send_proposal", "label": "Send Proposal", "type": "primary", "icon": "mail", "visibility_expr": "record.status == 'draft'" }
+    ],
+    "queries": [
+      { "name": "recent_activities", "soql": "SELECT Id, Subject FROM Activity WHERE WhatId = :recordId LIMIT 5", "when": "record.status != 'cancelled'" }
+    ],
+    "computed": [
+      { "name": "total_with_tax", "type": "float", "expr": "record.amount * (1 + record.tax_rate / 100.0)", "when": "has(record.amount)" }
+    ]
+  },
+
+  // WRITE side: optional (omitted = read-only object view)
+  "write": {
+    "fields": null,          // null = fallback to read.fields
+    "validation": [
+      { "expr": "record.amount > 0", "message": "Amount must be positive", "code": "invalid_amount", "severity": "error" }
+    ],
+    "defaults": [
+      { "field": "status", "expr": "'draft'", "on": "create" }
+    ],
+    "computed": [
+      { "field": "total_with_tax", "expr": "record.amount * (1 + record.tax_rate / 100.0)" }
+    ],
+    "mutations": [
+      { "dml": "INSERT INTO LineItem ...", "when": "record.status == 'confirmed'" }
+    ]
+  }
+}
+```
+
+When `write` is omitted, the object view is read-only — no create/edit operations are available in the UI.
+
 ## Context
 
 ### Problem: same data — different contexts
@@ -166,72 +227,106 @@ UNIQUE(object_id, profile_id)  — one view per (object, profile) pair
 
 ### Config JSON Schema
 
+The config has two sub-objects: **`read`** (presentation + display-time data) and **`write`** (mutation-time data, optional). Sections, highlight fields, related lists, and list configuration are not part of OV config — they belong to Layout (ADR-0027). Actions are part of `read` since they are tied to the read context (record detail page).
+
+#### `read` — display-time data
+
+Per ADR-0019, Object View is a full bounded context adapter. The `read` sub-object defines what data to display for this context.
+
 ```jsonc
 {
-  // Form sections — field grouping
-  "sections": [
-    {
-      "key": "client_info",
-      "label": "Client Information",
-      "columns": 2,                    // 1 or 2 columns
-      "collapsed": false,              // collapsed by default
-      "fields": [
-        "client_name",                 // field api_name
-        "contact_phone",
-        "deal"                         // reference field
-      ]
-    },
-    {
-      "key": "products",
-      "label": "Products",
-      "columns": 1,
-      "fields": ["products", "total_amount", "discount"]
-    }
-  ],
+  "read": {
+    // Fields visible on the record detail page
+    "fields": ["client_name", "contact_phone", "deal", "products", "total_amount", "discount"],
 
-  // Highlight panel — key fields at the top of the record card (Compact Layout)
-  "highlight_fields": ["order_number", "status", "total_amount"],
+    // Actions available on the record detail page
+    "actions": [
+      {
+        "key": "send_proposal",
+        "label": "Send Proposal",
+        "type": "primary",                            // primary | secondary | danger
+        "icon": "mail",
+        "visibility_expr": "record.status == 'draft'" // CEL — conditional visibility
+      }
+    ],
 
-  // Actions (buttons) on the record card
-  "actions": [
-    {
-      "key": "send_proposal",
-      "label": "Send Proposal",
-      "type": "primary",                // primary | secondary | danger
-      "icon": "mail",
-      "visibility_expr": "record.status == 'draft'"  // CEL — when to show
-    },
-    {
-      "key": "mark_shipped",
-      "label": "Ship",
-      "type": "primary",
-      "icon": "truck",
-      "visibility_expr": "record.status == 'confirmed'"
-    }
-  ],
+    // Named SOQL queries scoped to this view
+    "queries": [
+      {
+        "name": "recent_activities",
+        "soql": "SELECT Id, Subject, DueDate FROM Activity WHERE WhatId = :recordId ORDER BY DueDate DESC LIMIT 5",
+        "when": "record.status != 'cancelled'"     // CEL — conditional execution
+      }
+    ],
 
-  // Related Lists — child objects at the bottom of the record card
-  "related_lists": [
-    {
-      "object": "Activity",
-      "label": "Activities",
-      "fields": ["subject", "type", "due_date", "status"],
-      "filter": "WhatId = :recordId",
-      "sort": "due_date DESC",
-      "limit": 10
-    }
-  ],
-
-  // List View — which columns to show in the list table
-  "list_fields": ["order_number", "client_name", "status", "total_amount", "created_at"],
-
-  // Default sort in the list
-  "list_default_sort": "created_at DESC",
-
-  // Default filters in the list
-  "list_default_filter": "owner_id = :currentUserId"
+    // Computed fields — display-time expressions (not stored in DB)
+    "computed": [
+      {
+        "name": "total_with_tax",
+        "type": "float",                             // string | int | float | bool | timestamp
+        "expr": "record.amount * (1 + record.tax_rate / 100.0)",
+        "when": "has(record.amount)"
+      }
+    ]
+  }
 }
 ```
+
+#### `write` — mutation-time data (optional)
+
+The `write` sub-object is optional (pointer/nullable). When omitted or `null`, the object view is read-only — no create/edit operations are available in the UI.
+
+`write.fields` is nullable: when `null`, the frontend falls back to `read.fields` for form rendering. When explicitly set, it overrides the read field list for create/edit forms.
+
+```jsonc
+{
+  "write": {
+    // Fields available in create/edit forms (null = fallback to read.fields)
+    "fields": null,
+
+    // DML operations scoped to this view
+    "mutations": [
+      {
+        "dml": "INSERT INTO LineItem (order_id, product_id, qty) VALUES (:recordId, :item.product_id, :item.qty)",
+        "foreach": "queries.line_items",             // iterate over query results
+        "sync": { "key": "product_id", "value": "item.product_id" },  // sync mapping
+        "when": "record.status == 'confirmed'"
+      }
+    ],
+
+    // View-scoped validation rules (additive with metadata-level rules per ADR-0019)
+    "validation": [
+      {
+        "expr": "record.amount > 0",
+        "message": "Amount must be positive",
+        "code": "invalid_amount",
+        "severity": "error",                         // error | warning
+        "when": "has(record.amount)"
+      }
+    ],
+
+    // View-scoped defaults (replace metadata-level defaults per ADR-0019)
+    "defaults": [
+      {
+        "field": "status",
+        "expr": "'draft'",
+        "on": "create",                              // create | update | create,update
+        "when": ""
+      }
+    ],
+
+    // Computed fields — expressions evaluated on save
+    "computed": [
+      {
+        "field": "total_with_tax",
+        "expr": "record.amount * (1 + record.tax_rate / 100.0)"
+      }
+    ]
+  }
+}
+```
+
+All fields within `read` and `write` are optional (`omitempty` in Go, `?? []` fallback on frontend). Existing Object View records without `read`/`write` sub-objects continue to work unchanged via migration or fallback logic.
 
 ### Resolution Rules
 
@@ -245,11 +340,10 @@ When opening a record of object `X` by a user with profile `P`:
    -> Found? Use it.
 
 3. Fallback: auto-generate from metadata
-   -> sections: one section "Details" with all FLS-accessible fields
-   -> highlight_fields: first 3 fields
-   -> actions: standard (Save, Delete)
-   -> related_lists: all child objects (composition/association)
-   -> list_fields: first 5 fields
+   -> read.fields: all FLS-accessible fields
+   -> read.actions: standard (Save, Delete)
+   -> write: non-null with fields=null (fallback to read.fields)
+   -> Layout (ADR-0027): highlight_fields, related_lists, list_fields
 ```
 
 The fallback guarantees that **the system works without a single Object View** — current behavior is preserved. Object View is an optional enhancement.
@@ -364,63 +458,88 @@ Fallback: no dashboard config -> standard dashboard with recent items and tasks.
 
 ### Example: one object — three bounded contexts
 
+> **Note:** These examples show the complete bounded context including both OV config (`read`/`write`) and Layout properties (`highlight_fields`, `related_lists`, `list_fields`) defined in ADR-0027. In the database, Layout properties are stored in `metadata.layouts`, not in the OV config JSONB.
+
 **Order for Sales Rep (Profile: "Sales"):**
 ```jsonc
 {
-  "sections": [
-    { "key": "client", "label": "Client", "fields": ["client_name", "contact_phone", "deal"] },
-    { "key": "products", "label": "Products", "fields": ["products", "total_amount", "discount"] },
-    { "key": "delivery", "label": "Delivery", "fields": ["shipping_status", "delivery_date"] }
-  ],
-  "highlight_fields": ["order_number", "client_name", "total_amount"],
-  "actions": [
-    { "key": "send_proposal", "label": "Send Proposal", "type": "primary" }
-  ],
-  "related_lists": [
-    { "object": "Activity", "label": "Activities" }
-  ],
-  "list_fields": ["order_number", "client_name", "status", "total_amount"]
+  // OV Config (metadata.object_views.config)
+  "read": {
+    "fields": ["client_name", "contact_phone", "deal", "products", "total_amount", "discount", "shipping_status", "delivery_date"],
+    "actions": [
+      { "key": "send_proposal", "label": "Send Proposal", "type": "primary" }
+    ],
+    "queries": [
+      { "name": "client_history", "soql": "SELECT Id, Name, Amount FROM Order WHERE ClientId = :record.client_id AND Id != :recordId ORDER BY CreatedDate DESC LIMIT 5" }
+    ]
+  },
+  "write": {
+    "fields": null,
+    "validation": [
+      { "expr": "record.discount <= 20", "message": "Discount cannot exceed 20% for sales reps", "severity": "error" }
+    ],
+    "defaults": [
+      { "field": "status", "expr": "'draft'", "on": "create" }
+    ]
+  }
+  // Layout (ADR-0027, metadata.layouts):
+  // highlight_fields: ["order_number", "client_name", "total_amount"]
+  // related_lists: [{ "object": "Activity", "label": "Activities" }]
+  // list_fields: ["order_number", "client_name", "status", "total_amount"]
 }
 ```
 
 **Order for Warehouse Worker (Profile: "Warehouse"):**
 ```jsonc
 {
-  "sections": [
-    { "key": "order", "label": "Order", "fields": ["order_number", "client_name"] },
-    { "key": "shipping", "label": "Shipping", "fields": ["warehouse", "products", "shipping_status", "tracking"] },
-    { "key": "dimensions", "label": "Weight and Dimensions", "fields": ["total_weight", "packages_count"] }
-  ],
-  "highlight_fields": ["order_number", "shipping_status", "warehouse"],
-  "actions": [
-    { "key": "mark_shipped", "label": "Ship", "type": "primary", "visibility_expr": "record.status == 'confirmed'" },
-    { "key": "print_label", "label": "Print Label", "type": "secondary" }
-  ],
-  "related_lists": [
-    { "object": "InventoryMovement", "label": "Inventory Movements" }
-  ],
-  "list_fields": ["order_number", "shipping_status", "warehouse", "created_at"]
+  // OV Config (metadata.object_views.config)
+  "read": {
+    "fields": ["order_number", "client_name", "warehouse", "products", "shipping_status", "tracking", "total_weight", "packages_count"],
+    "actions": [
+      { "key": "mark_shipped", "label": "Ship", "type": "primary", "visibility_expr": "record.status == 'confirmed'" },
+      { "key": "print_label", "label": "Print Label", "type": "secondary" }
+    ],
+    "computed": [
+      { "name": "is_oversized", "type": "bool", "expr": "record.total_weight > 50" }
+    ]
+  },
+  "write": {
+    "fields": ["shipping_status", "tracking", "warehouse", "packages_count"],
+    "validation": [
+      { "expr": "record.tracking != ''", "message": "Tracking number required before shipping", "severity": "error", "when": "record.shipping_status == 'shipping'" }
+    ]
+  }
+  // Layout (ADR-0027, metadata.layouts):
+  // highlight_fields: ["order_number", "shipping_status", "warehouse"]
+  // related_lists: [{ "object": "InventoryMovement", "label": "Inventory Movements" }]
+  // list_fields: ["order_number", "shipping_status", "warehouse", "created_at"]
 }
 ```
 
 **Order for Manager (Profile: "Manager"):**
 ```jsonc
 {
-  "sections": [
-    { "key": "overview", "label": "Overview", "fields": ["order_number", "client_name", "status", "total_amount"] },
-    { "key": "financials", "label": "Financials", "fields": ["cost_price", "margin", "revenue", "discount"] },
-    { "key": "execution", "label": "Execution", "fields": ["warehouse", "shipping_status", "delivery_date"] }
-  ],
-  "highlight_fields": ["order_number", "total_amount", "margin"],
-  "actions": [
-    { "key": "reassign", "label": "Reassign", "type": "secondary" },
-    { "key": "export", "label": "Export", "type": "secondary" }
-  ],
-  "related_lists": [
-    { "object": "Activity", "label": "Activities" },
-    { "object": "AuditLog", "label": "Change History" }
-  ],
-  "list_fields": ["order_number", "client_name", "total_amount", "margin", "status"]
+  // OV Config (metadata.object_views.config)
+  "read": {
+    "fields": ["order_number", "client_name", "status", "total_amount", "cost_price", "margin", "revenue", "discount", "warehouse", "shipping_status", "delivery_date"],
+    "actions": [
+      { "key": "reassign", "label": "Reassign", "type": "secondary" },
+      { "key": "export", "label": "Export", "type": "secondary" }
+    ],
+    "computed": [
+      { "name": "margin_pct", "type": "float", "expr": "record.margin / record.total_amount * 100" }
+    ]
+  },
+  "write": {
+    "fields": null,
+    "computed": [
+      { "field": "revenue", "expr": "record.total_amount - record.cost_price" }
+    ]
+  }
+  // Layout (ADR-0027, metadata.layouts):
+  // highlight_fields: ["order_number", "total_amount", "margin"]
+  // related_lists: [{ "object": "Activity" }, { "object": "AuditLog" }]
+  // list_fields: ["order_number", "client_name", "total_amount", "margin", "status"]
 }
 ```
 
@@ -441,7 +560,7 @@ GET  /api/v1/admin/profile-dashboards/:id  — profile dashboard
 PUT  /api/v1/admin/profile-dashboards/:id  — update dashboard
 ```
 
-Describe API is extended: if an Object View exists for the current profile — the response includes `view` with sections, actions, related lists. The frontend uses `view` for rendering instead of a flat list of fields.
+Describe API is extended: if an Object View exists for the current profile — the response includes `view` with `read`/`write` sub-objects. The frontend uses `view` for rendering instead of a flat list of fields.
 
 ### Storage
 
@@ -456,7 +575,7 @@ All configurations are stored in JSONB — flexibility without migrations when e
 ### Implementation Roadmap
 
 ```
-Phase 9a: Object View Core                    Phase 9b: Navigation + Dashboard
+Phase 9a: Object View Core ✅                 Phase 9b: Navigation + Dashboard
 ------------------------------------          ----------------------------------
 - metadata.object_views table                  - metadata.profile_navigation table
 - Admin CRUD API + UI                          - metadata.profile_dashboards table
@@ -465,7 +584,14 @@ Phase 9a: Object View Core                    Phase 9b: Navigation + Dashboard
 - Fallback logic                               - Home dashboard per profile
 - FLS intersection                             - Widget types: list, metric
 - Actions with visibility_expr                 - Chart widgets (Phase 15 dependency)
+- Config (ADR-0019):
+  read (fields, actions, queries, computed),
+  write (fields, mutations, validation,
+  defaults, computed)
+- Admin UI: visual constructor
 ```
+
+> **Note:** Data contract is stored in the JSONB config and editable through the Admin UI. Runtime execution (query executor, mutation executor) is deferred to a future phase. Phase 9a covers config storage and admin-time editing only.
 
 ## Consequences
 

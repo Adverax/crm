@@ -15,6 +15,7 @@ type CacheLoader interface {
 	LoadRelationships(ctx context.Context) ([]RelationshipInfo, error)
 	LoadAllValidationRules(ctx context.Context) ([]ValidationRule, error)
 	LoadAllFunctions(ctx context.Context) ([]Function, error)
+	LoadAllObjectViews(ctx context.Context) ([]ObjectView, error)
 	RefreshMaterializedView(ctx context.Context) error
 }
 
@@ -38,6 +39,9 @@ type MetadataCache struct {
 	// Custom functions
 	functionsByName map[string]Function
 
+	// Object views (ADR-0022)
+	objectViewsByObjectID map[uuid.UUID][]ObjectView
+
 	loader CacheLoader
 	loaded bool
 }
@@ -53,6 +57,7 @@ func NewMetadataCache(loader CacheLoader) *MetadataCache {
 		reverseRels:               make(map[uuid.UUID][]RelationshipInfo),
 		validationRulesByObjectID: make(map[uuid.UUID][]ValidationRule),
 		functionsByName:           make(map[string]Function),
+		objectViewsByObjectID:     make(map[uuid.UUID][]ObjectView),
 		loader:                    loader,
 	}
 }
@@ -82,6 +87,11 @@ func (c *MetadataCache) Load(ctx context.Context) error {
 	functions, err := c.loader.LoadAllFunctions(ctx)
 	if err != nil {
 		return fmt.Errorf("metadataCache.Load: functions: %w", err)
+	}
+
+	objectViews, err := c.loader.LoadAllObjectViews(ctx)
+	if err != nil {
+		return fmt.Errorf("metadataCache.Load: object views: %w", err)
 	}
 
 	c.mu.Lock()
@@ -118,6 +128,11 @@ func (c *MetadataCache) Load(ctx context.Context) error {
 	c.functionsByName = make(map[string]Function, len(functions))
 	for _, fn := range functions {
 		c.functionsByName[fn.Name] = fn
+	}
+
+	c.objectViewsByObjectID = make(map[uuid.UUID][]ObjectView)
+	for _, ov := range objectViews {
+		c.objectViewsByObjectID[ov.ObjectID] = append(c.objectViewsByObjectID[ov.ObjectID], ov)
 	}
 
 	c.loaded = true
@@ -244,6 +259,30 @@ func (c *MetadataCache) LoadFunctions(ctx context.Context) error {
 	c.functionsByName = make(map[string]Function, len(functions))
 	for _, fn := range functions {
 		c.functionsByName[fn.Name] = fn
+	}
+	return nil
+}
+
+// GetObjectViews returns all object views for an object from cache.
+func (c *MetadataCache) GetObjectViews(objectID uuid.UUID) []ObjectView {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.objectViewsByObjectID[objectID]
+}
+
+// LoadObjectViews reloads only object views into the cache.
+func (c *MetadataCache) LoadObjectViews(ctx context.Context) error {
+	views, err := c.loader.LoadAllObjectViews(ctx)
+	if err != nil {
+		return fmt.Errorf("metadataCache.LoadObjectViews: %w", err)
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.objectViewsByObjectID = make(map[uuid.UUID][]ObjectView)
+	for _, ov := range views {
+		c.objectViewsByObjectID[ov.ObjectID] = append(c.objectViewsByObjectID[ov.ObjectID], ov)
 	}
 	return nil
 }

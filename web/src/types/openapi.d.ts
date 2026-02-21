@@ -453,6 +453,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/object-views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List object views */
+        get: operations["listObjectViews"];
+        put?: never;
+        /** Create an object view */
+        post: operations["createObjectView"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/object-views/{viewId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                viewId: components["parameters"]["ViewId"];
+            };
+            cookie?: never;
+        };
+        /** Get an object view by ID */
+        get: operations["getObjectView"];
+        /** Update an object view */
+        put: operations["updateObjectView"];
+        post?: never;
+        /** Delete an object view */
+        delete: operations["deleteObjectView"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/cel/validate": {
         parameters: {
             query?: never;
@@ -555,6 +594,18 @@ export interface components {
              * @enum {string}
              */
             visibility: "private" | "public_read" | "public_read_write" | "controlled_by_parent";
+        };
+        CreateObjectViewRequest: {
+            /** Format: uuid */
+            object_id: string;
+            /** Format: uuid */
+            profile_id?: string | null;
+            api_name: string;
+            label: string;
+            description?: string;
+            /** @default false */
+            is_default: boolean;
+            config?: components["schemas"]["ObjectViewConfig"];
         };
         UpdateObjectRequest: {
             label: string;
@@ -833,6 +884,7 @@ export interface components {
             is_updateable: boolean;
             is_deleteable: boolean;
             fields: components["schemas"]["FieldDescribe"][];
+            form?: components["schemas"]["FormDescribe"];
         };
         FieldDescribe: {
             api_name: string;
@@ -857,6 +909,35 @@ export interface components {
                     is_active: boolean;
                 }[];
             };
+        };
+        FormDescribe: {
+            sections?: components["schemas"]["FormSection"][];
+            highlight_fields?: string[];
+            actions?: components["schemas"]["FormAction"][];
+            related_lists?: components["schemas"]["FormRelatedList"][];
+            list_fields?: string[];
+            list_default_sort?: string;
+        };
+        FormSection: {
+            key?: string;
+            label?: string;
+            columns?: number;
+            collapsed?: boolean;
+            fields?: string[];
+        };
+        FormAction: {
+            key?: string;
+            label?: string;
+            type?: string;
+            icon?: string;
+            visibility_expr?: string;
+        };
+        FormRelatedList: {
+            object?: string;
+            label?: string;
+            fields?: string[];
+            sort?: string;
+            limit?: number;
         };
         PaginationMeta: {
             page: number;
@@ -904,6 +985,94 @@ export interface components {
             /** @enum {string} */
             return_type?: "string" | "number" | "boolean" | "list" | "map" | "any";
             body: string;
+        };
+        ObjectView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            object_id: string;
+            /** Format: uuid */
+            profile_id?: string | null;
+            api_name: string;
+            label: string;
+            description: string;
+            is_default: boolean;
+            config: components["schemas"]["ObjectViewConfig"];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        ObjectViewConfig: {
+            read: components["schemas"]["OVReadConfig"];
+            write?: components["schemas"]["OVWriteConfig"];
+        };
+        OVReadConfig: {
+            fields?: string[];
+            actions?: components["schemas"]["OVAction"][];
+            queries?: components["schemas"]["OVQuery"][];
+            computed?: components["schemas"]["OVReadComputed"][];
+        };
+        OVWriteConfig: {
+            fields?: string[];
+            validation?: components["schemas"]["OVValidation"][];
+            defaults?: components["schemas"]["OVDefault"][];
+            computed?: components["schemas"]["OVComputed"][];
+            mutations?: components["schemas"]["OVMutation"][];
+        };
+        OVAction: {
+            key: string;
+            label: string;
+            type: string;
+            icon: string;
+            visibility_expr: string;
+        };
+        OVQuery: {
+            name: string;
+            soql: string;
+            when?: string;
+        };
+        OVMutation: {
+            dml: string;
+            foreach?: string;
+            sync?: components["schemas"]["OVMutSync"];
+            when?: string;
+        };
+        OVMutSync: {
+            key: string;
+            value: string;
+        };
+        OVReadComputed: {
+            name: string;
+            /** @enum {string} */
+            type: "string" | "int" | "float" | "bool" | "timestamp";
+            expr: string;
+            when?: string;
+        };
+        OVValidation: {
+            expr: string;
+            message: string;
+            code?: string;
+            /** @enum {string} */
+            severity: "error" | "warning";
+            when?: string;
+        };
+        OVDefault: {
+            field: string;
+            expr: string;
+            /** @enum {string} */
+            on: "create" | "update" | "create,update";
+            when?: string;
+        };
+        OVComputed: {
+            field: string;
+            expr: string;
+        };
+        UpdateObjectViewRequest: {
+            label: string;
+            description?: string;
+            is_default?: boolean;
+            config?: components["schemas"]["ObjectViewConfig"];
         };
         CelValidateRequest: {
             expression: string;
@@ -991,6 +1160,7 @@ export interface components {
         FieldId: string;
         RuleId: string;
         FunctionId: string;
+        ViewId: string;
         Page: number;
         PerPage: number;
     };
@@ -2022,6 +2192,137 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Function deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listObjectViews: {
+        parameters: {
+            query?: {
+                /** @description Filter by object ID */
+                object_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of object views */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["ObjectView"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    createObjectView: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateObjectViewRequest"];
+            };
+        };
+        responses: {
+            /** @description Object view created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["ObjectView"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getObjectView: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                viewId: components["parameters"]["ViewId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Object view details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["ObjectView"];
+                    };
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateObjectView: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                viewId: components["parameters"]["ViewId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateObjectViewRequest"];
+            };
+        };
+        responses: {
+            /** @description Object view updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["ObjectView"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteObjectView: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                viewId: components["parameters"]["ViewId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Object view deleted */
             204: {
                 headers: {
                     [name: string]: unknown;

@@ -1062,6 +1062,117 @@ export async function setupFunctionRoutes(page: Page) {
   })
 }
 
+// ─── Object Views mock data ─────────────────────────────────
+
+export const mockObjectViews = [
+  {
+    id: 'ov111111-1111-1111-1111-111111111111',
+    object_id: '11111111-1111-1111-1111-111111111111',
+    profile_id: null,
+    api_name: 'account_default',
+    label: 'Account Default View',
+    description: 'Default view for accounts',
+    is_default: true,
+    config: {
+      read: {
+        fields: ['Name', 'Industry', 'Phone'],
+        actions: [
+          {
+            key: 'send_email',
+            label: 'Send Email',
+            type: 'primary',
+            icon: 'mail',
+            visibility_expr: 'true',
+          },
+        ],
+        queries: [
+          {
+            name: 'recent_activities',
+            soql: 'SELECT Id, Subject FROM Activity WHERE WhatId = :recordId',
+            when: '',
+          },
+        ],
+        computed: [
+          {
+            name: 'display_name',
+            type: 'string',
+            expr: 'record.Name + " (" + record.Industry + ")"',
+            when: '',
+          },
+        ],
+      },
+      write: {
+        validation: [
+          {
+            expr: 'size(record.Name) > 0',
+            message: 'Name is required',
+            code: 'name_required',
+            severity: 'error',
+            when: '',
+          },
+        ],
+        defaults: [],
+        computed: [],
+        mutations: [],
+      },
+    },
+    created_at: '2026-02-16T10:00:00Z',
+    updated_at: '2026-02-16T10:00:00Z',
+  },
+  {
+    id: 'ov222222-2222-2222-2222-222222222222',
+    object_id: '11111111-1111-1111-1111-111111111111',
+    profile_id: 'pf222222-2222-2222-2222-222222222222',
+    api_name: 'account_sales_view',
+    label: 'Account Sales View',
+    description: 'Sales-specific view for accounts',
+    is_default: false,
+    config: {
+      read: {
+        fields: [],
+        actions: [],
+        queries: [],
+        computed: [],
+      },
+      write: null,
+    },
+    created_at: '2026-02-16T11:00:00Z',
+    updated_at: '2026-02-16T11:00:00Z',
+  },
+]
+
+export async function setupObjectViewRoutes(page: Page) {
+  await page.route('**/api/v1/admin/object-views?*', (route) => {
+    route.fulfill({ json: singleResponse(mockObjectViews) })
+  })
+  await page.route('**/api/v1/admin/object-views', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ json: singleResponse(mockObjectViews) })
+    }
+    if (route.request().method() === 'POST') {
+      return route.fulfill({
+        status: 201,
+        json: singleResponse({ ...mockObjectViews[0], id: 'new-view-id' }),
+      })
+    }
+    return route.continue()
+  })
+  for (const view of mockObjectViews) {
+    await page.route(`**/api/v1/admin/object-views/${view.id}`, (route) => {
+      if (route.request().method() === 'GET') {
+        return route.fulfill({ json: singleResponse(view) })
+      }
+      if (route.request().method() === 'PUT') {
+        return route.fulfill({ json: singleResponse(view) })
+      }
+      if (route.request().method() === 'DELETE') {
+        return route.fulfill({ status: 204 })
+      }
+      return route.continue()
+    })
+  }
+}
+
 // ─── Describe / Records mock data ─────────────────────────────
 
 export const mockDescribeList = [
@@ -1231,6 +1342,7 @@ export async function setupAllRoutes(page: Page) {
   await setupTerritoryRoutes(page)
   await setupValidationRuleRoutes(page)
   await setupFunctionRoutes(page)
+  await setupObjectViewRoutes(page)
   await setupDescribeRoutes(page)
   await setupRecordRoutes(page)
 }

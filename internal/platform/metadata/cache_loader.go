@@ -173,6 +173,22 @@ func (l *PgCacheLoader) LoadAllFunctions(ctx context.Context) ([]Function, error
 	return scanFunctions(rows)
 }
 
+// LoadAllObjectViews loads all object views from the database.
+func (l *PgCacheLoader) LoadAllObjectViews(ctx context.Context) ([]ObjectView, error) {
+	rows, err := l.pool.Query(ctx, `
+		SELECT id, object_id, profile_id, api_name, label, description,
+			is_default, config, created_at, updated_at
+		FROM metadata.object_views
+		ORDER BY object_id, api_name
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("pgCacheLoader.LoadAllObjectViews: %w", err)
+	}
+	defer rows.Close()
+
+	return scanObjectViews(rows)
+}
+
 // RefreshMaterializedView refreshes the relationship_registry materialized view concurrently.
 func (l *PgCacheLoader) RefreshMaterializedView(ctx context.Context) error {
 	_, err := l.pool.Exec(ctx, "REFRESH MATERIALIZED VIEW CONCURRENTLY metadata.relationship_registry")

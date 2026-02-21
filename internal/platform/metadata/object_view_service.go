@@ -1,0 +1,199 @@
+package metadata
+
+import (
+	"context"
+	"fmt"
+	"regexp"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/adverax/crm/internal/pkg/apperror"
+)
+
+var validOVAPIName = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+
+// ObjectViewService provides business logic for object views.
+type ObjectViewService interface {
+	Create(ctx context.Context, input CreateObjectViewInput) (*ObjectView, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*ObjectView, error)
+	ListAll(ctx context.Context) ([]ObjectView, error)
+	ListByObjectID(ctx context.Context, objectID uuid.UUID) ([]ObjectView, error)
+	Update(ctx context.Context, id uuid.UUID, input UpdateObjectViewInput) (*ObjectView, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+	ResolveForProfile(ctx context.Context, objectID uuid.UUID, profileID uuid.UUID) (*ObjectView, error)
+}
+
+type objectViewService struct {
+	pool  *pgxpool.Pool
+	repo  ObjectViewRepository
+	cache *MetadataCache
+}
+
+// NewObjectViewService creates a new ObjectViewService.
+func NewObjectViewService(
+	pool *pgxpool.Pool,
+	repo ObjectViewRepository,
+	cache *MetadataCache,
+) ObjectViewService {
+	return &objectViewService{
+		pool:  pool,
+		repo:  repo,
+		cache: cache,
+	}
+}
+
+func (s *objectViewService) Create(ctx context.Context, input CreateObjectViewInput) (*ObjectView, error) {
+	if err := s.validateCreate(input); err != nil {
+		return nil, fmt.Errorf("objectViewService.Create: %w", err)
+	}
+
+	// Verify object exists
+	if _, ok := s.cache.GetObjectByID(input.ObjectID); !ok {
+		return nil, fmt.Errorf("objectViewService.Create: %w",
+			apperror.NotFound("object", input.ObjectID.String()))
+	}
+
+	ov, err := s.repo.Create(ctx, input)
+	if err != nil {
+		return nil, fmt.Errorf("objectViewService.Create: %w", err)
+	}
+
+	if err := s.cache.LoadObjectViews(ctx); err != nil {
+		return nil, fmt.Errorf("objectViewService.Create: %w", err)
+	}
+
+	return ov, nil
+}
+
+func (s *objectViewService) GetByID(ctx context.Context, id uuid.UUID) (*ObjectView, error) {
+	ov, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("objectViewService.GetByID: %w", err)
+	}
+	if ov == nil {
+		return nil, fmt.Errorf("objectViewService.GetByID: %w",
+			apperror.NotFound("object_view", id.String()))
+	}
+	return ov, nil
+}
+
+func (s *objectViewService) ListAll(ctx context.Context) ([]ObjectView, error) {
+	views, err := s.repo.ListAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("objectViewService.ListAll: %w", err)
+	}
+	return views, nil
+}
+
+func (s *objectViewService) ListByObjectID(ctx context.Context, objectID uuid.UUID) ([]ObjectView, error) {
+	views, err := s.repo.ListByObjectID(ctx, objectID)
+	if err != nil {
+		return nil, fmt.Errorf("objectViewService.ListByObjectID: %w", err)
+	}
+	return views, nil
+}
+
+func (s *objectViewService) Update(ctx context.Context, id uuid.UUID, input UpdateObjectViewInput) (*ObjectView, error) {
+	if err := s.validateUpdate(input); err != nil {
+		return nil, fmt.Errorf("objectViewService.Update: %w", err)
+	}
+
+	existing, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("objectViewService.Update: %w", err)
+	}
+	if existing == nil {
+		return nil, fmt.Errorf("objectViewService.Update: %w",
+			apperror.NotFound("object_view", id.String()))
+	}
+
+	ov, err := s.repo.Update(ctx, id, input)
+	if err != nil {
+		return nil, fmt.Errorf("objectViewService.Update: %w", err)
+	}
+	if ov == nil {
+		return nil, fmt.Errorf("objectViewService.Update: %w",
+			apperror.NotFound("object_view", id.String()))
+	}
+
+	if err := s.cache.LoadObjectViews(ctx); err != nil {
+		return nil, fmt.Errorf("objectViewService.Update: %w", err)
+	}
+
+	return ov, nil
+}
+
+func (s *objectViewService) Delete(ctx context.Context, id uuid.UUID) error {
+	existing, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("objectViewService.Delete: %w", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("objectViewService.Delete: %w",
+			apperror.NotFound("object_view", id.String()))
+	}
+
+	if err := s.repo.Delete(ctx, id); err != nil {
+		return fmt.Errorf("objectViewService.Delete: %w", err)
+	}
+
+	if err := s.cache.LoadObjectViews(ctx); err != nil {
+		return fmt.Errorf("objectViewService.Delete: %w", err)
+	}
+
+	return nil
+}
+
+// ResolveForProfile implements 3-step resolution: profile-specific → default → nil.
+func (s *objectViewService) ResolveForProfile(ctx context.Context, objectID uuid.UUID, profileID uuid.UUID) (*ObjectView, error) {
+	// 1. Try profile-specific view
+	ov, err := s.repo.FindForProfile(ctx, objectID, profileID)
+	if err != nil {
+		return nil, fmt.Errorf("objectViewService.ResolveForProfile: %w", err)
+	}
+	if ov != nil {
+		return ov, nil
+	}
+
+	// 2. Try default view for the object
+	ov, err = s.repo.FindDefault(ctx, objectID)
+	if err != nil {
+		return nil, fmt.Errorf("objectViewService.ResolveForProfile: %w", err)
+	}
+	if ov != nil {
+		return ov, nil
+	}
+
+	// 3. No view found — caller will use fallback
+	return nil, nil
+}
+
+func (s *objectViewService) validateCreate(input CreateObjectViewInput) error {
+	if !validOVAPIName.MatchString(input.APIName) {
+		return apperror.BadRequest("api_name must match ^[a-z][a-z0-9_]*$")
+	}
+	if len(input.APIName) > 100 {
+		return apperror.BadRequest("api_name must be at most 100 characters")
+	}
+	if input.Label == "" {
+		return apperror.BadRequest("label is required")
+	}
+	if len(input.Label) > 255 {
+		return apperror.BadRequest("label must be at most 255 characters")
+	}
+	if input.ObjectID == uuid.Nil {
+		return apperror.BadRequest("object_id is required")
+	}
+	return nil
+}
+
+func (s *objectViewService) validateUpdate(input UpdateObjectViewInput) error {
+	if input.Label == "" {
+		return apperror.BadRequest("label is required")
+	}
+	if len(input.Label) > 255 {
+		return apperror.BadRequest("label must be at most 255 characters")
+	}
+	return nil
+}

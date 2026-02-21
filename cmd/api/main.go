@@ -281,6 +281,12 @@ func setupRouter(pool *pgxpool.Pool, cfg config.Config) *gin.Engine {
 	functionHandler := handler.NewFunctionHandler(functionService)
 	functionHandler.RegisterRoutes(adminGroup)
 
+	// Object View
+	objectViewRepo := metadata.NewPgObjectViewRepository(pool)
+	objectViewService := metadata.NewObjectViewService(pool, objectViewRepo, metadataCache)
+	objectViewHandler := handler.NewObjectViewHandler(objectViewService)
+	objectViewHandler.RegisterRoutes(adminGroup)
+
 	// --- Query/Data API ---
 	queryHandler := handler.NewQueryHandler(soqlService, dmlService)
 	apiGroup := router.Group("/api/v1")
@@ -292,7 +298,7 @@ func setupRouter(pool *pgxpool.Pool, cfg config.Config) *gin.Engine {
 	recordHandler.RegisterRoutes(apiGroup)
 
 	// --- Public Metadata Describe API ---
-	describeHandler := handler.NewDescribeHandler(metadataCache, olsEnforcer, flsEnforcer)
+	describeHandler := handler.NewDescribeHandler(metadataCache, olsEnforcer, flsEnforcer, objectViewService)
 	describeHandler.RegisterRoutes(apiGroup)
 
 	return router
