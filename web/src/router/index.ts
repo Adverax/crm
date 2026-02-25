@@ -33,6 +33,11 @@ const router = createRouter({
       meta: { requiresAuth: true },
       children: [
         {
+          path: '',
+          name: 'app-home',
+          component: () => import('../views/app/DashboardView.vue'),
+        },
+        {
           path: ':objectName/new',
           name: 'record-create',
           component: () => import('../views/app/RecordCreateView.vue'),
@@ -177,6 +182,40 @@ const router = createRouter({
           path: 'metadata/object-views/:viewId',
           name: 'admin-object-view-detail',
           component: () => import('../views/admin/metadata/ObjectViewDetailView.vue'),
+          props: true,
+        },
+        // Navigation
+        {
+          path: 'metadata/navigation',
+          name: 'admin-navigation',
+          component: () => import('../views/admin/metadata/NavigationListView.vue'),
+        },
+        {
+          path: 'metadata/navigation/new',
+          name: 'admin-navigation-create',
+          component: () => import('../views/admin/metadata/NavigationCreateView.vue'),
+        },
+        {
+          path: 'metadata/navigation/:navigationId',
+          name: 'admin-navigation-detail',
+          component: () => import('../views/admin/metadata/NavigationDetailView.vue'),
+          props: true,
+        },
+        // Dashboards
+        {
+          path: 'metadata/dashboards',
+          name: 'admin-dashboards',
+          component: () => import('../views/admin/metadata/DashboardListView.vue'),
+        },
+        {
+          path: 'metadata/dashboards/new',
+          name: 'admin-dashboard-create',
+          component: () => import('../views/admin/metadata/DashboardCreateView.vue'),
+        },
+        {
+          path: 'metadata/dashboards/:dashboardId',
+          name: 'admin-dashboard-detail',
+          component: () => import('../views/admin/metadata/DashboardDetailView.vue'),
           props: true,
         },
         // Templates

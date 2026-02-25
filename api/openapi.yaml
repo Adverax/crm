@@ -31,6 +31,10 @@ tags:
     description: Object view management
   - name: cel
     description: CEL expression validation
+  - name: profile-navigation
+    description: Profile navigation management (sidebar config per profile)
+  - name: profile-dashboards
+    description: Profile dashboard management (widgets per profile)
 
 paths:
   /healthz:
@@ -1109,6 +1113,287 @@ paths:
               schema:
                 $ref: "#/components/schemas/CelValidateResponse"
 
+  # ─── Profile Navigation (Admin CRUD) ──────────────────────────
+
+  /api/v1/admin/profile-navigation:
+    get:
+      summary: List all profile navigation configs
+      operationId: listProfileNavigations
+      tags:
+        - profile-navigation
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of navigation configs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ProfileNavigation"
+    post:
+      summary: Create a profile navigation config
+      operationId: createProfileNavigation
+      tags:
+        - profile-navigation
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProfileNavigationRequest"
+      responses:
+        "201":
+          description: Navigation config created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ProfileNavigation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/admin/profile-navigation/{navId}:
+    parameters:
+      - $ref: "#/components/parameters/NavId"
+    get:
+      summary: Get a profile navigation config by ID
+      operationId: getProfileNavigation
+      tags:
+        - profile-navigation
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Navigation config details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ProfileNavigation"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      summary: Update a profile navigation config
+      operationId: updateProfileNavigation
+      tags:
+        - profile-navigation
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileNavigationRequest"
+      responses:
+        "200":
+          description: Navigation config updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ProfileNavigation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      summary: Delete a profile navigation config
+      operationId: deleteProfileNavigation
+      tags:
+        - profile-navigation
+      security:
+        - BearerAuth: []
+      responses:
+        "204":
+          description: Navigation config deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── Navigation Resolution ──────────────────────────────────
+
+  /api/v1/navigation:
+    get:
+      summary: Resolve navigation for current user's profile
+      description: >
+        Returns the resolved sidebar navigation for the authenticated user's profile.
+        Object items are filtered by OLS (read permission). If no config exists for the
+        profile, returns a fallback with a single "_default" group containing all
+        OLS-accessible objects.
+      operationId: resolveNavigation
+      tags:
+        - profile-navigation
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Resolved navigation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ResolvedNavigation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ─── Profile Dashboards (Admin CRUD) ────────────────────────
+
+  /api/v1/admin/profile-dashboards:
+    get:
+      summary: List all profile dashboard configs
+      operationId: listProfileDashboards
+      tags:
+        - profile-dashboards
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of dashboard configs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ProfileDashboard"
+    post:
+      summary: Create a profile dashboard config
+      operationId: createProfileDashboard
+      tags:
+        - profile-dashboards
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProfileDashboardRequest"
+      responses:
+        "201":
+          description: Dashboard config created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ProfileDashboard"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/admin/profile-dashboards/{dashId}:
+    parameters:
+      - $ref: "#/components/parameters/DashId"
+    get:
+      summary: Get a profile dashboard config by ID
+      operationId: getProfileDashboard
+      tags:
+        - profile-dashboards
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Dashboard config details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ProfileDashboard"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      summary: Update a profile dashboard config
+      operationId: updateProfileDashboard
+      tags:
+        - profile-dashboards
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileDashboardRequest"
+      responses:
+        "200":
+          description: Dashboard config updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ProfileDashboard"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      summary: Delete a profile dashboard config
+      operationId: deleteProfileDashboard
+      tags:
+        - profile-dashboards
+      security:
+        - BearerAuth: []
+      responses:
+        "204":
+          description: Dashboard config deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── Dashboard Resolution ───────────────────────────────────
+
+  /api/v1/dashboard:
+    get:
+      summary: Resolve dashboard for current user's profile
+      description: >
+        Returns the resolved dashboard for the authenticated user's profile.
+        SOQL queries in list and metric widgets are executed under the user's
+        security context (RLS/FLS). The variable :currentUserId is substituted
+        with the authenticated user's ID. If no config exists, returns an empty
+        widget array.
+      operationId: resolveDashboard
+      tags:
+        - profile-dashboards
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Resolved dashboard with executed widget data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ResolvedDashboard"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   # NOTE: Security endpoints (roles, permission-sets, profiles, users, groups,
   # sharing-rules) are registered manually via SecurityHandler.RegisterRoutes.
   # They are not included in OpenAPI codegen to avoid ServerInterface bloat.
@@ -1149,6 +1434,22 @@ components:
 
     ViewId:
       name: viewId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    NavId:
+      name: navId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    DashId:
+      name: dashId
       in: path
       required: true
       schema:
@@ -2522,6 +2823,303 @@ components:
           type: integer
         column:
           type: integer
+
+    # ─── Profile Navigation schemas ────────────────────────────
+
+    NavItem:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: [object, link, divider]
+        object_api_name:
+          type: string
+        label:
+          type: string
+        url:
+          type: string
+        icon:
+          type: string
+
+    NavGroup:
+      type: object
+      required:
+        - key
+        - label
+        - items
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        icon:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/NavItem"
+
+    NavConfig:
+      type: object
+      required:
+        - groups
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/NavGroup"
+
+    ProfileNavigation:
+      type: object
+      required:
+        - id
+        - profile_id
+        - config
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        profile_id:
+          type: string
+          format: uuid
+        config:
+          $ref: "#/components/schemas/NavConfig"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateProfileNavigationRequest:
+      type: object
+      required:
+        - profile_id
+      properties:
+        profile_id:
+          type: string
+          format: uuid
+        config:
+          $ref: "#/components/schemas/NavConfig"
+
+    UpdateProfileNavigationRequest:
+      type: object
+      properties:
+        config:
+          $ref: "#/components/schemas/NavConfig"
+
+    ResolvedNavItem:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: [object, link, divider]
+        object_api_name:
+          type: string
+        label:
+          type: string
+        plural_label:
+          type: string
+        url:
+          type: string
+        icon:
+          type: string
+
+    ResolvedNavGroup:
+      type: object
+      required:
+        - key
+        - label
+        - items
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        icon:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResolvedNavItem"
+
+    ResolvedNavigation:
+      type: object
+      required:
+        - groups
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResolvedNavGroup"
+
+    # ─── Profile Dashboard schemas ─────────────────────────────
+
+    DashLink:
+      type: object
+      required:
+        - label
+        - url
+      properties:
+        label:
+          type: string
+        url:
+          type: string
+        icon:
+          type: string
+
+    DashboardWidget:
+      type: object
+      required:
+        - key
+        - type
+        - label
+        - size
+      properties:
+        key:
+          type: string
+        type:
+          type: string
+          enum: [list, metric, link_list]
+        label:
+          type: string
+        size:
+          type: string
+          enum: [small, medium, large]
+        query:
+          type: string
+          description: SOQL query for list/metric widgets. Supports :currentUserId variable.
+        columns:
+          type: array
+          items:
+            type: string
+        object_api_name:
+          type: string
+        format:
+          type: string
+          enum: [number, currency, percent]
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/DashLink"
+
+    DashboardConfig:
+      type: object
+      required:
+        - widgets
+      properties:
+        widgets:
+          type: array
+          items:
+            $ref: "#/components/schemas/DashboardWidget"
+
+    ProfileDashboard:
+      type: object
+      required:
+        - id
+        - profile_id
+        - config
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        profile_id:
+          type: string
+          format: uuid
+        config:
+          $ref: "#/components/schemas/DashboardConfig"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateProfileDashboardRequest:
+      type: object
+      required:
+        - profile_id
+      properties:
+        profile_id:
+          type: string
+          format: uuid
+        config:
+          $ref: "#/components/schemas/DashboardConfig"
+
+    UpdateProfileDashboardRequest:
+      type: object
+      properties:
+        config:
+          $ref: "#/components/schemas/DashboardConfig"
+
+    ListWidgetData:
+      type: object
+      properties:
+        records:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        total_count:
+          type: integer
+
+    MetricWidgetData:
+      type: object
+      properties:
+        value: {}
+
+    ResolvedWidget:
+      type: object
+      required:
+        - key
+        - type
+        - label
+        - size
+        - data
+      properties:
+        key:
+          type: string
+        type:
+          type: string
+          enum: [list, metric, link_list]
+        label:
+          type: string
+        size:
+          type: string
+        object_api_name:
+          type: string
+        columns:
+          type: array
+          items:
+            type: string
+        format:
+          type: string
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/DashLink"
+        data:
+          description: >
+            Widget-specific data. For list widgets: ListWidgetData (records + total_count).
+            For metric widgets: MetricWidgetData (value). For link_list widgets: null.
+
+    ResolvedDashboard:
+      type: object
+      required:
+        - widgets
+      properties:
+        widgets:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResolvedWidget"
 
     ErrorResponse:
       type: object

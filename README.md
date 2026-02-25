@@ -225,15 +225,16 @@ make docker-reset     # Reset all data and restart
 | Phase 7b | Done | CEL engine, validation rules, dynamic defaults, DML pipeline extension |
 | Phase 8 | Done | Custom Functions — fn.* namespace, dual-stack (cel-go + cel-js), Expression Builder |
 | Phase 9a | Done | Object View Core — metadata.object_views, visual constructor (12 tabs: presentation + data contract), Describe API form resolution, section-based CRM rendering |
-| Phase 9b-d | Planned | Navigation/Dashboard per profile, Layout + Form model, Advanced Metadata |
-| Phase 10 | Planned | Procedure Engine + Automation Rules — declarative JSON DSL |
+| Phase 9b | Done | Navigation + Dashboard per profile — grouped sidebar, SOQL-driven widgets |
+| Phase 9c-d | Planned | Layout + Form model, Advanced Metadata |
+| Phase 10 | Done | Procedure Engine + Automation Rules — declarative JSON DSL |
 | Phase 11 | Planned | Notifications, Activity & CRM UX — dashboard, kanban, calendar |
 | Phase 12 | Planned | Formula Engine — computed fields, roll-up summaries |
 | Phase 13 | Planned | Scenario Engine + Approval Processes — long-lived workflows |
 
-The platform is **fully functional** across 13 completed phases (29 ADRs). It can create objects via metadata engine or App Templates, manage permissions, enforce 3-layer security (OLS/FLS/RLS), query data through SOQL, perform all DML operations with CEL-based validation rules and dynamic defaults, authenticate users via JWT, work with records through a dynamic metadata-driven UI, define reusable Custom Functions with fn.* namespace (dual-stack: cel-go backend + cel-js frontend with Expression Builder), and configure **Object Views** as full bounded context adapters per profile (presentation: sections, highlight fields, actions with CEL visibility, related lists, list fields; data contract: queries, virtual fields, mutations, validation, defaults, computed).
+The platform is **fully functional** across 15 completed phases (32 ADRs). It can create objects via metadata engine or App Templates, manage permissions, enforce 3-layer security (OLS/FLS/RLS), query data through SOQL, perform all DML operations with CEL-based validation rules and dynamic defaults, authenticate users via JWT, work with records through a dynamic metadata-driven UI, define reusable Custom Functions with fn.* namespace (dual-stack: cel-go backend + cel-js frontend with Expression Builder), configure **Object Views** as full bounded context adapters per profile, define **Procedures** with a visual Constructor UI (6 command types, Named Credentials, versioning, Saga rollback), set up **Automation Rules** (DML triggers with CEL conditions), and configure **per-profile Navigation** (grouped sidebar with OLS intersection) and **Dashboards** (SOQL-driven widgets: list, metric, link_list).
 
-Roadmap principle: **platform before features** — Procedures next, then Notifications/Dashboard. See [full roadmap](docs/roadmap.md) for details.
+Roadmap principle: **platform before features** — Notifications next, then Formulas/Scenarios. See [full roadmap](docs/roadmap.md) for details.
 
 ---
 
@@ -272,8 +273,11 @@ Every significant decision is documented as an ADR in [`docs/adr/`](docs/adr/):
 | [0027](docs/adr/0027-layout-and-form.md) | Layout + Form: OV (what) + Layout (how) + Form (computed) |
 | [0028](docs/adr/0028-named-credentials.md) | Named Credentials: AES-256-GCM encrypted secrets |
 | [0029](docs/adr/0029-versioning-strategy.md) | Versioning: Draft/Published for Procedure + Scenario |
+| [0030](docs/adr/0030-modular-monolith-strategy.md) | Modular Monolith: MetadataReader interface |
+| [0031](docs/adr/0031-automation-rules.md) | Automation Rules: reactive triggers on DML events |
+| [0032](docs/adr/0032-profile-navigation-and-dashboard.md) | Profile Navigation + Dashboard per profile |
 
-[All 29 ADRs →](docs/adr/)
+[All 32 ADRs →](docs/adr/)
 
 ---
 

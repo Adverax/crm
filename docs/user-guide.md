@@ -99,7 +99,23 @@
     - [Test Connection](#154-test-connection)
     - [Usage Log](#155-usage-log)
     - [API](#156-api)
-16. [Common Scenarios](#16-common-scenarios)
+16. [Profile Navigation](#16-profile-navigation)
+    - [Overview](#161-overview)
+    - [Navigation Config](#162-navigation-config)
+    - [Resolution Logic](#163-resolution-logic)
+    - [Admin UI](#164-admin-ui)
+    - [API](#165-api)
+17. [Profile Dashboards](#17-profile-dashboards)
+    - [Overview](#171-overview)
+    - [Dashboard Config](#172-dashboard-config)
+    - [Widget Types](#173-widget-types)
+    - [Resolution Logic](#174-resolution-logic)
+    - [Admin UI](#175-admin-ui)
+    - [API](#176-api)
+18. [Automation Rules](#18-automation-rules)
+    - [Overview](#181-overview)
+    - [API](#182-api)
+19. [Common Scenarios](#19-common-scenarios)
 
 ---
 
@@ -115,8 +131,11 @@ The CRM admin panel is designed for system administrators and allows:
 - Configuring **validation rules** — CEL expressions that check data on every save.
 - Creating **custom functions** — reusable CEL expressions callable from any context.
 - Configuring **object views** — role-based UI per profile with read config (fields, actions, queries, computed) and optional write config (validation, defaults, computed, mutations).
+- Configuring **profile navigation** — per-profile sidebar with grouped items (objects, links, dividers), OLS intersection for object items, fallback to alphabetical flat list.
+- Configuring **profile dashboards** — per-profile home page with SOQL-driven widgets (list, metric, link_list), RLS/FLS enforcement, `:currentUserId` variable substitution.
 - Building **procedures** — named JSON-described business logic sequences (record operations, computations, branching, HTTP integrations) with a visual Constructor UI, versioning (draft/published), and dry-run testing.
 - Managing **named credentials** — encrypted secret storage for HTTP integrations (API keys, basic auth, OAuth2 client credentials) with SSRF protection and usage audit logging.
+- Configuring **automation rules** — DML triggers (before/after insert/update/delete) with CEL conditions that invoke published procedures.
 - Working with **records** — creating, editing, and deleting records of any object through a universal CRUD interface.
 
 ### Audience
@@ -137,6 +156,12 @@ Sidebar structure:
 | **Objects** | `/admin/metadata/objects` |
 | **Templates** | `/admin/templates` |
 | **Functions** | `/admin/functions` |
+| **Object Views** | `/admin/metadata/object-views` |
+| **Navigation** | `/admin/metadata/navigation` |
+| **Dashboards** | `/admin/metadata/dashboards` |
+| **Procedures** | `/admin/metadata/procedures` |
+| **Credentials** | `/admin/metadata/credentials` |
+| **Automation Rules** | `/admin/metadata/automation-rules` |
 | **Security** (collapsible group) | |
 | — Roles | `/admin/security/roles` |
 | — Permission Sets | `/admin/security/permission-sets` |
@@ -3253,7 +3278,219 @@ GET /api/v1/admin/credentials/:id/usage
 
 ---
 
-## 16. Common Scenarios
+## 16. Profile Navigation
+
+### 16.1 Overview
+
+Profile Navigation (ADR-0032) allows administrators to configure per-profile sidebar navigation. Each profile can have its own set of grouped navigation items instead of the default flat alphabetical list.
+
+Key features:
+- **Grouped navigation** — items are organized into collapsible groups (e.g., "Sales", "Support").
+- **Three item types** — `object` (links to an object's record list), `link` (external or internal URL), `divider` (visual separator).
+- **OLS intersection** — object items are filtered by the user's read permissions. Objects the user cannot read are hidden.
+- **Fallback** — if no navigation config exists for the user's profile, the sidebar shows an OLS-filtered alphabetical list of all queryable objects (current default behavior).
+- **One config per profile** — `UNIQUE(profile_id)` constraint. `ON DELETE CASCADE` when the profile is deleted.
+
+### 16.2 Navigation Config
+
+The navigation config is stored as JSONB in `metadata.profile_navigation`. Structure:
+
+```json
+{
+  "groups": [
+    {
+      "key": "sales",
+      "label": "Sales",
+      "icon": "trending-up",
+      "items": [
+        { "type": "object", "object_api_name": "Account" },
+        { "type": "object", "object_api_name": "Opportunity" },
+        { "type": "divider" },
+        { "type": "link", "label": "Reports", "url": "/app/reports", "icon": "bar-chart" }
+      ]
+    }
+  ]
+}
+```
+
+**Validation rules:**
+- Max 20 groups
+- Max 50 items per group
+- Group keys must be unique
+- Item types must be `object`, `link`, or `divider`
+- URLs in link items: no `javascript:` scheme allowed
+
+### 16.3 Resolution Logic
+
+`GET /api/v1/navigation` resolves the sidebar for the authenticated user:
+
+1. Look up the user's `profile_id` from the JWT-derived `UserContext`.
+2. Query `metadata.profile_navigation` for a config matching this `profile_id`.
+3. If found: iterate groups → items, filter object items by OLS (remove objects the user cannot read), resolve labels from metadata.
+4. If not found: build a fallback — single group with `key="_default"`, empty `label`, containing all OLS-accessible objects alphabetically.
+
+### 16.4 Admin UI
+
+Admin views for managing navigation configs:
+
+| View | Route | Description |
+|------|-------|-------------|
+| List | `/admin/metadata/navigation` | Shows all configs with profile ID and group count |
+| Create | `/admin/metadata/navigation/new` | Form: profile ID + JSON config textarea |
+| Detail | `/admin/metadata/navigation/:id` | Read-only profile ID + editable JSON config + Save/Delete |
+
+### 16.5 API
+
+**Admin CRUD** (requires admin authentication):
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/v1/admin/profile-navigation` | Create navigation config |
+| `GET` | `/api/v1/admin/profile-navigation` | List all navigation configs |
+| `GET` | `/api/v1/admin/profile-navigation/:id` | Get navigation config by ID |
+| `PUT` | `/api/v1/admin/profile-navigation/:id` | Update navigation config |
+| `DELETE` | `/api/v1/admin/profile-navigation/:id` | Delete navigation config |
+
+**Resolution** (requires user authentication):
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/v1/navigation` | Resolve navigation for current user's profile |
+
+---
+
+## 17. Profile Dashboards
+
+### 17.1 Overview
+
+Profile Dashboards (ADR-0032) allow administrators to configure per-profile home pages with SOQL-driven widgets. Each profile can have its own dashboard with widgets showing live data from the CRM.
+
+Key features:
+- **Three widget types** — `list` (table of records), `metric` (single computed value), `link_list` (static links for quick actions).
+- **SOQL-driven data** — list and metric widgets execute SOQL queries under the user's security context (RLS/FLS enforced).
+- **Variable substitution** — `:currentUserId` in SOQL queries is replaced with the authenticated user's UUID.
+- **Per-widget timeout** — each SOQL query has a 5-second timeout. Failed queries return empty data (not an error).
+- **Fallback** — if no dashboard config exists, the home page shows an empty state.
+
+### 17.2 Dashboard Config
+
+The dashboard config is stored as JSONB in `metadata.profile_dashboards`. Structure:
+
+```json
+{
+  "widgets": [
+    {
+      "key": "my_tasks",
+      "type": "list",
+      "label": "My Tasks",
+      "size": "large",
+      "query": "SELECT Id, Subject, Status FROM Task WHERE OwnerId = :currentUserId ORDER BY CreatedAt DESC LIMIT 5",
+      "columns": ["Subject", "Status"],
+      "object_api_name": "Task"
+    },
+    {
+      "key": "open_deals",
+      "type": "metric",
+      "label": "Open Deals",
+      "size": "small",
+      "query": "SELECT COUNT(Id) FROM Opportunity WHERE Stage != 'Closed Won'",
+      "format": "number"
+    },
+    {
+      "key": "quick_actions",
+      "type": "link_list",
+      "label": "Quick Actions",
+      "size": "medium",
+      "links": [
+        { "label": "New Account", "url": "/app/Account/new", "icon": "plus" },
+        { "label": "New Contact", "url": "/app/Contact/new", "icon": "user-plus" }
+      ]
+    }
+  ]
+}
+```
+
+### 17.3 Widget Types
+
+| Type | Data Source | Fields |
+|------|-----------|--------|
+| `list` | SOQL query → records table | `query`, `columns`, `object_api_name`, `size` |
+| `metric` | SOQL query → single value | `query`, `format` (number/currency/percent), `size` |
+| `link_list` | Static links array | `links` (label + url + icon), `size` |
+
+**Size values:** `small` (4 grid columns), `medium` (6), `large` (12 — full width).
+
+**Validation rules:**
+- Max 12 widgets
+- Widget keys must be unique
+- Widget type must be `list`, `metric`, or `link_list`
+- Size must be `small`, `medium`, or `large`
+- Format (for metric) must be `number`, `currency`, or `percent`
+
+### 17.4 Resolution Logic
+
+`GET /api/v1/dashboard` resolves the dashboard for the authenticated user:
+
+1. Look up the user's `profile_id` from `UserContext`.
+2. Query `metadata.profile_dashboards` for a config matching this `profile_id`.
+3. If found: iterate widgets, execute SOQL queries for list/metric widgets (with 5s timeout), return resolved data.
+4. If not found: return `{ "widgets": [] }` (empty dashboard).
+
+### 17.5 Admin UI
+
+| View | Route | Description |
+|------|-------|-------------|
+| List | `/admin/metadata/dashboards` | Shows all configs with profile ID and widget count |
+| Create | `/admin/metadata/dashboards/new` | Form: profile ID + JSON config textarea |
+| Detail | `/admin/metadata/dashboards/:id` | Read-only profile ID + editable JSON config + Save/Delete |
+
+### 17.6 API
+
+**Admin CRUD:**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/v1/admin/profile-dashboards` | Create dashboard config |
+| `GET` | `/api/v1/admin/profile-dashboards` | List all dashboard configs |
+| `GET` | `/api/v1/admin/profile-dashboards/:id` | Get dashboard config by ID |
+| `PUT` | `/api/v1/admin/profile-dashboards/:id` | Update dashboard config |
+| `DELETE` | `/api/v1/admin/profile-dashboards/:id` | Delete dashboard config |
+
+**Resolution:**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/v1/dashboard` | Resolve dashboard for current user's profile |
+
+---
+
+## 18. Automation Rules
+
+### 18.1 Overview
+
+Automation Rules (ADR-0031) allow administrators to define reactive triggers on DML events. When a record is inserted, updated, or deleted, matching rules evaluate CEL conditions and execute published procedures.
+
+Key features:
+- **6 event types**: `before_insert`, `after_insert`, `before_update`, `after_update`, `before_delete`, `after_delete`
+- **CEL conditions**: expressions like `new.Status != old.Status` evaluated per record
+- **Procedure execution**: each rule references a `procedure_code` — a published procedure
+- **Execution modes**: `per_record` (one procedure call per record) or `per_batch` (one call for all records)
+- **Execution order**: `sort_order` field controls rule evaluation order per object per event
+- **Recursion depth limit**: configurable (default 3) to prevent infinite trigger chains
+
+### 18.2 API
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/v1/admin/automation-rules` | Create an automation rule |
+| `GET` | `/api/v1/admin/automation-rules` | List automation rules (filter by `object_id`) |
+| `GET` | `/api/v1/admin/automation-rules/:id` | Get automation rule by ID |
+| `PUT` | `/api/v1/admin/automation-rules/:id` | Update an automation rule |
+| `DELETE` | `/api/v1/admin/automation-rules/:id` | Delete an automation rule |
+
+---
+
+## 19. Common Scenarios
 
 ### Scenario 1: First Login
 
@@ -3607,4 +3844,77 @@ The entry will appear in the `obj_invoice__share` share table with reason `manua
 
 ---
 
-*Document created for CRM Platform. Current for Phase 0–10a (Scaffolding, Metadata engine, Security engine, SOQL, DML, Auth, App Templates, Generic CRUD, CEL engine, Validation Rules, Dynamic Defaults, Custom Functions, Object Views, Procedure Engine with Saga Rollback, Named Credentials) + Territory Management (Enterprise).*
+### Scenario 28: Configure Profile Navigation
+
+1. Navigate to **Navigation** (`/admin/metadata/navigation`).
+2. Click **"+"** to create a new navigation config.
+3. Enter the **Profile ID** of the target profile (UUID).
+4. Enter the config JSON:
+   ```json
+   {
+     "groups": [
+       {
+         "key": "sales",
+         "label": "Sales",
+         "items": [
+           { "type": "object", "object_api_name": "Account" },
+           { "type": "object", "object_api_name": "Opportunity" }
+         ]
+       },
+       {
+         "key": "support",
+         "label": "Support",
+         "items": [
+           { "type": "link", "label": "Help Center", "url": "https://help.example.com", "icon": "life-buoy" }
+         ]
+       }
+     ]
+   }
+   ```
+5. Click **"Create"**.
+6. Log in as a user with the target profile — the sidebar now shows grouped navigation instead of the flat object list.
+
+### Scenario 29: Configure a Profile Dashboard
+
+1. Navigate to **Dashboards** (`/admin/metadata/dashboards`).
+2. Click **"+"** to create.
+3. Enter the **Profile ID** and a config JSON:
+   ```json
+   {
+     "widgets": [
+       {
+         "key": "my_tasks",
+         "type": "list",
+         "label": "My Tasks",
+         "size": "large",
+         "query": "SELECT Id, Subject, Status FROM Task WHERE OwnerId = :currentUserId LIMIT 5",
+         "columns": ["Subject", "Status"],
+         "object_api_name": "Task"
+       },
+       {
+         "key": "total_deals",
+         "type": "metric",
+         "label": "Total Deals",
+         "size": "small",
+         "query": "SELECT COUNT(Id) FROM Opportunity",
+         "format": "number"
+       },
+       {
+         "key": "quick_links",
+         "type": "link_list",
+         "label": "Quick Actions",
+         "size": "medium",
+         "links": [
+           { "label": "New Account", "url": "/app/Account/new" },
+           { "label": "New Contact", "url": "/app/Contact/new" }
+         ]
+       }
+     ]
+   }
+   ```
+4. Click **"Create"**.
+5. Log in as a user with the target profile — the `/app` home page now shows the configured dashboard widgets.
+
+---
+
+*Document created for CRM Platform. Current for Phase 0–10b (Scaffolding, Metadata engine, Security engine, SOQL, DML, Auth, App Templates, Generic CRUD, CEL engine, Validation Rules, Dynamic Defaults, Custom Functions, Object Views, Profile Navigation, Profile Dashboards, Procedure Engine with Saga Rollback, Named Credentials, Automation Rules) + Territory Management (Enterprise).*

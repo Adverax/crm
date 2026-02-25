@@ -355,6 +355,18 @@ func setupRouter(pool *pgxpool.Pool, metadataCache *metadata.MetadataCache, cfg 
 	apiGroup := router.Group("/api/v1")
 	queryHandler.RegisterRoutes(apiGroup)
 
+	// Profile Navigation (ADR-0032)
+	navRepo := metadata.NewPgNavigationRepository(pool)
+	navService := metadata.NewProfileNavigationService(navRepo)
+	navHandler := handler.NewNavigationHandler(navService, metadataCache, olsEnforcer)
+	navHandler.RegisterRoutes(adminGroup, apiGroup)
+
+	// Profile Dashboard (ADR-0032)
+	dashRepo := metadata.NewPgDashboardRepository(pool)
+	dashService := metadata.NewProfileDashboardService(dashRepo)
+	dashHandler := handler.NewDashboardHandler(dashService, soqlService)
+	dashHandler.RegisterRoutes(adminGroup, apiGroup)
+
 	// --- Record CRUD API ---
 	recordService := service.NewRecordService(metadataCache, soqlService, dmlService)
 	recordHandler := handler.NewRecordHandler(recordService)

@@ -19,7 +19,7 @@ Current state and target coverage relative to Salesforce Platform.
 | Data Mutation (DML) | Insert, Update, Upsert, Delete, Undelete, Merge + triggers | INSERT/UPDATE/DELETE/UPSERT, OLS+FLS enforcement, RLS injection for UPDATE/DELETE, batch operations, Custom Functions (fn.* dual-stack), validation rules (CEL), dynamic defaults (CEL) | 65% SF |
 | Auth | OAuth 2.0, SAML, MFA, Connected Apps | JWT (access + refresh), login, password reset, rate limiting | JWT + refresh tokens |
 | Automation | Flow Builder, Triggers, Workflow Rules, Approval Processes | Automation Rules (before/after triggers, CEL conditions, procedure_code), Procedure Engine (6 command types, Named Credentials) | Triggers + basic Flows |
-| UI Framework | Lightning App Builder, LWC, Dynamic Forms | Vue.js admin + metadata-driven CRM UI (AppLayout, dynamic record views, FieldRenderer), Expression Builder (CodeMirror + autocomplete + live preview), Object View (role-based sections, actions, highlights, related lists) | Admin + Record UI + Object Views |
+| UI Framework | Lightning App Builder, LWC, Dynamic Forms | Vue.js admin + metadata-driven CRM UI (AppLayout, dynamic record views, FieldRenderer), Expression Builder (CodeMirror + autocomplete + live preview), Object View (role-based sections, actions, highlights, related lists), Profile Navigation (grouped sidebar), Profile Dashboard (SOQL widgets) | Admin + Record UI + Object Views + Nav/Dash |
 | APIs | REST, SOAP, Bulk, Streaming, Metadata, Tooling, GraphQL | REST admin endpoints (metadata + security + groups + sharing rules) | REST + Streaming |
 | Analytics | Reports, Dashboards, Einstein | Not implemented | Basic reports |
 | Integration | Platform Events, CDC, External Services | Not implemented | CDC + webhooks |
@@ -327,7 +327,7 @@ Transition from admin-only to a full CRM interface. Backend: generic CRUD endpoi
 | Home page with dashboards | Phase 11 |
 | Dynamic Forms (visibility rules) | Phase 9c |
 | Object Views per profile (role-based UI) | ✅ Phase 9a |
-| Navigation + Dashboard per profile | Phase 9b |
+| Navigation + Dashboard per profile | ✅ Phase 9b |
 | Mobile-responsive layout | Phase 7a (basic) |
 
 ---
@@ -389,14 +389,21 @@ Users of the same system (Sales, Warehouse, Management) see a role-specific inte
 - [ ] **Admin Layout UI**: CRUD layouts, preview per form factor, sync with OV lifecycle — deferred to Phase 9d
 - [ ] **ui_kind enum**: 20+ types (auto, text, textarea, badge, lookup, rating, slider, toggle, etc.) — deferred to Phase 9d
 
-#### Phase 9b: Navigation + Dashboard per Profile
+#### Phase 9b: Navigation + Dashboard per Profile ✅
 
-- [ ] **profile_navigation table**: sidebar config per profile (groups, items, order)
-- [ ] **profile_dashboards table**: home page widgets per profile (list, metric, chart)
-- [ ] **Admin UI**: Navigation editor, Dashboard editor per profile
-- [ ] **Sidebar per profile**: OLS filtering + profile_navigation grouping
-- [ ] **Home dashboard per profile**: widgets with SOQL queries (list, metric)
-- [ ] **Fallback**: without config → current behavior (OLS-filtered alphabetical sidebar, default home)
+- [x] **profile_navigation table**: `metadata.profile_navigation` (migration 000031), UNIQUE(profile_id), JSONB config
+- [x] **profile_dashboards table**: `metadata.profile_dashboards` (migration 000032), UNIQUE(profile_id), JSONB config
+- [x] **Navigation service**: CRUD + `ResolveForProfile`, validation (max 20 groups, 50 items/group, URL safety)
+- [x] **Dashboard service**: CRUD + `ResolveForProfile`, validation (max 12 widgets, widget keys unique, types valid)
+- [x] **Admin REST API**: 5 navigation endpoints + 5 dashboard endpoints on `/admin/profile-navigation` and `/admin/profile-dashboards`
+- [x] **Resolution endpoints**: `GET /navigation` (OLS intersection, fallback to flat list), `GET /dashboard` (SOQL execution, `:currentUserId` substitution, 5s timeout per widget)
+- [x] **Sidebar per profile**: AppSidebar enhanced — grouped navigation from config, collapsible groups, fallback to OLS-filtered flat list
+- [x] **Home dashboard per profile**: DashboardView with grid layout, 3 widget types (MetricWidget, ListWidget, LinkListWidget), empty state
+- [x] **Admin UI**: Navigation list/create/detail + Dashboard list/create/detail (6 views)
+- [x] **Go unit tests**: 30 tests (navigation service + dashboard service), table-driven
+- [x] **pgTAP tests**: 20 assertions (schema tests for both tables)
+- [x] **E2E tests**: 35 tests (admin-navigation: 12, admin-dashboards: 12, app-dashboard: 6, app-sidebar-navigation: 5)
+- [x] **OpenAPI spec**: 12 new endpoints + schemas
 
 #### Phase 9c: Advanced Metadata
 
@@ -619,6 +626,9 @@ Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ✅ �
                                                                                                              Phase 9a ✅
                                                                                                           (Object View)
                                                                                                                    │
+                                                                                                             Phase 9b ✅
+                                                                                                          (Nav+Dashboard)
+                                                                                                                   │
                                                                                                              Phase 10a ✅
                                                                                                           (Procedures)
                                                                                                                    │
@@ -736,4 +746,4 @@ Architectural hygiene for microservices readiness.
 
 ---
 
-*This document is updated as phases are completed. Last update: 2026-02-25.*
+*This document is updated as phases are completed. Last update: 2026-02-26.*
