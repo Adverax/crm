@@ -20,6 +20,7 @@ import (
 	"github.com/adverax/crm/internal/modules/auth"
 	"github.com/adverax/crm/internal/pkg/config"
 	"github.com/adverax/crm/internal/pkg/database"
+	"github.com/adverax/crm/internal/platform/automation"
 	celengine "github.com/adverax/crm/internal/platform/cel"
 	"github.com/adverax/crm/internal/platform/credential"
 	"github.com/adverax/crm/internal/platform/dml"
@@ -329,6 +330,19 @@ func setupRouter(pool *pgxpool.Pool, metadataCache *metadata.MetadataCache, cfg 
 
 	procedureHandler := handler.NewProcedureHandler(procedureService, procedureEngine)
 	procedureHandler.RegisterRoutes(adminGroup)
+
+	// Automation Rules (ADR-0031)
+	automationRuleRepo := metadata.NewPgAutomationRuleRepository(pool)
+	automationRuleService := metadata.NewAutomationRuleService(automationRuleRepo, metadataCache, nil)
+
+	automationEngine := automation.NewEngine(
+		metadataCache, nil, automation.DefaultLimits,
+	)
+	automationHook := automation.NewDMLPostExecuteHook(automationEngine, metadataCache)
+	dmlService.SetPostExecuteHook(automationHook)
+
+	automationRuleHandler := handler.NewAutomationRuleHandler(automationRuleService)
+	automationRuleHandler.RegisterRoutes(adminGroup)
 
 	// Object View
 	objectViewRepo := metadata.NewPgObjectViewRepository(pool)

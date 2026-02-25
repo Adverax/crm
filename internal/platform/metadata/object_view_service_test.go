@@ -159,6 +159,10 @@ func (m *mockOVCacheLoader) LoadAllProcedures(_ context.Context) ([]Procedure, e
 	return nil, nil
 }
 
+func (m *mockOVCacheLoader) LoadAllAutomationRules(_ context.Context) ([]AutomationRule, error) {
+	return nil, nil
+}
+
 func (m *mockOVCacheLoader) RefreshMaterializedView(_ context.Context) error {
 	return nil
 }

@@ -47,6 +47,10 @@ func (m *mockCacheLoader) LoadAllProcedures(_ context.Context) ([]metadata.Proce
 	return nil, nil
 }
 
+func (m *mockCacheLoader) LoadAllAutomationRules(_ context.Context) ([]metadata.AutomationRule, error) {
+	return nil, nil
+}
+
 func (m *mockCacheLoader) RefreshMaterializedView(_ context.Context) error {
 	return nil
 }

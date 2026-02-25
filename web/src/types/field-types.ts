@@ -70,6 +70,7 @@ export const CONFIG_FIELDS_BY_TYPE: Record<string, ConfigFieldDef[]> = {
     { key: 'maxLength', label: 'Max Length', type: 'number' },
   ],
   'number/integer': [
+    { key: 'precision', label: 'Precision (total digits)', type: 'number' },
     { key: 'defaultValue', label: 'Default Value', type: 'text' },
   ],
   'number/decimal': [

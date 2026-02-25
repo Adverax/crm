@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/adverax/crm/internal/platform/dml"
 	"github.com/adverax/crm/internal/platform/dml/engine"
 	"github.com/adverax/crm/internal/platform/metadata"
 	"github.com/adverax/crm/internal/platform/security"
@@ -36,6 +37,8 @@ func (m *mockDMLService) Execute(ctx context.Context, statement string) (*engine
 func (m *mockDMLService) Prepare(_ context.Context, _ string) (*engine.CompiledDML, error) {
 	return nil, nil
 }
+
+func (m *mockDMLService) SetPostExecuteHook(_ dml.PostExecuteHook) {}
 
 func TestRecordService_List(t *testing.T) {
 	t.Parallel()
@@ -520,5 +523,9 @@ func (s *stubCacheLoader) LoadAllObjectViews(_ context.Context) ([]metadata.Obje
 }
 
 func (s *stubCacheLoader) LoadAllProcedures(_ context.Context) ([]metadata.Procedure, error) {
+	return nil, nil
+}
+
+func (s *stubCacheLoader) LoadAllAutomationRules(_ context.Context) ([]metadata.AutomationRule, error) {
 	return nil, nil
 }

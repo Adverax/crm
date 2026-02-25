@@ -144,6 +144,24 @@ const router = createRouter({
           component: () => import('../views/admin/metadata/CredentialDetailView.vue'),
           props: true,
         },
+        // Automation Rules
+        {
+          path: 'metadata/automation-rules',
+          name: 'admin-automation-rules',
+          component: () => import('../views/admin/metadata/AutomationRuleListView.vue'),
+        },
+        {
+          path: 'metadata/automation-rules/new/:objectId',
+          name: 'admin-automation-rule-create',
+          component: () => import('../views/admin/metadata/AutomationRuleCreateView.vue'),
+          props: true,
+        },
+        {
+          path: 'metadata/automation-rules/:ruleId',
+          name: 'admin-automation-rule-detail',
+          component: () => import('../views/admin/metadata/AutomationRuleDetailView.vue'),
+          props: true,
+        },
         // Object Views
         {
           path: 'metadata/object-views',

@@ -26,15 +26,17 @@ const props = defineProps<{
 }>()
 
 const objectApiName = ref('')
+const objectLabel = ref('')
 
 onMounted(async () => {
   try {
-    const resp = await http.get<{ data: { api_name: string } }>(
+    const resp = await http.get<{ data: { api_name: string; label: string } }>(
       `/api/v1/admin/metadata/objects/${props.objectId}`,
     )
     objectApiName.value = resp.data.api_name
+    objectLabel.value = resp.data.label
   } catch {
-    // object api name won't be available for field picker
+    // object info won't be available for field picker / breadcrumbs
   }
 })
 
@@ -97,7 +99,7 @@ function onSeverityChange(value: any) {
 const breadcrumbs = computed(() => [
   { label: 'Admin', to: '/admin' },
   { label: 'Objects', to: '/admin/metadata/objects' },
-  { label: 'Object', to: `/admin/metadata/objects/${props.objectId}` },
+  { label: objectLabel.value || '...', to: `/admin/metadata/objects/${props.objectId}` },
   { label: 'Rules', to: `/admin/metadata/objects/${props.objectId}/rules` },
   { label: 'Create' },
 ])

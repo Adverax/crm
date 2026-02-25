@@ -60,6 +60,10 @@ func (l *testCacheLoader) LoadAllProcedures(_ context.Context) ([]metadata.Proce
 	return nil, nil
 }
 
+func (l *testCacheLoader) LoadAllAutomationRules(_ context.Context) ([]metadata.AutomationRule, error) {
+	return nil, nil
+}
+
 func (l *testCacheLoader) RefreshMaterializedView(_ context.Context) error {
 	return nil
 }

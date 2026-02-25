@@ -25,6 +25,7 @@ const topItems: NavItem[] = [
   { label: 'Procedures', to: '/admin/metadata/procedures' },
   { label: 'Credentials', to: '/admin/metadata/credentials' },
   { label: 'Object Views', to: '/admin/metadata/object-views' },
+  { label: 'Automation Rules', to: '/admin/metadata/automation-rules' },
   { label: 'Templates', to: '/admin/templates' },
 ]
 

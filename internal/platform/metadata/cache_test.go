@@ -63,6 +63,10 @@ func (m *mockCacheLoader) LoadAllProcedures(_ context.Context) ([]Procedure, err
 	return nil, nil
 }
 
+func (m *mockCacheLoader) LoadAllAutomationRules(_ context.Context) ([]AutomationRule, error) {
+	return nil, nil
+}
+
 func TestMetadataCacheLoad(t *testing.T) {
 	t.Parallel()
 

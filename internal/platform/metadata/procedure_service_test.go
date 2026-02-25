@@ -210,6 +210,7 @@ func mockCacheForProcedures() *MetadataCache {
 		functionsByName:           make(map[string]Function),
 		objectViewsByObjectID:     make(map[uuid.UUID][]ObjectView),
 		proceduresByCode:          make(map[string]Procedure),
+		automationRulesByObjectID: make(map[uuid.UUID][]AutomationRule),
 		loader:                    &noopCacheLoader{},
 	}
 }
@@ -233,7 +234,10 @@ func (l *noopCacheLoader) LoadAllObjectViews(_ context.Context) ([]ObjectView, e
 	return nil, nil
 }
 func (l *noopCacheLoader) LoadAllProcedures(_ context.Context) ([]Procedure, error) { return nil, nil }
-func (l *noopCacheLoader) RefreshMaterializedView(_ context.Context) error          { return nil }
+func (l *noopCacheLoader) LoadAllAutomationRules(_ context.Context) ([]AutomationRule, error) {
+	return nil, nil
+}
+func (l *noopCacheLoader) RefreshMaterializedView(_ context.Context) error { return nil }
 
 func TestProcedureService_Create(t *testing.T) {
 	t.Parallel()

@@ -17,6 +17,7 @@ type CacheLoader interface {
 	LoadAllFunctions(ctx context.Context) ([]Function, error)
 	LoadAllObjectViews(ctx context.Context) ([]ObjectView, error)
 	LoadAllProcedures(ctx context.Context) ([]Procedure, error)
+	LoadAllAutomationRules(ctx context.Context) ([]AutomationRule, error)
 	RefreshMaterializedView(ctx context.Context) error
 }
 
@@ -36,6 +37,7 @@ type MetadataReader interface {
 	GetObjectViews(objectID uuid.UUID) []ObjectView
 	GetProcedureByCode(code string) (Procedure, bool)
 	GetProcedures() []Procedure
+	GetAutomationRules(objectID uuid.UUID) []AutomationRule
 }
 
 // MetadataCache is an in-memory cache of metadata backed by a PostgreSQL materialized view
@@ -64,6 +66,9 @@ type MetadataCache struct {
 	// Procedures (ADR-0024)
 	proceduresByCode map[string]Procedure
 
+	// Automation rules (ADR-0031)
+	automationRulesByObjectID map[uuid.UUID][]AutomationRule
+
 	loader CacheLoader
 	loaded bool
 }
@@ -81,6 +86,7 @@ func NewMetadataCache(loader CacheLoader) *MetadataCache {
 		functionsByName:           make(map[string]Function),
 		objectViewsByObjectID:     make(map[uuid.UUID][]ObjectView),
 		proceduresByCode:          make(map[string]Procedure),
+		automationRulesByObjectID: make(map[uuid.UUID][]AutomationRule),
 		loader:                    loader,
 	}
 }
@@ -120,6 +126,11 @@ func (c *MetadataCache) Load(ctx context.Context) error {
 	procedures, err := c.loader.LoadAllProcedures(ctx)
 	if err != nil {
 		return fmt.Errorf("metadataCache.Load: procedures: %w", err)
+	}
+
+	automationRules, err := c.loader.LoadAllAutomationRules(ctx)
+	if err != nil {
+		return fmt.Errorf("metadataCache.Load: automation rules: %w", err)
 	}
 
 	c.mu.Lock()
@@ -166,6 +177,11 @@ func (c *MetadataCache) Load(ctx context.Context) error {
 	c.proceduresByCode = make(map[string]Procedure, len(procedures))
 	for _, p := range procedures {
 		c.proceduresByCode[p.Code] = p
+	}
+
+	c.automationRulesByObjectID = make(map[uuid.UUID][]AutomationRule)
+	for _, ar := range automationRules {
+		c.automationRulesByObjectID[ar.ObjectID] = append(c.automationRulesByObjectID[ar.ObjectID], ar)
 	}
 
 	c.loaded = true
@@ -352,6 +368,30 @@ func (c *MetadataCache) LoadProcedures(ctx context.Context) error {
 	c.proceduresByCode = make(map[string]Procedure, len(procedures))
 	for _, p := range procedures {
 		c.proceduresByCode[p.Code] = p
+	}
+	return nil
+}
+
+// GetAutomationRules returns all automation rules for an object from cache.
+func (c *MetadataCache) GetAutomationRules(objectID uuid.UUID) []AutomationRule {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.automationRulesByObjectID[objectID]
+}
+
+// LoadAutomationRules reloads only automation rules into the cache.
+func (c *MetadataCache) LoadAutomationRules(ctx context.Context) error {
+	rules, err := c.loader.LoadAllAutomationRules(ctx)
+	if err != nil {
+		return fmt.Errorf("metadataCache.LoadAutomationRules: %w", err)
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.automationRulesByObjectID = make(map[uuid.UUID][]AutomationRule)
+	for _, ar := range rules {
+		c.automationRulesByObjectID[ar.ObjectID] = append(c.automationRulesByObjectID[ar.ObjectID], ar)
 	}
 	return nil
 }

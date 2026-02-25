@@ -44,6 +44,7 @@ const { currentObject, fields, objectsLoading, objectsError, fieldsLoading, fiel
 
 const { state, errors, validate, toUpdateRequest, initFrom } = useObjectForm()
 
+const activeTab = ref('info')
 const showDeleteDialog = ref(false)
 const showFieldCreate = ref(false)
 const editingField = ref<FieldDefinition | null>(null)
@@ -163,11 +164,24 @@ async function onFieldDelete(field: FieldDefinition) {
   }
 }
 
-const breadcrumbs = computed(() => [
-  { label: 'Admin', to: '/admin' },
-  { label: 'Objects', to: '/admin/metadata/objects' },
-  { label: currentObject.value?.label ?? '...' },
-])
+const tabLabels: Record<string, string> = {
+  info: 'General',
+  fields: 'Fields',
+}
+
+const breadcrumbs = computed(() => {
+  const crumbs: { label: string; to?: string }[] = [
+    { label: 'Admin', to: '/admin' },
+    { label: 'Objects', to: '/admin/metadata/objects' },
+  ]
+  if (activeTab.value !== 'info') {
+    crumbs.push({ label: currentObject.value?.label ?? '...', to: `/admin/metadata/objects/${props.objectId}` })
+    crumbs.push({ label: tabLabels[activeTab.value] ?? activeTab.value })
+  } else {
+    crumbs.push({ label: currentObject.value?.label ?? '...' })
+  }
+  return crumbs
+})
 </script>
 
 <template>
@@ -194,7 +208,7 @@ const breadcrumbs = computed(() => [
       <ErrorAlert v-if="objectsError" :message="objectsError" class="mb-4" />
       <ErrorAlert v-if="fieldsError" :message="fieldsError" class="mb-4" />
 
-      <Tabs default-value="info">
+      <Tabs v-model="activeTab">
         <TabsList>
           <TabsTrigger value="info">General</TabsTrigger>
           <TabsTrigger value="fields">

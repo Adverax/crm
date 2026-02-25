@@ -256,6 +256,7 @@ const hasFunctions = computed(() => functionsStore.functions.length > 0)
       :expression="modelValue"
       :context="context"
       :function-params="functionParams"
+      :fields="fields"
       @jump-to-position="onJumpToPosition"
     />
 

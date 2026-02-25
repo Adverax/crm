@@ -1447,6 +1447,76 @@ export async function setupCredentialRoutes(page: Page) {
   }
 }
 
+// ─── Automation Rules mock data ──────────────────────────────
+
+export const mockAutomationRules = [
+  {
+    id: 'ar111111-1111-1111-1111-111111111111',
+    object_id: '11111111-1111-1111-1111-111111111111',
+    name: 'Notify on insert',
+    description: 'Send notification after record insert',
+    event_type: 'after_insert',
+    condition: null,
+    procedure_code: 'notify_manager',
+    execution_mode: 'per_record',
+    sort_order: 0,
+    is_active: true,
+    created_at: '2026-02-20T10:00:00Z',
+    updated_at: '2026-02-20T10:00:00Z',
+  },
+  {
+    id: 'ar222222-2222-2222-2222-222222222222',
+    object_id: '11111111-1111-1111-1111-111111111111',
+    name: 'Auto-approve update',
+    description: 'Set status to approved on update',
+    event_type: 'after_update',
+    condition: "new.Status == 'Pending'",
+    procedure_code: 'auto_approve',
+    execution_mode: 'per_record',
+    sort_order: 1,
+    is_active: false,
+    created_at: '2026-02-20T11:00:00Z',
+    updated_at: '2026-02-20T11:00:00Z',
+  },
+]
+
+export async function setupAutomationRuleRoutes(page: Page) {
+  // List rules for an object
+  for (const obj of mockObjects) {
+    await page.route(`**/api/v1/admin/metadata/objects/${obj.id}/automation-rules`, (route) => {
+      if (route.request().method() === 'GET') {
+        return route.fulfill({
+          json: singleResponse(
+            mockAutomationRules.filter((r) => r.object_id === obj.id),
+          ),
+        })
+      }
+      if (route.request().method() === 'POST') {
+        return route.fulfill({
+          json: singleResponse({ ...mockAutomationRules[0], id: 'new-rule-id' }),
+        })
+      }
+      return route.continue()
+    })
+  }
+
+  // Single rule CRUD
+  for (const rule of mockAutomationRules) {
+    await page.route(`**/api/v1/admin/metadata/automation-rules/${rule.id}`, (route) => {
+      if (route.request().method() === 'GET') {
+        return route.fulfill({ json: singleResponse(rule) })
+      }
+      if (route.request().method() === 'PUT') {
+        return route.fulfill({ json: singleResponse(rule) })
+      }
+      if (route.request().method() === 'DELETE') {
+        return route.fulfill({ status: 204 })
+      }
+      return route.continue()
+    })
+  }
+}
+
 // ─── Describe / Records mock data ─────────────────────────────
 
 export const mockDescribeList = [
@@ -1619,6 +1689,7 @@ export async function setupAllRoutes(page: Page) {
   await setupObjectViewRoutes(page)
   await setupProcedureRoutes(page)
   await setupCredentialRoutes(page)
+  await setupAutomationRuleRoutes(page)
   await setupDescribeRoutes(page)
   await setupRecordRoutes(page)
 }

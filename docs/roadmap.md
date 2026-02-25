@@ -18,7 +18,7 @@ Current state and target coverage relative to Salesforce Platform.
 | Data Access (SOQL) | SOQL with relationship queries, aggregates, security enforcement | SOQL parser (participle), validator, compiler, executor with OLS+FLS+RLS enforcement, relationship queries, aggregates, date literals, subqueries | 70% SF |
 | Data Mutation (DML) | Insert, Update, Upsert, Delete, Undelete, Merge + triggers | INSERT/UPDATE/DELETE/UPSERT, OLS+FLS enforcement, RLS injection for UPDATE/DELETE, batch operations, Custom Functions (fn.* dual-stack), validation rules (CEL), dynamic defaults (CEL) | 65% SF |
 | Auth | OAuth 2.0, SAML, MFA, Connected Apps | JWT (access + refresh), login, password reset, rate limiting | JWT + refresh tokens |
-| Automation | Flow Builder, Triggers, Workflow Rules, Approval Processes | Not implemented | Triggers + basic Flows |
+| Automation | Flow Builder, Triggers, Workflow Rules, Approval Processes | Automation Rules (before/after triggers, CEL conditions, procedure_code), Procedure Engine (6 command types, Named Credentials) | Triggers + basic Flows |
 | UI Framework | Lightning App Builder, LWC, Dynamic Forms | Vue.js admin + metadata-driven CRM UI (AppLayout, dynamic record views, FieldRenderer), Expression Builder (CodeMirror + autocomplete + live preview), Object View (role-based sections, actions, highlights, related lists) | Admin + Record UI + Object Views |
 | APIs | REST, SOAP, Bulk, Streaming, Metadata, Tooling, GraphQL | REST admin endpoints (metadata + security + groups + sharing rules) | REST + Streaming |
 | Analytics | Reports, Dashboards, Einstein | Not implemented | Basic reports |
@@ -195,7 +195,7 @@ Single entry point for all data writes with security enforcement.
 
 | Capability | Phase |
 |------------|-------|
-| Automation Rules triggers (before/after insert/update/delete) | Phase 10 |
+| Automation Rules triggers (before/after insert/update/delete) | ✅ Phase 10b |
 | Undelete (Recycle Bin) | Phase 4d |
 | Merge | Phase 4d |
 | Validation Rules (formula-based, pre-DML) | Phase 12 |
@@ -408,7 +408,7 @@ Users of the same system (Sales, Warehouse, Management) see a role-specific inte
 
 ---
 
-### Phase 10: Procedure Engine + Automation Rules (ADR-0024) 🔄
+### Phase 10: Procedure Engine + Automation Rules (ADR-0024) ✅
 
 Declarative automation: from atomic commands to composite procedures.
 
@@ -432,15 +432,21 @@ Declarative automation: from atomic commands to composite procedures.
 - [x] **pgTAP tests**: schema tests for metadata.procedures + credentials
 - [x] **E2E tests**: 24 procedure tests + 18 credential tests (42 total)
 
-#### Phase 10b: Automation Rules
+#### Phase 10b: Automation Rules ✅
 
-- [ ] **Automation Rules**: trigger definitions (before/after insert/update/delete)
-- [ ] **Rule conditions**: CEL expression (`new.status != old.status`)
-- [ ] **Actions**: invoke Procedure, field update, send notification
-- [ ] **Execution order**: sort_order per object per event
-- [ ] **Storage**: `metadata.automation_rules` table
-- [ ] **Admin REST API + UI**: CRUD automation rules
-- [ ] **pgTAP tests + E2E tests**
+- [x] **ADR-0031**: Automation Rules architecture (event types, conditions, actions, TX boundary, recursion limits)
+- [x] **Automation Rules**: trigger definitions (before/after insert/update/delete)
+- [x] **Rule conditions**: CEL expression (`new.status != old.status`)
+- [x] **Actions**: procedure_code referencing a published procedure (simplified from 3 action types)
+- [x] **Execution modes**: per_record and per_batch (configurable per rule)
+- [x] **Execution order**: sort_order per object per event
+- [x] **Storage**: `metadata.automation_rules` table (migration 000030)
+- [x] **Automation Engine**: rule evaluation + dispatch, DML Pipeline Stage 8 (PostExecuteHook)
+- [x] **Recursion depth limit**: configurable (default 3)
+- [x] **Admin REST API**: 5 endpoints (list/create/get/update/delete)
+- [x] **Vue.js Admin UI**: list (with object selector), create, detail views
+- [x] **pgTAP tests**: 19 assertions for schema
+- [x] **E2E tests**: 20 tests (list, create, detail, sidebar)
 
 **Automation features for far future:**
 
@@ -616,6 +622,9 @@ Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ✅ �
                                                                                                              Phase 10a ✅
                                                                                                           (Procedures)
                                                                                                                    │
+                                                                                                             Phase 10b ✅
+                                                                                                       (Automation Rules)
+                                                                                                                   │
                                                                                                              Phase 11
                                                                                                        (Notif+CRM UX)
                                                                                                                    │
@@ -727,4 +736,4 @@ Architectural hygiene for microservices readiness.
 
 ---
 
-*This document is updated as phases are completed. Last update: 2026-02-21.*
+*This document is updated as phases are completed. Last update: 2026-02-25.*

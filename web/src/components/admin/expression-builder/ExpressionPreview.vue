@@ -7,14 +7,22 @@ import { useCelEnvironment } from '@/composables/useCelEnvironment'
 import type { FunctionParam } from '@/types/functions'
 import type { CelEvalResult } from '@/lib/cel'
 
+interface DescribeField {
+  apiName: string
+  label: string
+  fieldType: string
+}
+
 const props = withDefaults(
   defineProps<{
     expression: string
     context: string
     functionParams?: FunctionParam[]
+    fields?: DescribeField[]
   }>(),
   {
     functionParams: () => [],
+    fields: () => [],
   },
 )
 
@@ -48,13 +56,65 @@ function runEvaluation() {
       ctx[p.name] = coerceParamValue(paramValues.value[p.name] ?? '', p.type)
     }
   } else {
-    ctx.record = {}
-    ctx.old = {}
+    if (props.fields.length === 0) {
+      result.value = null
+      return
+    }
+    const sample = buildSampleRecord(props.fields)
+    ctx.record = sample
+    ctx.old = sample
     ctx.user = { id: '', profile_id: '', role_id: '' }
     ctx.now = new Date()
   }
 
   result.value = evaluate(props.expression, ctx)
+}
+
+function zeroForType(fieldType: string): unknown {
+  switch (fieldType) {
+    case 'number':
+      return 0
+    case 'boolean':
+      return false
+    case 'datetime':
+      return new Date()
+    default:
+      return ''
+  }
+}
+
+function buildSampleRecord(fields: DescribeField[]): Record<string, unknown> {
+  const base: Record<string, unknown> = {}
+  for (const f of fields) {
+    base[f.apiName] = zeroForType(f.fieldType)
+  }
+  // cel-js uses Object.hasOwn() to check key existence in maps,
+  // which delegates to getOwnPropertyDescriptor on the Proxy target.
+  return new Proxy(base, {
+    get(target, prop) {
+      if (typeof prop === 'string' && prop in target) {
+        return target[prop]
+      }
+      if (typeof prop === 'string') return 0
+      return Reflect.get(target, prop)
+    },
+    getOwnPropertyDescriptor(target, prop) {
+      if (typeof prop === 'string') {
+        return (
+          Object.getOwnPropertyDescriptor(target, prop) ?? {
+            configurable: true,
+            enumerable: true,
+            value: 0,
+          }
+        )
+      }
+      return Reflect.getOwnPropertyDescriptor(target, prop)
+    },
+    has(_target, prop) {
+      if (typeof prop === 'string') return true
+      return Reflect.has(_target, prop)
+    },
+  })
 }
 
 function coerceParamValue(raw: string, type: string | undefined): unknown {
@@ -76,7 +136,7 @@ function coerceParamValue(raw: string, type: string | undefined): unknown {
 }
 
 watchDebounced(
-  () => [props.expression, paramValues.value] as const,
+  () => [props.expression, paramValues.value, props.fields] as const,
   () => runEvaluation(),
   { debounce: 300, deep: true },
 )

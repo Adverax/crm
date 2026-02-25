@@ -206,6 +206,23 @@ func (l *PgCacheLoader) LoadAllProcedures(ctx context.Context) ([]Procedure, err
 	return scanProcedures(rows)
 }
 
+// LoadAllAutomationRules loads all automation rules from the database.
+func (l *PgCacheLoader) LoadAllAutomationRules(ctx context.Context) ([]AutomationRule, error) {
+	rows, err := l.pool.Query(ctx, `
+		SELECT id, object_id, name, description, event_type, condition,
+			procedure_code, execution_mode, sort_order, is_active,
+			created_at, updated_at
+		FROM metadata.automation_rules
+		ORDER BY object_id, sort_order, name
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("pgCacheLoader.LoadAllAutomationRules: %w", err)
+	}
+	defer rows.Close()
+
+	return scanAutomationRules(rows)
+}
+
 // RefreshMaterializedView refreshes the relationship_registry materialized view concurrently.
 func (l *PgCacheLoader) RefreshMaterializedView(ctx context.Context) error {
 	_, err := l.pool.Exec(ctx, "REFRESH MATERIALIZED VIEW CONCURRENTLY metadata.relationship_registry")

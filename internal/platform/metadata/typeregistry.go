@@ -35,7 +35,7 @@ func init() {
 	register(FieldTypeText, sub(SubtypeURL), nil, []string{"default_value"})
 
 	// number subtypes
-	register(FieldTypeNumber, sub(SubtypeInteger), []string{"precision"}, []string{"default_value"})
+	register(FieldTypeNumber, sub(SubtypeInteger), nil, []string{"precision", "default_value"})
 	register(FieldTypeNumber, sub(SubtypeDecimal), []string{"precision", "scale"}, []string{"default_value"})
 	register(FieldTypeNumber, sub(SubtypeCurrency), nil, []string{"default_value"})
 	register(FieldTypeNumber, sub(SubtypePercent), nil, []string{"default_value"})

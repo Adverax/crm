@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { validationRulesApi } from '@/api/validationRules'
 import { useToast } from '@/composables/useToast'
+import { http } from '@/api/http'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import EmptyState from '@/components/admin/EmptyState.vue'
@@ -20,6 +21,7 @@ const props = defineProps<{
 const router = useRouter()
 const toast = useToast()
 
+const objectLabel = ref('')
 const rules = ref<ValidationRule[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -28,8 +30,12 @@ async function loadRules() {
   loading.value = true
   error.value = null
   try {
-    const response = await validationRulesApi.list(props.objectId)
-    rules.value = response.data ?? []
+    const [rulesResp, objResp] = await Promise.all([
+      validationRulesApi.list(props.objectId),
+      http.get<{ data: { label: string } }>(`/api/v1/admin/metadata/objects/${props.objectId}`),
+    ])
+    rules.value = rulesResp.data ?? []
+    objectLabel.value = objResp.data.label
   } catch (err) {
     error.value = 'Failed to load validation rules'
     toast.errorFromApi(err)
@@ -57,8 +63,8 @@ function goToDetail(ruleId: string) {
 const breadcrumbs = computed(() => [
   { label: 'Admin', to: '/admin' },
   { label: 'Objects', to: '/admin/metadata/objects' },
-  { label: 'Object', to: `/admin/metadata/objects/${props.objectId}` },
-  { label: 'Validation Rules' },
+  { label: objectLabel.value || '...', to: `/admin/metadata/objects/${props.objectId}` },
+  { label: 'Rules' },
 ])
 </script>
 

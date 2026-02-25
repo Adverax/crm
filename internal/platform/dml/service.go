@@ -9,15 +9,22 @@ import (
 	"github.com/adverax/crm/internal/platform/dml/engine"
 )
 
+// PostExecuteHook is called after a successful DML execute (Stage 8: Automation).
+type PostExecuteHook interface {
+	AfterDMLExecute(ctx context.Context, compiled *engine.CompiledDML, result *engine.Result) error
+}
+
 // DMLService executes DML statements with full security enforcement.
 type DMLService interface {
 	Execute(ctx context.Context, statement string) (*Result, error)
 	Prepare(ctx context.Context, statement string) (*engine.CompiledDML, error)
+	SetPostExecuteHook(hook PostExecuteHook)
 }
 
 type dmlService struct {
-	engine   *engine.Engine
-	executor engine.Executor
+	engine       *engine.Engine
+	executor     engine.Executor
+	postExecHook PostExecuteHook
 }
 
 // NewDMLService creates a new DMLService.
@@ -26,6 +33,11 @@ func NewDMLService(eng *engine.Engine, executor engine.Executor) DMLService {
 		engine:   eng,
 		executor: executor,
 	}
+}
+
+// SetPostExecuteHook sets the post-execute hook (automation rules).
+func (s *dmlService) SetPostExecuteHook(hook PostExecuteHook) {
+	s.postExecHook = hook
 }
 
 // Prepare parses, validates, and compiles a DML statement without executing.
@@ -38,6 +50,7 @@ func (s *dmlService) Prepare(ctx context.Context, statement string) (*engine.Com
 }
 
 // Execute parses, validates, compiles, and executes a DML statement.
+// After successful execution, fires Stage 8 (post-execute / automation rules).
 func (s *dmlService) Execute(ctx context.Context, statement string) (*Result, error) {
 	compiled, err := s.engine.Prepare(ctx, statement)
 	if err != nil {
@@ -47,6 +60,13 @@ func (s *dmlService) Execute(ctx context.Context, statement string) (*Result, er
 	result, err := s.executor.Execute(ctx, compiled)
 	if err != nil {
 		return nil, fmt.Errorf("dmlService.Execute: %w", err)
+	}
+
+	// Stage 8: Post-execute hook (automation rules)
+	if s.postExecHook != nil {
+		if hookErr := s.postExecHook.AfterDMLExecute(ctx, compiled, result); hookErr != nil {
+			return nil, fmt.Errorf("dmlService.Execute: post-execute: %w", hookErr)
+		}
 	}
 
 	return result, nil
