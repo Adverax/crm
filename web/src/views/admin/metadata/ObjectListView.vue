@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMetadataStore } from '@/stores/metadata'
 import { usePagination } from '@/composables/usePagination'
@@ -8,6 +8,7 @@ import PageHeader from '@/components/admin/PageHeader.vue'
 import EmptyState from '@/components/admin/EmptyState.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
 import ObjectTypeBadge from '@/components/admin/metadata/ObjectTypeBadge.vue'
+import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
 import { Plus, ChevronLeft, ChevronRight, MoreVertical } from 'lucide-vue-next'
@@ -42,8 +43,17 @@ const toast = useToast()
 const { objects, pagination, objectsLoading } = storeToRefs(store)
 
 const filterType = ref<string>('all')
+const searchQuery = ref('')
 const deleteTarget = ref<ObjectDefinition | null>(null)
 const showDeleteDialog = ref(false)
+
+const filteredObjects = computed(() => {
+  const q = searchQuery.value.toLowerCase()
+  if (!q) return objects.value
+  return objects.value.filter(
+    (obj) => obj.label.toLowerCase().includes(q) || obj.apiName.toLowerCase().includes(q),
+  )
+})
 
 const { isFirstPage, isLastPage, pageInfo, nextPage, prevPage } = usePagination(
   pagination,
@@ -107,7 +117,7 @@ const breadcrumbs = [
       </template>
     </PageHeader>
 
-    <div class="mb-4">
+    <div class="mb-4 flex items-center gap-3">
       <Select v-model="filterType">
         <SelectTrigger class="w-48">
           <SelectValue placeholder="All types" />
@@ -118,14 +128,20 @@ const breadcrumbs = [
           <SelectItem value="custom">Custom</SelectItem>
         </SelectContent>
       </Select>
+      <Input
+        v-model="searchQuery"
+        placeholder="Filter..."
+        class="h-9 w-64"
+        data-testid="search-input"
+      />
     </div>
 
-    <div v-if="objectsLoading && objects.length === 0" class="space-y-3">
+    <div v-if="objectsLoading && filteredObjects.length === 0" class="space-y-3">
       <Skeleton v-for="i in 5" :key="i" class="h-12 w-full" />
     </div>
 
     <EmptyState
-      v-else-if="!objectsLoading && objects.length === 0"
+      v-else-if="!objectsLoading && filteredObjects.length === 0"
       title="No objects"
       description="Create your first metadata object"
     >
@@ -152,7 +168,7 @@ const breadcrumbs = [
         </TableHeader>
         <TableBody>
           <TableRow
-            v-for="obj in objects"
+            v-for="obj in filteredObjects"
             :key="obj.id"
             class="cursor-pointer"
             @click="goToDetail(obj)"

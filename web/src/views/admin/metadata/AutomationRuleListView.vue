@@ -7,6 +7,7 @@ import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import EmptyState from '@/components/admin/EmptyState.vue'
 import ActiveStatusBadge from '@/components/admin/ActiveStatusBadge.vue'
+import { Input } from '@/components/ui/input'
 import { IconButton } from '@/components/ui/icon-button'
 import { Plus } from 'lucide-vue-next'
 import { Card, CardContent } from '@/components/ui/card'
@@ -25,8 +26,19 @@ const toast = useToast()
 const rules = ref<AutomationRule[]>([])
 const objects = ref<ObjectOption[]>([])
 const selectedObjectId = ref<string>('')
+const searchQuery = ref('')
 const loading = ref(false)
 const error = ref<string | null>(null)
+
+const filteredRules = computed(() => {
+  const q = searchQuery.value.toLowerCase()
+  if (!q) return rules.value
+  return rules.value.filter(
+    (rule) =>
+      rule.name.toLowerCase().includes(q) ||
+      rule.procedureCode.toLowerCase().includes(q),
+  )
+})
 
 async function loadObjects() {
   try {
@@ -111,6 +123,12 @@ const breadcrumbs = computed(() => {
               {{ obj.label }}
             </option>
           </select>
+          <Input
+            v-model="searchQuery"
+            placeholder="Filter..."
+            class="h-9 w-64"
+            data-testid="search-input"
+          />
           <IconButton
             :icon="Plus"
             tooltip="Create automation rule"
@@ -131,14 +149,14 @@ const breadcrumbs = computed(() => {
     </div>
 
     <EmptyState
-      v-else-if="rules.length === 0"
+      v-else-if="filteredRules.length === 0"
       title="No automation rules"
       description="Create automation rules to react to data changes."
     />
 
     <div v-else class="space-y-2">
       <Card
-        v-for="rule in rules"
+        v-for="rule in filteredRules"
         :key="rule.id"
         class="cursor-pointer hover:bg-muted/50 transition-colors"
         data-testid="rule-row"

@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { functionsApi } from '@/api/functions'
 import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import EmptyState from '@/components/admin/EmptyState.vue'
+import { Input } from '@/components/ui/input'
 import { IconButton } from '@/components/ui/icon-button'
 import { Plus } from 'lucide-vue-next'
 import { Card, CardContent } from '@/components/ui/card'
@@ -17,8 +18,19 @@ const router = useRouter()
 const toast = useToast()
 
 const functions = ref<Function[]>([])
+const searchQuery = ref('')
 const loading = ref(false)
 const error = ref<string | null>(null)
+
+const filteredFunctions = computed(() => {
+  const q = searchQuery.value.toLowerCase()
+  if (!q) return functions.value
+  return functions.value.filter(
+    (fn) =>
+      (fn.name?.toLowerCase().includes(q) ?? false) ||
+      (fn.description?.toLowerCase().includes(q) ?? false),
+  )
+})
 
 async function loadFunctions() {
   loading.value = true
@@ -66,6 +78,15 @@ const breadcrumbs = [
       </template>
     </PageHeader>
 
+    <div class="mb-4">
+      <Input
+        v-model="searchQuery"
+        placeholder="Filter..."
+        class="h-9 w-64"
+        data-testid="search-input"
+      />
+    </div>
+
     <ErrorAlert v-if="error" :message="error" class="mb-4" />
 
     <div v-if="loading" class="space-y-2">
@@ -74,14 +95,14 @@ const breadcrumbs = [
     </div>
 
     <EmptyState
-      v-else-if="functions.length === 0"
+      v-else-if="filteredFunctions.length === 0"
       title="No functions"
       description="Create your first custom function for use in CEL expressions."
     />
 
     <div v-else class="space-y-2">
       <Card
-        v-for="fn in functions"
+        v-for="fn in filteredFunctions"
         :key="fn.id"
         class="cursor-pointer hover:bg-muted/50 transition-colors"
         data-testid="function-row"
