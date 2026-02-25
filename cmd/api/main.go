@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -20,10 +21,12 @@ import (
 	"github.com/adverax/crm/internal/pkg/config"
 	"github.com/adverax/crm/internal/pkg/database"
 	celengine "github.com/adverax/crm/internal/platform/cel"
+	"github.com/adverax/crm/internal/platform/credential"
 	"github.com/adverax/crm/internal/platform/dml"
 	dmlengine "github.com/adverax/crm/internal/platform/dml/engine"
 	"github.com/adverax/crm/internal/platform/metadata"
 	"github.com/adverax/crm/internal/platform/metadata/ddl"
+	procengine "github.com/adverax/crm/internal/platform/procedure"
 	"github.com/adverax/crm/internal/platform/security"
 	"github.com/adverax/crm/internal/platform/security/fls"
 	"github.com/adverax/crm/internal/platform/security/ols"
@@ -282,6 +285,51 @@ func setupRouter(pool *pgxpool.Pool, metadataCache *metadata.MetadataCache, cfg 
 	functionHandler := handler.NewFunctionHandler(functionService)
 	functionHandler.RegisterRoutes(adminGroup)
 
+	// Procedures (ADR-0024)
+	procedureRepo := metadata.NewPgProcedureRepository(pool)
+	procedureService := metadata.NewProcedureService(procedureRepo, metadataCache, nil)
+
+	// Procedure engine
+	procCELEnv, err := procengine.NewProcedureCELEnv(fnRegistry)
+	if err != nil {
+		slog.Error("failed to create procedure CEL env", "error", err)
+		os.Exit(1)
+	}
+	procCELCache := celengine.NewProgramCache(procCELEnv)
+	procResolver := procengine.NewExpressionResolver(procCELCache)
+
+	// Named Credentials (ADR-0028)
+	credentialRepo := credential.NewPgRepository(pool)
+	var credentialService credential.Service
+	encKey := parseEncryptionKey(cfg.CredentialEncryptionKey)
+	credentialService = credential.NewService(credentialRepo, encKey)
+
+	credentialHandler := handler.NewCredentialHandler(credentialService)
+	credentialHandler.RegisterRoutes(adminGroup)
+
+	recordCmdExec := procengine.NewRecordCommandExecutor(dmlService, soqlService, procResolver)
+	computeCmdExec := procengine.NewComputeCommandExecutor(procResolver)
+	notifCmdExec := procengine.NewNotificationCommandExecutor()
+	waitCmdExec := procengine.NewWaitCommandExecutor()
+	integrationCmdExec := procengine.NewIntegrationCommandExecutor(credentialService, procResolver)
+
+	procedureEngine := procengine.NewEngine(
+		procCELCache,
+		procedureService,
+		recordCmdExec,
+		computeCmdExec,
+		notifCmdExec,
+		waitCmdExec,
+		integrationCmdExec,
+	)
+
+	// Flow executor needs the engine reference (circular)
+	flowCmdExec := procengine.NewFlowCommandExecutor(procedureEngine, procResolver)
+	procedureEngine.RegisterExecutor(flowCmdExec)
+
+	procedureHandler := handler.NewProcedureHandler(procedureService, procedureEngine)
+	procedureHandler.RegisterRoutes(adminGroup)
+
 	// Object View
 	objectViewRepo := metadata.NewPgObjectViewRepository(pool)
 	objectViewService := metadata.NewObjectViewService(pool, objectViewRepo, metadataCache)
@@ -398,6 +446,21 @@ func parseLogLevel(level string) slog.Level {
 	default:
 		return slog.LevelInfo
 	}
+}
+
+// parseEncryptionKey converts a hex-encoded encryption key to bytes.
+// Returns a 32-byte zero key if not configured (dev mode only).
+func parseEncryptionKey(hexKey string) []byte {
+	if hexKey == "" {
+		slog.Warn("CREDENTIAL_ENCRYPTION_KEY not set, using zero key (development only)")
+		return make([]byte, 32)
+	}
+	key, err := hex.DecodeString(hexKey)
+	if err != nil || len(key) != 32 {
+		slog.Error("CREDENTIAL_ENCRYPTION_KEY must be 64 hex chars (32 bytes)", "error", err)
+		os.Exit(1)
+	}
+	return key
 }
 
 // buildFunctionRegistry converts cached Functions into CEL FunctionDefs and builds a registry.

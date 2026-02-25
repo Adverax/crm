@@ -408,28 +408,29 @@ Users of the same system (Sales, Warehouse, Management) see a role-specific inte
 
 ---
 
-### Phase 10: Procedure Engine + Automation Rules (ADR-0024) ⬜
+### Phase 10: Procedure Engine + Automation Rules (ADR-0024) 🔄
 
 Declarative automation: from atomic commands to composite procedures.
 
-#### Phase 10a: Procedure Engine Core
+#### Phase 10a: Procedure Engine Core ✅
 
-- [ ] **Procedure runtime**: JSON DSL parsing, CEL evaluation, command execution
-- [ ] **Command types**: `record.*` (CRUD via DML), `notification.*` (email/in-app), `integration.*` (HTTP), `compute.*` (transform/validate/fail), `flow.*` (call/if/match)
-- [ ] **Conditional logic**: `when` (per-command), `flow.if` (condition/then/else), `flow.match` (expression/cases)
-- [ ] **Rollback (Saga)**: LIFO compensating commands
-- [ ] **Security sandbox**: limits (30s timeout, 50 commands, 10 HTTP calls), OLS/FLS/RLS enforcement
-- [ ] **Named Credentials (ADR-0028)**: `metadata.credentials` + `credential_tokens` + `credential_usage_log`
-- [ ] **Credential encryption**: AES-256-GCM, master key from ENV, unique nonce per record
-- [ ] **Credential types**: api_key (header/query), basic (username/password), oauth2_client (auto token refresh)
-- [ ] **SSRF protection**: base_url constraint, host match, internal IP blocklist, HTTPS only
-- [ ] **Credential Admin API + UI**: CRUD + test connection + usage log + deactivate/activate
-- [ ] **Versioning (ADR-0029)**: `metadata.procedure_versions` (draft/published/superseded), auto-increment version counter
-- [ ] **Draft/Publish workflow**: save draft → dry-run test → publish; rollback to previous published
-- [ ] **Storage**: `metadata.procedures` + `procedure_versions` (definition in versions, not inline)
-- [ ] **Admin REST API**: CRUD procedures + versions + test (dry-run on draft) + publish + rollback
-- [ ] **Procedure Constructor UI**: visual form-based builder → JSON
-- [ ] **pgTAP tests**: schema tests for metadata.procedures + credentials
+- [x] **Procedure runtime**: JSON DSL parsing, CEL evaluation, command execution
+- [x] **Command types**: `record.*` (CRUD via DML), `notification.*` (stub), `integration.*` (HTTP), `compute.*` (transform/validate/fail), `flow.*` (call/if/match), `wait.*` (stub)
+- [x] **Conditional logic**: `when` (per-command), `flow.if` (condition/then/else), `flow.match` (expression/cases)
+- [x] **Rollback (Saga)**: LIFO compensating commands
+- [x] **Security sandbox**: limits (30s timeout, 50 commands, 10 HTTP calls), OLS/FLS/RLS enforcement
+- [x] **Named Credentials (ADR-0028)**: `metadata.credentials` + `credential_tokens` + `credential_usage_log`
+- [x] **Credential encryption**: AES-256-GCM, master key from ENV, unique nonce per record
+- [x] **Credential types**: api_key (header/value), basic (username/password), oauth2_client (auto token refresh)
+- [x] **SSRF protection**: base_url constraint, host match, internal IP blocklist, HTTPS only
+- [x] **Credential Admin API + UI**: CRUD + test connection + usage log + deactivate/activate
+- [x] **Versioning (ADR-0029)**: `metadata.procedure_versions` (draft/published/superseded), auto-increment version counter
+- [x] **Draft/Publish workflow**: save draft → dry-run test → publish; rollback to previous published
+- [x] **Storage**: `metadata.procedures` + `procedure_versions` (definition in versions, not inline)
+- [x] **Admin REST API**: CRUD procedures + versions + test (dry-run on draft) + publish + rollback
+- [x] **Procedure Constructor UI**: visual form-based builder (CommandEditor, CommandPicker, DryRunPanel)
+- [x] **pgTAP tests**: schema tests for metadata.procedures + credentials
+- [x] **E2E tests**: 24 procedure tests + 18 credential tests (42 total)
 
 #### Phase 10b: Automation Rules
 
@@ -612,7 +613,7 @@ Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ✅ �
                                                                                                              Phase 9a ✅
                                                                                                           (Object View)
                                                                                                                    │
-                                                                                                             Phase 10
+                                                                                                             Phase 10a ✅
                                                                                                           (Procedures)
                                                                                                                    │
                                                                                                              Phase 11

@@ -16,6 +16,7 @@ type CacheLoader interface {
 	LoadAllValidationRules(ctx context.Context) ([]ValidationRule, error)
 	LoadAllFunctions(ctx context.Context) ([]Function, error)
 	LoadAllObjectViews(ctx context.Context) ([]ObjectView, error)
+	LoadAllProcedures(ctx context.Context) ([]Procedure, error)
 	RefreshMaterializedView(ctx context.Context) error
 }
 
@@ -33,6 +34,8 @@ type MetadataReader interface {
 	GetFunctions() []Function
 	GetFunctionByName(name string) (Function, bool)
 	GetObjectViews(objectID uuid.UUID) []ObjectView
+	GetProcedureByCode(code string) (Procedure, bool)
+	GetProcedures() []Procedure
 }
 
 // MetadataCache is an in-memory cache of metadata backed by a PostgreSQL materialized view
@@ -58,6 +61,9 @@ type MetadataCache struct {
 	// Object views (ADR-0022)
 	objectViewsByObjectID map[uuid.UUID][]ObjectView
 
+	// Procedures (ADR-0024)
+	proceduresByCode map[string]Procedure
+
 	loader CacheLoader
 	loaded bool
 }
@@ -74,6 +80,7 @@ func NewMetadataCache(loader CacheLoader) *MetadataCache {
 		validationRulesByObjectID: make(map[uuid.UUID][]ValidationRule),
 		functionsByName:           make(map[string]Function),
 		objectViewsByObjectID:     make(map[uuid.UUID][]ObjectView),
+		proceduresByCode:          make(map[string]Procedure),
 		loader:                    loader,
 	}
 }
@@ -108,6 +115,11 @@ func (c *MetadataCache) Load(ctx context.Context) error {
 	objectViews, err := c.loader.LoadAllObjectViews(ctx)
 	if err != nil {
 		return fmt.Errorf("metadataCache.Load: object views: %w", err)
+	}
+
+	procedures, err := c.loader.LoadAllProcedures(ctx)
+	if err != nil {
+		return fmt.Errorf("metadataCache.Load: procedures: %w", err)
 	}
 
 	c.mu.Lock()
@@ -149,6 +161,11 @@ func (c *MetadataCache) Load(ctx context.Context) error {
 	c.objectViewsByObjectID = make(map[uuid.UUID][]ObjectView)
 	for _, ov := range objectViews {
 		c.objectViewsByObjectID[ov.ObjectID] = append(c.objectViewsByObjectID[ov.ObjectID], ov)
+	}
+
+	c.proceduresByCode = make(map[string]Procedure, len(procedures))
+	for _, p := range procedures {
+		c.proceduresByCode[p.Code] = p
 	}
 
 	c.loaded = true
@@ -299,6 +316,42 @@ func (c *MetadataCache) LoadObjectViews(ctx context.Context) error {
 	c.objectViewsByObjectID = make(map[uuid.UUID][]ObjectView)
 	for _, ov := range views {
 		c.objectViewsByObjectID[ov.ObjectID] = append(c.objectViewsByObjectID[ov.ObjectID], ov)
+	}
+	return nil
+}
+
+// GetProcedureByCode returns a procedure by code from cache.
+func (c *MetadataCache) GetProcedureByCode(code string) (Procedure, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	p, ok := c.proceduresByCode[code]
+	return p, ok
+}
+
+// GetProcedures returns all cached procedures.
+func (c *MetadataCache) GetProcedures() []Procedure {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	result := make([]Procedure, 0, len(c.proceduresByCode))
+	for _, p := range c.proceduresByCode {
+		result = append(result, p)
+	}
+	return result
+}
+
+// LoadProcedures reloads only procedures into the cache.
+func (c *MetadataCache) LoadProcedures(ctx context.Context) error {
+	procedures, err := c.loader.LoadAllProcedures(ctx)
+	if err != nil {
+		return fmt.Errorf("metadataCache.LoadProcedures: %w", err)
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.proceduresByCode = make(map[string]Procedure, len(procedures))
+	for _, p := range procedures {
+		c.proceduresByCode[p.Code] = p
 	}
 	return nil
 }

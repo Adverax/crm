@@ -8,11 +8,12 @@ import (
 )
 
 type Config struct {
-	Port                 int
-	DB                   DatabaseConfig
-	LogLevel             string
-	JWT                  JWTConfig
-	AdminInitialPassword string
+	Port                    int
+	DB                      DatabaseConfig
+	LogLevel                string
+	JWT                     JWTConfig
+	AdminInitialPassword    string
+	CredentialEncryptionKey string
 }
 
 type JWTConfig struct {
@@ -54,7 +55,8 @@ func Load() Config {
 			AccessTTL:  getEnvDuration("JWT_ACCESS_TTL", 15*time.Minute),
 			RefreshTTL: getEnvDuration("JWT_REFRESH_TTL", 168*time.Hour),
 		},
-		AdminInitialPassword: getEnv("ADMIN_INITIAL_PASSWORD", ""),
+		AdminInitialPassword:    getEnv("ADMIN_INITIAL_PASSWORD", ""),
+		CredentialEncryptionKey: getEnv("CREDENTIAL_ENCRYPTION_KEY", ""),
 	}
 }
 

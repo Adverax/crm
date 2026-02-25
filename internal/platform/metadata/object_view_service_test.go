@@ -155,6 +155,10 @@ func (m *mockOVCacheLoader) LoadAllObjectViews(_ context.Context) ([]ObjectView,
 	return m.objectViews, nil
 }
 
+func (m *mockOVCacheLoader) LoadAllProcedures(_ context.Context) ([]Procedure, error) {
+	return nil, nil
+}
+
 func (m *mockOVCacheLoader) RefreshMaterializedView(_ context.Context) error {
 	return nil
 }

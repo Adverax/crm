@@ -59,6 +59,10 @@ func (m *mockCacheLoader) LoadAllObjectViews(_ context.Context) ([]ObjectView, e
 	return nil, nil
 }
 
+func (m *mockCacheLoader) LoadAllProcedures(_ context.Context) ([]Procedure, error) {
+	return nil, nil
+}
+
 func TestMetadataCacheLoad(t *testing.T) {
 	t.Parallel()
 

@@ -117,6 +117,10 @@ func (s *stubDescribeCacheLoader) LoadAllObjectViews(_ context.Context) ([]metad
 	return nil, nil
 }
 
+func (s *stubDescribeCacheLoader) LoadAllProcedures(_ context.Context) ([]metadata.Procedure, error) {
+	return nil, nil
+}
+
 func buildDescribeTestCache(objID uuid.UUID, apiName, tableName string) *metadata.MetadataCache {
 	fieldID := uuid.New()
 	loader := &stubDescribeCacheLoader{

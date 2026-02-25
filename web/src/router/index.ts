@@ -110,6 +110,40 @@ const router = createRouter({
           component: () => import('../views/admin/metadata/FunctionDetailView.vue'),
           props: true,
         },
+        // Procedures
+        {
+          path: 'metadata/procedures',
+          name: 'admin-procedures',
+          component: () => import('../views/admin/metadata/ProcedureListView.vue'),
+        },
+        {
+          path: 'metadata/procedures/new',
+          name: 'admin-procedure-create',
+          component: () => import('../views/admin/metadata/ProcedureCreateView.vue'),
+        },
+        {
+          path: 'metadata/procedures/:procedureId',
+          name: 'admin-procedure-detail',
+          component: () => import('../views/admin/metadata/ProcedureDetailView.vue'),
+          props: true,
+        },
+        // Credentials
+        {
+          path: 'metadata/credentials',
+          name: 'admin-credentials',
+          component: () => import('../views/admin/metadata/CredentialListView.vue'),
+        },
+        {
+          path: 'metadata/credentials/new',
+          name: 'admin-credential-create',
+          component: () => import('../views/admin/metadata/CredentialCreateView.vue'),
+        },
+        {
+          path: 'metadata/credentials/:credentialId',
+          name: 'admin-credential-detail',
+          component: () => import('../views/admin/metadata/CredentialDetailView.vue'),
+          props: true,
+        },
         // Object Views
         {
           path: 'metadata/object-views',

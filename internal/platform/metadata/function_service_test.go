@@ -102,6 +102,9 @@ func (m *mockFnCacheLoader) LoadAllFunctions(_ context.Context) ([]Function, err
 func (m *mockFnCacheLoader) LoadAllObjectViews(_ context.Context) ([]ObjectView, error) {
 	return nil, nil
 }
+func (m *mockFnCacheLoader) LoadAllProcedures(_ context.Context) ([]Procedure, error) {
+	return nil, nil
+}
 func (m *mockFnCacheLoader) RefreshMaterializedView(_ context.Context) error {
 	return nil
 }

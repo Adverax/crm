@@ -83,7 +83,23 @@
     - [Describe API Extension](#137-describe-api-extension)
     - [CRM UI Rendering](#138-crm-ui-rendering)
     - [API](#139-api)
-14. [Common Scenarios](#14-common-scenarios)
+14. [Procedures](#14-procedures)
+    - [Overview](#141-overview)
+    - [Creating a Procedure](#142-creating-a-procedure)
+    - [Definition & Commands](#143-definition--commands)
+    - [Versioning](#144-versioning)
+    - [Dry Run & Execution](#145-dry-run--execution)
+    - [Constructor UI](#146-constructor-ui)
+    - [API](#147-api)
+    - [Limits](#148-limits)
+15. [Named Credentials](#15-named-credentials)
+    - [Overview](#151-overview)
+    - [Credential Types](#152-credential-types)
+    - [Creating a Credential](#153-creating-a-credential)
+    - [Test Connection](#154-test-connection)
+    - [Usage Log](#155-usage-log)
+    - [API](#156-api)
+16. [Common Scenarios](#16-common-scenarios)
 
 ---
 
@@ -99,6 +115,8 @@ The CRM admin panel is designed for system administrators and allows:
 - Configuring **validation rules** — CEL expressions that check data on every save.
 - Creating **custom functions** — reusable CEL expressions callable from any context.
 - Configuring **object views** — role-based UI per profile with read config (fields, actions, queries, computed) and optional write config (validation, defaults, computed, mutations).
+- Building **procedures** — named JSON-described business logic sequences (record operations, computations, branching, HTTP integrations) with a visual Constructor UI, versioning (draft/published), and dry-run testing.
+- Managing **named credentials** — encrypted secret storage for HTTP integrations (API keys, basic auth, OAuth2 client credentials) with SSRF protection and usage audit logging.
 - Working with **records** — creating, editing, and deleting records of any object through a universal CRUD interface.
 
 ### Audience
@@ -2669,7 +2687,573 @@ Returns `204 No Content` on success.
 
 ---
 
-## 14. Common Scenarios
+## 14. Procedures
+
+### 14.1 Overview
+
+Procedures are named business logic sequences described in JSON. They allow administrators to automate multi-step operations — creating records, performing validations, calling external APIs, branching on conditions — all without writing Go code.
+
+Key features:
+- **Visual Constructor UI** — build procedures via forms and dropdowns, no raw JSON editing required.
+- **Versioning** — each procedure has a draft and optionally a published version. Changes are made to the draft; publishing promotes it to live.
+- **Dry Run** — test a procedure without side effects before publishing.
+- **Command types** — record operations (`record.create`, `record.update`, `record.delete`, `record.get`, `record.query`), computations (`compute.transform`, `compute.validate`, `compute.fail`), flow control (`flow.if`, `flow.match`, `flow.call`, `flow.try`), HTTP integrations (`integration.http`), and stubs for future notification/wait commands.
+- **Retry** — любая команда может быть сконфигурирована с автоматическим retry (до 5 попыток, задержка с экспоненциальным backoff). Критично для нестабильных внешних API.
+- **Try/Catch** — `flow.try` позволяет перехватить ошибку, выполнить recovery-логику и продолжить процедуру. Переменная `$.error` доступна в catch-блоке.
+- **Saga rollback** — if a command fails, previously completed commands with rollback definitions are undone in LIFO order.
+- **Security** — record commands go through the standard SOQL/DML security layers (OLS, FLS, RLS). HTTP integrations use Named Credentials.
+
+### 14.2 Creating a Procedure
+
+**Admin UI:**
+1. Navigate to **Procedures** (`/admin/metadata/procedures`).
+2. Click the **"+"** button.
+3. Fill in:
+   - **Code:** `create_account_workflow` (lowercase with underscores, must start with a letter)
+   - **Name:** "Create Account Workflow"
+   - **Description:** (optional) "Creates account and sends welcome notification"
+4. Click **"Create"**. You are redirected to the detail page with an empty draft (v1).
+
+**API:**
+```
+POST /api/v1/admin/procedures
+
+{
+  "code": "create_account_workflow",
+  "name": "Create Account Workflow",
+  "description": "Creates account and sends welcome notification"
+}
+```
+
+Returns `201 Created` with the procedure and its draft version.
+
+### 14.3 Definition & Commands
+
+A procedure definition is a JSON object with a list of commands and an optional result mapping:
+
+```json
+{
+  "commands": [
+    {
+      "type": "record.create",
+      "as": "account",
+      "object": "Account",
+      "data": {
+        "Name": "$.input.name",
+        "Industry": "$.input.industry"
+      }
+    },
+    {
+      "type": "compute.validate",
+      "as": "check_name",
+      "condition": "$.input.name != ''",
+      "code": "name_required",
+      "message": "Name is required"
+    },
+    {
+      "type": "flow.if",
+      "as": "branch",
+      "condition": "$.input.sendWelcome == true",
+      "then": [
+        {
+          "type": "integration.http",
+          "as": "welcome_call",
+          "credential": "slack_webhook",
+          "method": "POST",
+          "path": "/api/notify",
+          "body": "{\"text\": \"New account: $.account.id\"}"
+        }
+      ],
+      "else": []
+    }
+  ],
+  "result": {
+    "accountId": "$.account.id"
+  }
+}
+```
+
+**Command reference:**
+
+| Type | Description | Key Fields |
+|------|-------------|------------|
+| `record.create` | Insert a new record | `object`, `data` (field→expression map) |
+| `record.update` | Update an existing record | `object`, `id` (expression), `data` |
+| `record.delete` | Delete a record | `object`, `id` (expression) |
+| `record.get` | Fetch a single record by ID | `object`, `id` (expression) |
+| `record.query` | Execute a SOQL query | `query` (SOQL string) |
+| `compute.transform` | Map/compute values | `value` (key→expression map) |
+| `compute.validate` | Assert a condition | `condition` (CEL), `code`, `message` |
+| `compute.fail` | Raise an error immediately | `code`, `message` |
+| `flow.if` | Conditional branching | `condition` (CEL), `then` (commands), `else` (commands) |
+| `flow.match` | Switch/case branching | `expression` (CEL), `cases` (key→commands map) |
+| `flow.call` | Call another procedure | `procedure` (code), `input` (expression map) |
+| `flow.try` | Try/Catch error handling | `try` (commands), `catch` (commands) |
+| `integration.http` | HTTP request via Named Credential | `credential`, `method`, `path`, `headers`, `body` |
+
+**Common command fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `as` | string | Variable name for the step result (accessible as `$.<as>`) |
+| `when` | string | Optional CEL condition — skip if evaluates to `false` |
+| `optional` | bool | If `true`, errors are captured as warnings instead of aborting |
+| `rollback` | array | List of compensating commands, executed in order if a later step fails |
+| `retry` | object | Retry config: `max_attempts` (1–5), `delay_ms` (100–60000), `backoff_mult` (multiplier, default 1) |
+
+**Saga Rollback:**
+
+Each command can define a `rollback` — a list of compensating commands that run if a **later** step fails. Rollbacks execute in LIFO order (last registered → first executed), following the Saga pattern. Each rollback entry can contain multiple commands:
+
+```json
+{
+  "commands": [
+    {
+      "type": "record.create",
+      "as": "order",
+      "object": "Order",
+      "data": { "Status": "'pending'", "Amount": "$.input.amount" },
+      "rollback": [
+        {
+          "type": "record.delete",
+          "object": "Order",
+          "id": "$.order.id"
+        }
+      ]
+    },
+    {
+      "type": "integration.http",
+      "as": "payment",
+      "credential": "stripe_api",
+      "method": "POST",
+      "path": "/v1/charges",
+      "body": "{\"amount\": \"$.input.amount\"}",
+      "rollback": [
+        {
+          "type": "integration.http",
+          "credential": "stripe_api",
+          "method": "POST",
+          "path": "/v1/refunds",
+          "body": "{\"charge\": \"$.payment.id\"}"
+        },
+        {
+          "type": "compute.transform",
+          "as": "log_refund",
+          "value": { "refunded": "true" }
+        }
+      ]
+    },
+    {
+      "type": "integration.http",
+      "credential": "email_service",
+      "method": "POST",
+      "path": "/send",
+      "body": "{\"to\": \"$.input.email\", \"template\": \"order_confirmation\"}"
+    }
+  ]
+}
+```
+
+If the email step fails:
+1. Payment rollback runs (refund via Stripe).
+2. Order rollback runs (delete the order record).
+
+Rollback is only registered for commands that **succeeded**. If a command fails before completing, its rollback is not added to the stack.
+
+**Retry:**
+
+Любая команда может быть сконфигурирована с автоматическим retry. Это особенно полезно для `integration.http` команд, вызывающих нестабильные внешние API.
+
+```json
+{
+  "type": "integration.http",
+  "as": "payment",
+  "credential": "stripe_api",
+  "method": "POST",
+  "path": "/v1/charges",
+  "body": "{\"amount\": \"$.input.amount\"}",
+  "retry": {
+    "max_attempts": 3,
+    "delay_ms": 1000,
+    "backoff_mult": 2
+  }
+}
+```
+
+Параметры retry:
+- `max_attempts` (1–5) — максимальное количество попыток (включая первую).
+- `delay_ms` (100–60000) — задержка перед повторной попыткой (мс).
+- `backoff_mult` (default 1) — множитель задержки после каждой неудачной попытки. При `backoff_mult: 2` и `delay_ms: 1000` задержки будут: 1s, 2s, 4s…
+
+Поведение:
+- Если команда успешна — retry не нужен, результат возвращается сразу.
+- Если все попытки неудачны — последняя ошибка пробрасывается.
+- Каждая повторная попытка добавляет запись в trace со статусом `"retry"`.
+- Retry учитывает deadline выполнения: если задержка превысит оставшееся время, retry прекращается с ошибкой.
+
+**Try/Catch (`flow.try`):**
+
+`flow.try` позволяет перехватить ошибку команды и выполнить recovery-логику вместо прерывания всей процедуры. Это промежуточный вариант между `optional: true` (игнорировать ошибку) и стандартным поведением (прервать процедуру).
+
+```json
+{
+  "type": "flow.try",
+  "as": "safe_call",
+  "try": [
+    {
+      "type": "integration.http",
+      "as": "api_call",
+      "credential": "external_api",
+      "method": "POST",
+      "path": "/process"
+    }
+  ],
+  "catch": [
+    {
+      "type": "compute.transform",
+      "as": "fallback",
+      "value": {
+        "failed": "'true'",
+        "error_msg": "$.error.message"
+      }
+    }
+  ]
+}
+```
+
+Семантика:
+1. Выполняются команды из `try` блока.
+2. Если `try` успешен — `catch` не выполняется. Результат: `{"caught": false}`.
+3. Если `try` падает — ошибка сохраняется в `$.error` (объект с полями `code` и `message`), затем выполняются команды из `catch` блока.
+4. Если `catch` успешен — процедура продолжается. Результат: `{"caught": true, "error_code": "...", "error_message": "..."}`.
+5. Если `catch` тоже падает — ошибка пробрасывается выше (как если бы `flow.try` не было).
+
+Переменная `$.error` доступна только внутри `catch`-блока:
+- `$.error.code` — код ошибки (из `ExecutionError` или `AppError`, иначе `"unknown"`).
+- `$.error.message` — текст ошибки.
+
+Переменные, установленные в `try`-блоке (через `as`), остаются доступны после `flow.try`, даже если произошла ошибка.
+
+**Expression resolution:**
+
+All string values starting with `$.` are resolved at runtime:
+- `$.input.<field>` — input parameter value
+- `$.user.<field>` — current user context
+- `$.now` — current timestamp
+- `$.<step_name>` — result of a previous command (by `as` name)
+- `$.error` — объект ошибки (только внутри `catch`-блока `flow.try`): `$.error.code`, `$.error.message`
+
+**Пример: record.query и работа с результатами**
+
+`record.query` возвращает массив записей (`[]map`). Каждый элемент — одна запись, ключи — имена полей из SOQL-запроса. Результат доступен через `as` как `$.<step_name>`:
+
+```json
+{
+  "commands": [
+    {
+      "type": "record.query",
+      "as": "deals",
+      "query": "SELECT Id, Name, Amount FROM Opportunity WHERE StageName = 'Closed Won' AND OwnerId = '$.input.user_id'"
+    },
+    {
+      "type": "compute.validate",
+      "condition": "size(deals) > 0",
+      "code": "no_deals",
+      "message": "No closed deals found for this user"
+    },
+    {
+      "type": "compute.transform",
+      "as": "summary",
+      "value": {
+        "count": "size(deals)",
+        "first_deal": "deals[0].Name",
+        "first_amount": "deals[0].Amount"
+      }
+    },
+    {
+      "type": "record.update",
+      "object": "Contact",
+      "id": "$.input.contact_id",
+      "data": {
+        "LastDealName": "$.deals[0].Name",
+        "DealCount": "$.summary.count"
+      }
+    }
+  ],
+  "result": {
+    "dealCount": "$.summary.count",
+    "deals": "$.deals"
+  }
+}
+```
+
+Доступ к результатам `record.query`:
+- `$.deals` — весь массив записей, например `[{"Id": "...", "Name": "Acme", "Amount": 50000}, ...]`
+- `$.deals[0].Name` — поле первой записи (в `data` record-команд, `$.`-синтаксис)
+- `deals[0].Name` — то же в CEL-выражениях (в `value`, `condition` — без `$.`)
+- `size(deals)` — количество записей (CEL-функция)
+
+### 14.4 Versioning
+
+Procedures use a draft/published versioning model (ADR-0029):
+
+- **Draft** — editable work-in-progress. Save anytime without affecting live execution.
+- **Published** — the live version used when executing the procedure.
+- **Superseded** — archived previous published versions (up to 10 kept).
+
+**Workflow:**
+
+1. Create a procedure → draft v1 is created automatically.
+2. Edit the definition → save draft (can save multiple times).
+3. Publish → draft becomes published, previous published becomes superseded.
+4. Continue editing → create a new draft from the current published version.
+5. Rollback → revert to the previous published version.
+
+**API:**
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/admin/procedures/:id/draft` | PUT | Save draft definition |
+| `/api/v1/admin/procedures/:id/draft` | DELETE | Discard draft |
+| `/api/v1/admin/procedures/:id/publish` | POST | Publish draft |
+| `/api/v1/admin/procedures/:id/rollback` | POST | Rollback to previous published |
+| `/api/v1/admin/procedures/:id/versions` | GET | List version history |
+
+### 14.5 Dry Run & Execution
+
+**Dry run** tests a procedure without side effects. Record mutations return fake UUIDs, HTTP calls are skipped.
+
+```
+POST /api/v1/admin/procedures/:id/dry-run
+
+{
+  "input": {
+    "name": "Acme Corp",
+    "industry": "Technology",
+    "sendWelcome": true
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "data": {
+    "success": true,
+    "result": {
+      "accountId": "00000000-0000-0000-0000-000000000000"
+    },
+    "warnings": [],
+    "trace": [
+      {"command": "record.create", "as": "account", "duration_ms": 0, "status": "ok"},
+      {"command": "flow.if", "as": "branch", "duration_ms": 0, "status": "ok"}
+    ]
+  }
+}
+```
+
+**Execute** runs the published version with real side effects:
+
+```
+POST /api/v1/admin/procedures/:id/execute
+
+{
+  "input": {
+    "name": "Acme Corp",
+    "industry": "Technology"
+  }
+}
+```
+
+### 14.6 Constructor UI
+
+The procedure detail page provides a visual Constructor UI for building definitions:
+
+1. **Command List** — ordered list of command cards. Each card shows the command type (color-coded badge), key fields, and action buttons (move up/down, remove).
+2. **Command Picker** — the "+" button opens a categorized dropdown: Record, Compute, Flow, Integration, Notification, Wait. Select a command type to append it.
+3. **Command Editor** — each card expands to show type-specific form fields:
+   - `record.query`: SOQL Query textarea only (Object is inferred from the query itself).
+   - `record.create`: Object picker, data mapping table.
+   - `record.update`/`record.delete`/`record.get`: Object picker, Record ID expression.
+   - Compute: CEL expression editors (condition, value mappings).
+   - Flow: nested command lists for branches (then/else, cases). `flow.try` shows try/catch info.
+   - Integration: credential picker, HTTP method, path, headers, body.
+4. **Common fields** — each command has optional fields: `as` (variable name), `when` (condition), `optional` toggle.
+5. **Retry config** — each command can enable retry with configurable max attempts (1–5), delay (ms), and backoff multiplier.
+6. **Tabs** — Definition (Constructor), Versions (history), Settings (metadata), Dry Run (test panel).
+
+### 14.7 API
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/admin/procedures` | POST | Create procedure (with draft v1) |
+| `/api/v1/admin/procedures` | GET | List all procedures |
+| `/api/v1/admin/procedures/:id` | GET | Get procedure with versions |
+| `/api/v1/admin/procedures/:id` | PUT | Update metadata (name, description) |
+| `/api/v1/admin/procedures/:id` | DELETE | Delete procedure |
+| `/api/v1/admin/procedures/:id/draft` | PUT | Save draft definition |
+| `/api/v1/admin/procedures/:id/draft` | DELETE | Discard draft |
+| `/api/v1/admin/procedures/:id/publish` | POST | Publish draft |
+| `/api/v1/admin/procedures/:id/rollback` | POST | Rollback to previous published |
+| `/api/v1/admin/procedures/:id/versions` | GET | Version history |
+| `/api/v1/admin/procedures/:id/execute` | POST | Execute published version |
+| `/api/v1/admin/procedures/:id/dry-run` | POST | Dry-run (draft if exists, else published) |
+
+**Error responses:**
+
+| HTTP Code | Condition |
+|-----------|-----------|
+| 400 | Invalid code format, definition too large, unknown command type |
+| 404 | Procedure not found |
+| 409 | Duplicate code, no draft to publish, no version to rollback |
+
+### 14.8 Limits
+
+| Parameter | Limit |
+|-----------|-------|
+| Execution timeout | 30 seconds |
+| Max commands per execution | 50 |
+| Max call depth (`flow.call`) | 3 |
+| Max if/match/try nesting | 5 |
+| Max definition JSON size | 64 KB |
+| Max input size | 1 MB |
+| Max HTTP calls per execution | 10 |
+| Max notifications per execution | 10 |
+| Retry: max attempts | 5 |
+| Retry: delay range | 100–60000 ms |
+
+---
+
+## 15. Named Credentials
+
+### 15.1 Overview
+
+Named Credentials provide secure, encrypted storage for authentication secrets used in HTTP integrations (`integration.http` commands in Procedures). They allow administrators to configure API access without exposing secrets in procedure definitions.
+
+Key features:
+- **AES-256-GCM encryption** — all secrets are encrypted at rest with a unique nonce per record.
+- **Three auth types** — API Key, Basic Auth, OAuth2 Client Credentials.
+- **SSRF protection** — all HTTP requests are validated against the credential's base URL (HTTPS only, no internal IPs).
+- **Test connection** — verify that a credential works before using it in procedures.
+- **Usage audit log** — every HTTP request made through a credential is logged with URL, status, duration, and the calling procedure.
+
+### 15.2 Credential Types
+
+| Type | Auth Mechanism | Fields |
+|------|---------------|--------|
+| `api_key` | Custom header with API key | `header` (header name), `value` (key value) |
+| `basic` | HTTP Basic Authentication | `username`, `password` |
+| `oauth2_client` | OAuth2 Client Credentials Grant | `client_id`, `client_secret`, `token_url`, `scope` |
+
+For `api_key`, the system sends the configured header (e.g., `X-API-Key: sk-abc123`).
+For `basic`, the system sends `Authorization: Basic <base64(username:password)>`.
+For `oauth2_client`, the system obtains an access token via the client credentials flow and sends `Authorization: Bearer <token>`. Tokens are cached and auto-refreshed.
+
+### 15.3 Creating a Credential
+
+**Admin UI:**
+1. Navigate to **Credentials** (`/admin/metadata/credentials`).
+2. Click the **"+"** button.
+3. Fill in:
+   - **Code:** `stripe_api` (lowercase with underscores, must start with a letter)
+   - **Name:** "Stripe API"
+   - **Base URL:** `https://api.stripe.com` (must be HTTPS)
+   - **Type:** Select `api_key`, `basic`, or `oauth2_client`
+4. Fill in type-dependent auth fields:
+   - For `api_key`: Header = `Authorization`, Value = `Bearer sk_live_abc123`
+   - For `basic`: Username = `api`, Password = `sk_live_abc123`
+   - For `oauth2_client`: Client ID, Client Secret, Token URL, Scope
+5. Click **"Create"**.
+
+**API:**
+```
+POST /api/v1/admin/credentials
+
+{
+  "code": "stripe_api",
+  "name": "Stripe API",
+  "base_url": "https://api.stripe.com",
+  "type": "api_key",
+  "auth_data": {
+    "header": "Authorization",
+    "value": "Bearer sk_live_abc123"
+  }
+}
+```
+
+Returns `201 Created`. Note: secrets are encrypted on write and never returned in plaintext — API responses show masked values.
+
+### 15.4 Test Connection
+
+The Test Connection feature sends a GET request to the credential's base URL with the configured authentication and reports success or failure.
+
+**Admin UI:**
+1. Open a credential's detail page.
+2. Click the **Test Connection** button (Wifi icon).
+3. The result shows: HTTP status, response time, and success/failure indication.
+
+**API:**
+```
+POST /api/v1/admin/credentials/:id/test
+```
+
+Returns `200 OK` with test result including `success`, `status_code`, and `duration_ms`.
+
+### 15.5 Usage Log
+
+Every HTTP request made through a credential is recorded in the usage log. The log captures:
+
+| Field | Description |
+|-------|-------------|
+| `procedure_code` | Which procedure made the request |
+| `request_url` | Full URL of the HTTP request |
+| `response_status` | HTTP response status code |
+| `success` | Whether the request succeeded |
+| `error_message` | Error details (if failed) |
+| `duration_ms` | Request duration in milliseconds |
+| `user_id` | User who triggered the execution |
+| `created_at` | Timestamp |
+
+**Admin UI:**
+1. Open a credential's detail page.
+2. Switch to the **Usage** tab.
+3. View the log entries with timestamps, URLs, status codes, and duration.
+
+**API:**
+```
+GET /api/v1/admin/credentials/:id/usage
+```
+
+### 15.6 API
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/admin/credentials` | POST | Create credential (secrets encrypted) |
+| `/api/v1/admin/credentials` | GET | List all (secrets masked) |
+| `/api/v1/admin/credentials/:id` | GET | Get credential (secrets masked) |
+| `/api/v1/admin/credentials/:id` | PUT | Update credential |
+| `/api/v1/admin/credentials/:id` | DELETE | Delete credential (409 if used by procedure) |
+| `/api/v1/admin/credentials/:id/test` | POST | Test connection |
+| `/api/v1/admin/credentials/:id/usage` | GET | Usage audit log |
+| `/api/v1/admin/credentials/:id/deactivate` | POST | Deactivate credential |
+| `/api/v1/admin/credentials/:id/activate` | POST | Activate credential |
+
+**Error responses:**
+
+| HTTP Code | Condition |
+|-----------|-----------|
+| 400 | Invalid code format, non-HTTPS base_url, unknown type |
+| 404 | Credential not found |
+| 409 | Duplicate code, credential in use (on delete) |
+
+**Security considerations:**
+- The `CREDENTIAL_ENCRYPTION_KEY` environment variable (32 bytes) is required for encryption.
+- Secrets are never returned in API responses — only masked values (e.g., `***`).
+- Base URL must use HTTPS. Internal IPs (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, ::1) are blocked.
+
+---
+
+## 16. Common Scenarios
 
 ### Scenario 1: First Login
 
@@ -2953,6 +3537,74 @@ The entry will appear in the `obj_invoice__share` share table with reason `manua
 3. All users who don't have a profile-specific view will see this layout.
 4. To override for a specific profile — create another Object View for the same object with that profile selected.
 
+### Scenario 24: Create and Execute a Procedure
+
+1. Navigate to **Procedures** (`/admin/metadata/procedures`).
+2. Click **"+"** to create a new procedure:
+   - **Code:** `create_account_with_contact`
+   - **Name:** "Create Account with Contact"
+3. On the detail page, the **Definition** tab shows the Constructor UI.
+4. Click **"+"** → **Record** → `record.create`:
+   - Set **Object:** `Account`
+   - Set **As:** `account`
+   - Map **Data:** `Name` → `$.input.accountName`, `Industry` → `$.input.industry`
+5. Click **"+"** → **Record** → `record.create`:
+   - Set **Object:** `Contact`
+   - Set **As:** `contact`
+   - Map **Data:** `FirstName` → `$.input.contactName`, `AccountId` → `$.account.id`
+6. Click **"Save Draft"**.
+7. Switch to the **Dry Run** tab:
+   - Enter input: `{"accountName": "Acme", "industry": "Tech", "contactName": "John"}`
+   - Click **"Run"** — verify the trace shows both commands as successful.
+8. Click **"Publish"** to make the procedure live.
+9. Execute via API:
+   ```
+   POST /api/v1/admin/procedures/:id/execute
+   {"input": {"accountName": "Acme", "industry": "Tech", "contactName": "John"}}
+   ```
+
+### Scenario 25: Configure a Named Credential for an External API
+
+1. Navigate to **Credentials** (`/admin/metadata/credentials`).
+2. Click **"+"** to create:
+   - **Code:** `stripe_api`
+   - **Name:** "Stripe API"
+   - **Base URL:** `https://api.stripe.com`
+   - **Type:** `api_key`
+   - **Header:** `Authorization`
+   - **Value:** `Bearer sk_live_abc123`
+3. Click **"Create"**.
+4. Click the **Test Connection** button (Wifi icon) — verify it returns a successful response.
+5. Now use this credential in a procedure's `integration.http` command:
+   - **Credential:** `stripe_api`
+   - **Method:** `POST`
+   - **Path:** `/v1/charges`
+   - **Body:** `{"amount": "$.input.amount", "currency": "usd"}`
+
+### Scenario 26: Use Saga Rollback for Distributed Operations
+
+1. Create a procedure `order_with_payment`.
+2. Add a `record.create` command for Order, set **As:** `order`.
+3. Expand rollback for this command — add `record.delete` with **Object:** `Order`, **ID:** `$.order.id`.
+4. Add an `integration.http` command for payment (e.g., Stripe charge), set **As:** `payment`.
+5. Expand rollback — add another `integration.http` for refund using `$.payment.id`.
+6. Add a third command (e.g., email notification) without rollback.
+7. **Test:** if the email command fails:
+   - Payment rollback runs first (refund).
+   - Then order rollback runs (delete record).
+   - LIFO order ensures consistent compensation.
+8. Use **Dry Run** to verify the trace — rollback commands appear when a step fails.
+
+### Scenario 27: Rollback a Procedure to a Previous Version
+
+1. Open a published procedure's detail page.
+2. Switch to the **Versions** tab to view version history.
+3. Make changes to the definition and click **"Save Draft"** → **"Publish"** (this creates v2).
+4. If v2 has issues, click **"Rollback"**:
+   - The current published version (v2) becomes superseded.
+   - The previous version (v1) is restored as published.
+5. Verify by switching to the **Versions** tab — v1 should show as "published" again.
+
 ---
 
-*Document created for CRM Platform. Current for Phase 0–9a (Scaffolding, Metadata engine, Security engine, SOQL, DML, Auth, App Templates, Generic CRUD, CEL engine, Validation Rules, Dynamic Defaults, Custom Functions, Object Views with Read/Write config) + Territory Management (Enterprise).*
+*Document created for CRM Platform. Current for Phase 0–10a (Scaffolding, Metadata engine, Security engine, SOQL, DML, Auth, App Templates, Generic CRUD, CEL engine, Validation Rules, Dynamic Defaults, Custom Functions, Object Views, Procedure Engine with Saga Rollback, Named Credentials) + Territory Management (Enterprise).*

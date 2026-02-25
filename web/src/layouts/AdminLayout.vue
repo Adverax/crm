@@ -10,3 +10,10 @@ import AdminSidebar from '@/components/admin/AdminSidebar.vue'
     </main>
   </div>
 </template>
+
+<style scoped>
+:deep(input::placeholder),
+:deep(textarea::placeholder) {
+  color: hsl(0 0% 75%);
+}
+</style>

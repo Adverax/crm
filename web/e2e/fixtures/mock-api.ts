@@ -1173,6 +1173,280 @@ export async function setupObjectViewRoutes(page: Page) {
   }
 }
 
+// ─── Procedures mock data ─────────────────────────────────
+
+export const mockProcedures = [
+  {
+    id: 'pr111111-1111-1111-1111-111111111111',
+    code: 'create_account',
+    name: 'Create Account',
+    description: 'Creates a new account with validation',
+    draft_version_id: 'pv111111-1111-1111-1111-111111111111',
+    published_version_id: 'pv222222-2222-2222-2222-222222222222',
+    created_at: '2026-02-20T10:00:00Z',
+    updated_at: '2026-02-20T10:00:00Z',
+  },
+  {
+    id: 'pr222222-2222-2222-2222-222222222222',
+    code: 'send_welcome',
+    name: 'Send Welcome Email',
+    description: 'Sends welcome email to new contacts',
+    draft_version_id: 'pv333333-3333-3333-3333-333333333333',
+    published_version_id: null,
+    created_at: '2026-02-21T10:00:00Z',
+    updated_at: '2026-02-21T10:00:00Z',
+  },
+]
+
+export const mockProcedureVersions = [
+  {
+    id: 'pv111111-1111-1111-1111-111111111111',
+    procedure_id: 'pr111111-1111-1111-1111-111111111111',
+    version: 2,
+    definition: {
+      commands: [
+        { type: 'compute.validate', condition: '$.input.name != ""', code: 'name_required', message: 'Name is required' },
+        { type: 'record.create', object: 'Account', data: { Name: '$.input.name' }, as: 'account' },
+      ],
+      result: { id: '$.account.id' },
+    },
+    status: 'draft',
+    change_summary: 'Added validation step',
+    created_by: null,
+    created_at: '2026-02-20T12:00:00Z',
+    published_at: null,
+  },
+  {
+    id: 'pv222222-2222-2222-2222-222222222222',
+    procedure_id: 'pr111111-1111-1111-1111-111111111111',
+    version: 1,
+    definition: {
+      commands: [
+        { type: 'record.create', object: 'Account', data: { Name: '$.input.name' }, as: 'account' },
+      ],
+      result: { id: '$.account.id' },
+    },
+    status: 'published',
+    change_summary: 'Initial version',
+    created_by: null,
+    created_at: '2026-02-20T10:00:00Z',
+    published_at: '2026-02-20T11:00:00Z',
+  },
+  {
+    id: 'pv333333-3333-3333-3333-333333333333',
+    procedure_id: 'pr222222-2222-2222-2222-222222222222',
+    version: 1,
+    definition: {
+      commands: [
+        { type: 'notification.email', as: 'email' },
+      ],
+      result: {},
+    },
+    status: 'draft',
+    change_summary: 'Draft v1',
+    created_by: null,
+    created_at: '2026-02-21T10:00:00Z',
+    published_at: null,
+  },
+]
+
+function getProcedureWithVersions(procId: string) {
+  const proc = mockProcedures.find((p) => p.id === procId)
+  if (!proc) return null
+  const draft = mockProcedureVersions.find((v) => v.id === proc.draft_version_id) ?? null
+  const published = mockProcedureVersions.find((v) => v.id === proc.published_version_id) ?? null
+  return { procedure: proc, draft_version: draft, published_version: published }
+}
+
+export async function setupProcedureRoutes(page: Page) {
+  await page.route('**/api/v1/admin/procedures?*', (route) => {
+    route.fulfill({ json: singleResponse(mockProcedures) })
+  })
+  await page.route('**/api/v1/admin/procedures', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ json: singleResponse(mockProcedures) })
+    }
+    if (route.request().method() === 'POST') {
+      return route.fulfill({
+        json: singleResponse(getProcedureWithVersions(mockProcedures[0].id)),
+      })
+    }
+    return route.continue()
+  })
+  for (const proc of mockProcedures) {
+    const pvs = getProcedureWithVersions(proc.id)
+    // Versions sub-route MUST be registered before the catch-all ID route
+    await page.route(`**/api/v1/admin/procedures/${proc.id}/versions`, (route) => {
+      if (route.request().method() === 'GET') {
+        return route.fulfill({
+          json: singleResponse(
+            mockProcedureVersions.filter((v) => v.procedure_id === proc.id),
+          ),
+        })
+      }
+      return route.continue()
+    })
+    await page.route(`**/api/v1/admin/procedures/${proc.id}/draft`, (route) => {
+      if (route.request().method() === 'PUT') {
+        const draft = mockProcedureVersions.find((v) => v.id === proc.draft_version_id)
+        return route.fulfill({ json: singleResponse(draft ?? mockProcedureVersions[0]) })
+      }
+      if (route.request().method() === 'DELETE') {
+        return route.fulfill({ status: 204 })
+      }
+      return route.continue()
+    })
+    await page.route(`**/api/v1/admin/procedures/${proc.id}/publish`, (route) => {
+      if (route.request().method() === 'POST') {
+        return route.fulfill({ json: singleResponse(mockProcedureVersions[0]) })
+      }
+      return route.continue()
+    })
+    await page.route(`**/api/v1/admin/procedures/${proc.id}/rollback`, (route) => {
+      if (route.request().method() === 'POST') {
+        return route.fulfill({ json: singleResponse(mockProcedureVersions[1]) })
+      }
+      return route.continue()
+    })
+    await page.route(`**/api/v1/admin/procedures/${proc.id}/execute`, (route) => {
+      if (route.request().method() === 'POST') {
+        return route.fulfill({
+          json: singleResponse({ success: true, result: { id: 'new-id' }, warnings: [] }),
+        })
+      }
+      return route.continue()
+    })
+    await page.route(`**/api/v1/admin/procedures/${proc.id}/dry-run`, (route) => {
+      if (route.request().method() === 'POST') {
+        return route.fulfill({
+          json: singleResponse({
+            success: true,
+            result: { dry_run: true },
+            warnings: [],
+            trace: [
+              { step: 'account', type: 'record.create', status: 'ok', duration_ms: 5 },
+            ],
+          }),
+        })
+      }
+      return route.continue()
+    })
+    await page.route(`**/api/v1/admin/procedures/${proc.id}`, (route) => {
+      if (route.request().method() === 'GET') {
+        return route.fulfill({ json: singleResponse(pvs) })
+      }
+      if (route.request().method() === 'PUT') {
+        return route.fulfill({ json: singleResponse(proc) })
+      }
+      if (route.request().method() === 'DELETE') {
+        return route.fulfill({ status: 204 })
+      }
+      return route.continue()
+    })
+  }
+}
+
+// ─── Credentials mock data ─────────────────────────────────
+
+export const mockCredentials = [
+  {
+    id: 'cr111111-1111-1111-1111-111111111111',
+    code: 'stripe_api',
+    name: 'Stripe API',
+    description: 'Stripe payment API',
+    type: 'api_key',
+    base_url: 'https://api.stripe.com',
+    is_active: true,
+    created_at: '2026-02-20T10:00:00Z',
+    updated_at: '2026-02-20T10:00:00Z',
+  },
+  {
+    id: 'cr222222-2222-2222-2222-222222222222',
+    code: 'slack_oauth',
+    name: 'Slack OAuth',
+    description: 'Slack integration',
+    type: 'oauth2_client',
+    base_url: 'https://slack.com/api',
+    is_active: false,
+    created_at: '2026-02-21T10:00:00Z',
+    updated_at: '2026-02-21T10:00:00Z',
+  },
+]
+
+export const mockCredentialUsageLog = [
+  {
+    id: 'cu111111-1111-1111-1111-111111111111',
+    credential_id: 'cr111111-1111-1111-1111-111111111111',
+    procedure_code: 'create_account',
+    request_url: 'https://api.stripe.com/v1/charges',
+    response_status: 200,
+    success: true,
+    error_message: '',
+    duration_ms: 120,
+    user_id: null,
+    created_at: '2026-02-20T12:00:00Z',
+  },
+]
+
+export async function setupCredentialRoutes(page: Page) {
+  await page.route('**/api/v1/admin/credentials?*', (route) => {
+    route.fulfill({ json: singleResponse(mockCredentials) })
+  })
+  await page.route('**/api/v1/admin/credentials', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ json: singleResponse(mockCredentials) })
+    }
+    if (route.request().method() === 'POST') {
+      return route.fulfill({
+        json: singleResponse({ ...mockCredentials[0], id: 'new-credential-id' }),
+      })
+    }
+    return route.continue()
+  })
+  for (const cred of mockCredentials) {
+    await page.route(`**/api/v1/admin/credentials/${cred.id}/test`, (route) => {
+      if (route.request().method() === 'POST') {
+        return route.fulfill({ json: singleResponse({ success: true }) })
+      }
+      return route.continue()
+    })
+    await page.route(`**/api/v1/admin/credentials/${cred.id}/usage`, (route) => {
+      if (route.request().method() === 'GET') {
+        return route.fulfill({
+          json: singleResponse(
+            mockCredentialUsageLog.filter((u) => u.credential_id === cred.id),
+          ),
+        })
+      }
+      return route.continue()
+    })
+    await page.route(`**/api/v1/admin/credentials/${cred.id}/deactivate`, (route) => {
+      if (route.request().method() === 'POST') {
+        return route.fulfill({ json: singleResponse({ success: true }) })
+      }
+      return route.continue()
+    })
+    await page.route(`**/api/v1/admin/credentials/${cred.id}/activate`, (route) => {
+      if (route.request().method() === 'POST') {
+        return route.fulfill({ json: singleResponse({ success: true }) })
+      }
+      return route.continue()
+    })
+    await page.route(`**/api/v1/admin/credentials/${cred.id}`, (route) => {
+      if (route.request().method() === 'GET') {
+        return route.fulfill({ json: singleResponse(cred) })
+      }
+      if (route.request().method() === 'PUT') {
+        return route.fulfill({ json: singleResponse(cred) })
+      }
+      if (route.request().method() === 'DELETE') {
+        return route.fulfill({ status: 204 })
+      }
+      return route.continue()
+    })
+  }
+}
+
 // ─── Describe / Records mock data ─────────────────────────────
 
 export const mockDescribeList = [
@@ -1343,6 +1617,8 @@ export async function setupAllRoutes(page: Page) {
   await setupValidationRuleRoutes(page)
   await setupFunctionRoutes(page)
   await setupObjectViewRoutes(page)
+  await setupProcedureRoutes(page)
+  await setupCredentialRoutes(page)
   await setupDescribeRoutes(page)
   await setupRecordRoutes(page)
 }

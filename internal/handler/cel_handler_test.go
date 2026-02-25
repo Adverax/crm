@@ -56,6 +56,10 @@ func (l *testCacheLoader) LoadAllObjectViews(_ context.Context) ([]metadata.Obje
 	return nil, nil
 }
 
+func (l *testCacheLoader) LoadAllProcedures(_ context.Context) ([]metadata.Procedure, error) {
+	return nil, nil
+}
+
 func (l *testCacheLoader) RefreshMaterializedView(_ context.Context) error {
 	return nil
 }

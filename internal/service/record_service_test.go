@@ -518,3 +518,7 @@ func (s *stubCacheLoader) LoadAllFunctions(_ context.Context) ([]metadata.Functi
 func (s *stubCacheLoader) LoadAllObjectViews(_ context.Context) ([]metadata.ObjectView, error) {
 	return nil, nil
 }
+
+func (s *stubCacheLoader) LoadAllProcedures(_ context.Context) ([]metadata.Procedure, error) {
+	return nil, nil
+}
