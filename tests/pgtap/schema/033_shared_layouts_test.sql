@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(14);
+SELECT plan(15);
 
 -- Table exists
 SELECT has_table('metadata', 'shared_layouts', 'has metadata.shared_layouts table');

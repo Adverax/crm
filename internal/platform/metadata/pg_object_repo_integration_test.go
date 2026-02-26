@@ -10,12 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/adverax/crm/internal/testutil"
+	"github.com/adverax/crm/internal/testutil/pgtest"
 )
 
 func TestPgObjectRepo_Integration(t *testing.T) {
-	pool := testutil.SetupTestPool(t)
-	testutil.TruncateTables(t, pool, "metadata.object_definitions")
+	pool := pgtest.SetupTestPool(t)
+	pgtest.TruncateTables(t, pool, "metadata.object_definitions")
 
 	repo := NewPgObjectRepository(pool)
 	ctx := context.Background()
@@ -121,7 +121,7 @@ func TestPgObjectRepo_Integration(t *testing.T) {
 
 	t.Run("List returns objects with pagination", func(t *testing.T) {
 		// Truncate and create 3 objects for deterministic results.
-		testutil.TruncateTables(t, pool, "metadata.object_definitions")
+		pgtest.TruncateTables(t, pool, "metadata.object_definitions")
 
 		for _, name := range []string{"ListObj1", "ListObj2", "ListObj3"} {
 			tx, err := pool.Begin(ctx)
@@ -154,7 +154,7 @@ func TestPgObjectRepo_Integration(t *testing.T) {
 	})
 
 	t.Run("Update changes label description and flags", func(t *testing.T) {
-		testutil.TruncateTables(t, pool, "metadata.object_definitions")
+		pgtest.TruncateTables(t, pool, "metadata.object_definitions")
 
 		tx, err := pool.Begin(ctx)
 		require.NoError(t, err)
@@ -188,7 +188,7 @@ func TestPgObjectRepo_Integration(t *testing.T) {
 	})
 
 	t.Run("Delete removes the object", func(t *testing.T) {
-		testutil.TruncateTables(t, pool, "metadata.object_definitions")
+		pgtest.TruncateTables(t, pool, "metadata.object_definitions")
 
 		tx, err := pool.Begin(ctx)
 		require.NoError(t, err)
@@ -213,7 +213,7 @@ func TestPgObjectRepo_Integration(t *testing.T) {
 	})
 
 	t.Run("Count is correct after create and delete", func(t *testing.T) {
-		testutil.TruncateTables(t, pool, "metadata.object_definitions")
+		pgtest.TruncateTables(t, pool, "metadata.object_definitions")
 
 		count0, err := repo.Count(ctx)
 		require.NoError(t, err)
@@ -246,7 +246,7 @@ func TestPgObjectRepo_Integration(t *testing.T) {
 	})
 
 	t.Run("Create custom object strips __c suffix in table name", func(t *testing.T) {
-		testutil.TruncateTables(t, pool, "metadata.object_definitions")
+		pgtest.TruncateTables(t, pool, "metadata.object_definitions")
 
 		tx, err := pool.Begin(ctx)
 		require.NoError(t, err)

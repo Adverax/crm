@@ -10,14 +10,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/adverax/crm/internal/testutil"
+	"github.com/adverax/crm/internal/testutil/pgtest"
 )
 
 func ptr[T any](v T) *T { return &v }
 
 func TestPgFieldRepo_Integration(t *testing.T) {
-	pool := testutil.SetupTestPool(t)
-	testutil.TruncateTables(t, pool, "metadata.field_definitions", "metadata.object_definitions")
+	pool := pgtest.SetupTestPool(t)
+	pgtest.TruncateTables(t, pool, "metadata.field_definitions", "metadata.object_definitions")
 
 	ctx := context.Background()
 	objRepo := NewPgObjectRepository(pool)
