@@ -146,7 +146,7 @@ test.describe('Object View detail page', () => {
     await expect(page.getByRole('tab', { name: 'Fields', exact: true })).toBeVisible()
     await expect(page.getByRole('tab', { name: 'Actions' })).toBeVisible()
     await expect(page.getByRole('tab', { name: 'Queries' })).toBeVisible()
-    await expect(page.getByRole('tab', { name: 'Computed (Read)' })).toBeVisible()
+    await expect(page.locator('[data-testid="view-tabs"]').getByRole('tab', { name: 'Computed' })).toBeVisible()
   })
 
   test('data contract tabs render', async ({ page }) => {
@@ -154,7 +154,7 @@ test.describe('Object View detail page', () => {
     await expect(page.locator('[data-testid="data-tabs"]')).toBeVisible()
     await expect(page.getByRole('tab', { name: 'Validation' })).toBeVisible()
     await expect(page.getByRole('tab', { name: 'Defaults' })).toBeVisible()
-    await expect(page.getByRole('tab', { name: 'Computed (Write)' })).toBeVisible()
+    await expect(page.locator('[data-testid="data-tabs"]').getByRole('tab', { name: 'Computed' })).toBeVisible()
     await expect(page.getByRole('tab', { name: 'Mutations' })).toBeVisible()
   })
 
@@ -195,7 +195,7 @@ test.describe('Object View detail page', () => {
 
   test('Computed (Read) tab shows computed field cards', async ({ page }) => {
     await page.goto(`/admin/metadata/object-views/${view.id}`)
-    await page.getByRole('tab', { name: 'Computed (Read)' }).click()
+    await page.locator('[data-testid="view-tabs"]').getByRole('tab', { name: 'Computed' }).click()
     await expect(page.locator('[data-testid="read-computed-card"]')).toBeVisible()
     await expect(page.locator('[data-testid="add-read-computed-btn"]')).toBeVisible()
   })
@@ -223,7 +223,7 @@ test.describe('Object View detail page', () => {
 
   test('Computed (Write) tab shows empty state and add button', async ({ page }) => {
     await page.goto(`/admin/metadata/object-views/${view.id}`)
-    await page.getByRole('tab', { name: 'Computed (Write)' }).click()
+    await page.locator('[data-testid="data-tabs"]').getByRole('tab', { name: 'Computed' }).click()
     await expect(page.locator('[data-testid="add-computed-btn"]')).toBeVisible()
     await expect(page.getByText('No computed fields configured')).toBeVisible()
   })

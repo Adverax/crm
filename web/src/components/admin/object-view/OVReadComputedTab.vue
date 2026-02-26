@@ -43,7 +43,7 @@ function onTypeChange(index: number, value: any) {
 <template>
   <div class="space-y-4">
     <div class="flex items-center justify-between">
-      <Label class="text-base">Computed (Read)</Label>
+      <Label class="text-base">Computed</Label>
       <IconButton
         :icon="Plus"
         tooltip="Add computed field"

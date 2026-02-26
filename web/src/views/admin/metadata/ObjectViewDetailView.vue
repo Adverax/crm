@@ -8,7 +8,7 @@ import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
-import { Trash2, X } from 'lucide-vue-next'
+import { Trash2, X, Eye, Pencil } from 'lucide-vue-next'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -196,19 +196,26 @@ const breadcrumbs = computed(() => [
       </PageHeader>
 
       <Tabs default-value="general" class="mt-4">
-        <!-- Read tabs -->
+        <div class="flex items-center gap-2 mb-1">
+          <Eye class="h-4 w-4 text-muted-foreground" />
+          <span class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Read</span>
+        </div>
         <TabsList data-testid="view-tabs">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="fields">Fields</TabsTrigger>
           <TabsTrigger value="actions">Actions</TabsTrigger>
           <TabsTrigger value="queries">Queries</TabsTrigger>
-          <TabsTrigger value="read-computed">Computed (Read)</TabsTrigger>
+          <TabsTrigger value="read-computed">Computed</TabsTrigger>
         </TabsList>
-        <!-- Write tabs -->
-        <TabsList class="mt-1" data-testid="data-tabs">
+
+        <div class="flex items-center gap-2 mb-1 mt-3">
+          <Pencil class="h-4 w-4 text-muted-foreground" />
+          <span class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Write</span>
+        </div>
+        <TabsList data-testid="data-tabs">
           <TabsTrigger value="validation">Validation</TabsTrigger>
           <TabsTrigger value="defaults">Defaults</TabsTrigger>
-          <TabsTrigger value="write-computed">Computed (Write)</TabsTrigger>
+          <TabsTrigger value="write-computed">Computed</TabsTrigger>
           <TabsTrigger value="mutations">Mutations</TabsTrigger>
         </TabsList>
 
