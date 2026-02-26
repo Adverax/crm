@@ -3,6 +3,7 @@ import { onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useRecordsStore } from '@/stores/records'
+import { useFormFactor } from '@/composables/useFormFactor'
 import { usePagination } from '@/composables/usePagination'
 import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/admin/PageHeader.vue'
@@ -22,11 +23,48 @@ import { Skeleton } from '@/components/ui/skeleton'
 import type { PaginationMeta } from '@/types/metadata'
 import { computed, type Ref } from 'vue'
 
+interface ListColumnCfg {
+  field: string
+  label?: string
+  width?: string
+  align?: string
+}
+
+// Extract list config columns from form (if provided by Layout)
+const listConfigColumns = computed<ListColumnCfg[]>(() => {
+  const form = store.currentForm as Record<string, unknown> | undefined
+  if (!form) return []
+  const lc = form['listConfig'] as { columns?: ListColumnCfg[] } | undefined
+  return lc?.columns ?? []
+})
+
+// Use layout-configured columns when available, otherwise fall back to formListFields
+const effectiveListFields = computed(() => {
+  if (listConfigColumns.value.length > 0) {
+    return listConfigColumns.value
+      .map((col) => {
+        const field = store.fieldMap.get(col.field)
+        return field ? { ...field, label: col.label ?? field.label } : null
+      })
+      .filter((f): f is NonNullable<typeof f> => f !== null)
+  }
+  return store.formListFields
+})
+
+function getColumnStyle(fieldName: string): Record<string, string> {
+  const col = listConfigColumns.value.find((c) => c.field === fieldName)
+  const style: Record<string, string> = {}
+  if (col?.width) style.width = col.width
+  if (col?.align) style.textAlign = col.align
+  return style
+}
+
 const props = defineProps<{ objectName: string }>()
 
 const router = useRouter()
 const route = useRoute()
 const store = useRecordsStore()
+const formFactor = useFormFactor()
 const toast = useToast()
 const { currentDescribe, records, recordsPagination, loading } = storeToRefs(store)
 
@@ -50,7 +88,7 @@ function loadRecords(page = 1) {
 }
 
 function loadAll() {
-  store.fetchDescribe(props.objectName).catch((err) => toast.errorFromApi(err))
+  store.fetchDescribe(props.objectName, { formFactor: formFactor.value, formMode: 'view' }).catch((err) => toast.errorFromApi(err))
   loadRecords()
 }
 
@@ -108,7 +146,7 @@ const breadcrumbs = computed(() => [
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead v-for="field in store.formListFields" :key="field.apiName">
+            <TableHead v-for="field in effectiveListFields" :key="field.apiName" :style="getColumnStyle(field.apiName)">
               {{ field.label }}
             </TableHead>
           </TableRow>
@@ -120,7 +158,7 @@ const breadcrumbs = computed(() => [
             class="cursor-pointer"
             @click="goToDetail(record)"
           >
-            <TableCell v-for="field in store.formListFields" :key="field.apiName">
+            <TableCell v-for="field in effectiveListFields" :key="field.apiName" :style="getColumnStyle(field.apiName)">
               <FieldDisplay :field="field" :value="record[field.apiName]" />
             </TableCell>
           </TableRow>

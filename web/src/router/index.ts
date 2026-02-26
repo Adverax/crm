@@ -190,6 +190,40 @@ const router = createRouter({
           component: () => import('../views/admin/metadata/ObjectViewDetailView.vue'),
           props: true,
         },
+        // Layouts
+        {
+          path: 'metadata/layouts',
+          name: 'admin-layouts',
+          component: () => import('../views/admin/metadata/LayoutListView.vue'),
+        },
+        {
+          path: 'metadata/layouts/new',
+          name: 'admin-layout-create',
+          component: () => import('../views/admin/metadata/LayoutCreateView.vue'),
+        },
+        {
+          path: 'metadata/layouts/:layoutId',
+          name: 'admin-layout-detail',
+          component: () => import('../views/admin/metadata/LayoutDetailView.vue'),
+          props: true,
+        },
+        // Shared Layouts
+        {
+          path: 'metadata/shared-layouts',
+          name: 'admin-shared-layouts',
+          component: () => import('../views/admin/metadata/SharedLayoutListView.vue'),
+        },
+        {
+          path: 'metadata/shared-layouts/new',
+          name: 'admin-shared-layout-create',
+          component: () => import('../views/admin/metadata/SharedLayoutCreateView.vue'),
+        },
+        {
+          path: 'metadata/shared-layouts/:sharedLayoutId',
+          name: 'admin-shared-layout-detail',
+          component: () => import('../views/admin/metadata/SharedLayoutDetailView.vue'),
+          props: true,
+        },
         // Navigation
         {
           path: 'metadata/navigation',

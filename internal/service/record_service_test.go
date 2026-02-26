@@ -529,3 +529,11 @@ func (s *stubCacheLoader) LoadAllProcedures(_ context.Context) ([]metadata.Proce
 func (s *stubCacheLoader) LoadAllAutomationRules(_ context.Context) ([]metadata.AutomationRule, error) {
 	return nil, nil
 }
+
+func (s *stubCacheLoader) LoadAllLayouts(_ context.Context) ([]metadata.Layout, error) {
+	return nil, nil
+}
+
+func (s *stubCacheLoader) LoadAllSharedLayouts(_ context.Context) ([]metadata.SharedLayout, error) {
+	return nil, nil
+}

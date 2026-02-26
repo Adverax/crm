@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { recordsApi } from '@/api/records'
+import { recordsApi, type DescribeOptions } from '@/api/records'
 import type {
   ObjectNavItem,
   ObjectDescribe,
@@ -73,11 +73,11 @@ export const useRecordsStore = defineStore('records', () => {
     navObjects.value = res.data
   }
 
-  async function fetchDescribe(objectName: string) {
+  async function fetchDescribe(objectName: string, options?: DescribeOptions) {
     loading.value = true
     error.value = null
     try {
-      const res = await recordsApi.describeObject(objectName)
+      const res = await recordsApi.describeObject(objectName, options)
       currentDescribe.value = res.data
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'unknown error'

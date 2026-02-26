@@ -56,13 +56,14 @@ class HttpClient {
   async request<T>(method: string, path: string, options?: {
     body?: unknown
     params?: Record<string, string | number | undefined>
+    headers?: Record<string, string>
     skipCaseConversion?: boolean
   }): Promise<T> {
     const url = this.buildUrl(path, options?.params)
     const skip = options?.skipCaseConversion ?? false
     const init: RequestInit = {
       method,
-      headers: this.buildHeaders(),
+      headers: { ...this.buildHeaders(), ...options?.headers },
     }
 
     if (options?.body) {

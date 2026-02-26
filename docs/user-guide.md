@@ -108,7 +108,18 @@
 17. [Automation Rules](#17-automation-rules)
     - [Overview](#171-overview)
     - [API](#172-api)
-18. [Common Scenarios](#18-common-scenarios)
+18. [Layouts](#18-layouts)
+    - [Overview](#181-overview)
+    - [Layout Config](#182-layout-config)
+    - [Form Merge & Fallback](#183-form-merge--fallback)
+    - [Admin UI](#184-admin-ui)
+    - [API](#185-api)
+19. [Shared Layouts](#19-shared-layouts)
+    - [Overview](#191-overview)
+    - [Types](#192-types)
+    - [layout_ref & Overrides](#193-layout_ref--overrides)
+    - [API](#194-api)
+20. [Common Scenarios](#20-common-scenarios)
 
 ---
 
@@ -128,6 +139,8 @@ The CRM admin panel is designed for system administrators and allows:
 - Building **procedures** — named JSON-described business logic sequences (record operations, computations, branching, HTTP integrations) with a visual Constructor UI, versioning (draft/published), and dry-run testing.
 - Managing **named credentials** — encrypted secret storage for HTTP integrations (API keys, basic auth, OAuth2 client credentials) with SSRF protection and usage audit logging.
 - Configuring **automation rules** — DML triggers (before/after insert/update/delete) with CEL conditions that invoke published procedures.
+- Creating **layouts** — per Object View + form factor (desktop/tablet/mobile) + mode (edit/view) to control page structure, section grids, field presentation, and list configuration.
+- Managing **shared layouts** — reusable configuration snippets (field/section/list) referenced via `layout_ref` from layouts, with RESTRICT delete protection.
 - Working with **records** — creating, editing, and deleting records of any object through a universal CRUD interface.
 
 ### Audience
@@ -152,6 +165,8 @@ Sidebar structure:
 | **Navigation** | `/admin/metadata/navigation` |
 | **Procedures** | `/admin/metadata/procedures` |
 | **Credentials** | `/admin/metadata/credentials` |
+| **Layouts** | `/admin/metadata/layouts` |
+| **Shared Layouts** | `/admin/metadata/shared-layouts` |
 | **Automation Rules** | `/admin/metadata/automation-rules` |
 | **Security** (collapsible group) | |
 | — Roles | `/admin/security/roles` |
@@ -3381,7 +3396,143 @@ Key features:
 
 ---
 
-## 18. Common Scenarios
+## 18. Layouts
+
+### 18.1 Overview
+
+Layouts (ADR-0027 revised) control **how** records are displayed per Object View, form factor, and mode. While an Object View defines **what** data is available (fields, actions, queries), a Layout defines **how** that data is presented on screen: section grids, field sizing, UI component types, and list column configuration.
+
+Each Layout is scoped to a unique combination of:
+- **object_view_id** — the Object View this layout belongs to
+- **form_factor** — `desktop`, `tablet`, or `mobile`
+- **mode** — `edit` or `view`
+
+This means you can have different layouts for the same Object View on different devices and for different interaction modes (viewing a record vs. editing it).
+
+### 18.2 Layout Config
+
+The Layout config (stored as JSONB) can contain the following sections:
+
+**section_config** — overrides for OV sections:
+- `columns` (1-4) — number of grid columns in the section
+- `collapsed` (boolean) — whether the section starts collapsed
+- `visibility_expr` (CEL string) — condition for showing/hiding the section
+
+**field_config** — per-field presentation overrides:
+- `col_span` (1-4) — how many grid columns the field occupies
+- `ui_kind` (string) — UI component type (e.g., `auto`, `text`, `textarea`, `badge`, `lookup`, `rating`, `slider`, `toggle`)
+- `required_expr` (CEL string) — dynamic required condition
+- `readonly_expr` (CEL string) — dynamic read-only condition
+- `reference_config` — for reference fields: display_fields, search_fields, target, filter
+
+**list_config** — for list/table views:
+- `columns` — column definitions (api_name, width, align, sortable)
+- `sort_by` — default sort configuration
+- `search` — search field configuration
+- `row_actions` — per-row action buttons
+
+### 18.3 Form Merge & Fallback
+
+When a client requests record metadata via the Describe API, the server performs a **form merge**:
+
+1. Resolves the Object View for the current user's profile
+2. Finds the matching Layout based on `X-Form-Factor` and `X-Form-Mode` request headers
+3. Merges OV config + Layout config into a computed **Form**
+4. The frontend works exclusively with the Form — it never sees OV or Layout separately
+
+**Fallback chain** (if no exact match is found):
+1. Requested form_factor + requested mode
+2. Same form_factor + any mode
+3. Desktop + same mode
+4. Desktop + edit
+5. Auto-generate from metadata (all FLS-accessible fields)
+
+**Request headers:**
+- `X-Form-Factor`: `desktop` (default), `tablet`, or `mobile`
+- `X-Form-Mode`: `edit` (default) or `view`
+
+### 18.4 Admin UI — Visual Layout Constructor
+
+The Layout admin UI is available at `/admin/metadata/layouts`. The detail page features a **Visual Layout Constructor** with three tabs:
+
+**Form Layout tab** (default):
+- **Canvas** (left panel, ~65%): displays OV sections as cards with field chips inside. Each section card shows the column count and collapsible icon. Fields show their name, type icon, and col_span badge. Clicking a section or field selects it for editing.
+- **Properties panel** (right panel, ~35%): context-sensitive editor that shows section properties (columns, collapsible, collapsed by default, visibility expression) when a section is selected, or field properties (col_span, shared layout ref, required/readonly/visibility expressions, reference config) when a field is selected.
+
+**List Config tab**:
+- **Available fields** (left): all OV fields as clickable items. Click to add a field as a column.
+- **Active columns** (right): drag-and-drop reorderable list (via vue-draggable-plus). Each column has inline settings: width, alignment, label override, sortable toggle, sort direction.
+- **Search config**: configurable search fields and placeholder text.
+
+**JSON tab** (power-user fallback):
+- Raw JSON textarea for direct editing of the full LayoutConfig. Bidirectional sync with visual tabs — changes in visual tabs update JSON and vice versa. Shows parse errors for invalid JSON.
+
+Other pages:
+- **List page**: all layouts with Object View name, form factor badge, mode badge, OV filter dropdown
+- **Create page**: select Object View, form factor, mode
+
+### 18.5 API
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/v1/admin/layouts` | Create a layout |
+| `GET` | `/api/v1/admin/layouts` | List layouts (filter by `object_view_id`) |
+| `GET` | `/api/v1/admin/layouts/:id` | Get layout by ID |
+| `PUT` | `/api/v1/admin/layouts/:id` | Update a layout |
+| `DELETE` | `/api/v1/admin/layouts/:id` | Delete a layout |
+
+---
+
+## 19. Shared Layouts
+
+### 19.1 Overview
+
+Shared Layouts are reusable configuration snippets stored in `metadata.shared_layouts`. Instead of duplicating the same field config, section config, or list config across multiple layouts, you can define it once as a Shared Layout and reference it from any layout via `layout_ref`.
+
+### 19.2 Types
+
+Each Shared Layout has a `type` that determines what kind of configuration it holds:
+
+| Type | Description | Use Case |
+|------|-------------|----------|
+| `field` | Field presentation config | Reusable field_config (col_span, ui_kind, etc.) across layouts |
+| `section` | Section presentation config | Shared section_config (columns, collapsed, visibility) |
+| `list` | List/table presentation config | Common list_config (columns, sort, search, row_actions) |
+
+Each Shared Layout has a globally unique `api_name` for easy identification and referencing.
+
+### 19.3 layout_ref & Overrides
+
+To reference a Shared Layout from within a Layout config, use the `layout_ref` field:
+
+```json
+{
+  "field_config": {
+    "some_field": {
+      "layout_ref": "shared_address_field",
+      "col_span": 2
+    }
+  }
+}
+```
+
+**Merge rule**: inline properties (like `col_span: 2` above) **override** matching properties from the referenced Shared Layout. This means you can use a shared base and customize per-layout.
+
+**Delete protection**: Shared Layouts referenced by any Layout cannot be deleted (RESTRICT). You must remove all references before deleting a Shared Layout.
+
+### 19.4 API
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/v1/admin/shared-layouts` | Create a shared layout |
+| `GET` | `/api/v1/admin/shared-layouts` | List shared layouts (filter by `type`) |
+| `GET` | `/api/v1/admin/shared-layouts/:id` | Get shared layout by ID |
+| `PUT` | `/api/v1/admin/shared-layouts/:id` | Update a shared layout |
+| `DELETE` | `/api/v1/admin/shared-layouts/:id` | Delete a shared layout (RESTRICT if referenced) |
+
+---
+
+## 20. Common Scenarios
 
 ### Scenario 1: First Login
 

@@ -27,13 +27,25 @@ interface RecordCreateResponse {
   data: { id: string }
 }
 
+export interface DescribeOptions {
+  formFactor?: string
+  formMode?: string
+}
+
 export const recordsApi = {
   listObjects(): Promise<DescribeListResponse> {
     return http.get<DescribeListResponse>('/api/v1/describe')
   },
 
-  describeObject(objectName: string): Promise<DescribeObjectResponse> {
-    return http.get<DescribeObjectResponse>(`/api/v1/describe/${objectName}`)
+  describeObject(objectName: string, options?: DescribeOptions): Promise<DescribeObjectResponse> {
+    const headers: Record<string, string> = {}
+    if (options?.formFactor) {
+      headers['X-Form-Factor'] = options.formFactor
+    }
+    if (options?.formMode) {
+      headers['X-Form-Mode'] = options.formMode
+    }
+    return http.request<DescribeObjectResponse>('GET', `/api/v1/describe/${objectName}`, { headers })
   },
 
   listRecords(objectName: string, page = 1, perPage = 20): Promise<RecordListResponse> {

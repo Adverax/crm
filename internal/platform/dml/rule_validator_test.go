@@ -51,6 +51,14 @@ func (m *mockCacheLoader) LoadAllAutomationRules(_ context.Context) ([]metadata.
 	return nil, nil
 }
 
+func (m *mockCacheLoader) LoadAllLayouts(_ context.Context) ([]metadata.Layout, error) {
+	return nil, nil
+}
+
+func (m *mockCacheLoader) LoadAllSharedLayouts(_ context.Context) ([]metadata.SharedLayout, error) {
+	return nil, nil
+}
+
 func (m *mockCacheLoader) RefreshMaterializedView(_ context.Context) error {
 	return nil
 }

@@ -1755,6 +1755,147 @@ export async function setupNavigationRoutes(page: Page) {
   })
 }
 
+// ─── Layouts mock data ──────────────────────────────────────
+
+export const mockLayouts = [
+  {
+    id: 'ly111111-1111-1111-1111-111111111111',
+    object_view_id: 'ov111111-1111-1111-1111-111111111111',
+    form_factor: 'desktop',
+    mode: 'edit',
+    config: {
+      root: {
+        type: 'grid',
+        columns: 2,
+        children: [
+          { type: 'highlights', key: 'highlights' },
+          { type: 'field_section', key: 'general' },
+        ],
+      },
+      section_config: {
+        general: { columns: 2, collapsible: true },
+      },
+      field_config: {
+        Name: { col_span: 2 },
+        Industry: { col_span: 1 },
+      },
+      list_config: null,
+    },
+    created_at: '2026-02-26T10:00:00Z',
+    updated_at: '2026-02-26T10:00:00Z',
+  },
+  {
+    id: 'ly222222-2222-2222-2222-222222222222',
+    object_view_id: 'ov222222-2222-2222-2222-222222222222',
+    form_factor: 'mobile',
+    mode: 'view',
+    config: {
+      root: null,
+      section_config: {},
+      field_config: {},
+      list_config: {
+        columns: [
+          { field: 'Name', label: 'Name', width: '200px' },
+          { field: 'Industry', label: 'Industry' },
+        ],
+      },
+    },
+    created_at: '2026-02-26T11:00:00Z',
+    updated_at: '2026-02-26T11:00:00Z',
+  },
+]
+
+// ─── Shared Layouts mock data ───────────────────────────────
+
+export const mockSharedLayouts = [
+  {
+    id: 'sl111111-1111-1111-1111-111111111111',
+    api_name: 'compact_address',
+    type: 'field',
+    label: 'Compact Address Fields',
+    config: { col_span: 2, ui_kind: 'address' },
+    created_at: '2026-02-26T10:00:00Z',
+    updated_at: '2026-02-26T10:00:00Z',
+  },
+  {
+    id: 'sl222222-2222-2222-2222-222222222222',
+    api_name: 'sales_list',
+    type: 'list',
+    label: 'Sales List Config',
+    config: { view: 'table', columns: [{ field: 'Name' }, { field: 'Amount' }] },
+    created_at: '2026-02-26T11:00:00Z',
+    updated_at: '2026-02-26T11:00:00Z',
+  },
+]
+
+export async function setupLayoutRoutes(page: Page) {
+  // List with optional query param
+  await page.route('**/api/v1/admin/layouts?*', (route) => {
+    const url = route.request().url()
+    const ovId = new URL(url).searchParams.get('object_view_id')
+    const filtered = ovId
+      ? mockLayouts.filter((l) => l.object_view_id === ovId)
+      : mockLayouts
+    route.fulfill({ json: singleResponse(filtered) })
+  })
+  await page.route('**/api/v1/admin/layouts', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ json: singleResponse(mockLayouts) })
+    }
+    if (route.request().method() === 'POST') {
+      return route.fulfill({
+        json: singleResponse({ ...mockLayouts[0], id: 'new-layout-id' }),
+      })
+    }
+    return route.continue()
+  })
+  for (const layout of mockLayouts) {
+    await page.route(`**/api/v1/admin/layouts/${layout.id}`, (route) => {
+      if (route.request().method() === 'GET') {
+        return route.fulfill({ json: singleResponse(layout) })
+      }
+      if (route.request().method() === 'PUT') {
+        return route.fulfill({ json: singleResponse(layout) })
+      }
+      if (route.request().method() === 'DELETE') {
+        return route.fulfill({ status: 204 })
+      }
+      return route.continue()
+    })
+  }
+}
+
+export async function setupSharedLayoutRoutes(page: Page) {
+  await page.route('**/api/v1/admin/shared-layouts?*', (route) => {
+    route.fulfill({ json: singleResponse(mockSharedLayouts) })
+  })
+  await page.route('**/api/v1/admin/shared-layouts', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ json: singleResponse(mockSharedLayouts) })
+    }
+    if (route.request().method() === 'POST') {
+      return route.fulfill({
+        json: singleResponse({ ...mockSharedLayouts[0], id: 'new-shared-layout-id' }),
+      })
+    }
+    return route.continue()
+  })
+  for (const sl of mockSharedLayouts) {
+    await page.route(`**/api/v1/admin/shared-layouts/${sl.id}`, (route) => {
+      if (route.request().method() === 'GET') {
+        return route.fulfill({ json: singleResponse(sl) })
+      }
+      if (route.request().method() === 'PUT') {
+        return route.fulfill({ json: singleResponse(sl) })
+      }
+      if (route.request().method() === 'DELETE') {
+        return route.fulfill({ status: 204 })
+      }
+      return route.continue()
+    })
+  }
+}
+
 export async function setupAllRoutes(page: Page) {
   await seedAuthToken(page)
   await setupAuthRoutes(page)
@@ -1771,6 +1912,8 @@ export async function setupAllRoutes(page: Page) {
   await setupCredentialRoutes(page)
   await setupAutomationRuleRoutes(page)
   await setupNavigationRoutes(page)
+  await setupLayoutRoutes(page)
+  await setupSharedLayoutRoutes(page)
   await setupDescribeRoutes(page)
   await setupRecordRoutes(page)
 }

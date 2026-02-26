@@ -19,7 +19,7 @@ Current state and target coverage relative to Salesforce Platform.
 | Data Mutation (DML) | Insert, Update, Upsert, Delete, Undelete, Merge + triggers | INSERT/UPDATE/DELETE/UPSERT, OLS+FLS enforcement, RLS injection for UPDATE/DELETE, batch operations, Custom Functions (fn.* dual-stack), validation rules (CEL), dynamic defaults (CEL) | 65% SF |
 | Auth | OAuth 2.0, SAML, MFA, Connected Apps | JWT (access + refresh), login, password reset, rate limiting | JWT + refresh tokens |
 | Automation | Flow Builder, Triggers, Workflow Rules, Approval Processes | Automation Rules (before/after triggers, CEL conditions, procedure_code), Procedure Engine (6 command types, Named Credentials) | Triggers + basic Flows |
-| UI Framework | Lightning App Builder, LWC, Dynamic Forms | Vue.js admin + metadata-driven CRM UI (AppLayout, dynamic record views, FieldRenderer), Expression Builder (CodeMirror + autocomplete + live preview), Object View (role-based sections, actions, highlights, related lists), Profile Navigation (grouped sidebar, page views via OV + Navigation) | Admin + Record UI + Object Views + Navigation |
+| UI Framework | Lightning App Builder, LWC, Dynamic Forms | Vue.js admin + metadata-driven CRM UI (AppLayout, dynamic record views, FieldRenderer), Expression Builder (CodeMirror + autocomplete + live preview), Object View (role-based sections, actions, highlights, related lists), Profile Navigation (grouped sidebar, page views via OV + Navigation), Layout + Form Resolution (per form_factor + mode, shared layouts, fallback chain) | Admin + Record UI + Object Views + Navigation + Layouts |
 | APIs | REST, SOAP, Bulk, Streaming, Metadata, Tooling, GraphQL | REST admin endpoints (metadata + security + groups + sharing rules) | REST + Streaming |
 | Analytics | Reports, Dashboards, Einstein | Not implemented | Basic reports |
 | Integration | Platform Events, CDC, External Services | Not implemented | CDC + webhooks |
@@ -62,7 +62,7 @@ Platform core — dynamic object and field definitions.
 
 | SF Capability | Our Status | When |
 |---------------|-----------|------|
-| Record Types | Not implemented | Phase 9c |
+| Record Types | Not implemented | Phase 9d |
 | Object Views (role-based layouts) | ✅ Implemented (Phase 9a) | — |
 | Compact Layouts (highlight fields) | ✅ Implemented (highlight_fields in OV config) | — |
 | Formula Fields | Not implemented | Phase 12 |
@@ -325,7 +325,7 @@ Transition from admin-only to a full CRM interface. Backend: generic CRUD endpoi
 | Kanban view (Opportunity stages) | Phase 11 |
 | Calendar view (Events) | Phase 11 |
 | Home page enhancements | Phase 11 |
-| Dynamic Forms (visibility rules) | Phase 9c |
+| Dynamic Forms (visibility rules) | Phase 9d |
 | Object Views per profile (role-based UI) | ✅ Phase 9a |
 | Navigation per profile + OV Unbinding | ✅ Phase 9b |
 | Mobile-responsive layout | Phase 7a (basic) |
@@ -363,7 +363,7 @@ Named pure CEL expressions — foundation for reusable computational logic.
 
 ---
 
-### Phase 9: Object View — Role-Based UI (ADR-0022) 🔄
+### Phase 9: Object View — Role-Based UI (ADR-0022) 🔄 (9a-9c done)
 
 Bounded context adapter: one object — different presentations for different roles.
 Users of the same system (Sales, Warehouse, Management) see a role-specific interface without code duplication.
@@ -383,11 +383,7 @@ Users of the same system (Sales, Warehouse, Management) see a role-specific inte
 - [x] **Go unit tests**: service + handler with OpenAPI response validation
 - [x] **pgTAP tests**: schema tests for metadata.object_views
 - [x] **E2E tests**: 24 tests (list, create, detail, sidebar)
-- [ ] **Layout (ADR-0027)**: `metadata.layouts` table, Layout per (object_view, form_factor: desktop/tablet/mobile) — deferred to Phase 9d
-- [ ] **Layout config**: section_config (columns, collapsed, visibility_expr), field_config (col_span, ui_kind, required_expr, readonly_expr, reference_config), list_columns (width, align, sortable) — deferred to Phase 9d
-- [ ] **Form (computed)**: merge OV + Layout → Form in Describe API response. Frontend works only with Form — deferred to Phase 9d
-- [ ] **Admin Layout UI**: CRUD layouts, preview per form factor, sync with OV lifecycle — deferred to Phase 9d
-- [ ] **ui_kind enum**: 20+ types (auto, text, textarea, badge, lookup, rating, slider, toggle, etc.) — deferred to Phase 9d
+- [x] **Layout + Form Resolution (ADR-0027 revised)**: moved to Phase 9c (see below)
 
 #### Phase 9b: Navigation per Profile + OV Unbinding ✅
 
@@ -406,7 +402,30 @@ Users of the same system (Sales, Warehouse, Management) see a role-specific inte
 - [x] **E2E tests**: admin-navigation + app-sidebar-navigation
 - [x] **OpenAPI spec**: navigation + view endpoints + schemas
 
-#### Phase 9c: Advanced Metadata
+#### Phase 9c: Layout + Form Resolution (ADR-0027 revised) ✅
+
+- [x] **metadata.layouts table**: Layout per (object_view_id, form_factor, mode), UNIQUE constraint, ON DELETE CASCADE
+- [x] **metadata.shared_layouts table**: reusable configuration snippets (type: field/section/list), api_name UNIQUE, RESTRICT delete protects referenced layouts
+- [x] **Layout config**: section_config (columns, collapsed, visibility_expr), field_config (col_span, ui_kind, required_expr, readonly_expr, reference_config), list_columns (width, align, sortable)
+- [x] **Form merge**: OV config + Layout config → computed Form in Describe API response. Frontend works only with Form
+- [x] **Fallback chain**: requested layout → same form_factor any mode → desktop same mode → desktop edit → auto-generate
+- [x] **X-Form-Factor / X-Form-Mode headers**: request headers for layout resolution in Describe API
+- [x] **Shared layouts with layout_ref**: field/section/list references, inline overrides win, RESTRICT delete
+- [x] **Admin REST API**: CRUD layouts (5 endpoints) + CRUD shared layouts (5 endpoints)
+- [x] **Admin Vue.js UI**: Layout list/create/detail, Shared Layout list/create/detail
+- [x] **Visual Layout Constructor**: tabbed editor (Form Layout / List Config / JSON) — section canvas with field chips, section/field property panels, list column DnD reorder (vue-draggable-plus), shared layout ref dropdown, JSON fallback editor
+- [x] **CRM rendering**: RecordDetailView col_span/collapsible/grid sections, RecordListView layout-driven columns
+- [x] **pgTAP tests**: schema tests for metadata.layouts + metadata.shared_layouts
+- [x] **E2E tests**: 41 tests (layouts + shared layouts + CRM rendering)
+
+**Technical Debt (Layout Constructor):**
+- Root component tree editor: Layout stores `root` (page structure) but frontend doesn't render it yet. Visual tree editor deferred.
+- Root component tree rendering: RecordDetailView should render `root` component tree instead of flat sections. Deferred.
+- ExpressionBuilder integration: visibility/required/readonly expressions currently use plain textarea. Should integrate ExpressionBuilder.
+- Live preview: show production-like preview of how the form will look to end user.
+- Field order override: Layout can't reorder fields within sections (OV controls order). Consider optional field order in Layout.
+
+#### Phase 9d: Advanced Metadata
 
 - [ ] **Record Types**: different picklist values and Object View per record type
 - [ ] **Dynamic Forms**: field visibility rules (CEL: `record.status == 'closed'`)
@@ -630,6 +649,9 @@ Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ✅ �
                                                                                                              Phase 9b ✅
                                                                                                         (Nav+OV Unbinding)
                                                                                                                    │
+                                                                                                             Phase 9c ✅
+                                                                                                       (Layout+Form)
+                                                                                                                   │
                                                                                                              Phase 10a ✅
                                                                                                           (Procedures)
                                                                                                                    │
@@ -642,7 +664,7 @@ Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ✅ �
                                                                                                              Phase 12
                                                                                                             (Formulas)
                                                                                                                    │
-                                                                                                             Phase 9c
+                                                                                                             Phase 9d
                                                                                                        (Record Types)
                                                                                                                    │
                                                                                                              Phase 13
@@ -676,7 +698,7 @@ Principle: **platform before features** — features built on platform layers ar
 6. **Phase 11a** — Notifications & Activity (consumers of Procedure Engine)
 7. **Phase 11b** — CRM UX (home page, kanban, calendar)
 8. **Phase 12** — Formula Engine (computed fields, advanced validation)
-9. **Phase 9c** — Record Types + Dynamic Forms
+9. **Phase 9d** — Record Types + Dynamic Forms
 10. **Phase 13a** — Scenario Engine (ADR-0025)
 11. **Phase 13b** — Approval Processes
 12. **Phase 14** — Advanced CRM Objects

@@ -64,6 +64,14 @@ func (l *testCacheLoader) LoadAllAutomationRules(_ context.Context) ([]metadata.
 	return nil, nil
 }
 
+func (l *testCacheLoader) LoadAllLayouts(_ context.Context) ([]metadata.Layout, error) {
+	return nil, nil
+}
+
+func (l *testCacheLoader) LoadAllSharedLayouts(_ context.Context) ([]metadata.SharedLayout, error) {
+	return nil, nil
+}
+
 func (l *testCacheLoader) RefreshMaterializedView(_ context.Context) error {
 	return nil
 }

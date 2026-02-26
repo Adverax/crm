@@ -237,6 +237,10 @@ func (l *noopCacheLoader) LoadAllProcedures(_ context.Context) ([]Procedure, err
 func (l *noopCacheLoader) LoadAllAutomationRules(_ context.Context) ([]AutomationRule, error) {
 	return nil, nil
 }
+func (l *noopCacheLoader) LoadAllLayouts(_ context.Context) ([]Layout, error) { return nil, nil }
+func (l *noopCacheLoader) LoadAllSharedLayouts(_ context.Context) ([]SharedLayout, error) {
+	return nil, nil
+}
 func (l *noopCacheLoader) RefreshMaterializedView(_ context.Context) error { return nil }
 
 func TestProcedureService_Create(t *testing.T) {

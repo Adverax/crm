@@ -25,6 +25,8 @@ const topItems: NavItem[] = [
   { label: 'Procedures', to: '/admin/metadata/procedures' },
   { label: 'Credentials', to: '/admin/metadata/credentials' },
   { label: 'Object Views', to: '/admin/metadata/object-views' },
+  { label: 'Layouts', to: '/admin/metadata/layouts' },
+  { label: 'Shared Layouts', to: '/admin/metadata/shared-layouts' },
   { label: 'Automation Rules', to: '/admin/metadata/automation-rules' },
   { label: 'Navigation', to: '/admin/metadata/navigation' },
   { label: 'Templates', to: '/admin/templates' },

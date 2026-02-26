@@ -66,6 +66,12 @@ func (l *ovCacheLoaderForView) LoadAllProcedures(_ context.Context) ([]metadata.
 func (l *ovCacheLoaderForView) LoadAllAutomationRules(_ context.Context) ([]metadata.AutomationRule, error) {
 	return nil, nil
 }
+func (l *ovCacheLoaderForView) LoadAllLayouts(_ context.Context) ([]metadata.Layout, error) {
+	return nil, nil
+}
+func (l *ovCacheLoaderForView) LoadAllSharedLayouts(_ context.Context) ([]metadata.SharedLayout, error) {
+	return nil, nil
+}
 func (l *ovCacheLoaderForView) RefreshMaterializedView(_ context.Context) error {
 	return nil
 }

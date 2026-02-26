@@ -3,6 +3,7 @@ import { onMounted, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useRecordsStore } from '@/stores/records'
+import { useFormFactor } from '@/composables/useFormFactor'
 import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
@@ -19,6 +20,7 @@ const props = defineProps<{ objectName: string }>()
 
 const router = useRouter()
 const store = useRecordsStore()
+const formFactor = useFormFactor()
 const toast = useToast()
 const { currentDescribe, currentForm, loading, error } = storeToRefs(store)
 
@@ -37,7 +39,7 @@ function sectionFields(section: FormSection): FieldDescribe[] {
 
 onMounted(async () => {
   try {
-    await store.fetchDescribe(props.objectName)
+    await store.fetchDescribe(props.objectName, { formFactor: formFactor.value, formMode: 'edit' })
     if (currentDescribe.value) {
       for (const field of store.editableFields) {
         if (field.config.defaultValue != null) {

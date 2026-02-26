@@ -67,6 +67,14 @@ func (m *mockCacheLoader) LoadAllAutomationRules(_ context.Context) ([]Automatio
 	return nil, nil
 }
 
+func (m *mockCacheLoader) LoadAllLayouts(_ context.Context) ([]Layout, error) {
+	return nil, nil
+}
+
+func (m *mockCacheLoader) LoadAllSharedLayouts(_ context.Context) ([]SharedLayout, error) {
+	return nil, nil
+}
+
 func TestMetadataCacheLoad(t *testing.T) {
 	t.Parallel()
 

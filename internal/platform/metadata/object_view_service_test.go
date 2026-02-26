@@ -133,6 +133,14 @@ func (m *mockOVCacheLoader) LoadAllAutomationRules(_ context.Context) ([]Automat
 	return nil, nil
 }
 
+func (m *mockOVCacheLoader) LoadAllLayouts(_ context.Context) ([]Layout, error) {
+	return nil, nil
+}
+
+func (m *mockOVCacheLoader) LoadAllSharedLayouts(_ context.Context) ([]SharedLayout, error) {
+	return nil, nil
+}
+
 func (m *mockOVCacheLoader) RefreshMaterializedView(_ context.Context) error {
 	return nil
 }

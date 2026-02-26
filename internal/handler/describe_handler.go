@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -79,20 +80,34 @@ type objectDescribe struct {
 }
 
 type formDescribe struct {
-	Sections        []formSection     `json:"sections"`
-	HighlightFields []string          `json:"highlight_fields"`
-	Actions         []formAction      `json:"actions"`
-	RelatedLists    []formRelatedList `json:"related_lists"`
-	ListFields      []string          `json:"list_fields"`
-	ListDefaultSort string            `json:"list_default_sort"`
+	Sections          []formSection                    `json:"sections"`
+	HighlightFields   []string                         `json:"highlight_fields"`
+	Actions           []formAction                     `json:"actions"`
+	RelatedLists      []formRelatedList                `json:"related_lists"`
+	ListFields        []string                         `json:"list_fields"`
+	ListDefaultSort   string                           `json:"list_default_sort"`
+	Root              *metadata.LayoutComponent        `json:"root,omitempty"`
+	ListConfig        *metadata.ListConfig             `json:"list_config,omitempty"`
+	FieldPresentation map[string]formFieldPresentation `json:"field_presentation,omitempty"`
 }
 
 type formSection struct {
-	Key       string   `json:"key"`
-	Label     string   `json:"label"`
-	Columns   int      `json:"columns"`
-	Collapsed bool     `json:"collapsed"`
-	Fields    []string `json:"fields"`
+	Key            string   `json:"key"`
+	Label          string   `json:"label"`
+	Columns        int      `json:"columns"`
+	Collapsed      bool     `json:"collapsed"`
+	Collapsible    bool     `json:"collapsible,omitempty"`
+	VisibilityExpr string   `json:"visibility_expr,omitempty"`
+	Fields         []string `json:"fields"`
+}
+
+type formFieldPresentation struct {
+	ColSpan        int                 `json:"col_span,omitempty"`
+	UIKind         json.RawMessage     `json:"ui_kind,omitempty"`
+	RequiredExpr   string              `json:"required_expr,omitempty"`
+	ReadonlyExpr   string              `json:"readonly_expr,omitempty"`
+	VisibilityExpr string              `json:"visibility_expr,omitempty"`
+	Reference      *metadata.RefConfig `json:"reference,omitempty"`
 }
 
 type formAction struct {
@@ -174,8 +189,18 @@ func (h *DescribeHandler) DescribeObject(c *gin.Context) {
 
 	allFields := append(systemFields, userFields...)
 
-	// Always use fallback form — OV routing is via Navigation config
-	form := buildFallbackForm(allFields)
+	// Read layout hints from headers
+	formFactor := c.GetHeader("X-Form-Factor")
+	if formFactor == "" {
+		formFactor = "desktop"
+	}
+	formMode := c.GetHeader("X-Form-Mode")
+	if formMode == "" {
+		formMode = "edit"
+	}
+
+	// Try to resolve form via OV + Layout, fallback to auto-generated
+	form := h.resolveForm(objDef, allFields, formFactor, formMode)
 
 	desc := objectDescribe{
 		APIName:      objDef.APIName,
@@ -242,6 +267,187 @@ func buildFallbackForm(fields []fieldDescribe) *formDescribe {
 		RelatedLists:    []formRelatedList{},
 		ListFields:      listFields,
 	}
+}
+
+// resolveForm attempts to merge OV + Layout into a Form.
+// If no OV or Layout is found for this object, falls back to auto-generated form.
+func (h *DescribeHandler) resolveForm(
+	objDef metadata.ObjectDefinition,
+	fields []fieldDescribe,
+	formFactor string,
+	mode string,
+) *formDescribe {
+	// Find OV for this object via object api_name convention (ov api_name = object api_name)
+	ov, hasOV := h.cache.GetObjectViewByAPIName(objDef.APIName)
+	if !hasOV {
+		return buildFallbackForm(fields)
+	}
+
+	// Find Layout for this OV with fallback chain
+	layout := h.resolveLayout(ov.ID, formFactor, mode)
+
+	// Build form from OV + Layout merge
+	return h.mergeOVAndLayout(ov, layout, fields)
+}
+
+// resolveLayout finds the best matching layout with fallback chain:
+// 1. Exact match (form_factor + mode)
+// 2. Same form_factor, any mode
+// 3. desktop + same mode
+// 4. desktop + edit
+// 5. nil (auto-generate)
+func (h *DescribeHandler) resolveLayout(ovID uuid.UUID, formFactor string, mode string) *metadata.Layout {
+	layouts := h.cache.GetLayoutsForOV(ovID)
+	if len(layouts) == 0 {
+		return nil
+	}
+
+	var sameFFAnyMode, desktopSameMode, desktopEdit *metadata.Layout
+	for i := range layouts {
+		l := &layouts[i]
+		if l.FormFactor == formFactor && l.Mode == mode {
+			return l // exact match
+		}
+		if l.FormFactor == formFactor && sameFFAnyMode == nil {
+			sameFFAnyMode = l
+		}
+		if l.FormFactor == "desktop" && l.Mode == mode && desktopSameMode == nil {
+			desktopSameMode = l
+		}
+		if l.FormFactor == "desktop" && l.Mode == "edit" && desktopEdit == nil {
+			desktopEdit = l
+		}
+	}
+
+	if sameFFAnyMode != nil {
+		return sameFFAnyMode
+	}
+	if desktopSameMode != nil {
+		return desktopSameMode
+	}
+	return desktopEdit // may be nil → auto-generate
+}
+
+// mergeOVAndLayout merges OV config + Layout config into formDescribe.
+func (h *DescribeHandler) mergeOVAndLayout(
+	ov metadata.ObjectView,
+	layout *metadata.Layout,
+	fields []fieldDescribe,
+) *formDescribe {
+	form := buildFallbackForm(fields)
+
+	// Apply OV sections if OV has read config with fields
+	if len(ov.Config.Read.Fields) > 0 {
+		form.Sections = []formSection{{
+			Key:     "details",
+			Label:   "Details",
+			Columns: 2,
+			Fields:  ov.Config.Read.Fields,
+		}}
+
+		form.ListFields = ov.Config.Read.Fields
+		if len(form.ListFields) > 5 {
+			form.ListFields = form.ListFields[:5]
+		}
+	}
+
+	// Apply OV actions
+	if len(ov.Config.Read.Actions) > 0 {
+		actions := make([]formAction, len(ov.Config.Read.Actions))
+		for i, a := range ov.Config.Read.Actions {
+			actions[i] = formAction{
+				Key:            a.Key,
+				Label:          a.Label,
+				Type:           a.Type,
+				Icon:           a.Icon,
+				VisibilityExpr: a.VisibilityExpr,
+			}
+		}
+		form.Actions = actions
+	}
+
+	if layout == nil {
+		return form
+	}
+
+	// Apply Layout root component tree
+	form.Root = layout.Config.Root
+
+	// Apply Layout section config
+	if layout.Config.SectionConfig != nil {
+		for i := range form.Sections {
+			sc, ok := layout.Config.SectionConfig[form.Sections[i].Key]
+			if !ok {
+				continue
+			}
+			if sc.Columns > 0 {
+				form.Sections[i].Columns = sc.Columns
+			}
+			form.Sections[i].Collapsed = sc.Collapsed
+			form.Sections[i].Collapsible = sc.Collapsible
+			form.Sections[i].VisibilityExpr = sc.VisibilityExpr
+		}
+	}
+
+	// Apply Layout field config (with layout_ref resolution)
+	if layout.Config.FieldConfig != nil {
+		presentation := make(map[string]formFieldPresentation)
+		for fieldName, fc := range layout.Config.FieldConfig {
+			resolved := h.resolveFieldConfig(fc)
+			presentation[fieldName] = resolved
+		}
+		form.FieldPresentation = presentation
+	}
+
+	// Apply Layout list config
+	if layout.Config.ListConfig != nil {
+		form.ListConfig = layout.Config.ListConfig
+	}
+
+	return form
+}
+
+// resolveFieldConfig resolves a LayoutFieldConfig, merging shared layout if layout_ref is present.
+func (h *DescribeHandler) resolveFieldConfig(fc metadata.LayoutFieldConfig) formFieldPresentation {
+	result := formFieldPresentation{
+		ColSpan:        fc.ColSpan,
+		UIKind:         fc.UIKind,
+		RequiredExpr:   fc.RequiredExpr,
+		ReadonlyExpr:   fc.ReadonlyExpr,
+		VisibilityExpr: fc.VisibilityExpr,
+		Reference:      fc.Reference,
+	}
+
+	// Resolve layout_ref: shared layout provides base, inline config wins
+	if fc.LayoutRef != "" {
+		sl, ok := h.cache.GetSharedLayoutByAPIName(fc.LayoutRef)
+		if ok {
+			var shared metadata.LayoutFieldConfig
+			if err := json.Unmarshal(sl.Config, &shared); err == nil {
+				// Shared provides defaults, inline overrides
+				if result.ColSpan == 0 {
+					result.ColSpan = shared.ColSpan
+				}
+				if result.UIKind == nil {
+					result.UIKind = shared.UIKind
+				}
+				if result.RequiredExpr == "" {
+					result.RequiredExpr = shared.RequiredExpr
+				}
+				if result.ReadonlyExpr == "" {
+					result.ReadonlyExpr = shared.ReadonlyExpr
+				}
+				if result.VisibilityExpr == "" {
+					result.VisibilityExpr = shared.VisibilityExpr
+				}
+				if result.Reference == nil {
+					result.Reference = shared.Reference
+				}
+			}
+		}
+	}
+
+	return result
 }
 
 func (h *DescribeHandler) buildUserFields(c *gin.Context, userID uuid.UUID, objDef metadata.ObjectDefinition) []fieldDescribe {

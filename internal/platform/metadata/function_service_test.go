@@ -108,6 +108,12 @@ func (m *mockFnCacheLoader) LoadAllProcedures(_ context.Context) ([]Procedure, e
 func (m *mockFnCacheLoader) LoadAllAutomationRules(_ context.Context) ([]AutomationRule, error) {
 	return nil, nil
 }
+func (m *mockFnCacheLoader) LoadAllLayouts(_ context.Context) ([]Layout, error) {
+	return nil, nil
+}
+func (m *mockFnCacheLoader) LoadAllSharedLayouts(_ context.Context) ([]SharedLayout, error) {
+	return nil, nil
+}
 func (m *mockFnCacheLoader) RefreshMaterializedView(_ context.Context) error {
 	return nil
 }

@@ -350,6 +350,18 @@ func setupRouter(pool *pgxpool.Pool, metadataCache *metadata.MetadataCache, cfg 
 	objectViewHandler := handler.NewObjectViewHandler(objectViewService)
 	objectViewHandler.RegisterRoutes(adminGroup)
 
+	// Layout (ADR-0027)
+	layoutRepo := metadata.NewPgLayoutRepository(pool)
+	layoutService := metadata.NewLayoutService(pool, layoutRepo, metadataCache)
+	layoutHandler := handler.NewLayoutHandler(layoutService)
+	layoutHandler.RegisterRoutes(adminGroup)
+
+	// Shared Layout (ADR-0027)
+	sharedLayoutRepo := metadata.NewPgSharedLayoutRepository(pool)
+	sharedLayoutService := metadata.NewSharedLayoutService(pool, sharedLayoutRepo, metadataCache)
+	sharedLayoutHandler := handler.NewSharedLayoutHandler(sharedLayoutService)
+	sharedLayoutHandler.RegisterRoutes(adminGroup)
+
 	// --- Query/Data API ---
 	queryHandler := handler.NewQueryHandler(soqlService, dmlService)
 	apiGroup := router.Group("/api/v1")

@@ -3,6 +3,7 @@ import { onMounted, reactive, watch, computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useRecordsStore } from '@/stores/records'
+import { useFormFactor } from '@/composables/useFormFactor'
 import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
@@ -17,6 +18,13 @@ import { Separator } from '@/components/ui/separator'
 import type { FieldDescribe } from '@/types/records'
 import type { FormSection } from '@/types/object-views'
 
+interface FieldPresentationInfo {
+  colSpan?: number
+  requiredExpr?: string
+  readonlyExpr?: string
+  visibilityExpr?: string
+}
+
 const props = defineProps<{
   objectName: string
   recordId: string
@@ -24,6 +32,7 @@ const props = defineProps<{
 
 const router = useRouter()
 const store = useRecordsStore()
+const formFactor = useFormFactor()
 const toast = useToast()
 const { currentDescribe, currentRecord, currentForm, loading, error } = storeToRefs(store)
 
@@ -55,12 +64,38 @@ function toggleSection(key: string, collapsed?: boolean) {
   }
 }
 
+// Field presentation from Layout merge
+const fieldPresentation = computed<Record<string, FieldPresentationInfo>>(() => {
+  const form = currentForm.value as Record<string, unknown> | undefined
+  if (!form) return {}
+  const fp = form['fieldPresentation'] as Record<string, FieldPresentationInfo> | undefined
+  return fp ?? {}
+})
+
+function getFieldColSpanStyle(fieldName: string): string {
+  const fp = fieldPresentation.value[fieldName]
+  if (!fp?.colSpan || fp.colSpan <= 1) return ''
+  return `grid-column: span ${fp.colSpan}`
+}
+
+function getSectionGridClass(section: FormSection): string {
+  const cols = section.columns ?? 1
+  if (cols === 2) return 'grid grid-cols-2 gap-4'
+  if (cols === 3) return 'grid grid-cols-3 gap-4'
+  if (cols === 4) return 'grid grid-cols-4 gap-4'
+  return 'space-y-4'
+}
+
+function isSectionCollapsible(section: FormSection): boolean {
+  return (section as unknown as { collapsible?: boolean }).collapsible ?? true
+}
+
 onMounted(loadData)
 
 async function loadData() {
   try {
     await Promise.all([
-      store.fetchDescribe(props.objectName),
+      store.fetchDescribe(props.objectName, { formFactor: formFactor.value, formMode: 'edit' }),
       store.fetchRecord(props.objectName, props.recordId),
     ])
     syncFormData()
@@ -155,12 +190,13 @@ const breadcrumbs = computed(() => [
           class="mb-4"
         >
           <CardHeader
-            class="cursor-pointer select-none py-3"
-            @click="toggleSection(section.key!, section.collapsed)"
+            :class="isSectionCollapsible(section) ? 'cursor-pointer select-none py-3' : 'py-3'"
+            @click="isSectionCollapsible(section) && toggleSection(section.key!, section.collapsed)"
           >
             <div class="flex items-center justify-between">
               <CardTitle class="text-base">{{ section.label }}</CardTitle>
               <ChevronDown
+                v-if="isSectionCollapsible(section)"
                 class="h-4 w-4 transition-transform"
                 :class="{ '-rotate-180': !isSectionOpen(section.key!, section.collapsed) }"
               />
@@ -169,14 +205,13 @@ const breadcrumbs = computed(() => [
           <CardContent
             v-show="isSectionOpen(section.key!, section.collapsed)"
           >
-            <div
-              :class="section.columns === 2 ? 'grid grid-cols-2 gap-4' : 'space-y-4'"
-            >
+            <div :class="getSectionGridClass(section)">
               <FieldRenderer
                 v-for="field in sectionFields(section)"
                 :key="field.apiName"
                 :field="field"
                 :model-value="formData[field.apiName]"
+                :style="getFieldColSpanStyle(field.apiName)"
                 @update:model-value="formData[field.apiName] = $event"
               />
             </div>

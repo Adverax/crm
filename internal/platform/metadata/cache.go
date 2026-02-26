@@ -18,6 +18,8 @@ type CacheLoader interface {
 	LoadAllObjectViews(ctx context.Context) ([]ObjectView, error)
 	LoadAllProcedures(ctx context.Context) ([]Procedure, error)
 	LoadAllAutomationRules(ctx context.Context) ([]AutomationRule, error)
+	LoadAllLayouts(ctx context.Context) ([]Layout, error)
+	LoadAllSharedLayouts(ctx context.Context) ([]SharedLayout, error)
 	RefreshMaterializedView(ctx context.Context) error
 }
 
@@ -38,6 +40,8 @@ type MetadataReader interface {
 	GetProcedureByCode(code string) (Procedure, bool)
 	GetProcedures() []Procedure
 	GetAutomationRules(objectID uuid.UUID) []AutomationRule
+	GetLayoutsForOV(ovID uuid.UUID) []Layout
+	GetSharedLayoutByAPIName(apiName string) (SharedLayout, bool)
 }
 
 // MetadataCache is an in-memory cache of metadata backed by a PostgreSQL materialized view
@@ -69,6 +73,10 @@ type MetadataCache struct {
 	// Automation rules (ADR-0031)
 	automationRulesByObjectID map[uuid.UUID][]AutomationRule
 
+	// Layouts (ADR-0027)
+	layoutsByOVID      map[uuid.UUID][]Layout
+	sharedLayoutsByAPI map[string]SharedLayout
+
 	loader CacheLoader
 	loaded bool
 }
@@ -87,6 +95,8 @@ func NewMetadataCache(loader CacheLoader) *MetadataCache {
 		objectViewsByAPIName:      make(map[string]ObjectView),
 		proceduresByCode:          make(map[string]Procedure),
 		automationRulesByObjectID: make(map[uuid.UUID][]AutomationRule),
+		layoutsByOVID:             make(map[uuid.UUID][]Layout),
+		sharedLayoutsByAPI:        make(map[string]SharedLayout),
 		loader:                    loader,
 	}
 }
@@ -131,6 +141,16 @@ func (c *MetadataCache) Load(ctx context.Context) error {
 	automationRules, err := c.loader.LoadAllAutomationRules(ctx)
 	if err != nil {
 		return fmt.Errorf("metadataCache.Load: automation rules: %w", err)
+	}
+
+	layouts, err := c.loader.LoadAllLayouts(ctx)
+	if err != nil {
+		return fmt.Errorf("metadataCache.Load: layouts: %w", err)
+	}
+
+	sharedLayouts, err := c.loader.LoadAllSharedLayouts(ctx)
+	if err != nil {
+		return fmt.Errorf("metadataCache.Load: shared layouts: %w", err)
 	}
 
 	c.mu.Lock()
@@ -182,6 +202,16 @@ func (c *MetadataCache) Load(ctx context.Context) error {
 	c.automationRulesByObjectID = make(map[uuid.UUID][]AutomationRule)
 	for _, ar := range automationRules {
 		c.automationRulesByObjectID[ar.ObjectID] = append(c.automationRulesByObjectID[ar.ObjectID], ar)
+	}
+
+	c.layoutsByOVID = make(map[uuid.UUID][]Layout)
+	for _, l := range layouts {
+		c.layoutsByOVID[l.ObjectViewID] = append(c.layoutsByOVID[l.ObjectViewID], l)
+	}
+
+	c.sharedLayoutsByAPI = make(map[string]SharedLayout, len(sharedLayouts))
+	for _, sl := range sharedLayouts {
+		c.sharedLayoutsByAPI[sl.APIName] = sl
 	}
 
 	c.loaded = true
@@ -393,6 +423,55 @@ func (c *MetadataCache) LoadAutomationRules(ctx context.Context) error {
 	c.automationRulesByObjectID = make(map[uuid.UUID][]AutomationRule)
 	for _, ar := range rules {
 		c.automationRulesByObjectID[ar.ObjectID] = append(c.automationRulesByObjectID[ar.ObjectID], ar)
+	}
+	return nil
+}
+
+// GetLayoutsForOV returns all layouts for an object view from cache.
+func (c *MetadataCache) GetLayoutsForOV(ovID uuid.UUID) []Layout {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.layoutsByOVID[ovID]
+}
+
+// GetSharedLayoutByAPIName returns a shared layout by API name from cache.
+func (c *MetadataCache) GetSharedLayoutByAPIName(apiName string) (SharedLayout, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	sl, ok := c.sharedLayoutsByAPI[apiName]
+	return sl, ok
+}
+
+// LoadLayouts reloads only layouts into the cache.
+func (c *MetadataCache) LoadLayouts(ctx context.Context) error {
+	layouts, err := c.loader.LoadAllLayouts(ctx)
+	if err != nil {
+		return fmt.Errorf("metadataCache.LoadLayouts: %w", err)
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.layoutsByOVID = make(map[uuid.UUID][]Layout)
+	for _, l := range layouts {
+		c.layoutsByOVID[l.ObjectViewID] = append(c.layoutsByOVID[l.ObjectViewID], l)
+	}
+	return nil
+}
+
+// LoadSharedLayouts reloads only shared layouts into the cache.
+func (c *MetadataCache) LoadSharedLayouts(ctx context.Context) error {
+	sharedLayouts, err := c.loader.LoadAllSharedLayouts(ctx)
+	if err != nil {
+		return fmt.Errorf("metadataCache.LoadSharedLayouts: %w", err)
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.sharedLayoutsByAPI = make(map[string]SharedLayout, len(sharedLayouts))
+	for _, sl := range sharedLayouts {
+		c.sharedLayoutsByAPI[sl.APIName] = sl
 	}
 	return nil
 }

@@ -223,6 +223,36 @@ func (l *PgCacheLoader) LoadAllAutomationRules(ctx context.Context) ([]Automatio
 	return scanAutomationRules(rows)
 }
 
+// LoadAllLayouts loads all layouts from the database.
+func (l *PgCacheLoader) LoadAllLayouts(ctx context.Context) ([]Layout, error) {
+	rows, err := l.pool.Query(ctx, `
+		SELECT id, object_view_id, form_factor, mode, config, created_at, updated_at
+		FROM metadata.layouts
+		ORDER BY object_view_id, form_factor, mode
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("pgCacheLoader.LoadAllLayouts: %w", err)
+	}
+	defer rows.Close()
+
+	return scanLayouts(rows)
+}
+
+// LoadAllSharedLayouts loads all shared layouts from the database.
+func (l *PgCacheLoader) LoadAllSharedLayouts(ctx context.Context) ([]SharedLayout, error) {
+	rows, err := l.pool.Query(ctx, `
+		SELECT id, api_name, type, label, config, created_at, updated_at
+		FROM metadata.shared_layouts
+		ORDER BY api_name
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("pgCacheLoader.LoadAllSharedLayouts: %w", err)
+	}
+	defer rows.Close()
+
+	return scanSharedLayouts(rows)
+}
+
 // RefreshMaterializedView refreshes the relationship_registry materialized view concurrently.
 func (l *PgCacheLoader) RefreshMaterializedView(ctx context.Context) error {
 	_, err := l.pool.Exec(ctx, "REFRESH MATERIALIZED VIEW CONCURRENTLY metadata.relationship_registry")

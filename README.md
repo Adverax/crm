@@ -102,6 +102,17 @@ One set of REST endpoints and Vue.js views serves **all objects** — no per-obj
 - `GET/POST/PUT/DELETE /api/v1/records/:objectName` — generic CRUD
 - Two UI zones: `/app/*` (CRM workspace) and `/admin/*` (administration)
 
+### Layout + Form Resolution
+
+Control how records are displayed per Object View, form factor (desktop/tablet/mobile), and mode (edit/view):
+
+- **Layouts** — `metadata.layouts` table, per (object_view_id, form_factor, mode). Configures section grids, field presentation (col_span, ui_kind, reference config), and list columns.
+- **Visual Layout Constructor** — tabbed admin editor: Form Layout tab (section canvas with field chips + property panels), List Config tab (DnD column reorder), JSON tab (power-user fallback).
+- **Shared Layouts** — `metadata.shared_layouts` reusable configuration snippets (type: field/section/list) referenced via `layout_ref`. Inline overrides win. RESTRICT delete protects referenced shared layouts.
+- **Form merge** — Describe API merges OV config + Layout config into a computed Form. Frontend works only with the final Form.
+- **Fallback chain** — requested layout -> same form_factor any mode -> desktop same mode -> desktop edit -> auto-generate.
+- **Headers** — `X-Form-Factor` and `X-Form-Mode` request headers for layout resolution.
+
 ### Table-per-Object Storage
 
 Each object gets a dedicated PostgreSQL table. This means:
@@ -226,13 +237,14 @@ make docker-reset     # Reset all data and restart
 | Phase 8 | Done | Custom Functions — fn.* namespace, dual-stack (cel-go + cel-js), Expression Builder |
 | Phase 9a | Done | Object View Core — metadata.object_views, visual constructor (12 tabs: presentation + data contract), Describe API form resolution, section-based CRM rendering |
 | Phase 9b | Done | Navigation per profile + OV Unbinding — grouped sidebar, page nav items, OV unbound from object |
-| Phase 9c-d | Planned | Layout + Form model, Advanced Metadata |
+| Phase 9c | Done | Layout + Form Resolution (ADR-0027) — metadata.layouts + shared_layouts, form merge, fallback chain, admin CRUD UI, 41 e2e tests |
+| Phase 9d | Planned | Advanced Metadata — Record Types, Dynamic Forms, Notes & Attachments |
 | Phase 10 | Done | Procedure Engine + Automation Rules — declarative JSON DSL |
 | Phase 11 | Planned | Notifications, Activity & CRM UX — kanban, calendar |
 | Phase 12 | Planned | Formula Engine — computed fields, roll-up summaries |
 | Phase 13 | Planned | Scenario Engine + Approval Processes — long-lived workflows |
 
-The platform is **fully functional** across 15 completed phases (32 ADRs). It can create objects via metadata engine or App Templates, manage permissions, enforce 3-layer security (OLS/FLS/RLS), query data through SOQL, perform all DML operations with CEL-based validation rules and dynamic defaults, authenticate users via JWT, work with records through a dynamic metadata-driven UI, define reusable Custom Functions with fn.* namespace (dual-stack: cel-go backend + cel-js frontend with Expression Builder), configure **Object Views** as full bounded context adapters per profile, define **Procedures** with a visual Constructor UI (6 command types, Named Credentials, versioning, Saga rollback), set up **Automation Rules** (DML triggers with CEL conditions), and configure **per-profile Navigation** (grouped sidebar with OLS intersection, page nav items via OV api_name).
+The platform is **fully functional** across 16 completed phases (32 ADRs). It can create objects via metadata engine or App Templates, manage permissions, enforce 3-layer security (OLS/FLS/RLS), query data through SOQL, perform all DML operations with CEL-based validation rules and dynamic defaults, authenticate users via JWT, work with records through a dynamic metadata-driven UI, define reusable Custom Functions with fn.* namespace (dual-stack: cel-go backend + cel-js frontend with Expression Builder), configure **Object Views** as full bounded context adapters per profile, create **Layouts** per Object View + form factor + mode to control page structure and field presentation (with shared layouts for reuse), define **Procedures** with a visual Constructor UI (6 command types, Named Credentials, versioning, Saga rollback), set up **Automation Rules** (DML triggers with CEL conditions), and configure **per-profile Navigation** (grouped sidebar with OLS intersection, page nav items via OV api_name).
 
 Roadmap principle: **platform before features** — Notifications next, then Formulas/Scenarios. See [full roadmap](docs/roadmap.md) for details.
 

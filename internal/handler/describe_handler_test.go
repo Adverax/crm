@@ -98,6 +98,14 @@ func (s *stubDescribeCacheLoader) LoadAllAutomationRules(_ context.Context) ([]m
 	return nil, nil
 }
 
+func (s *stubDescribeCacheLoader) LoadAllLayouts(_ context.Context) ([]metadata.Layout, error) {
+	return nil, nil
+}
+
+func (s *stubDescribeCacheLoader) LoadAllSharedLayouts(_ context.Context) ([]metadata.SharedLayout, error) {
+	return nil, nil
+}
+
 func buildDescribeTestCache(objID uuid.UUID, apiName, tableName string) *metadata.MetadataCache {
 	fieldID := uuid.New()
 	loader := &stubDescribeCacheLoader{
