@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import CodeMirrorEditor from './CodeMirrorEditor.vue'
+import { celLanguage } from '@/lib/codemirror/cel-language'
 import FieldPicker from './FieldPicker.vue'
 import FunctionPicker from './FunctionPicker.vue'
 import ExpressionErrors from './ExpressionErrors.vue'
@@ -247,6 +248,7 @@ const hasFunctions = computed(() => functionsStore.functions.length > 0)
       v-if="mode === 'editor'"
       ref="editorRef"
       :model-value="modelValue"
+      :language="celLanguage"
       :extensions="autocompleteExtension"
       :height="height"
       :disabled="disabled"

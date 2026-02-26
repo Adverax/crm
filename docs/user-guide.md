@@ -1249,6 +1249,44 @@ Response:
 | Records per subquery (per parent) | 200 |
 | Query length | 100,000 characters |
 
+### 6.8. SOQL Editor
+
+Административный интерфейс предоставляет Rich Editor для написания SOQL-запросов (используется в Object View Queries tab и будет переиспользоваться в отчётах).
+
+**Возможности:**
+
+- **Подсветка синтаксиса** — CodeMirror-based редактор с токенизацией SOQL: ключевые слова (SELECT, FROM, WHERE, AND, OR, ORDER BY, GROUP BY, LIMIT и др.), функции (COUNT, SUM, AVG, MIN, MAX, COALESCE, UPPER, LOWER и др.), date literals (TODAY, LAST_N_DAYS:30 и др.), строки, числа, параметры (`:param`), комментарии (`--`).
+- **Контекстное автодополнение** — подсказки зависят от позиции курсора: после SELECT — поля и функции, после FROM — имена объектов, после WHERE — поля, date literals, операторы, после ORDER BY — поля, ASC, DESC.
+- **Серверная валидация** — кнопка Validate отправляет `POST /api/v1/admin/soql/validate` и показывает ошибки с указанием строки и колонки (клик на ошибку перемещает курсор).
+- **Тестовый запуск** — кнопка Test Query выполняет запрос (`POST /api/v1/query`, pageSize: 5) и показывает первые 5 записей в мини-таблице.
+- **Object/Field picker** — popover с двумя табами (Objects, Fields), поиск по имени. Клик вставляет имя в позицию курсора.
+- **Переключение режимов** — Editor (CodeMirror) / Plain Text (textarea) по кнопке.
+- **Автоопределение FROM-объекта** — из текста запроса извлекается имя объекта, автоматически загружаются его поля для автодополнения.
+
+**API endpoint:**
+
+```
+POST /api/v1/admin/soql/validate
+```
+
+Request:
+```json
+{"query": "SELECT Id, Name FROM Account WHERE Industry = 'Tech'"}
+```
+
+Response (valid):
+```json
+{"valid": true, "object": "Account", "fields": ["Id", "Industry", "Name"]}
+```
+
+Response (error):
+```json
+{
+  "valid": false,
+  "errors": [{"message": "unknown object: Foo", "line": 1, "column": 20}]
+}
+```
+
 ---
 
 ## 7. DML — Data Manipulation Language
@@ -2520,7 +2558,7 @@ The Object View detail page provides a tab-based visual constructor for editing 
 1. **General** — edit label, description, is_default flag. Read-only: api_name, profile.
 2. **Fields** — add/remove field api_names to include in this view. Order matters — first 3 become highlights in the computed form.
 3. **Actions** — add action buttons with key, label, type, icon, and a CEL visibility expression (uses the Expression Builder from Phase 8).
-4. **Queries** — define named SOQL queries scoped to this view (name, SOQL statement, optional `when` condition).
+4. **Queries** — define named SOQL queries scoped to this view (name, SOQL statement, optional `when` condition). Each query's SOQL is edited via the **SOQL Editor** — a rich CodeMirror-based editor with syntax highlighting, context-aware autocomplete (objects, fields, keywords, functions, date literals), server-side validation (`POST /admin/soql/validate`), and test query execution (preview first 5 records).
 5. **Computed (Read)** — define computed fields from CEL expressions (name, type, expression, optional `when` condition). These are display-only and not persisted.
 
 **Write tabs:**

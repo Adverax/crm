@@ -264,6 +264,15 @@ func setupRouter(pool *pgxpool.Pool, metadataCache *metadata.MetadataCache, cfg 
 	celHandler := handler.NewCELHandler(metadataCache, fnRegistry)
 	celHandler.RegisterRoutes(adminGroup)
 
+	// SOQL validation handler (design-time, no access control)
+	soqlValidationEngine := soqlengine.NewEngine(
+		soqlengine.WithMetadata(soqlMetadataAdapter),
+	)
+	adminSoqlExecutor := soql.NewExecutor(pool, metadataCache, nil)
+	adminSoqlService := soql.NewQueryService(soqlValidationEngine, adminSoqlExecutor)
+	soqlHandler := handler.NewSOQLHandler(soqlValidationEngine, adminSoqlService, metadataCache)
+	soqlHandler.RegisterRoutes(adminGroup)
+
 	// Create function service with onChange callback to rebuild CEL environments
 	functionService := metadata.NewFunctionService(pool, functionRepo, metadataCache,
 		func(_ context.Context) error {

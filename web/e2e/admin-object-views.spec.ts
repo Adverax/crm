@@ -252,3 +252,54 @@ test.describe('Sidebar navigation', () => {
     await expect(page).toHaveURL(/\/admin\/metadata\/object-views/)
   })
 })
+
+test.describe('OV queries tab — SOQL editor', () => {
+  const view = mockObjectViews[0]
+
+  test.beforeEach(async ({ page }) => {
+    await setupAllRoutes(page)
+  })
+
+  test('SOQL editor is visible in query card', async ({ page }) => {
+    await page.goto(`/admin/metadata/object-views/${view.id}`)
+    await page.getByRole('tab', { name: 'Queries' }).click()
+    await expect(page.locator('[data-testid="soql-editor"]')).toBeVisible()
+  })
+
+  test('Validate button sends POST to /soql/validate', async ({ page }) => {
+    await page.goto(`/admin/metadata/object-views/${view.id}`)
+    await page.getByRole('tab', { name: 'Queries' }).click()
+    const requestPromise = page.waitForRequest('**/api/v1/admin/soql/validate')
+    await page.locator('[data-testid="soql-validate-btn"]').first().click()
+    const request = await requestPromise
+    expect(request.method()).toBe('POST')
+  })
+
+  test('Validation errors are displayed', async ({ page }) => {
+    // Override validate route to return errors
+    await page.route('**/api/v1/admin/soql/validate', (route) => {
+      if (route.request().method() === 'POST') {
+        return route.fulfill({
+          json: {
+            valid: false,
+            errors: [{ message: 'Unknown object: Foo', line: 1, column: 20 }],
+          },
+        })
+      }
+      return route.continue()
+    })
+    await page.goto(`/admin/metadata/object-views/${view.id}`)
+    await page.getByRole('tab', { name: 'Queries' }).click()
+    await page.locator('[data-testid="soql-validate-btn"]').first().click()
+    await expect(page.getByText('Unknown object: Foo')).toBeVisible()
+  })
+
+  test('Test Query executes and shows results', async ({ page }) => {
+    await page.goto(`/admin/metadata/object-views/${view.id}`)
+    await page.getByRole('tab', { name: 'Queries' }).click()
+    await page.locator('[data-testid="soql-test-btn"]').first().click()
+    await expect(page.locator('[data-testid="soql-test-result"]')).toBeVisible()
+    await expect(page.getByText('2 record(s) found')).toBeVisible()
+    await expect(page.getByText('Acme Corp')).toBeVisible()
+  })
+})

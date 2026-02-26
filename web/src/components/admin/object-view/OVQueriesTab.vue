@@ -3,8 +3,8 @@ import { IconButton } from '@/components/ui/icon-button'
 import { Trash2, Plus } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
+import SoqlEditor from '@/components/admin/soql-editor/SoqlEditor.vue'
 import type { OVQuery } from '@/types/object-views'
 
 const props = defineProps<{
@@ -70,11 +70,9 @@ function removeQuery(index: number) {
         </div>
         <div class="space-y-1">
           <Label class="text-xs">SOQL</Label>
-          <Textarea
+          <SoqlEditor
             v-model="query.soql"
-            placeholder="SELECT Id, Name FROM Activity WHERE WhatId = :recordId"
-            class="font-mono text-sm"
-            rows="3"
+            height="100px"
           />
         </div>
       </CardContent>

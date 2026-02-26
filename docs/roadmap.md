@@ -16,7 +16,7 @@ Current state and target coverage relative to Salesforce Platform.
 | Security (OLS/FLS) | Profile, Permission Set, Permission Set Group, Muting PS | Profile, Grant/Deny PS, OLS bitmask, FLS bitmask, effective caches | 90% SF |
 | Security (RLS) | OWD, Role Hierarchy, Sharing Rules, Manual Sharing, Apex Sharing, Teams, Territory | OWD, Groups (4 types), Share tables, Role hierarchy, Sharing Rules (owner+criteria), Manual Sharing, RLS enforcer, effective caches, Territory Management (ee/) | 85% SF |
 | Data Access (SOQL) | SOQL with relationship queries, aggregates, security enforcement | SOQL parser (participle), validator, compiler, executor with OLS+FLS+RLS enforcement, relationship queries, aggregates, date literals, subqueries | 70% SF |
-| Data Mutation (DML) | Insert, Update, Upsert, Delete, Undelete, Merge + triggers | INSERT/UPDATE/DELETE/UPSERT, OLS+FLS enforcement, RLS injection for UPDATE/DELETE, batch operations, Custom Functions (fn.* dual-stack), validation rules (CEL), dynamic defaults (CEL) | 65% SF |
+| Data Mutation (DML) | Insert, Update, Upsert, Delete, Undelete, Merge + triggers | INSERT/UPDATE/DELETE/UPSERT, OLS+FLS enforcement, RLS injection for UPDATE/DELETE, batch operations, Custom Functions (fn.* dual-stack), validation rules (CEL), dynamic defaults (CEL), Automation Rules (triggers) | 70% SF |
 | Auth | OAuth 2.0, SAML, MFA, Connected Apps | JWT (access + refresh), login, password reset, rate limiting | JWT + refresh tokens |
 | Automation | Flow Builder, Triggers, Workflow Rules, Approval Processes | Automation Rules (before/after triggers, CEL conditions, procedure_code), Procedure Engine (6 command types, Named Credentials) | Triggers + basic Flows |
 | UI Framework | Lightning App Builder, LWC, Dynamic Forms | Vue.js admin + metadata-driven CRM UI (AppLayout, dynamic record views, FieldRenderer), Expression Builder (CodeMirror + autocomplete + live preview), Object View (role-based sections, actions, highlights, related lists), Profile Navigation (grouped sidebar, page views via OV + Navigation), Layout + Form Resolution (per form_factor + mode, shared layouts, fallback chain) | Admin + Record UI + Object Views + Navigation + Layouts |
@@ -62,12 +62,12 @@ Platform core — dynamic object and field definitions.
 
 | SF Capability | Our Status | When |
 |---------------|-----------|------|
-| Record Types | Not implemented | Phase 9d |
+| Record Types | Not implemented | Phase 14b |
 | Object Views (role-based layouts) | ✅ Implemented (Phase 9a) | — |
 | Compact Layouts (highlight fields) | ✅ Implemented (highlight_fields in OV config) | — |
-| Formula Fields | Not implemented | Phase 12 |
-| Roll-Up Summary Fields | Not implemented | Phase 12 |
-| Validation Rules (formula-based) | Not implemented | Phase 12 |
+| Formula Fields | Not implemented | Phase 13d |
+| Roll-Up Summary Fields | Not implemented | Phase 13d |
+| Validation Rules (formula-based) | ✅ CEL-based (Phase 7b) | — |
 | Field History Tracking | Not implemented | Phase N (ee/) |
 | Custom Metadata Types (`__mdt`) | Not implemented | Phase 14 |
 | Big Objects | Not implemented | Far future |
@@ -196,9 +196,9 @@ Single entry point for all data writes with security enforcement.
 | Capability | Phase |
 |------------|-------|
 | Automation Rules triggers (before/after insert/update/delete) | ✅ Phase 10b |
-| Undelete (Recycle Bin) | Phase 4d |
-| Merge | Phase 4d |
-| Validation Rules (formula-based, pre-DML) | Phase 12 |
+| Undelete (Recycle Bin) | Phase 11c |
+| Merge | Phase 14+ |
+| Validation Rules (formula-based, pre-DML) | ✅ Phase 7b (CEL-based) |
 | Cascade delete (composition) | Phase 4a |
 | Set null on delete (association) | Phase 4a |
 | Partial success mode (`allOrNone: false`) | Phase 4d |
@@ -266,10 +266,10 @@ Templates are embedded in the binary as Go code. Adding a new template = a new f
 
 | Template | Objects | Phase |
 |----------|---------|-------|
-| Customer Support | Case, Knowledge Article, Entitlement | Phase 14 |
-| Marketing | Campaign, CampaignMember, Lead | Phase 14 |
-| Commerce | Product, PriceBook, Order, OrderItem | Phase 14 |
-| Project Management | Project, Milestone, Task, TimeEntry | Phase 14 |
+| Customer Support | Case, Knowledge Article, Entitlement | Phase 14c |
+| Marketing | Campaign, CampaignMember, Lead | Phase 14c |
+| Commerce | Product, PriceBook, Order, OrderItem | Phase 14c |
+| Project Management | Project, Milestone, Task, TimeEntry | Phase 14c |
 
 ---
 
@@ -312,20 +312,25 @@ Transition from admin-only to a full CRM interface. Backend: generic CRUD endpoi
 - [x] Admin UI: validation rules list/create/detail views
 - [x] ObjectDetailView: "Validation Rules" tab → link to list
 - [x] E2E tests: 14 tests (list, create, detail)
-- [ ] Related lists: child objects on detail page (SOQL subqueries)
-- [ ] Inline edit: click-to-edit on detail page
-- [ ] List views: saved filters (my records, all records, custom)
-- [ ] Global search (placeholder → SOSL in Phase 15)
-- [ ] Recent items
+- [ ] Related lists: child objects on detail page (Phase 11a)
+- [ ] Reference lookup: searchable dropdown (Phase 11a)
+- [ ] List search, sort, row actions (Phase 11b)
+- [ ] Saved list views / filters (Phase 12c)
+- [ ] Global search (Phase 13b)
 
 **UI features for future phases:**
 
 | Capability | Phase |
 |------------|-------|
-| Kanban view (Opportunity stages) | Phase 11 |
-| Calendar view (Events) | Phase 11 |
-| Home page enhancements | Phase 11 |
-| Dynamic Forms (visibility rules) | Phase 9d |
+| Related lists + Reference lookup | Phase 11a |
+| List search, sort, row actions | Phase 11b |
+| Recycle Bin (soft delete + restore) | Phase 11c |
+| CSV Import | Phase 11d |
+| Saved List Views (filters) | Phase 12c |
+| Activity timeline + Bulk actions | Phase 12d |
+| Kanban view (Opportunity stages) | Phase 14+ |
+| Calendar view (Events) | Phase 14+ |
+| Dynamic Forms (visibility rules) | Phase 14b |
 | Object Views per profile (role-based UI) | ✅ Phase 9a |
 | Navigation per profile + OV Unbinding | ✅ Phase 9b |
 | Mobile-responsive layout | Phase 7a (basic) |
@@ -363,7 +368,7 @@ Named pure CEL expressions — foundation for reusable computational logic.
 
 ---
 
-### Phase 9: Object View — Role-Based UI (ADR-0022) 🔄 (9a-9c done)
+### Phase 9: Object View — Role-Based UI (ADR-0022) ✅ (9a-9c done, 9d → Phase 14b)
 
 Bounded context adapter: one object — different presentations for different roles.
 Users of the same system (Sales, Warehouse, Management) see a role-specific interface without code duplication.
@@ -425,13 +430,10 @@ Users of the same system (Sales, Warehouse, Management) see a role-specific inte
 - Live preview: show production-like preview of how the form will look to end user.
 - Field order override: Layout can't reorder fields within sections (OV controls order). Consider optional field order in Layout.
 
-#### Phase 9d: Advanced Metadata
+#### Phase 9d: Advanced Metadata (deferred → Phase 14b)
 
-- [ ] **Record Types**: different picklist values and Object View per record type
-- [ ] **Dynamic Forms**: field visibility rules (CEL: `record.status == 'closed'`)
-- [ ] **Notes & Attachments**: polymorphic note/file objects, linked to any record
-- [ ] **Activity History**: unified view of tasks + events for any object with hasActivities
-- [ ] **Field History Tracking** (ee/): up to 20 fields per object, changelog table
+Moved to Phase 14b (Record Types + Dynamic Forms) as part of the roadmap revision.
+Notes & Attachments → Phase 13a (File Attachments). Activity History → Phase 12d.
 
 ---
 
@@ -486,48 +488,194 @@ Declarative automation: from atomic commands to composite procedures.
 | Assignment Rules | Automation Rule + Procedure |
 | Escalation Rules | Scenario + timers |
 
----
+#### SOQL Editor (cross-cutting enhancement) ✅
 
-### Phase 11: Notifications, Activity & CRM UX ⬜
-
-CRM as a daily working tool. Notifications built on Procedure Engine.
-
-#### Phase 11a: Notifications & Activity
-
-- [ ] **In-app notifications**: bell icon, notification list, read/unread, mark all read
-- [ ] **Notification model**: `notification_types` + `notifications` table
-- [ ] **Email notifications**: template engine (Go templates), SMTP sender
-- [ ] **Trigger integration**: Automation Rules → `notification.email` / `notification.in_app` commands
-- [ ] **Activity timeline**: chronological tasks/events on record detail page
-- [ ] **Activity model**: `hasActivities` flag on object → polymorphic activity feed
-
-#### Phase 11b: CRM UX Enhancements
-
-- [ ] **Home page**: pipeline chart, tasks due today, recent items (via OV page views)
-- [ ] **Kanban board**: drag-and-drop for picklist stages (Opportunity, Case)
-- [ ] **Calendar view**: events display, day/week/month
-- [ ] **Pipeline reports**: grouped by stage, by owner, by period
+- [x] **Backend**: `POST /admin/soql/validate` endpoint — server-side query validation with error position (line/column)
+- [x] **CodeMirror refactoring**: CodeMirrorEditor language-agnostic (language prop), reused by CEL and SOQL
+- [x] **SOQL syntax highlighting**: StreamLanguage parser — keywords, functions, date literals, parameters, strings, comments
+- [x] **Context-aware autocomplete**: clause detection (SELECT→fields, FROM→objects, WHERE→fields+dates, ORDER BY→fields+ASC/DESC)
+- [x] **SoqlEditor component**: toolbar (validate, test query, mode toggle, object/field picker), CodeMirror + autocomplete
+- [x] **Integration**: OVQueriesTab uses SoqlEditor instead of plain textarea
+- [x] **OpenAPI spec**: endpoint + schemas (SoqlValidateRequest/Response/Error)
+- [x] **E2E tests**: 4 tests (editor visibility, validate POST, error display, test query results)
 
 ---
 
-### Phase 12: Formula Engine ⬜
+### Phase 11: Usable CRM Core — "Can show to a client" ⬜
 
-Computed fields and advanced formula-based validation.
+Making CRM usable as a real working tool. Each sub-phase delivers visible user value.
 
-- [ ] **Formula parser**: arithmetic, string functions, date math, IF/CASE, cross-object refs
-- [ ] **Formula fields**: read-only computed at SOQL level (SQL expression in SELECT)
-- [ ] **Roll-Up Summary fields**: COUNT, SUM, MIN, MAX on master-detail parent
-- [ ] **Validation Rules (formula-based)**: boolean formula → error message, pre-DML
-- [ ] **Default values (formula)**: formula or literal, applied on insert
-- [ ] **Auto-number fields**: sequence-based auto-increment with format (INV-{0000})
+#### Phase 11a: Related Lists + Reference Lookup
+
+**Backend:**
+- [ ] Describe handler: populate `related_lists` via `GetReverseRelationships()` (currently returns `[]`)
+- [ ] RefConfig already exists in LayoutFieldConfig (DisplayFields, SearchFields, Target, Filter) — pass through to form
+
+**Frontend:**
+- [ ] `RelatedListPanel` component: mini-table of child records, SOQL query `SELECT ... FROM {child} WHERE {fk} = '{recordId}'`
+- [ ] Integration into `RecordDetailView` below sections
+- [ ] `ReferencePicker` component: searchable dropdown, SOQL search on target object
+- [ ] Replace `<Input type="text">` with `ReferencePicker` in `FieldRenderer` for reference fields
+- [ ] `FieldDisplay` for reference: display Name instead of UUID
+
+**Dependencies:** none (SOQL subqueries and metadata already work)
+**Complexity:** M (2-3 weeks)
+**Value:** Detail page shows related records. Reference fields have search.
+
+#### Phase 11b: List Search, Sort, Row Actions
+
+**Backend:**
+- [ ] Add query params `search`, `sort_by`, `sort_dir` to `GET /records/:objectName`
+- [ ] `RecordService.List`: inject WHERE LIKE and ORDER BY into SOQL
+- [ ] Per-page size selector (10/20/50/100)
+
+**Frontend:**
+- [ ] Search bar in `RecordListView` (reads `ListSearchConfig` from form)
+- [ ] Clickable column headers with sort icons (reads `Sortable` from `ListColumnConfig`)
+- [ ] Row actions (edit, delete, custom) from `ListConfig.RowActions`
+
+**Dependencies:** none
+**Complexity:** S (1-2 weeks)
+**Value:** Users can search and sort records. Quick actions on rows.
+
+#### Phase 11c: Recycle Bin (Soft Delete + Restore)
+
+**Backend:**
+- [ ] Migration: `is_deleted BOOLEAN DEFAULT FALSE`, `deleted_at TIMESTAMPTZ` on all `obj_*` tables
+- [ ] DDL generator: new tables automatically get these columns
+- [ ] DML engine: DELETE → `UPDATE SET is_deleted=true, deleted_at=NOW()`
+- [ ] SOQL engine: default filter `is_deleted = false` (analogous to RLS injection)
+- [ ] Endpoints: `GET /records/:obj/deleted`, `POST /records/:obj/:id/undelete`, `DELETE /records/:obj/:id/purge`
+- [ ] Scheduled purge: delete records older than 15 days
+
+**Frontend:**
+- [ ] "Recycle Bin" page in sidebar
+- [ ] Restore button, permanent delete with confirmation
+
+**Dependencies:** none
+**Complexity:** M (2-3 weeks)
+**Value:** Safe deletion. Users don't fear losing data.
+
+#### Phase 11d: CSV Import + Field Mapping
+
+**Backend:**
+- [ ] `POST /records/:objectName/import` (multipart/form-data CSV)
+- [ ] CSV parser (encoding detection UTF-8/Windows-1252)
+- [ ] Batch DML execution (batches of 200)
+- [ ] Import result: total/success/error + downloadable error log
+
+**Frontend:**
+- [ ] `ImportWizard`: drag-and-drop upload → field mapping → preview 5 rows → confirm
+- [ ] Progress bar + result summary
+
+**Dependencies:** Phase 11c (recycle bin for rolling back failed imports)
+**Complexity:** M (2-3 weeks)
+**Value:** Onboarding — user uploads data from Excel/CSV.
 
 ---
 
-### Phase 13: Scenario Engine + Approval Processes (ADR-0025) ⬜
+### Phase 12: Daily Tool — "Use it every day" ⬜
+
+Features that make CRM a daily working tool. Notifications, saved views, activity timeline.
+
+#### Phase 12a: In-App Notifications
+
+- [ ] Tables: `iam.notifications` (user_id, type, title, body, is_read, record_object, record_id)
+- [ ] `notification.in_app` command in Procedure Engine (replace stub)
+- [ ] API: list, mark read, mark all read, unread count
+- [ ] Frontend: bell icon + badge in header, notification panel, click → navigate to record
+- [ ] Polling or SSE for real-time
+
+**Complexity:** M | **Value:** Automation Rules become visible to the user.
+
+#### Phase 12b: Email Notifications (SMTP + Templates)
+
+- [ ] Email sender: SMTP (gomail), ENV config
+- [ ] `metadata.email_templates` (subject_template, body_template, object_api_name)
+- [ ] `notification.email` command in Procedure Engine (replace stub)
+- [ ] Admin UI: template CRUD + preview
+- [ ] Dev mode: console sender (stdout)
+
+**Complexity:** M | **Value:** Automated emails from Automation Rules.
+
+#### Phase 12c: Saved List Views (Filters)
+
+- [ ] `metadata.list_views` (object_api_name, name, owner_id, filter JSONB, columns, sort, visibility)
+- [ ] Built-in: "All Records", "My Records" (`OwnerId = :currentUserId`)
+- [ ] Filter builder: field + operator + value
+- [ ] Frontend: dropdown switcher above the table
+
+**Dependencies:** Phase 11b
+**Complexity:** M | **Value:** Saved filters — "My Opportunities", "Open Tasks".
+
+#### Phase 12d: Activity Timeline + Bulk Actions
+
+- [ ] Activity timeline: `ActivityFeed` on detail page for objects with `hasActivities=true`
+- [ ] Quick-add task/event inline
+- [ ] Bulk actions: checkbox column, selection bar (delete, change owner, update field)
+- [ ] Backend: `POST /records/:objectName/bulk` (action + ids + fields)
+
+**Dependencies:** Phase 11a, 11c
+**Complexity:** M | **Value:** Daily workflow: timeline + bulk operations.
+
+---
+
+### Phase 13: Production-Ready — "Trust it in production" ⬜
+
+Features required for production deployment: files, export, audit, formulas.
+
+#### Phase 13a: File Attachments
+
+- [ ] Local FS (MVP) with S3-compatible interface
+- [ ] `metadata.attachments` (record_object, record_id, filename, content_type, size_bytes, storage_path)
+- [ ] Upload/download/delete API, 25MB limit
+- [ ] Frontend: file zone on detail page, attachment list
+- [ ] Security: OLS + RLS on parent record
+
+**Complexity:** M | **Value:** Documents, contracts, images on records.
+
+#### Phase 13b: CSV/JSON Export + Global Search
+
+- [ ] Export: `GET /records/:objectName/export?format=csv|json` (stream SOQL → CSV/JSON)
+- [ ] Respects current list view filters
+- [ ] Global search: PostgreSQL `tsvector/tsquery` on Name fields of searchable objects
+- [ ] DDL: `search_vector tsvector` + trigger on `obj_*` tables
+- [ ] API: `GET /search?q=term` → results grouped by object (top 5 each)
+- [ ] Frontend: search bar in header, dropdown with grouping
+
+**Complexity:** L | **Value:** Export for reports. Quick search across all CRM data.
+
+#### Phase 13c: Basic Audit Log (Core)
+
+- [ ] `iam.audit_log` (user_id, action, object_api_name, record_id, old_values JSONB, new_values JSONB, ip_address)
+- [ ] DML post-execute hook: capture old/new values
+- [ ] API: record history + admin audit viewer (filters: user, object, action, date)
+- [ ] Frontend: "History" tab on detail page, admin audit page
+- [ ] Retention: 90 days (configurable)
+- [ ] Note: this is core (AGPL). ee/ will add field-level audit trail with long retention.
+
+**Complexity:** M | **Value:** "Who changed what" — compliance and troubleshooting.
+
+#### Phase 13d: Formula Fields
+
+- [ ] New subtype `formula` for each FieldType
+- [ ] `FieldConfig.formula_expr` (CEL → SQL in SOQL SELECT)
+- [ ] Roll-Up Summary: COUNT/SUM/MIN/MAX on parent from child records
+- [ ] Read-only in DML, computed at query time
+- [ ] Admin UI: formula editor with Expression Builder
+
+**Dependencies:** Phase 8 (CEL), Phase 11a (related lists)
+**Complexity:** L | **Value:** Computed fields, aggregates on parent records.
+
+---
+
+### Phase 14: Platform Completeness ⬜
+
+Completing the platform with advanced features.
+
+#### Phase 14a: Scenario Engine + Approval Processes (ADR-0025)
 
 Long-running process orchestration with durability and approval workflow.
-
-#### Phase 13a: Scenario Engine
 
 - [ ] **Orchestrator**: sequential workflow + goto + loop
 - [ ] **Steps**: invoke Procedure, inline Command, wait signal/timer
@@ -542,19 +690,18 @@ Long-running process orchestration with durability and approval workflow.
 - [ ] **Run snapshots**: `scenario_run_snapshots` captures procedure_version_id at run start
 - [ ] **Signal API**: `POST /executions/{id}/signal`
 - [ ] **Admin REST API + Constructor UI**: CRUD scenarios + versions, execution monitoring
-
-#### Phase 13b: Approval Processes
-
 - [ ] Approval definition: entry criteria, steps, approvers
 - [ ] Submit for approval → pending → approved/rejected
 - [ ] Email notifications per step (via Procedure Engine)
-- [ ] Field updates on approve/reject (via Procedure Engine)
 - [ ] Approval history on record detail
-- [ ] Implemented as built-in Scenario + approval commands
 
----
+#### Phase 14b: Record Types + Dynamic Forms
 
-### Phase 14: Advanced CRM Objects ⬜
+- [ ] **Record Types**: different picklist values and Object View per record type
+- [ ] **Dynamic Forms**: field visibility rules (CEL: `record.status == 'closed'`)
+- [ ] **Field History Tracking** (ee/): up to 20 fields per object, changelog table
+
+#### Phase 14c: Advanced CRM Objects
 
 Expanding the set of standard objects for a full-featured CRM.
 
@@ -636,6 +783,33 @@ Proprietary capabilities requiring a commercial license.
 
 ## Priorities and Dependencies
 
+### Dependency Graph (Phase 11+)
+
+```
+COMPLETED (0–10b, 9a–9c)
+    │
+    ├─→ 11a [Related Lists + Ref Lookup]
+    │     ├─→ 11b [Search, Sort, Row Actions]
+    │     │     ├─→ 11c [Recycle Bin]
+    │     │     │     └─→ 11d [CSV Import]
+    │     │     └─→ 12c [Saved List Views]
+    │     │           └─→ 13b [Export + Global Search]
+    │     └─→ 12d [Activity + Bulk Actions]
+    │
+    ├─→ 12a [In-App Notifications] ─→ 12b [Email]
+    │
+    ├─→ 13a [File Attachments]       (independent)
+    ├─→ 13c [Audit Log]              (independent)
+    └─→ 13d [Formula Fields]         (after 11a)
+```
+
+**Parallel tracks:**
+- **Track A (Core UX):** 11a → 11b → 11c → 11d
+- **Track B (Notifications):** 12a → 12b
+- **Track C (Independent):** 13a, 13c — can start any time
+
+### Full Dependency Graph (all phases)
+
 ```
 Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ✅ ──→ Phase 4 ✅ ──→ Phase 5 ✅ ──→ Phase 6 ✅
                                                                                           │
@@ -658,53 +832,75 @@ Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ✅ �
                                                                                                              Phase 10b ✅
                                                                                                        (Automation Rules)
                                                                                                                    │
-                                                                                                             Phase 11
-                                                                                                       (Notif+CRM UX)
-                                                                                                                   │
-                                                                                                             Phase 12
-                                                                                                            (Formulas)
-                                                                                                                   │
-                                                                                                             Phase 9d
-                                                                                                       (Record Types)
-                                                                                                                   │
-                                                                                                             Phase 13
-                                                                                                           (Scenarios)
+                                                                                     ┌──────────────────┬──────────┼───────────┐
+                                                                                     ▼                  ▼          ▼           ▼
+                                                                               Phase 11a          Phase 12a   Phase 13a   Phase 13c
+                                                                          (Related+Ref)    (In-App Notif)  (Files)     (Audit)
+                                                                                     │                  │
+                                                                                     ▼                  ▼
+                                                                               Phase 11b          Phase 12b
+                                                                          (Search+Sort)     (Email Notif)
+                                                                                     │
+                                                                           ┌─────────┤
+                                                                           ▼         ▼
+                                                                     Phase 11c   Phase 12c ──→ Phase 13b (Export+Search)
+                                                                    (Recycle Bin) (List Views)
+                                                                           │
+                                                                           ▼
+                                                                     Phase 11d
+                                                                    (CSV Import)
 
+                              Phase 12d (Activity+Bulk) — after 11a + 11c
+                              Phase 13d (Formulas) — after 11a + 8
+                              Phase 14a (Scenarios) — after 12b
+                              Phase 14b (Record Types) — after 13d
                               Phase 15 (SOSL) — independent, after Phase 3
                               Phase 16 (CDC) — independent, after Phase 4
-                              Phase 17 (Reports) — after Phase 3 + Phase 12
+                              Phase 17 (Reports) — after Phase 3 + Phase 13d
                               Phase N (ee/) — parallel, after Phase 2
 ```
 
-### Critical Path (MVP)
+### Critical Path (MVP — already done)
 
-Minimum set for a working CRM:
+Minimum set for a working CRM (completed):
 
 ```
-Phase 2b/2c ✅ → Phase 3 ✅ → Phase 4 ✅ → Phase 5 ✅ → Phase 6 ✅ → Phase 7 → v0.1.0
+Phase 2b/2c ✅ → Phase 3 ✅ → Phase 4 ✅ → Phase 5 ✅ → Phase 6 ✅ → Phase 7 ✅ → v0.1.0
 ```
 
 This covers: security → query → mutation → auth → standard objects → UI.
 
-### Recommended Order After MVP
+### Recommended Order After Phase 10b
 
-Principle: **platform before features** — features built on platform layers are cheaper, more flexible, and don't require rewrites.
+Principle: **user value first** — each phase should deliver visible benefit to end users.
 
-1. **Phase 8** — Custom Functions (CEL reuse foundation, ADR-0026)
-2. **Phase 9a** — Object View core (role-based UI, ADR-0022)
-3. **Phase 9b** — Navigation per profile + OV Unbinding
-4. **Phase 10a** — Procedure Engine core (declarative automation, ADR-0024)
-5. **Phase 10b** — Automation Rules (trigger → procedure)
-6. **Phase 11a** — Notifications & Activity (consumers of Procedure Engine)
-7. **Phase 11b** — CRM UX (home page, kanban, calendar)
-8. **Phase 12** — Formula Engine (computed fields, advanced validation)
-9. **Phase 9d** — Record Types + Dynamic Forms
-10. **Phase 13a** — Scenario Engine (ADR-0025)
-11. **Phase 13b** — Approval Processes
-12. **Phase 14** — Advanced CRM Objects
-13. **Phase 15** — SOSL (full-text search)
-14. **Phase 16** — Streaming & Integration (CDC, webhooks)
-15. **Phase 17** — Analytics (reports, dashboards)
+**Completed (platform foundation):**
+1. ~~Phase 8~~ ✅ — Custom Functions
+2. ~~Phase 9a~~ ✅ — Object View core
+3. ~~Phase 9b~~ ✅ — Navigation per profile + OV Unbinding
+4. ~~Phase 9c~~ ✅ — Layout + Form Resolution
+5. ~~Phase 10a~~ ✅ — Procedure Engine core
+6. ~~Phase 10b~~ ✅ — Automation Rules
+
+**Next (usable CRM):**
+7. **Phase 11a** — Related Lists + Reference Lookup (detail page becomes useful)
+8. **Phase 11b** — List Search, Sort, Row Actions (list page becomes useful)
+9. **Phase 11c** — Recycle Bin (safe deletion)
+10. **Phase 11d** — CSV Import (onboarding)
+11. **Phase 12a** — In-App Notifications (automation becomes visible)
+12. **Phase 12b** — Email Notifications (external communication)
+13. **Phase 12c** — Saved List Views (daily productivity)
+14. **Phase 12d** — Activity Timeline + Bulk Actions (daily workflow)
+15. **Phase 13a** — File Attachments (documents on records)
+16. **Phase 13b** — CSV/JSON Export + Global Search (data access)
+17. **Phase 13c** — Audit Log (compliance)
+18. **Phase 13d** — Formula Fields (computed data)
+19. **Phase 14a** — Scenario Engine + Approvals
+20. **Phase 14b** — Record Types + Dynamic Forms
+21. **Phase 14c** — Advanced CRM Objects
+22. **Phase 15** — SOSL (full-text search)
+23. **Phase 16** — Streaming & Integration (CDC, webhooks)
+24. **Phase 17** — Analytics (reports, dashboards)
 
 ---
 
@@ -732,10 +928,13 @@ Principle: **platform before features** — features built on platform layers ar
 | **v0.1.0-alpha** | 0-2 | Metadata engine + full security (OLS/FLS/RLS + Groups + Sharing Rules) + Territory Management (ee/) ✅ |
 | **v0.2.0-alpha** | 3-5 | SOQL + DML + Auth — data can be read/written with security enforcement, JWT authentication ✅ |
 | **v0.3.0-beta** | 6-7 | App Templates + Record UI — can log in and work with CRM data ✅ |
-| **v0.4.0-beta** | 8-9 | Custom Functions + Object Views — CEL reuse, role-based UI |
-| **v0.5.0-beta** | 10-11 | Procedure Engine + Notifications — declarative automation, daily CRM tool |
-| **v1.0.0** | 12-13 | Formulas + Scenarios + Approvals — production-ready |
-| **v1.x** | 14-16 | Advanced objects, search, integration |
+| **v0.4.0-beta** | 8-10b, 9a-9c | Functions + Views + Procedures + Automation (current) ✅ |
+| **v0.5.0-beta** | 11a-11d | **Usable CRM**: related lists, reference lookup, search/sort, recycle bin, CSV import |
+| **v0.6.0-beta** | 12a-12d | **Daily tool**: notifications, email, saved list views, activity timeline, bulk actions |
+| **v0.7.0-rc** | 13a-13d | **Production-ready**: files, export, global search, audit log, formula fields |
+| **v1.0.0** | 14a-14b | Scenarios + Approvals + Record Types |
+| **v1.1** | 14c | Advanced CRM Objects |
+| **v1.x** | 15-16 | Full-text search, streaming, integration |
 | **v2.0** | 17 + N | Analytics, enterprise features |
 
 ---
@@ -744,16 +943,16 @@ Principle: **platform before features** — features built on platform layers ar
 
 Criteria for assessing "Salesforce-grade" readiness by domain.
 
-| Domain | Bronze (MVP) | Silver (v1.0) | Gold (v2.0) |
+| Domain | Bronze (v0.4) ✅ | Silver (v0.7) | Gold (v2.0) |
 |--------|-------------|---------------|-------------|
-| Metadata | Objects + Fields + References | + Record Types + Layouts + Formulas | + Custom Metadata Types + Big Objects |
-| Security | OLS + FLS + RLS (OWD + Sharing Rules) | + Groups + Manual Sharing + Implicit | + Territory + Encryption + Audit |
-| Data Access | SOQL: basic SELECT/WHERE/JOIN | + Aggregates + Subqueries + Date literals | + SOSL + FOR UPDATE + Polymorphic |
-| Data Mutation | Insert + Update + Delete | + Upsert + Triggers + Validation Rules | + Undelete + Merge + Flows |
-| UI | Admin + basic Record UI | + Dynamic Forms + List Views + Search | + App Builder + Kanban + Calendar |
-| API | REST CRUD | + Composite + Bulk | + Streaming + CDC + GraphQL |
-| Automation | — | Trigger handlers + Record-Triggered Flows | + Scheduled Flows + Approvals |
-| Analytics | — | Basic reports | + Dashboard Builder + Scheduled reports |
+| Metadata | Objects + Fields + References + Layouts + OV | + Record Types + Formulas | + Custom Metadata Types + Big Objects |
+| Security | OLS + FLS + RLS + Groups + Sharing Rules | + Audit Log + Recycle Bin | + Territory + Encryption + Field Audit Trail |
+| Data Access | SOQL: SELECT/WHERE/JOIN/Aggregates/Subqueries | + Global Search (tsvector) | + SOSL + FOR UPDATE + Polymorphic |
+| Data Mutation | Insert + Update + Delete + Upsert + Triggers + Validation Rules | + Soft Delete + Undelete + CSV Import | + Merge + Flows |
+| UI | Admin + Record UI + Object Views + Navigation + Layouts | + Related Lists + Search/Sort + List Views + Activity | + App Builder + Kanban + Calendar |
+| API | REST CRUD + SOQL + DML | + Bulk + Export + Import | + Streaming + CDC + GraphQL |
+| Automation | Procedure Engine + Automation Rules | + Notifications + Email | + Scenarios + Approvals |
+| Analytics | — | — | + Dashboard Builder + Scheduled reports |
 
 ---
 
@@ -769,4 +968,4 @@ Architectural hygiene for microservices readiness.
 
 ---
 
-*This document is updated as phases are completed. Last update: 2026-02-26.*
+*This document is updated as phases are completed. Last update: 2026-02-26 (roadmap revision: user-value-first approach).*

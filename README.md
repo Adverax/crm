@@ -78,6 +78,8 @@ ORDER BY CloseDate DESC
 LIMIT 50
 ```
 
+- **SOQL Editor** — Rich editor with syntax highlighting, context-aware autocomplete (objects, fields, keywords), server-side validation, and test query execution. Used in Object View queries and reusable across reports.
+
 ### App Templates
 
 Start with a pre-built set of objects and fields for your domain — or build your own from scratch. Templates are applied once through the admin UI and create real metadata objects.
@@ -235,18 +237,22 @@ make docker-reset     # Reset all data and restart
 | Phase 7a | Done | Generic CRUD + metadata-driven UI — dynamic record views, describe API |
 | Phase 7b | Done | CEL engine, validation rules, dynamic defaults, DML pipeline extension |
 | Phase 8 | Done | Custom Functions — fn.* namespace, dual-stack (cel-go + cel-js), Expression Builder |
-| Phase 9a | Done | Object View Core — metadata.object_views, visual constructor (12 tabs: presentation + data contract), Describe API form resolution, section-based CRM rendering |
-| Phase 9b | Done | Navigation per profile + OV Unbinding — grouped sidebar, page nav items, OV unbound from object |
-| Phase 9c | Done | Layout + Form Resolution (ADR-0027) — metadata.layouts + shared_layouts, form merge, fallback chain, admin CRUD UI, 41 e2e tests |
-| Phase 9d | Planned | Advanced Metadata — Record Types, Dynamic Forms, Notes & Attachments |
-| Phase 10 | Done | Procedure Engine + Automation Rules — declarative JSON DSL |
-| Phase 11 | Planned | Notifications, Activity & CRM UX — kanban, calendar |
-| Phase 12 | Planned | Formula Engine — computed fields, roll-up summaries |
-| Phase 13 | Planned | Scenario Engine + Approval Processes — long-lived workflows |
+| Phase 9a | Done | Object View Core — visual constructor, Describe API form resolution, section-based CRM rendering |
+| Phase 9b | Done | Navigation per profile + OV Unbinding — grouped sidebar, page nav items |
+| Phase 9c | Done | Layout + Form Resolution — layouts + shared_layouts, form merge, fallback chain |
+| Phase 10a | Done | Procedure Engine Core — 6 command types, Named Credentials, versioning, Constructor UI |
+| Phase 10b | Done | Automation Rules — DML triggers with CEL conditions, procedure_code actions |
+| Phase 11a | **Next** | Related Lists + Reference Lookup — child records on detail page, searchable reference fields |
+| Phase 11b | Planned | List Search, Sort, Row Actions — search bar, sortable columns, quick actions |
+| Phase 11c | Planned | Recycle Bin — soft delete + restore + scheduled purge |
+| Phase 11d | Planned | CSV Import — drag-and-drop upload, field mapping, batch DML |
+| Phase 12a-d | Planned | Daily Tool — in-app notifications, email, saved list views, activity timeline, bulk actions |
+| Phase 13a-d | Planned | Production-Ready — file attachments, export, global search, audit log, formula fields |
+| Phase 14+ | Planned | Platform Completeness — scenarios, approvals, record types, advanced objects |
 
 The platform is **fully functional** across 16 completed phases (32 ADRs). It can create objects via metadata engine or App Templates, manage permissions, enforce 3-layer security (OLS/FLS/RLS), query data through SOQL, perform all DML operations with CEL-based validation rules and dynamic defaults, authenticate users via JWT, work with records through a dynamic metadata-driven UI, define reusable Custom Functions with fn.* namespace (dual-stack: cel-go backend + cel-js frontend with Expression Builder), configure **Object Views** as full bounded context adapters per profile, create **Layouts** per Object View + form factor + mode to control page structure and field presentation (with shared layouts for reuse), define **Procedures** with a visual Constructor UI (6 command types, Named Credentials, versioning, Saga rollback), set up **Automation Rules** (DML triggers with CEL conditions), and configure **per-profile Navigation** (grouped sidebar with OLS intersection, page nav items via OV api_name).
 
-Roadmap principle: **platform before features** — Notifications next, then Formulas/Scenarios. See [full roadmap](docs/roadmap.md) for details.
+Roadmap principle: **user value first** — each next phase delivers visible benefit to end users. Phase 11 makes CRM usable (related lists, search, recycle bin), Phase 12 makes it a daily tool (notifications, list views), Phase 13 makes it production-ready (files, audit, formulas). See [full roadmap](docs/roadmap.md) for details.
 
 ---
 

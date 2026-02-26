@@ -1113,6 +1113,137 @@ paths:
               schema:
                 $ref: "#/components/schemas/CelValidateResponse"
 
+  # ─── SOQL Validation ─────────────────────────────────────────
+
+  /api/v1/admin/soql/validate:
+    post:
+      summary: Validate a SOQL query
+      operationId: validateSoqlQuery
+      tags:
+        - soql
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SoqlValidateRequest"
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SoqlValidateResponse"
+
+  /api/v1/admin/soql/test:
+    post:
+      summary: Execute a SOQL query for testing (no security enforcement)
+      operationId: testSoqlQuery
+      tags:
+        - soql
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+              properties:
+                query:
+                  type: string
+                pageSize:
+                  type: integer
+                  default: 5
+                  maximum: 20
+      responses:
+        "200":
+          description: Query execution result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalSize:
+                    type: integer
+                  records:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  error:
+                    type: string
+
+  /api/v1/admin/soql/objects:
+    get:
+      summary: List all queryable objects (no OLS filtering)
+      operationId: listSoqlObjects
+      tags:
+        - soql
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of queryable objects
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        api_name:
+                          type: string
+                        label:
+                          type: string
+
+  /api/v1/admin/soql/objects/{objectName}/fields:
+    get:
+      summary: List all fields for an object (no FLS filtering)
+      operationId: listSoqlObjectFields
+      tags:
+        - soql
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: objectName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of fields
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        api_name:
+                          type: string
+                        label:
+                          type: string
+                        field_type:
+                          type: string
+        "404":
+          description: Object not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   # ─── Profile Navigation (Admin CRUD) ──────────────────────────
 
   /api/v1/admin/profile-navigation:
@@ -2692,6 +2823,48 @@ components:
           type: integer
         column:
           type: integer
+
+    # ─── SOQL Validation schemas ───────────────────────────────
+
+    SoqlValidateRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+
+    SoqlValidateResponse:
+      type: object
+      required:
+        - valid
+      properties:
+        valid:
+          type: boolean
+        object:
+          type: string
+        fields:
+          type: array
+          items:
+            type: string
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/SoqlValidateError"
+
+    SoqlValidateError:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+        line:
+          type: integer
+        column:
+          type: integer
+        code:
+          type: string
 
     # ─── Profile Navigation schemas ────────────────────────────
 

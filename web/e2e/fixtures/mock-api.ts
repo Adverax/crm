@@ -1894,6 +1894,65 @@ export async function setupSharedLayoutRoutes(page: Page) {
   }
 }
 
+// ─── SOQL Validation mock ────────────────────────────────────
+
+export async function setupSoqlRoutes(page: Page) {
+  await page.route('**/api/v1/admin/soql/validate', (route) => {
+    if (route.request().method() === 'POST') {
+      return route.fulfill({
+        json: { valid: true, object: 'Account', fields: ['Id', 'Name'] },
+      })
+    }
+    return route.continue()
+  })
+
+  // Query execution for test queries
+  await page.route('**/api/v1/admin/soql/test', (route) => {
+    if (route.request().method() === 'POST') {
+      return route.fulfill({
+        json: {
+          totalSize: 2,
+          records: [
+            { Id: 'rec1', Name: 'Acme Corp' },
+            { Id: 'rec2', Name: 'Globex Inc' },
+          ],
+        },
+      })
+    }
+    return route.continue()
+  })
+
+  // Admin SOQL objects list (no OLS)
+  await page.route('**/api/v1/admin/soql/objects', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({
+        json: {
+          data: [
+            { api_name: 'Account', label: 'Accounts' },
+            { api_name: 'Contact', label: 'Contacts' },
+          ],
+        },
+      })
+    }
+    return route.continue()
+  })
+
+  // Admin SOQL object fields (no FLS)
+  await page.route('**/api/v1/admin/soql/objects/*/fields', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({
+        json: {
+          data: [
+            { api_name: 'Name', label: 'Name', field_type: 'text' },
+            { api_name: 'Industry', label: 'Industry', field_type: 'text' },
+          ],
+        },
+      })
+    }
+    return route.continue()
+  })
+}
+
 export async function setupAllRoutes(page: Page) {
   await seedAuthToken(page)
   await setupAuthRoutes(page)
@@ -1914,4 +1973,5 @@ export async function setupAllRoutes(page: Page) {
   await setupSharedLayoutRoutes(page)
   await setupDescribeRoutes(page)
   await setupRecordRoutes(page)
+  await setupSoqlRoutes(page)
 }

@@ -4,17 +4,18 @@ import { EditorView, keymap } from '@codemirror/view'
 import { EditorState, Compartment, type Extension } from '@codemirror/state'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { bracketMatching } from '@codemirror/language'
-import { celLanguage } from '@/lib/codemirror/cel-language'
 
 const props = withDefaults(
   defineProps<{
     modelValue: string
+    language?: Extension
     extensions?: Extension[]
     height?: string
     placeholder?: string
     disabled?: boolean
   }>(),
   {
+    language: undefined,
     extensions: () => [],
     height: '120px',
     placeholder: '',
@@ -32,8 +33,12 @@ const dynamicCompartment = new Compartment()
 let isUpdating = false
 
 function createExtensions(): Extension[] {
+  const result: Extension[] = []
+  if (props.language) {
+    result.push(props.language)
+  }
   return [
-    celLanguage,
+    ...result,
     history(),
     bracketMatching(),
     keymap.of([...defaultKeymap, ...historyKeymap]),
