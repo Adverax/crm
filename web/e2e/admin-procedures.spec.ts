@@ -202,6 +202,7 @@ test.describe('Sidebar navigation', () => {
 
   test('procedures link navigates correctly', async ({ page }) => {
     await page.goto('/admin')
+    await page.locator('aside').getByText('Automation').click()
     await page.getByRole('complementary').getByRole('link', { name: 'Procedures' }).click()
     await expect(page).toHaveURL(/\/admin\/metadata\/procedures/)
   })

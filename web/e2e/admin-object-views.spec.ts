@@ -241,12 +241,13 @@ test.describe('Sidebar navigation', () => {
   })
 
   test('Object Views link appears in sidebar', async ({ page }) => {
-    await page.goto('/admin/metadata/objects')
-    await expect(page.getByRole('link', { name: 'Object Views' })).toBeVisible()
+    await page.goto('/admin/metadata/object-views')
+    await expect(page.locator('aside').getByRole('link', { name: 'Object Views' })).toBeVisible()
   })
 
   test('Object Views link navigates to list', async ({ page }) => {
     await page.goto('/admin/metadata/objects')
+    await page.locator('aside').getByText('Presentation').click()
     await page.getByRole('link', { name: 'Object Views' }).click()
     await expect(page).toHaveURL(/\/admin\/metadata\/object-views/)
   })

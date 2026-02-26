@@ -312,12 +312,13 @@ test.describe('Sidebar navigation', () => {
   })
 
   test('Layouts link appears in sidebar', async ({ page }) => {
-    await page.goto('/admin/metadata/objects')
-    await expect(page.getByRole('link', { name: 'Layouts', exact: true })).toBeVisible()
+    await page.goto('/admin/metadata/layouts')
+    await expect(page.locator('aside').getByRole('link', { name: 'Layouts', exact: true })).toBeVisible()
   })
 
   test('Layouts link navigates to list', async ({ page }) => {
     await page.goto('/admin/metadata/objects')
+    await page.locator('aside').getByText('Presentation').click()
     await page.getByRole('link', { name: 'Layouts', exact: true }).click()
     await expect(page).toHaveURL(/\/admin\/metadata\/layouts/)
   })

@@ -158,12 +158,13 @@ test.describe('Shared Layout detail page', () => {
 
 test.describe('Sidebar navigation', () => {
   test('Shared Layouts link appears in sidebar', async ({ page }) => {
-    await page.goto('/admin/metadata/objects')
+    await page.goto('/admin/metadata/shared-layouts')
     await expect(page.locator('aside').getByRole('link', { name: 'Shared Layouts' })).toBeVisible()
   })
 
   test('Shared Layouts link navigates to list', async ({ page }) => {
     await page.goto('/admin/metadata/objects')
+    await page.locator('aside').getByText('Presentation').click()
     await page.getByRole('link', { name: 'Shared Layouts' }).click()
     await expect(page).toHaveURL(/\/admin\/metadata\/shared-layouts/)
   })

@@ -12,10 +12,13 @@ test.describe('Admin layout and sidebar', () => {
     await expect(page.locator('aside').getByText('CRM Admin')).toBeVisible()
   })
 
-  test('sidebar shows top-level navigation items', async ({ page }) => {
+  test('sidebar shows navigation groups', async ({ page }) => {
     await page.goto('/admin')
     const sidebar = page.locator('aside')
-    await expect(sidebar.getByText('Objects')).toBeVisible()
+    await expect(sidebar.getByText('Schema')).toBeVisible()
+    await expect(sidebar.getByText('Presentation')).toBeVisible()
+    await expect(sidebar.getByText('Automation')).toBeVisible()
+    await expect(sidebar.getByText('Security')).toBeVisible()
     await expect(sidebar.getByText('Users')).toBeVisible()
   })
 
@@ -44,6 +47,7 @@ test.describe('Admin layout and sidebar', () => {
   test('navigates to objects via sidebar link', async ({ page }) => {
     await page.goto('/admin/security/roles')
     const sidebar = page.locator('aside')
+    await sidebar.getByText('Schema').click()
     await sidebar.getByText('Objects').click()
     await expect(page).toHaveURL(/\/admin\/metadata\/objects/)
   })

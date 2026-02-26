@@ -184,6 +184,7 @@ test.describe('Sidebar navigation', () => {
 
   test('automation rules link navigates correctly', async ({ page }) => {
     await page.goto('/admin')
+    await page.locator('aside').getByText('Automation').click()
     await page.getByRole('complementary').getByRole('link', { name: 'Automation Rules' }).click()
     await expect(page).toHaveURL(/\/admin\/metadata\/automation-rules/)
   })
