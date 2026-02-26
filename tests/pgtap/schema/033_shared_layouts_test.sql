@@ -15,7 +15,7 @@ SELECT has_column('metadata', 'shared_layouts', 'updated_at', 'has updated_at co
 
 -- Column types
 SELECT col_type_is('metadata', 'shared_layouts', 'id', 'uuid', 'id is uuid');
-SELECT col_type_is('metadata', 'shared_layouts', 'api_name', 'character varying(63)', 'api_name is varchar(63)');
+SELECT col_type_is('metadata', 'shared_layouts', 'api_name', 'character varying(100)', 'api_name is varchar(100)');
 SELECT col_type_is('metadata', 'shared_layouts', 'type', 'character varying(20)', 'type is varchar(20)');
 SELECT col_type_is('metadata', 'shared_layouts', 'config', 'jsonb', 'config is jsonb');
 

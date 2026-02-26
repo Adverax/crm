@@ -3,7 +3,8 @@ CREATE SCHEMA IF NOT EXISTS metadata;
 CREATE TABLE IF NOT EXISTS metadata.object_definitions (
     -- Идентификация
     id                       UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    api_name                 VARCHAR(100)  NOT NULL UNIQUE,
+    api_name                 VARCHAR(100)  NOT NULL UNIQUE
+                             CHECK (api_name ~ '^[a-z][a-z0-9_]*$'),
     label                    VARCHAR(255)  NOT NULL,
     plural_label             VARCHAR(255)  NOT NULL,
     description              TEXT          NOT NULL DEFAULT '',

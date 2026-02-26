@@ -1,6 +1,6 @@
 CREATE TABLE metadata.shared_layouts (
     id         UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-    api_name   VARCHAR(63)  NOT NULL,
+    api_name   VARCHAR(100) NOT NULL,
     type       VARCHAR(20)  NOT NULL,
     label      VARCHAR(255) NOT NULL DEFAULT '',
     config     JSONB        NOT NULL DEFAULT '{}',

@@ -1,7 +1,8 @@
 CREATE TABLE IF NOT EXISTS metadata.validation_rules (
     id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     object_id       UUID        NOT NULL REFERENCES metadata.object_definitions(id) ON DELETE CASCADE,
-    api_name        VARCHAR(100) NOT NULL,
+    api_name        VARCHAR(100) NOT NULL
+                    CHECK (api_name ~ '^[a-z][a-z0-9_]*$'),
     label           VARCHAR(255) NOT NULL,
     description     TEXT         NOT NULL DEFAULT '',
     expression      TEXT         NOT NULL,
