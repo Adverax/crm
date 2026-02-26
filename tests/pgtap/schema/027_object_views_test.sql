@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(11);
+SELECT plan(12);
 
 -- Table exists
 SELECT has_table('metadata', 'object_views', 'has metadata.object_views table');
