@@ -15,7 +15,6 @@ type ObjectView struct {
 	APIName     string     `json:"api_name"`
 	Label       string     `json:"label"`
 	Description string     `json:"description"`
-	IsDefault   bool       `json:"is_default"`
 	Config      OVConfig   `json:"config"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
@@ -93,12 +92,7 @@ func convertVirtualFieldsToReadComputed(vfs []OVVirtualField) []OVReadComputed {
 	}
 	result := make([]OVReadComputed, len(vfs))
 	for i, vf := range vfs {
-		result[i] = OVReadComputed{
-			Name: vf.Name,
-			Type: vf.Type,
-			Expr: vf.Expr,
-			When: vf.When,
-		}
+		result[i] = OVReadComputed(vf)
 	}
 	return result
 }
@@ -198,7 +192,6 @@ type CreateObjectViewInput struct {
 	APIName     string
 	Label       string
 	Description string
-	IsDefault   bool
 	Config      OVConfig
 }
 
@@ -206,6 +199,5 @@ type CreateObjectViewInput struct {
 type UpdateObjectViewInput struct {
 	Label       string
 	Description string
-	IsDefault   bool
 	Config      OVConfig
 }

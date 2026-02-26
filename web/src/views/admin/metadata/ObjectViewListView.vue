@@ -116,7 +116,6 @@ const breadcrumbs = [
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <Badge v-if="view.isDefault" variant="default">Default</Badge>
             <Badge v-if="view.profileId" variant="secondary">Profile-specific</Badge>
             <Badge v-else variant="outline">Global</Badge>
           </div>

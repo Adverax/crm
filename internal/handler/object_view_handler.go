@@ -34,14 +34,12 @@ type createObjectViewRequest struct {
 	APIName     string            `json:"api_name" binding:"required"`
 	Label       string            `json:"label" binding:"required"`
 	Description *string           `json:"description"`
-	IsDefault   bool              `json:"is_default"`
 	Config      metadata.OVConfig `json:"config"`
 }
 
 type updateObjectViewRequest struct {
 	Label       string            `json:"label" binding:"required"`
 	Description *string           `json:"description"`
-	IsDefault   bool              `json:"is_default"`
 	Config      metadata.OVConfig `json:"config"`
 }
 
@@ -53,10 +51,9 @@ func (h *ObjectViewHandler) Create(c *gin.Context) {
 	}
 
 	input := metadata.CreateObjectViewInput{
-		APIName:   req.APIName,
-		Label:     req.Label,
-		IsDefault: req.IsDefault,
-		Config:    req.Config,
+		APIName: req.APIName,
+		Label:   req.Label,
+		Config:  req.Config,
 	}
 	if req.Description != nil {
 		input.Description = *req.Description
@@ -119,9 +116,8 @@ func (h *ObjectViewHandler) Update(c *gin.Context) {
 	}
 
 	input := metadata.UpdateObjectViewInput{
-		Label:     req.Label,
-		IsDefault: req.IsDefault,
-		Config:    req.Config,
+		Label:  req.Label,
+		Config: req.Config,
 	}
 	if req.Description != nil {
 		input.Description = *req.Description

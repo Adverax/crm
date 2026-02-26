@@ -227,7 +227,7 @@ func (s *ServiceImpl) TestConnection(ctx context.Context, id uuid.UUID) error {
 	if err != nil {
 		return apperror.BadRequest(fmt.Sprintf("connection test failed: %s", err.Error()))
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	// Drain body to allow connection reuse
 	_, _ = io.Copy(io.Discard, resp.Body)
 
@@ -381,7 +381,7 @@ func (s *ServiceImpl) fetchOAuth2Token(ctx context.Context, auth OAuth2ClientAut
 	if err != nil {
 		return "", "", 0, fmt.Errorf("token request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

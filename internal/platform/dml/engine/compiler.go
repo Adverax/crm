@@ -277,8 +277,8 @@ func (c *Compiler) compileUpsert(validated *ValidatedDML) (*CompiledDML, error) 
 		sql.WriteString(strings.Join(updateParts, ", "))
 	} else {
 		// If only the external ID is provided, use a no-op update
-		sql.WriteString(fmt.Sprintf("%s = EXCLUDED.%s",
-			validated.ExternalIdField.Column, validated.ExternalIdField.Column))
+		fmt.Fprintf(&sql, "%s = EXCLUDED.%s",
+			validated.ExternalIdField.Column, validated.ExternalIdField.Column)
 	}
 
 	// RETURNING id

@@ -882,7 +882,7 @@ func (c *Compiler) compileSubquery(ctx *compileContext, sub *RelationshipSubquer
 	// Add LIMIT if present
 	limit := c.limits.EffectiveSubqueryLimit(sub.Limit)
 	if limit > 0 {
-		sql.WriteString(fmt.Sprintf(" LIMIT %d", limit))
+		fmt.Fprintf(&sql, " LIMIT %d", limit)
 	}
 
 	sql.WriteString(")")
@@ -1237,7 +1237,7 @@ func (c *Compiler) compileWhereSubquery(ctx *compileContext, sub *WhereSubquery)
 	}
 
 	if sub.Limit != nil {
-		sql.WriteString(fmt.Sprintf(" LIMIT %d", *sub.Limit))
+		fmt.Fprintf(&sql, " LIMIT %d", *sub.Limit)
 	}
 
 	sql.WriteString(")")

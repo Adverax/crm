@@ -75,10 +75,9 @@ function emptyWriteConfig(): Required<FormConfig>['write'] {
   }
 }
 
-const form = ref<{ label: string; description: string; isDefault: boolean; config: FormConfig }>({
+const form = ref<{ label: string; description: string; config: FormConfig }>({
   label: '',
   description: '',
-  isDefault: false,
   config: {
     read: {
       fields: [],
@@ -106,7 +105,6 @@ async function loadView() {
     form.value = {
       label: response.data.label ?? '',
       description: response.data.description ?? '',
-      isDefault: response.data.isDefault ?? false,
       config: {
         read: {
           fields: cfg?.read?.fields ?? [],
@@ -141,7 +139,6 @@ async function onSave() {
     await objectViewsApi.update(props.viewId, {
       label: form.value.label,
       description: form.value.description || undefined,
-      isDefault: form.value.isDefault,
       config: form.value.config,
     })
     toast.success('Object view updated')
@@ -221,7 +218,6 @@ const breadcrumbs = computed(() => [
             :form="form"
             @update:label="form.label = $event"
             @update:description="form.description = $event"
-            @update:is-default="form.isDefault = $event"
           />
         </TabsContent>
 

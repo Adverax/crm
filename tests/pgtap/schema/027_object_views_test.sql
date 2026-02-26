@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(14);
+SELECT plan(11);
 
 -- Table exists
 SELECT has_table('metadata', 'object_views', 'has metadata.object_views table');
@@ -10,7 +10,6 @@ SELECT has_column('metadata', 'object_views', 'profile_id', 'has profile_id colu
 SELECT has_column('metadata', 'object_views', 'api_name', 'has api_name column');
 SELECT has_column('metadata', 'object_views', 'label', 'has label column');
 SELECT has_column('metadata', 'object_views', 'description', 'has description column');
-SELECT has_column('metadata', 'object_views', 'is_default', 'has is_default column');
 SELECT has_column('metadata', 'object_views', 'config', 'has config column');
 SELECT has_column('metadata', 'object_views', 'created_at', 'has created_at column');
 SELECT has_column('metadata', 'object_views', 'updated_at', 'has updated_at column');
@@ -18,7 +17,6 @@ SELECT has_column('metadata', 'object_views', 'updated_at', 'has updated_at colu
 -- Types
 SELECT col_type_is('metadata', 'object_views', 'id', 'uuid', 'id is uuid');
 SELECT col_type_is('metadata', 'object_views', 'config', 'jsonb', 'config is jsonb');
-SELECT col_type_is('metadata', 'object_views', 'is_default', 'boolean', 'is_default is boolean');
 
 -- Constraints
 SELECT has_check('metadata', 'object_views', 'has check constraints');

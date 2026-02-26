@@ -151,7 +151,7 @@ func (e *IntegrationCommandExecutor) executeHTTP(ctx context.Context, cmd metada
 		_ = e.logUsage(ctx, credCode, usageEntry)
 		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	status := resp.StatusCode
 	usageEntry.ResponseStatus = &status

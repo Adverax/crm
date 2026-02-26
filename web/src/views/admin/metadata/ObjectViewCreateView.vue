@@ -11,7 +11,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -38,7 +37,6 @@ const form = ref({
   label: '',
   description: '',
   profileId: NONE_PROFILE,
-  isDefault: false,
 })
 
 async function loadProfiles() {
@@ -66,7 +64,6 @@ async function onSubmit() {
       apiName: form.value.apiName,
       label: form.value.label,
       description: form.value.description || undefined,
-      isDefault: form.value.isDefault,
       config: {
         read: {
           fields: [],
@@ -164,15 +161,6 @@ const breadcrumbs = computed(() => [
             />
           </div>
 
-          <div class="flex items-center gap-2">
-            <Checkbox
-              id="is-default"
-              :checked="form.isDefault"
-              data-testid="field-is-default"
-              @update:checked="(v: boolean) => (form.isDefault = v)"
-            />
-            <Label for="is-default">Default view for this object</Label>
-          </div>
         </CardContent>
       </Card>
 

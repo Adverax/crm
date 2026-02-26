@@ -37,7 +37,6 @@ func (m *mockObjectViewRepository) Create(_ context.Context, input CreateObjectV
 		APIName:     input.APIName,
 		Label:       input.Label,
 		Description: input.Description,
-		IsDefault:   input.IsDefault,
 		Config:      input.Config,
 		CreatedAt:   now,
 		UpdatedAt:   now,
@@ -70,7 +69,6 @@ func (m *mockObjectViewRepository) Update(_ context.Context, id uuid.UUID, input
 	}
 	ov.Label = input.Label
 	ov.Description = input.Description
-	ov.IsDefault = input.IsDefault
 	ov.Config = input.Config
 	ov.UpdatedAt = time.Now()
 	return ov, nil
@@ -165,9 +163,8 @@ func setupOVServiceTest(t *testing.T) (ObjectViewService, *mockObjectViewReposit
 
 func validCreateInput() CreateObjectViewInput {
 	return CreateObjectViewInput{
-		APIName:   "default_view",
-		Label:     "Default View",
-		IsDefault: true,
+		APIName: "default_view",
+		Label:   "Default View",
 		Config: OVConfig{
 			Read: OVReadConfig{
 				Fields: []string{"first_name", "last_name"},
@@ -285,7 +282,6 @@ func TestObjectViewService_Create(t *testing.T) {
 			assert.NotEqual(t, uuid.Nil, ov.ID)
 			assert.Equal(t, tt.input.APIName, ov.APIName)
 			assert.Equal(t, tt.input.Label, ov.Label)
-			assert.Equal(t, tt.input.IsDefault, ov.IsDefault)
 		})
 	}
 }
@@ -470,7 +466,6 @@ func TestObjectViewService_Update(t *testing.T) {
 			input: UpdateObjectViewInput{
 				Label:       "Updated Label",
 				Description: "Updated desc",
-				IsDefault:   false,
 			},
 		},
 		{
@@ -523,7 +518,6 @@ func TestObjectViewService_Update(t *testing.T) {
 			require.NotNil(t, ov)
 			assert.Equal(t, tt.input.Label, ov.Label)
 			assert.Equal(t, tt.input.Description, ov.Description)
-			assert.Equal(t, tt.input.IsDefault, ov.IsDefault)
 		})
 	}
 }

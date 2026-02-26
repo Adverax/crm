@@ -509,6 +509,87 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/profile-navigation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all profile navigation configs */
+        get: operations["listProfileNavigations"];
+        put?: never;
+        /** Create a profile navigation config */
+        post: operations["createProfileNavigation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/profile-navigation/{navId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                navId: components["parameters"]["NavId"];
+            };
+            cookie?: never;
+        };
+        /** Get a profile navigation config by ID */
+        get: operations["getProfileNavigation"];
+        /** Update a profile navigation config */
+        put: operations["updateProfileNavigation"];
+        post?: never;
+        /** Delete a profile navigation config */
+        delete: operations["deleteProfileNavigation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/navigation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve navigation for current user's profile
+         * @description Returns the resolved sidebar navigation for the authenticated user's profile. Object items are filtered by OLS (read permission). If no config exists for the profile, returns a fallback with a single "_default" group containing all OLS-accessible objects.
+         */
+        get: operations["resolveNavigation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/view/{ovApiName}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ovApiName: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get an object view config by API name
+         * @description Returns the full object view config for the given API name. Used by frontend to render pages assigned via Navigation config.
+         */
+        get: operations["getViewByAPIName"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -597,14 +678,10 @@ export interface components {
         };
         CreateObjectViewRequest: {
             /** Format: uuid */
-            object_id: string;
-            /** Format: uuid */
             profile_id?: string | null;
             api_name: string;
             label: string;
             description?: string;
-            /** @default false */
-            is_default: boolean;
             config?: components["schemas"]["ObjectViewConfig"];
         };
         UpdateObjectRequest: {
@@ -990,13 +1067,10 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** Format: uuid */
-            object_id: string;
-            /** Format: uuid */
             profile_id?: string | null;
             api_name: string;
             label: string;
             description: string;
-            is_default: boolean;
             config: components["schemas"]["ObjectViewConfig"];
             /** Format: date-time */
             created_at: string;
@@ -1071,7 +1145,6 @@ export interface components {
         UpdateObjectViewRequest: {
             label: string;
             description?: string;
-            is_default?: boolean;
             config?: components["schemas"]["ObjectViewConfig"];
         };
         CelValidateRequest: {
@@ -1094,6 +1167,62 @@ export interface components {
             message: string;
             line?: number;
             column?: number;
+        };
+        NavItem: {
+            /** @enum {string} */
+            type: "object" | "link" | "divider" | "page";
+            object_api_name?: string;
+            ov_api_name?: string;
+            label?: string;
+            url?: string;
+            icon?: string;
+        };
+        NavGroup: {
+            key: string;
+            label: string;
+            icon?: string;
+            items: components["schemas"]["NavItem"][];
+        };
+        NavConfig: {
+            groups: components["schemas"]["NavGroup"][];
+        };
+        ProfileNavigation: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            profile_id: string;
+            config: components["schemas"]["NavConfig"];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        CreateProfileNavigationRequest: {
+            /** Format: uuid */
+            profile_id: string;
+            config?: components["schemas"]["NavConfig"];
+        };
+        UpdateProfileNavigationRequest: {
+            config?: components["schemas"]["NavConfig"];
+        };
+        ResolvedNavItem: {
+            /** @enum {string} */
+            type: "object" | "link" | "divider" | "page";
+            object_api_name?: string;
+            ov_api_name?: string;
+            label?: string;
+            plural_label?: string;
+            url?: string;
+            icon?: string;
+        };
+        ResolvedNavGroup: {
+            key: string;
+            label: string;
+            icon?: string;
+            items: components["schemas"]["ResolvedNavItem"][];
+        };
+        ResolvedNavigation: {
+            groups: components["schemas"]["ResolvedNavGroup"][];
         };
         ErrorResponse: {
             error: components["schemas"]["ErrorBody"];
@@ -1161,6 +1290,7 @@ export interface components {
         RuleId: string;
         FunctionId: string;
         ViewId: string;
+        NavId: string;
         Page: number;
         PerPage: number;
     };
@@ -2355,6 +2485,181 @@ export interface operations {
                     "application/json": components["schemas"]["CelValidateResponse"];
                 };
             };
+        };
+    };
+    listProfileNavigations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of navigation configs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["ProfileNavigation"][];
+                    };
+                };
+            };
+        };
+    };
+    createProfileNavigation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProfileNavigationRequest"];
+            };
+        };
+        responses: {
+            /** @description Navigation config created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["ProfileNavigation"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getProfileNavigation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                navId: components["parameters"]["NavId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Navigation config details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["ProfileNavigation"];
+                    };
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateProfileNavigation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                navId: components["parameters"]["NavId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProfileNavigationRequest"];
+            };
+        };
+        responses: {
+            /** @description Navigation config updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["ProfileNavigation"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteProfileNavigation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                navId: components["parameters"]["NavId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Navigation config deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    resolveNavigation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resolved navigation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["ResolvedNavigation"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getViewByAPIName: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ovApiName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Object view config */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["ObjectView"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
         };
     };
 }

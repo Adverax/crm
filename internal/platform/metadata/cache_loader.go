@@ -177,7 +177,7 @@ func (l *PgCacheLoader) LoadAllFunctions(ctx context.Context) ([]Function, error
 func (l *PgCacheLoader) LoadAllObjectViews(ctx context.Context) ([]ObjectView, error) {
 	rows, err := l.pool.Query(ctx, `
 		SELECT id, profile_id, api_name, label, description,
-			is_default, config, created_at, updated_at
+			config, created_at, updated_at
 		FROM metadata.object_views
 		ORDER BY api_name
 	`)

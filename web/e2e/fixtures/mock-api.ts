@@ -1071,7 +1071,6 @@ export const mockObjectViews = [
     api_name: 'account_default',
     label: 'Account Default View',
     description: 'Default view for accounts',
-    is_default: true,
     config: {
       read: {
         fields: ['Name', 'Industry', 'Phone'],
@@ -1124,7 +1123,6 @@ export const mockObjectViews = [
     api_name: 'account_sales_view',
     label: 'Account Sales View',
     description: 'Sales-specific view for accounts',
-    is_default: false,
     config: {
       read: {
         fields: [],

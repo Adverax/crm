@@ -1558,9 +1558,6 @@ components:
           minLength: 1
         description:
           type: string
-        is_default:
-          type: boolean
-          default: false
         config:
           $ref: "#/components/schemas/ObjectViewConfig"
 
@@ -2426,7 +2423,6 @@ components:
         - api_name
         - label
         - description
-        - is_default
         - config
         - created_at
         - updated_at
@@ -2444,8 +2440,6 @@ components:
           type: string
         description:
           type: string
-        is_default:
-          type: boolean
         config:
           $ref: "#/components/schemas/ObjectViewConfig"
         created_at:
@@ -2641,8 +2635,6 @@ components:
           minLength: 1
         description:
           type: string
-        is_default:
-          type: boolean
         config:
           $ref: "#/components/schemas/ObjectViewConfig"
 

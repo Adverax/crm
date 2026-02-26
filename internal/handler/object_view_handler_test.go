@@ -99,9 +99,8 @@ func TestObjectViewHandler_Create(t *testing.T) {
 		{
 			name: "creates object view successfully",
 			body: map[string]interface{}{
-				"api_name":   "default_view",
-				"label":      "Default View",
-				"is_default": true,
+				"api_name": "default_view",
+				"label":    "Default View",
 				"config": map[string]interface{}{
 					"read": map[string]interface{}{
 						"fields": []string{"first_name", "last_name"},
@@ -258,7 +257,6 @@ func TestObjectViewHandler_List(t *testing.T) {
 							ID:        uuid.New(),
 							APIName:   "view_a",
 							Label:     "View A",
-							IsDefault: true,
 							CreatedAt: now,
 							UpdatedAt: now,
 						},
@@ -266,7 +264,6 @@ func TestObjectViewHandler_List(t *testing.T) {
 							ID:        uuid.New(),
 							APIName:   "view_b",
 							Label:     "View B",
-							IsDefault: false,
 							CreatedAt: now,
 							UpdatedAt: now,
 						},
@@ -332,10 +329,9 @@ func TestObjectViewHandler_Get(t *testing.T) {
 			setupSvc: func(m *mockObjectViewService) {
 				m.getByIDFn = func(_ context.Context, id uuid.UUID) (*metadata.ObjectView, error) {
 					return &metadata.ObjectView{
-						ID:        id,
-						APIName:   "default_view",
-						Label:     "Default View",
-						IsDefault: true,
+						ID:      id,
+						APIName: "default_view",
+						Label:   "Default View",
 						Config: metadata.OVConfig{
 							Read: metadata.OVReadConfig{
 								Fields: []string{"name"},
@@ -415,8 +411,7 @@ func TestObjectViewHandler_Update(t *testing.T) {
 			name: "updates successfully",
 			id:   existingID.String(),
 			body: map[string]interface{}{
-				"label":      "Updated View",
-				"is_default": true,
+				"label": "Updated View",
 				"config": map[string]interface{}{
 					"read": map[string]interface{}{
 						"fields": []string{"email", "phone"},
@@ -429,7 +424,6 @@ func TestObjectViewHandler_Update(t *testing.T) {
 						ID:        id,
 						APIName:   "default_view",
 						Label:     input.Label,
-						IsDefault: input.IsDefault,
 						Config:    input.Config,
 						CreatedAt: now,
 						UpdatedAt: time.Now(),
@@ -475,11 +469,9 @@ func TestObjectViewHandler_Update(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name: "returns 400 for missing label",
-			id:   existingID.String(),
-			body: map[string]interface{}{
-				"is_default": true,
-			},
+			name:       "returns 400 for missing label",
+			id:         existingID.String(),
+			body:       map[string]interface{}{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{

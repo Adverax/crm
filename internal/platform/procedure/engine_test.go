@@ -27,48 +27,6 @@ func newTestCELCache() *celengine.ProgramCache {
 	return celengine.NewProgramCache(env)
 }
 
-type mockProcSvc struct{}
-
-func (m *mockProcSvc) Create(_ context.Context, _ metadata.CreateProcedureInput) (*metadata.ProcedureWithVersions, error) {
-	return nil, nil
-}
-func (m *mockProcSvc) GetByID(_ context.Context, _ interface{ String() string }) (*metadata.ProcedureWithVersions, error) {
-	return nil, nil
-}
-func (m *mockProcSvc) GetByCode(_ context.Context, _ string) (*metadata.Procedure, error) {
-	return nil, nil
-}
-func (m *mockProcSvc) ListAll(_ context.Context) ([]metadata.Procedure, error) {
-	return nil, nil
-}
-func (m *mockProcSvc) Delete(_ context.Context, _ interface{ String() string }) error {
-	return nil
-}
-func (m *mockProcSvc) UpdateMetadata(_ context.Context, _ interface{ String() string }, _ metadata.UpdateProcedureMetadataInput) (*metadata.Procedure, error) {
-	return nil, nil
-}
-func (m *mockProcSvc) SaveDraft(_ context.Context, _ interface{ String() string }, _ metadata.SaveDraftInput) (*metadata.ProcedureVersion, error) {
-	return nil, nil
-}
-func (m *mockProcSvc) DiscardDraft(_ context.Context, _ interface{ String() string }) error {
-	return nil
-}
-func (m *mockProcSvc) CreateDraftFromPublished(_ context.Context, _ interface{ String() string }) (*metadata.ProcedureVersion, error) {
-	return nil, nil
-}
-func (m *mockProcSvc) Publish(_ context.Context, _ interface{ String() string }) (*metadata.ProcedureVersion, error) {
-	return nil, nil
-}
-func (m *mockProcSvc) Rollback(_ context.Context, _ interface{ String() string }) (*metadata.ProcedureVersion, error) {
-	return nil, nil
-}
-func (m *mockProcSvc) ListVersions(_ context.Context, _ interface{ String() string }) ([]metadata.ProcedureVersion, error) {
-	return nil, nil
-}
-func (m *mockProcSvc) GetPublishedDefinition(_ context.Context, _ string) (*metadata.ProcedureDefinition, error) {
-	return nil, fmt.Errorf("not found")
-}
-
 func TestEngine_ExecuteDefinition_ComputeTransform(t *testing.T) {
 	t.Parallel()
 

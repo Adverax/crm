@@ -30,15 +30,15 @@ func (r *PgObjectViewRepository) Create(ctx context.Context, input CreateObjectV
 	var configRaw []byte
 	err = r.pool.QueryRow(ctx, `
 		INSERT INTO metadata.object_views
-			(profile_id, api_name, label, description, is_default, config)
-		VALUES ($1, $2, $3, $4, $5, $6)
+			(profile_id, api_name, label, description, config)
+		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, profile_id, api_name, label, description,
-			is_default, config, created_at, updated_at`,
+			config, created_at, updated_at`,
 		input.ProfileID, input.APIName, input.Label,
-		input.Description, input.IsDefault, configJSON,
+		input.Description, configJSON,
 	).Scan(
 		&ov.ID, &ov.ProfileID, &ov.APIName, &ov.Label,
-		&ov.Description, &ov.IsDefault, &configRaw, &ov.CreatedAt, &ov.UpdatedAt,
+		&ov.Description, &configRaw, &ov.CreatedAt, &ov.UpdatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("pgObjectViewRepo.Create: %w", err)
@@ -55,12 +55,12 @@ func (r *PgObjectViewRepository) GetByID(ctx context.Context, id uuid.UUID) (*Ob
 	var configRaw []byte
 	err := r.pool.QueryRow(ctx, `
 		SELECT id, profile_id, api_name, label, description,
-			is_default, config, created_at, updated_at
+			config, created_at, updated_at
 		FROM metadata.object_views
 		WHERE id = $1`, id,
 	).Scan(
 		&ov.ID, &ov.ProfileID, &ov.APIName, &ov.Label,
-		&ov.Description, &ov.IsDefault, &configRaw, &ov.CreatedAt, &ov.UpdatedAt,
+		&ov.Description, &configRaw, &ov.CreatedAt, &ov.UpdatedAt,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -80,12 +80,12 @@ func (r *PgObjectViewRepository) GetByAPIName(ctx context.Context, apiName strin
 	var configRaw []byte
 	err := r.pool.QueryRow(ctx, `
 		SELECT id, profile_id, api_name, label, description,
-			is_default, config, created_at, updated_at
+			config, created_at, updated_at
 		FROM metadata.object_views
 		WHERE api_name = $1`, apiName,
 	).Scan(
 		&ov.ID, &ov.ProfileID, &ov.APIName, &ov.Label,
-		&ov.Description, &ov.IsDefault, &configRaw, &ov.CreatedAt, &ov.UpdatedAt,
+		&ov.Description, &configRaw, &ov.CreatedAt, &ov.UpdatedAt,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -103,7 +103,7 @@ func (r *PgObjectViewRepository) GetByAPIName(ctx context.Context, apiName strin
 func (r *PgObjectViewRepository) ListAll(ctx context.Context) ([]ObjectView, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT id, profile_id, api_name, label, description,
-			is_default, config, created_at, updated_at
+			config, created_at, updated_at
 		FROM metadata.object_views
 		ORDER BY api_name`)
 	if err != nil {
@@ -124,15 +124,15 @@ func (r *PgObjectViewRepository) Update(ctx context.Context, id uuid.UUID, input
 	var configRaw []byte
 	err = r.pool.QueryRow(ctx, `
 		UPDATE metadata.object_views SET
-			label = $2, description = $3, is_default = $4,
-			config = $5, updated_at = now()
+			label = $2, description = $3,
+			config = $4, updated_at = now()
 		WHERE id = $1
 		RETURNING id, profile_id, api_name, label, description,
-			is_default, config, created_at, updated_at`,
-		id, input.Label, input.Description, input.IsDefault, configJSON,
+			config, created_at, updated_at`,
+		id, input.Label, input.Description, configJSON,
 	).Scan(
 		&ov.ID, &ov.ProfileID, &ov.APIName, &ov.Label,
-		&ov.Description, &ov.IsDefault, &configRaw, &ov.CreatedAt, &ov.UpdatedAt,
+		&ov.Description, &configRaw, &ov.CreatedAt, &ov.UpdatedAt,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -162,7 +162,7 @@ func scanObjectViews(rows pgx.Rows) ([]ObjectView, error) {
 		var configRaw []byte
 		if err := rows.Scan(
 			&ov.ID, &ov.ProfileID, &ov.APIName, &ov.Label,
-			&ov.Description, &ov.IsDefault, &configRaw, &ov.CreatedAt, &ov.UpdatedAt,
+			&ov.Description, &configRaw, &ov.CreatedAt, &ov.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scanObjectViews: %w", err)
 		}

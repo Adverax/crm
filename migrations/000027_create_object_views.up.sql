@@ -4,7 +4,6 @@ CREATE TABLE metadata.object_views (
     api_name    VARCHAR(100) NOT NULL UNIQUE,
     label       VARCHAR(255) NOT NULL,
     description TEXT         NOT NULL DEFAULT '',
-    is_default  BOOLEAN      NOT NULL DEFAULT false,
     config      JSONB        NOT NULL DEFAULT '{}',
     created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
