@@ -2,7 +2,6 @@
 import { IconButton } from '@/components/ui/icon-button'
 import { Plus, X } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 
 const props = defineProps<{
@@ -29,7 +28,9 @@ function removeField(index: number) {
   <Card>
     <CardContent class="pt-6 space-y-4">
       <div class="flex items-center justify-between">
-        <Label class="text-base">Fields</Label>
+        <p class="text-sm text-muted-foreground">
+          Order matters — first 3 are used as highlights in the computed form.
+        </p>
         <IconButton
           :icon="Plus"
           tooltip="Add field"
@@ -38,9 +39,6 @@ function removeField(index: number) {
           @click="addField"
         />
       </div>
-      <p class="text-sm text-muted-foreground">
-        Fields included in this Object View. Order matters — first 3 are used as highlights in the computed form.
-      </p>
 
       <div
         v-for="(field, idx) in fields"

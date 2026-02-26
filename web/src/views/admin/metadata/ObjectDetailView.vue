@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useMetadataStore } from '@/stores/metadata'
 import { useObjectForm } from '@/composables/useObjectForm'
 import { useToast } from '@/composables/useToast'
+import { validationRulesApi } from '@/api/validationRules'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import ObjectFlagsSection from '@/components/admin/metadata/ObjectFlagsSection.vue'
 import ObjectTypeBadge from '@/components/admin/metadata/ObjectTypeBadge.vue'
@@ -12,9 +13,11 @@ import FieldCreateDialog from '@/components/admin/metadata/FieldCreateDialog.vue
 import FieldEditDialog from '@/components/admin/metadata/FieldEditDialog.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
+import EmptyState from '@/components/admin/EmptyState.vue'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
-import { Trash2, X } from 'lucide-vue-next'
+import { Badge } from '@/components/ui/badge'
+import { Trash2, X, Plus } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -30,8 +33,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { storeToRefs } from 'pinia'
-import { RouterLink } from 'vue-router'
 import type { FieldDefinition, Visibility } from '@/types/metadata'
+import type { ValidationRule } from '@/types/validationRules'
 
 const props = defineProps<{
   objectId: string
@@ -48,6 +51,8 @@ const activeTab = ref('info')
 const showDeleteDialog = ref(false)
 const showFieldCreate = ref(false)
 const editingField = ref<FieldDefinition | null>(null)
+const validationRules = ref<ValidationRule[]>([])
+const rulesLoading = ref(false)
 
 const flagGroups = [
   {
@@ -104,6 +109,18 @@ function onVisibilityChange(value: any) {
   state.visibility = String(value) as Visibility
 }
 
+async function loadRules() {
+  rulesLoading.value = true
+  try {
+    const res = await validationRulesApi.list(props.objectId)
+    validationRules.value = res.data ?? []
+  } catch (err) {
+    toast.errorFromApi(err)
+  } finally {
+    rulesLoading.value = false
+  }
+}
+
 async function loadData() {
   try {
     const obj = await store.fetchObject(props.objectId)
@@ -111,6 +128,7 @@ async function loadData() {
     await Promise.all([
       store.fetchFields(props.objectId),
       store.fetchObjects(),
+      loadRules(),
     ])
   } catch (err) {
     toast.errorFromApi(err)
@@ -167,6 +185,7 @@ async function onFieldDelete(field: FieldDefinition) {
 const tabLabels: Record<string, string> = {
   info: 'General',
   fields: 'Fields',
+  rules: 'Validation Rules',
 }
 
 const breadcrumbs = computed(() => {
@@ -214,13 +233,8 @@ const breadcrumbs = computed(() => {
           <TabsTrigger value="fields">
             Fields ({{ fields.length }})
           </TabsTrigger>
-          <TabsTrigger value="rules" as-child>
-            <RouterLink
-              :to="{ name: 'admin-validation-rules', params: { objectId: props.objectId } }"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium"
-            >
-              Validation Rules
-            </RouterLink>
+          <TabsTrigger value="rules">
+            Validation Rules
           </TabsTrigger>
         </TabsList>
 
@@ -309,6 +323,57 @@ const breadcrumbs = computed(() => {
               @edit="editingField = $event"
               @delete="onFieldDelete"
             />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="rules">
+          <div class="mt-4">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-lg font-semibold">Validation Rules</h2>
+              <IconButton
+                :icon="Plus"
+                tooltip="Create rule"
+                variant="default"
+                data-testid="create-rule-btn"
+                @click="router.push({ name: 'admin-validation-rule-create', params: { objectId: props.objectId } })"
+              />
+            </div>
+
+            <div v-if="rulesLoading" class="space-y-2">
+              <Skeleton class="h-16 w-full" />
+              <Skeleton class="h-16 w-full" />
+            </div>
+
+            <EmptyState
+              v-else-if="validationRules.length === 0"
+              title="No validation rules"
+              description="Create the first validation rule for this object."
+            />
+
+            <div v-else class="space-y-2">
+              <Card
+                v-for="rule in validationRules"
+                :key="rule.id"
+                class="cursor-pointer hover:bg-muted/50 transition-colors"
+                data-testid="rule-row"
+                @click="router.push({ name: 'admin-validation-rule-detail', params: { objectId: props.objectId, ruleId: rule.id } })"
+              >
+                <CardContent class="py-3 flex items-center justify-between">
+                  <div>
+                    <div class="font-medium">{{ rule.label }}</div>
+                    <div class="text-sm text-muted-foreground">{{ rule.apiName }}</div>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <Badge :variant="rule.severity === 'error' ? 'destructive' : 'secondary'">
+                      {{ rule.severity }}
+                    </Badge>
+                    <Badge v-if="!rule.isActive" variant="outline">
+                      Inactive
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </TabsContent>
       </Tabs>
