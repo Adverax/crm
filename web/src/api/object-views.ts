@@ -9,9 +9,8 @@ import type { ApiResponse } from '@/types/metadata'
 const BASE = '/api/v1/admin'
 
 export const objectViewsApi = {
-  list(objectId?: string): Promise<ApiResponse<ObjectView[]>> {
-    const params = objectId ? `?object_id=${objectId}` : ''
-    return http.get<ApiResponse<ObjectView[]>>(`${BASE}/object-views${params}`)
+  list(): Promise<ApiResponse<ObjectView[]>> {
+    return http.get<ApiResponse<ObjectView[]>>(`${BASE}/object-views`)
   },
 
   get(viewId: string): Promise<ApiResponse<ObjectView>> {

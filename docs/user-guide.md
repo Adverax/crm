@@ -105,17 +105,10 @@
     - [Resolution Logic](#163-resolution-logic)
     - [Admin UI](#164-admin-ui)
     - [API](#165-api)
-17. [Profile Dashboards](#17-profile-dashboards)
+17. [Automation Rules](#17-automation-rules)
     - [Overview](#171-overview)
-    - [Dashboard Config](#172-dashboard-config)
-    - [Widget Types](#173-widget-types)
-    - [Resolution Logic](#174-resolution-logic)
-    - [Admin UI](#175-admin-ui)
-    - [API](#176-api)
-18. [Automation Rules](#18-automation-rules)
-    - [Overview](#181-overview)
-    - [API](#182-api)
-19. [Common Scenarios](#19-common-scenarios)
+    - [API](#172-api)
+18. [Common Scenarios](#18-common-scenarios)
 
 ---
 
@@ -131,8 +124,7 @@ The CRM admin panel is designed for system administrators and allows:
 - Configuring **validation rules** — CEL expressions that check data on every save.
 - Creating **custom functions** — reusable CEL expressions callable from any context.
 - Configuring **object views** — role-based UI per profile with read config (fields, actions, queries, computed) and optional write config (validation, defaults, computed, mutations).
-- Configuring **profile navigation** — per-profile sidebar with grouped items (objects, links, dividers), OLS intersection for object items, fallback to alphabetical flat list.
-- Configuring **profile dashboards** — per-profile home page with SOQL-driven widgets (list, metric, link_list), RLS/FLS enforcement, `:currentUserId` variable substitution.
+- Configuring **profile navigation** — per-profile sidebar with grouped items (objects, links, pages, dividers), OLS intersection for object items, `ov_api_name` for page views, fallback to alphabetical flat list.
 - Building **procedures** — named JSON-described business logic sequences (record operations, computations, branching, HTTP integrations) with a visual Constructor UI, versioning (draft/published), and dry-run testing.
 - Managing **named credentials** — encrypted secret storage for HTTP integrations (API keys, basic auth, OAuth2 client credentials) with SSRF protection and usage audit logging.
 - Configuring **automation rules** — DML triggers (before/after insert/update/delete) with CEL conditions that invoke published procedures.
@@ -158,7 +150,6 @@ Sidebar structure:
 | **Functions** | `/admin/functions` |
 | **Object Views** | `/admin/metadata/object-views` |
 | **Navigation** | `/admin/metadata/navigation` |
-| **Dashboards** | `/admin/metadata/dashboards` |
 | **Procedures** | `/admin/metadata/procedures` |
 | **Credentials** | `/admin/metadata/credentials` |
 | **Automation Rules** | `/admin/metadata/automation-rules` |
@@ -2350,7 +2341,7 @@ Returns `204 No Content` on success. Returns `409 Conflict` if the function is r
 
 Object Views allow administrators to configure **role-based UI** for each object. Different profiles (Sales, Support, Management) can see different field sets and action buttons — all without code changes. Object Views also serve as a **bounded context adapter** (ADR-0022), encapsulating data contract logic (queries, computed fields, mutations, validation, defaults) alongside the presentation config. Related lists are deferred to the Layout layer (ADR-0027).
 
-Every Object View is stored as a JSONB config in the `metadata.object_views` table and is linked to a specific object. Optionally, it can be linked to a specific profile (profile-specific view) or left global (accessible as a default fallback).
+Every Object View is stored as a JSONB config in the `metadata.object_views` table with a unique `api_name`. Object Views are **not bound to a specific object** — they are standalone entities that can be used as page views (via navigation `page` items) or referenced by api_name. Optionally, an OV can be linked to a specific profile.
 
 **Why profiles, not roles?** Object Views are bound to **profiles** rather than roles because profiles and roles serve fundamentally different purposes in the security model (ADR-0009):
 
@@ -2381,11 +2372,10 @@ Object Views are created through the admin panel at `/admin/metadata/object-view
 1. Navigate to **Object Views** (`/admin/metadata/object-views`).
 2. Click the **"+"** button.
 3. Fill in the required fields:
-   - **API Name:** `account_sales_view` (lowercase with underscores)
+   - **API Name:** `account_sales_view` (lowercase with underscores, unique)
    - **Label:** "Account Sales View"
-   - **Object:** Select the target object (e.g., Account)
    - **Profile:** Optionally select a profile (e.g., Sales). Leave empty for a global view.
-   - **Is Default:** Check if this should be the default view for the object.
+   - **Is Default:** Check if this should be the default view.
 4. Click **"Create"**. You are redirected to the visual constructor.
 
 ### 13.3 Config Structure
@@ -2512,7 +2502,7 @@ The Object View detail page provides a tab-based visual constructor for editing 
 
 **Read tabs:**
 
-1. **General** — edit label, description, is_default flag. Read-only: api_name, object, profile.
+1. **General** — edit label, description, is_default flag. Read-only: api_name, profile.
 2. **Fields** — add/remove field api_names to include in this view. Order matters — first 3 become highlights in the computed form.
 3. **Actions** — add action buttons with key, label, type, icon, and a CEL visibility expression (uses the Expression Builder from Phase 8).
 4. **Queries** — define named SOQL queries scoped to this view (name, SOQL statement, optional `when` condition).
@@ -2527,15 +2517,19 @@ The Object View detail page provides a tab-based visual constructor for editing 
 
 Click **"Save"** to persist changes. All changes take effect immediately.
 
-### 13.5 Resolution Logic
+### 13.5 View Resolution
 
-When the CRM UI loads a record page, the Describe API resolves the Object View using a 3-step cascade:
+Object Views are accessed directly by `api_name` via the View endpoint:
 
-1. **Profile-specific view** — look for an Object View where `object_id` matches AND `profile_id` matches the current user's profile.
-2. **Default view** — if no profile-specific view exists, look for an Object View where `is_default = true` for this object.
-3. **Fallback** — if no Object View exists at all, the system auto-generates a form: one "Details" section with all FLS-accessible fields, first 3 fields as highlights, first 5 fields as list columns.
+```
+GET /api/v1/view/:ovApiName
+```
 
-This allows gradual adoption — the system works without any Object Views configured, and administrators can add views incrementally.
+This returns the OV config with FLS intersection applied. Navigation items of type `page` reference an OV by `ov_api_name` — clicking such an item loads the OV as a standalone page.
+
+The Describe API (`GET /api/v1/describe/:objectName`) **always returns a fallback form** — auto-generated from all FLS-accessible fields (one "Details" section, first 3 fields as highlights, first 5 as list columns). The Describe API no longer resolves Object Views.
+
+This allows gradual adoption — the system works without any Object Views configured, and administrators can add views incrementally via navigation page items.
 
 ### 13.6 FLS Intersection
 
@@ -2547,15 +2541,15 @@ The resolved Object View config is intersected with the current user's Field-Lev
 
 This ensures that even if an administrator includes a field in the Object View, users without FLS access will never see it.
 
-### 13.7 Describe API Extension
+### 13.7 Describe API (Fallback Form)
 
-The Describe API response now includes an optional `form` property alongside the existing `fields` array:
+The Describe API always returns a **fallback form** — auto-generated from all FLS-accessible fields. It no longer resolves Object Views.
 
 ```
 GET /api/v1/describe/{objectName}
 ```
 
-**Response with Object View:**
+**Response (always fallback):**
 ```json
 {
   "data": {
@@ -2569,31 +2563,24 @@ GET /api/v1/describe/{objectName}
     "form": {
       "sections": [
         {
-          "key": "client_info",
-          "label": "Client Information",
+          "key": "details",
+          "label": "Details",
           "columns": 2,
           "collapsed": false,
-          "fields": ["Name", "Industry", "Phone"]
+          "fields": ["Name", "Industry", "Phone", "Revenue"]
         }
       ],
-      "highlight_fields": ["Name", "Industry"],
-      "actions": [
-        {
-          "key": "send_proposal",
-          "label": "Send Proposal",
-          "type": "primary",
-          "icon": "mail",
-          "visibility_expr": "record.Status == 'draft'"
-        }
-      ],
-      "list_fields": ["Name", "Industry", "Phone"],
+      "highlight_fields": ["Name", "Industry", "Phone"],
+      "list_fields": ["Name", "Industry", "Phone", "Revenue", "CreatedAt"],
       "list_default_sort": "created_at DESC"
     }
   }
 }
 ```
 
-The `fields` array remains for backward compatibility. The `form` property is always present — either resolved from an Object View or auto-generated as a fallback.
+The `fields` array remains for backward compatibility. The `form` property is always present and always auto-generated from FLS-accessible fields.
+
+To get a customized view configuration, use the View endpoint: `GET /api/v1/view/:ovApiName`.
 
 ### 13.8 CRM UI Rendering
 
@@ -2617,10 +2604,9 @@ If no `form` is present (backward compatibility), the UI falls back to the origi
 
 ```
 GET /api/v1/admin/object-views
-GET /api/v1/admin/object-views?object_id={objectId}
 ```
 
-Returns all Object Views, optionally filtered by object.
+Returns all Object Views.
 
 **Response:**
 ```json
@@ -2628,7 +2614,6 @@ Returns all Object Views, optionally filtered by object.
   "data": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",
-      "object_id": "660e8400-e29b-41d4-a716-446655440000",
       "profile_id": null,
       "api_name": "account_default",
       "label": "Account Default View",
@@ -2654,7 +2639,6 @@ GET /api/v1/admin/object-views/{viewId}
 POST /api/v1/admin/object-views
 
 {
-  "object_id": "660e8400-e29b-41d4-a716-446655440000",
   "profile_id": null,
   "api_name": "account_default",
   "label": "Account Default View",
@@ -2692,7 +2676,7 @@ PUT /api/v1/admin/object-views/{viewId}
 }
 ```
 
-Note: `api_name`, `object_id`, and `profile_id` cannot be changed after creation.
+Note: `api_name` and `profile_id` cannot be changed after creation.
 
 #### Delete an Object View
 
@@ -2708,7 +2692,7 @@ Returns `204 No Content` on success.
 |-----------|-----------|
 | 400 | Invalid api_name format, missing required fields |
 | 404 | Object View not found |
-| 409 | Duplicate (object_id, profile_id) pair |
+| 409 | Duplicate api_name |
 
 ---
 
@@ -3286,7 +3270,7 @@ Profile Navigation (ADR-0032) allows administrators to configure per-profile sid
 
 Key features:
 - **Grouped navigation** — items are organized into collapsible groups (e.g., "Sales", "Support").
-- **Three item types** — `object` (links to an object's record list), `link` (external or internal URL), `divider` (visual separator).
+- **Four item types** — `object` (links to an object's record list), `link` (external or internal URL), `page` (renders an Object View as a standalone page via `ov_api_name`), `divider` (visual separator).
 - **OLS intersection** — object items are filtered by the user's read permissions. Objects the user cannot read are hidden.
 - **Fallback** — if no navigation config exists for the user's profile, the sidebar shows an OLS-filtered alphabetical list of all queryable objects (current default behavior).
 - **One config per profile** — `UNIQUE(profile_id)` constraint. `ON DELETE CASCADE` when the profile is deleted.
@@ -3306,6 +3290,7 @@ The navigation config is stored as JSONB in `metadata.profile_navigation`. Struc
         { "type": "object", "object_api_name": "Account" },
         { "type": "object", "object_api_name": "Opportunity" },
         { "type": "divider" },
+        { "type": "page", "label": "Sales Dashboard", "ov_api_name": "sales_dashboard", "icon": "layout-dashboard" },
         { "type": "link", "label": "Reports", "url": "/app/reports", "icon": "bar-chart" }
       ]
     }
@@ -3313,12 +3298,22 @@ The navigation config is stored as JSONB in `metadata.profile_navigation`. Struc
 }
 ```
 
+**Item types:**
+
+| Type | Required fields | Description |
+|------|----------------|-------------|
+| `object` | `object_api_name` | Links to object record list (`/app/{objectApiName}`) |
+| `link` | `label`, `url` | External or internal URL |
+| `page` | `label`, `ov_api_name` | Renders Object View as a standalone page (`/app/page/{ovApiName}`) |
+| `divider` | — | Visual separator |
+
 **Validation rules:**
 - Max 20 groups
 - Max 50 items per group
 - Group keys must be unique
-- Item types must be `object`, `link`, or `divider`
+- Item types must be `object`, `link`, `page`, or `divider`
 - URLs in link items: no `javascript:` scheme allowed
+- `ov_api_name` in page items must reference an existing Object View
 
 ### 16.3 Resolution Logic
 
@@ -3356,117 +3351,13 @@ Admin views for managing navigation configs:
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/api/v1/navigation` | Resolve navigation for current user's profile |
+| `GET` | `/api/v1/view/:ovApiName` | Get Object View config by api_name (with FLS intersection) |
 
 ---
 
-## 17. Profile Dashboards
+## 17. Automation Rules
 
 ### 17.1 Overview
-
-Profile Dashboards (ADR-0032) allow administrators to configure per-profile home pages with SOQL-driven widgets. Each profile can have its own dashboard with widgets showing live data from the CRM.
-
-Key features:
-- **Three widget types** — `list` (table of records), `metric` (single computed value), `link_list` (static links for quick actions).
-- **SOQL-driven data** — list and metric widgets execute SOQL queries under the user's security context (RLS/FLS enforced).
-- **Variable substitution** — `:currentUserId` in SOQL queries is replaced with the authenticated user's UUID.
-- **Per-widget timeout** — each SOQL query has a 5-second timeout. Failed queries return empty data (not an error).
-- **Fallback** — if no dashboard config exists, the home page shows an empty state.
-
-### 17.2 Dashboard Config
-
-The dashboard config is stored as JSONB in `metadata.profile_dashboards`. Structure:
-
-```json
-{
-  "widgets": [
-    {
-      "key": "my_tasks",
-      "type": "list",
-      "label": "My Tasks",
-      "size": "large",
-      "query": "SELECT Id, Subject, Status FROM Task WHERE OwnerId = :currentUserId ORDER BY CreatedAt DESC LIMIT 5",
-      "columns": ["Subject", "Status"],
-      "object_api_name": "Task"
-    },
-    {
-      "key": "open_deals",
-      "type": "metric",
-      "label": "Open Deals",
-      "size": "small",
-      "query": "SELECT COUNT(Id) FROM Opportunity WHERE Stage != 'Closed Won'",
-      "format": "number"
-    },
-    {
-      "key": "quick_actions",
-      "type": "link_list",
-      "label": "Quick Actions",
-      "size": "medium",
-      "links": [
-        { "label": "New Account", "url": "/app/Account/new", "icon": "plus" },
-        { "label": "New Contact", "url": "/app/Contact/new", "icon": "user-plus" }
-      ]
-    }
-  ]
-}
-```
-
-### 17.3 Widget Types
-
-| Type | Data Source | Fields |
-|------|-----------|--------|
-| `list` | SOQL query → records table | `query`, `columns`, `object_api_name`, `size` |
-| `metric` | SOQL query → single value | `query`, `format` (number/currency/percent), `size` |
-| `link_list` | Static links array | `links` (label + url + icon), `size` |
-
-**Size values:** `small` (4 grid columns), `medium` (6), `large` (12 — full width).
-
-**Validation rules:**
-- Max 12 widgets
-- Widget keys must be unique
-- Widget type must be `list`, `metric`, or `link_list`
-- Size must be `small`, `medium`, or `large`
-- Format (for metric) must be `number`, `currency`, or `percent`
-
-### 17.4 Resolution Logic
-
-`GET /api/v1/dashboard` resolves the dashboard for the authenticated user:
-
-1. Look up the user's `profile_id` from `UserContext`.
-2. Query `metadata.profile_dashboards` for a config matching this `profile_id`.
-3. If found: iterate widgets, execute SOQL queries for list/metric widgets (with 5s timeout), return resolved data.
-4. If not found: return `{ "widgets": [] }` (empty dashboard).
-
-### 17.5 Admin UI
-
-| View | Route | Description |
-|------|-------|-------------|
-| List | `/admin/metadata/dashboards` | Shows all configs with profile ID and widget count |
-| Create | `/admin/metadata/dashboards/new` | Form: profile ID + JSON config textarea |
-| Detail | `/admin/metadata/dashboards/:id` | Read-only profile ID + editable JSON config + Save/Delete |
-
-### 17.6 API
-
-**Admin CRUD:**
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/admin/profile-dashboards` | Create dashboard config |
-| `GET` | `/api/v1/admin/profile-dashboards` | List all dashboard configs |
-| `GET` | `/api/v1/admin/profile-dashboards/:id` | Get dashboard config by ID |
-| `PUT` | `/api/v1/admin/profile-dashboards/:id` | Update dashboard config |
-| `DELETE` | `/api/v1/admin/profile-dashboards/:id` | Delete dashboard config |
-
-**Resolution:**
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/v1/dashboard` | Resolve dashboard for current user's profile |
-
----
-
-## 18. Automation Rules
-
-### 18.1 Overview
 
 Automation Rules (ADR-0031) allow administrators to define reactive triggers on DML events. When a record is inserted, updated, or deleted, matching rules evaluate CEL conditions and execute published procedures.
 
@@ -3478,7 +3369,7 @@ Key features:
 - **Execution order**: `sort_order` field controls rule evaluation order per object per event
 - **Recursion depth limit**: configurable (default 3) to prevent infinite trigger chains
 
-### 18.2 API
+### 17.2 API
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -3490,7 +3381,7 @@ Key features:
 
 ---
 
-## 19. Common Scenarios
+## 18. Common Scenarios
 
 ### Scenario 1: First Login
 
@@ -3858,7 +3749,8 @@ The entry will appear in the `obj_invoice__share` share table with reason `manua
          "label": "Sales",
          "items": [
            { "type": "object", "object_api_name": "Account" },
-           { "type": "object", "object_api_name": "Opportunity" }
+           { "type": "object", "object_api_name": "Opportunity" },
+           { "type": "page", "label": "Sales Dashboard", "ov_api_name": "sales_dashboard", "icon": "layout-dashboard" }
          ]
        },
        {
@@ -3874,47 +3766,6 @@ The entry will appear in the `obj_invoice__share` share table with reason `manua
 5. Click **"Create"**.
 6. Log in as a user with the target profile — the sidebar now shows grouped navigation instead of the flat object list.
 
-### Scenario 29: Configure a Profile Dashboard
-
-1. Navigate to **Dashboards** (`/admin/metadata/dashboards`).
-2. Click **"+"** to create.
-3. Enter the **Profile ID** and a config JSON:
-   ```json
-   {
-     "widgets": [
-       {
-         "key": "my_tasks",
-         "type": "list",
-         "label": "My Tasks",
-         "size": "large",
-         "query": "SELECT Id, Subject, Status FROM Task WHERE OwnerId = :currentUserId LIMIT 5",
-         "columns": ["Subject", "Status"],
-         "object_api_name": "Task"
-       },
-       {
-         "key": "total_deals",
-         "type": "metric",
-         "label": "Total Deals",
-         "size": "small",
-         "query": "SELECT COUNT(Id) FROM Opportunity",
-         "format": "number"
-       },
-       {
-         "key": "quick_links",
-         "type": "link_list",
-         "label": "Quick Actions",
-         "size": "medium",
-         "links": [
-           { "label": "New Account", "url": "/app/Account/new" },
-           { "label": "New Contact", "url": "/app/Contact/new" }
-         ]
-       }
-     ]
-   }
-   ```
-4. Click **"Create"**.
-5. Log in as a user with the target profile — the `/app` home page now shows the configured dashboard widgets.
-
 ---
 
-*Document created for CRM Platform. Current for Phase 0–10b (Scaffolding, Metadata engine, Security engine, SOQL, DML, Auth, App Templates, Generic CRUD, CEL engine, Validation Rules, Dynamic Defaults, Custom Functions, Object Views, Profile Navigation, Profile Dashboards, Procedure Engine with Saga Rollback, Named Credentials, Automation Rules) + Territory Management (Enterprise).*
+*Document created for CRM Platform. Current for Phase 0–10b (Scaffolding, Metadata engine, Security engine, SOQL, DML, Auth, App Templates, Generic CRUD, CEL engine, Validation Rules, Dynamic Defaults, Custom Functions, Object Views, Profile Navigation, Procedure Engine with Saga Rollback, Named Credentials, Automation Rules) + Territory Management (Enterprise).*

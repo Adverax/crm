@@ -2,7 +2,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { objectViewsApi } from '@/api/object-views'
-import { metadataApi } from '@/api/metadata'
 import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import { Button } from '@/components/ui/button'
@@ -21,12 +20,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-interface ObjectOption {
-  id: string
-  apiName: string
-  label: string
-}
-
 interface ProfileOption {
   id: string
   label: string
@@ -38,30 +31,15 @@ const router = useRouter()
 const toast = useToast()
 const submitting = ref(false)
 
-const objects = ref<ObjectOption[]>([])
 const profiles = ref<ProfileOption[]>([])
 
 const form = ref({
   apiName: '',
   label: '',
   description: '',
-  objectId: '',
   profileId: NONE_PROFILE,
   isDefault: false,
 })
-
-async function loadObjects() {
-  try {
-    const response = await metadataApi.listObjects()
-    objects.value = (response.data ?? []).map((o) => ({
-      id: o.id,
-      apiName: o.apiName,
-      label: o.label,
-    }))
-  } catch (err) {
-    toast.errorFromApi(err)
-  }
-}
 
 async function loadProfiles() {
   try {
@@ -77,7 +55,6 @@ async function loadProfiles() {
 }
 
 onMounted(() => {
-  loadObjects()
   loadProfiles()
 })
 
@@ -85,7 +62,6 @@ async function onSubmit() {
   submitting.value = true
   try {
     const result = await objectViewsApi.create({
-      objectId: form.value.objectId,
       profileId: form.value.profileId === NONE_PROFILE ? undefined : form.value.profileId,
       apiName: form.value.apiName,
       label: form.value.label,
@@ -111,11 +87,6 @@ async function onSubmit() {
 
 function onCancel() {
   router.push({ name: 'admin-object-views' })
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function onObjectChange(value: any) {
-  form.value.objectId = String(value)
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -164,42 +135,23 @@ const breadcrumbs = computed(() => [
             </div>
           </div>
 
-          <div class="grid grid-cols-2 gap-4">
-            <div class="space-y-2">
-              <Label>Object</Label>
-              <Select :model-value="form.objectId" @update:model-value="onObjectChange">
-                <SelectTrigger data-testid="field-object">
-                  <SelectValue placeholder="Select object" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem
-                    v-for="obj in objects"
-                    :key="obj.id"
-                    :value="obj.id"
-                  >
-                    {{ obj.label }} ({{ obj.apiName }})
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div class="space-y-2">
-              <Label>Profile</Label>
-              <Select :model-value="form.profileId" @update:model-value="onProfileChange">
-                <SelectTrigger data-testid="field-profile">
-                  <SelectValue placeholder="None (global)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem :value="NONE_PROFILE">None (global)</SelectItem>
-                  <SelectItem
-                    v-for="profile in profiles"
-                    :key="profile.id"
-                    :value="profile.id"
-                  >
-                    {{ profile.label }}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div class="space-y-2">
+            <Label>Profile</Label>
+            <Select :model-value="form.profileId" @update:model-value="onProfileChange">
+              <SelectTrigger data-testid="field-profile">
+                <SelectValue placeholder="None (global)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem :value="NONE_PROFILE">None (global)</SelectItem>
+                <SelectItem
+                  v-for="profile in profiles"
+                  :key="profile.id"
+                  :value="profile.id"
+                >
+                  {{ profile.label }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div class="space-y-2">

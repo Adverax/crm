@@ -19,7 +19,7 @@ Current state and target coverage relative to Salesforce Platform.
 | Data Mutation (DML) | Insert, Update, Upsert, Delete, Undelete, Merge + triggers | INSERT/UPDATE/DELETE/UPSERT, OLS+FLS enforcement, RLS injection for UPDATE/DELETE, batch operations, Custom Functions (fn.* dual-stack), validation rules (CEL), dynamic defaults (CEL) | 65% SF |
 | Auth | OAuth 2.0, SAML, MFA, Connected Apps | JWT (access + refresh), login, password reset, rate limiting | JWT + refresh tokens |
 | Automation | Flow Builder, Triggers, Workflow Rules, Approval Processes | Automation Rules (before/after triggers, CEL conditions, procedure_code), Procedure Engine (6 command types, Named Credentials) | Triggers + basic Flows |
-| UI Framework | Lightning App Builder, LWC, Dynamic Forms | Vue.js admin + metadata-driven CRM UI (AppLayout, dynamic record views, FieldRenderer), Expression Builder (CodeMirror + autocomplete + live preview), Object View (role-based sections, actions, highlights, related lists), Profile Navigation (grouped sidebar), Profile Dashboard (SOQL widgets) | Admin + Record UI + Object Views + Nav/Dash |
+| UI Framework | Lightning App Builder, LWC, Dynamic Forms | Vue.js admin + metadata-driven CRM UI (AppLayout, dynamic record views, FieldRenderer), Expression Builder (CodeMirror + autocomplete + live preview), Object View (role-based sections, actions, highlights, related lists), Profile Navigation (grouped sidebar, page views via OV + Navigation) | Admin + Record UI + Object Views + Navigation |
 | APIs | REST, SOAP, Bulk, Streaming, Metadata, Tooling, GraphQL | REST admin endpoints (metadata + security + groups + sharing rules) | REST + Streaming |
 | Analytics | Reports, Dashboards, Einstein | Not implemented | Basic reports |
 | Integration | Platform Events, CDC, External Services | Not implemented | CDC + webhooks |
@@ -324,10 +324,10 @@ Transition from admin-only to a full CRM interface. Backend: generic CRUD endpoi
 |------------|-------|
 | Kanban view (Opportunity stages) | Phase 11 |
 | Calendar view (Events) | Phase 11 |
-| Home page with dashboards | Phase 11 |
+| Home page enhancements | Phase 11 |
 | Dynamic Forms (visibility rules) | Phase 9c |
 | Object Views per profile (role-based UI) | ✅ Phase 9a |
-| Navigation + Dashboard per profile | ✅ Phase 9b |
+| Navigation per profile + OV Unbinding | ✅ Phase 9b |
 | Mobile-responsive layout | Phase 7a (basic) |
 
 ---
@@ -370,11 +370,11 @@ Users of the same system (Sales, Warehouse, Management) see a role-specific inte
 
 #### Phase 9a: Object View Core ✅
 
-- [x] **object_views table**: `metadata.object_views (object_id, profile_id, config JSONB)`
+- [x] **object_views table**: `metadata.object_views (api_name UNIQUE, profile_id, config JSONB)`
 - [x] **Config schema**: Read (fields, actions, queries, computed) + Write (optional: validation, defaults, computed, mutations)
-- [x] **Resolution logic**: profile-specific → default → fallback (auto-generate from FLS)
+- [x] **View endpoint**: `GET /api/v1/view/:ovApiName` — returns OV config by api_name
 - [x] **FLS intersection**: Object View fields ∩ FLS-accessible fields
-- [x] **Describe API extension**: `GET /api/v1/describe/:objectName` includes resolved `form`
+- [x] **Describe API**: always returns fallback form (all FLS-accessible fields)
 - [x] **Admin REST API**: CRUD for Object Views (5 endpoints)
 - [x] **Vue.js Admin UI**: Object View list/create/detail (visual constructor: Read tabs (General, Fields, Actions, Queries, Computed) + Write tabs (Validation, Defaults, Computed, Mutations))
 - [x] **Frontend renderer**: RecordDetailView/RecordCreateView render based on Object View config (sections, field order, actions with cel-js visibility)
@@ -389,21 +389,22 @@ Users of the same system (Sales, Warehouse, Management) see a role-specific inte
 - [ ] **Admin Layout UI**: CRUD layouts, preview per form factor, sync with OV lifecycle — deferred to Phase 9d
 - [ ] **ui_kind enum**: 20+ types (auto, text, textarea, badge, lookup, rating, slider, toggle, etc.) — deferred to Phase 9d
 
-#### Phase 9b: Navigation + Dashboard per Profile ✅
+#### Phase 9b: Navigation per Profile + OV Unbinding ✅
 
+- [x] **OV Unbinding**: `object_id` removed from object_views — OV is no longer bound to a specific object
 - [x] **profile_navigation table**: `metadata.profile_navigation` (migration 000031), UNIQUE(profile_id), JSONB config
-- [x] **profile_dashboards table**: `metadata.profile_dashboards` (migration 000032), UNIQUE(profile_id), JSONB config
+- [x] **Navigation config extension**: `ov_api_name` field on nav items, `page` item type (renders OV as a standalone page)
 - [x] **Navigation service**: CRUD + `ResolveForProfile`, validation (max 20 groups, 50 items/group, URL safety)
-- [x] **Dashboard service**: CRUD + `ResolveForProfile`, validation (max 12 widgets, widget keys unique, types valid)
-- [x] **Admin REST API**: 5 navigation endpoints + 5 dashboard endpoints on `/admin/profile-navigation` and `/admin/profile-dashboards`
-- [x] **Resolution endpoints**: `GET /navigation` (OLS intersection, fallback to flat list), `GET /dashboard` (SOQL execution, `:currentUserId` substitution, 5s timeout per widget)
+- [x] **Admin REST API**: 5 navigation endpoints on `/admin/profile-navigation`
+- [x] **Resolution endpoints**: `GET /navigation` (OLS intersection, fallback to flat list), `GET /view/:ovApiName` (OV config by api_name)
 - [x] **Sidebar per profile**: AppSidebar enhanced — grouped navigation from config, collapsible groups, fallback to OLS-filtered flat list
-- [x] **Home dashboard per profile**: DashboardView with grid layout, 3 widget types (MetricWidget, ListWidget, LinkListWidget), empty state
-- [x] **Admin UI**: Navigation list/create/detail + Dashboard list/create/detail (6 views)
-- [x] **Go unit tests**: 30 tests (navigation service + dashboard service), table-driven
-- [x] **pgTAP tests**: 20 assertions (schema tests for both tables)
-- [x] **E2E tests**: 35 tests (admin-navigation: 12, admin-dashboards: 12, app-dashboard: 6, app-sidebar-navigation: 5)
-- [x] **OpenAPI spec**: 12 new endpoints + schemas
+- [x] **Welcome page**: `/app` home page shows a welcome page instead of dashboard
+- [x] **Dashboard removed**: separate dashboard entity eliminated — page-like dashboards achievable via OV + `page` nav items
+- [x] **Admin UI**: Navigation list/create/detail (3 views)
+- [x] **Go unit tests**: navigation service, table-driven
+- [x] **pgTAP tests**: schema tests for profile_navigation
+- [x] **E2E tests**: admin-navigation + app-sidebar-navigation
+- [x] **OpenAPI spec**: navigation + view endpoints + schemas
 
 #### Phase 9c: Advanced Metadata
 
@@ -483,7 +484,7 @@ CRM as a daily working tool. Notifications built on Procedure Engine.
 
 #### Phase 11b: CRM UX Enhancements
 
-- [ ] **Home dashboard**: pipeline chart, tasks due today, recent items
+- [ ] **Home page**: pipeline chart, tasks due today, recent items (via OV page views)
 - [ ] **Kanban board**: drag-and-drop for picklist stages (Opportunity, Case)
 - [ ] **Calendar view**: events display, day/week/month
 - [ ] **Pipeline reports**: grouped by stage, by owner, by period
@@ -627,7 +628,7 @@ Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ✅ �
                                                                                                           (Object View)
                                                                                                                    │
                                                                                                              Phase 9b ✅
-                                                                                                          (Nav+Dashboard)
+                                                                                                        (Nav+OV Unbinding)
                                                                                                                    │
                                                                                                              Phase 10a ✅
                                                                                                           (Procedures)
@@ -669,11 +670,11 @@ Principle: **platform before features** — features built on platform layers ar
 
 1. **Phase 8** — Custom Functions (CEL reuse foundation, ADR-0026)
 2. **Phase 9a** — Object View core (role-based UI, ADR-0022)
-3. **Phase 9b** — Navigation + Dashboard per profile
+3. **Phase 9b** — Navigation per profile + OV Unbinding
 4. **Phase 10a** — Procedure Engine core (declarative automation, ADR-0024)
 5. **Phase 10b** — Automation Rules (trigger → procedure)
 6. **Phase 11a** — Notifications & Activity (consumers of Procedure Engine)
-7. **Phase 11b** — CRM UX (dashboard, kanban, calendar)
+7. **Phase 11b** — CRM UX (home page, kanban, calendar)
 8. **Phase 12** — Formula Engine (computed fields, advanced validation)
 9. **Phase 9c** — Record Types + Dynamic Forms
 10. **Phase 13a** — Scenario Engine (ADR-0025)

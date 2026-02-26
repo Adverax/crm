@@ -7,10 +7,10 @@ import (
 	"github.com/google/uuid"
 )
 
-// ObjectView represents a profile-specific UI configuration for an object (ADR-0022).
+// ObjectView represents a UI screen configuration (ADR-0022).
+// OV is not bound to a specific object — routing is done via Navigation config.
 type ObjectView struct {
 	ID          uuid.UUID  `json:"id"`
-	ObjectID    uuid.UUID  `json:"object_id"`
 	ProfileID   *uuid.UUID `json:"profile_id"`
 	APIName     string     `json:"api_name"`
 	Label       string     `json:"label"`
@@ -194,7 +194,6 @@ type OVComputed struct {
 
 // CreateObjectViewInput is the input for creating a new Object View.
 type CreateObjectViewInput struct {
-	ObjectID    uuid.UUID
 	ProfileID   *uuid.UUID
 	APIName     string
 	Label       string

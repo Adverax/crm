@@ -33,8 +33,8 @@ tags:
     description: CEL expression validation
   - name: profile-navigation
     description: Profile navigation management (sidebar config per profile)
-  - name: profile-dashboards
-    description: Profile dashboard management (widgets per profile)
+  - name: views
+    description: Object view resolution by API name
 
 paths:
   /healthz:
@@ -1253,144 +1253,37 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
-  # ─── Profile Dashboards (Admin CRUD) ────────────────────────
+  # ─── View Resolution ────────────────────────────────────────
 
-  /api/v1/admin/profile-dashboards:
-    get:
-      summary: List all profile dashboard configs
-      operationId: listProfileDashboards
-      tags:
-        - profile-dashboards
-      security:
-        - BearerAuth: []
-      responses:
-        "200":
-          description: List of dashboard configs
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/ProfileDashboard"
-    post:
-      summary: Create a profile dashboard config
-      operationId: createProfileDashboard
-      tags:
-        - profile-dashboards
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateProfileDashboardRequest"
-      responses:
-        "201":
-          description: Dashboard config created
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    $ref: "#/components/schemas/ProfileDashboard"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "409":
-          $ref: "#/components/responses/Conflict"
-
-  /api/v1/admin/profile-dashboards/{dashId}:
+  /api/v1/view/{ovApiName}:
     parameters:
-      - $ref: "#/components/parameters/DashId"
-    get:
-      summary: Get a profile dashboard config by ID
-      operationId: getProfileDashboard
-      tags:
-        - profile-dashboards
-      security:
-        - BearerAuth: []
-      responses:
-        "200":
-          description: Dashboard config details
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    $ref: "#/components/schemas/ProfileDashboard"
-        "404":
-          $ref: "#/components/responses/NotFound"
-    put:
-      summary: Update a profile dashboard config
-      operationId: updateProfileDashboard
-      tags:
-        - profile-dashboards
-      security:
-        - BearerAuth: []
-      requestBody:
+      - name: ovApiName
+        in: path
         required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateProfileDashboardRequest"
-      responses:
-        "200":
-          description: Dashboard config updated
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    $ref: "#/components/schemas/ProfileDashboard"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "404":
-          $ref: "#/components/responses/NotFound"
-    delete:
-      summary: Delete a profile dashboard config
-      operationId: deleteProfileDashboard
-      tags:
-        - profile-dashboards
-      security:
-        - BearerAuth: []
-      responses:
-        "204":
-          description: Dashboard config deleted
-        "404":
-          $ref: "#/components/responses/NotFound"
-
-  # ─── Dashboard Resolution ───────────────────────────────────
-
-  /api/v1/dashboard:
+        schema:
+          type: string
     get:
-      summary: Resolve dashboard for current user's profile
+      summary: Get an object view config by API name
       description: >
-        Returns the resolved dashboard for the authenticated user's profile.
-        SOQL queries in list and metric widgets are executed under the user's
-        security context (RLS/FLS). The variable :currentUserId is substituted
-        with the authenticated user's ID. If no config exists, returns an empty
-        widget array.
-      operationId: resolveDashboard
+        Returns the full object view config for the given API name.
+        Used by frontend to render pages assigned via Navigation config.
+      operationId: getViewByAPIName
       tags:
-        - profile-dashboards
+        - views
       security:
         - BearerAuth: []
       responses:
         "200":
-          description: Resolved dashboard with executed widget data
+          description: Object view config
           content:
             application/json:
               schema:
                 type: object
                 properties:
                   data:
-                    $ref: "#/components/schemas/ResolvedDashboard"
+                    $ref: "#/components/schemas/ObjectView"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -1442,14 +1335,6 @@ components:
 
     NavId:
       name: navId
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-
-    DashId:
-      name: dashId
       in: path
       required: true
       schema:
@@ -1657,13 +1542,9 @@ components:
     CreateObjectViewRequest:
       type: object
       required:
-        - object_id
         - api_name
         - label
       properties:
-        object_id:
-          type: string
-          format: uuid
         profile_id:
           type: string
           format: uuid
@@ -2542,7 +2423,6 @@ components:
       type: object
       required:
         - id
-        - object_id
         - api_name
         - label
         - description
@@ -2552,9 +2432,6 @@ components:
         - updated_at
       properties:
         id:
-          type: string
-          format: uuid
-        object_id:
           type: string
           format: uuid
         profile_id:
@@ -2833,8 +2710,10 @@ components:
       properties:
         type:
           type: string
-          enum: [object, link, divider]
+          enum: [object, link, divider, page]
         object_api_name:
+          type: string
+        ov_api_name:
           type: string
         label:
           type: string
@@ -2919,8 +2798,10 @@ components:
       properties:
         type:
           type: string
-          enum: [object, link, divider]
+          enum: [object, link, divider, page]
         object_api_name:
+          type: string
+        ov_api_name:
           type: string
         label:
           type: string
@@ -2958,168 +2839,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ResolvedNavGroup"
-
-    # ─── Profile Dashboard schemas ─────────────────────────────
-
-    DashLink:
-      type: object
-      required:
-        - label
-        - url
-      properties:
-        label:
-          type: string
-        url:
-          type: string
-        icon:
-          type: string
-
-    DashboardWidget:
-      type: object
-      required:
-        - key
-        - type
-        - label
-        - size
-      properties:
-        key:
-          type: string
-        type:
-          type: string
-          enum: [list, metric, link_list]
-        label:
-          type: string
-        size:
-          type: string
-          enum: [small, medium, large]
-        query:
-          type: string
-          description: SOQL query for list/metric widgets. Supports :currentUserId variable.
-        columns:
-          type: array
-          items:
-            type: string
-        object_api_name:
-          type: string
-        format:
-          type: string
-          enum: [number, currency, percent]
-        links:
-          type: array
-          items:
-            $ref: "#/components/schemas/DashLink"
-
-    DashboardConfig:
-      type: object
-      required:
-        - widgets
-      properties:
-        widgets:
-          type: array
-          items:
-            $ref: "#/components/schemas/DashboardWidget"
-
-    ProfileDashboard:
-      type: object
-      required:
-        - id
-        - profile_id
-        - config
-        - created_at
-        - updated_at
-      properties:
-        id:
-          type: string
-          format: uuid
-        profile_id:
-          type: string
-          format: uuid
-        config:
-          $ref: "#/components/schemas/DashboardConfig"
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-
-    CreateProfileDashboardRequest:
-      type: object
-      required:
-        - profile_id
-      properties:
-        profile_id:
-          type: string
-          format: uuid
-        config:
-          $ref: "#/components/schemas/DashboardConfig"
-
-    UpdateProfileDashboardRequest:
-      type: object
-      properties:
-        config:
-          $ref: "#/components/schemas/DashboardConfig"
-
-    ListWidgetData:
-      type: object
-      properties:
-        records:
-          type: array
-          items:
-            type: object
-            additionalProperties: true
-        total_count:
-          type: integer
-
-    MetricWidgetData:
-      type: object
-      properties:
-        value: {}
-
-    ResolvedWidget:
-      type: object
-      required:
-        - key
-        - type
-        - label
-        - size
-        - data
-      properties:
-        key:
-          type: string
-        type:
-          type: string
-          enum: [list, metric, link_list]
-        label:
-          type: string
-        size:
-          type: string
-        object_api_name:
-          type: string
-        columns:
-          type: array
-          items:
-            type: string
-        format:
-          type: string
-        links:
-          type: array
-          items:
-            $ref: "#/components/schemas/DashLink"
-        data:
-          description: >
-            Widget-specific data. For list widgets: ListWidgetData (records + total_count).
-            For metric widgets: MetricWidgetData (value). For link_list widgets: null.
-
-    ResolvedDashboard:
-      type: object
-      required:
-        - widgets
-      properties:
-        widgets:
-          type: array
-          items:
-            $ref: "#/components/schemas/ResolvedWidget"
 
     ErrorResponse:
       type: object

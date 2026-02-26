@@ -1,8 +1,9 @@
 // Profile Navigation types (ADR-0032)
 
 export interface NavItem {
-  type: 'object' | 'link' | 'divider'
+  type: 'object' | 'link' | 'divider' | 'page'
   objectApiName?: string
+  ovApiName?: string
   label?: string
   url?: string
   icon?: string
@@ -38,8 +39,9 @@ export interface UpdateProfileNavigationRequest {
 
 // Resolved navigation (from GET /api/v1/navigation)
 export interface ResolvedNavItem {
-  type: 'object' | 'link' | 'divider'
+  type: 'object' | 'link' | 'divider' | 'page'
   objectApiName?: string
+  ovApiName?: string
   label?: string
   pluralLabel?: string
   url?: string

@@ -208,7 +208,7 @@ func mockCacheForProcedures() *MetadataCache {
 		reverseRels:               make(map[uuid.UUID][]RelationshipInfo),
 		validationRulesByObjectID: make(map[uuid.UUID][]ValidationRule),
 		functionsByName:           make(map[string]Function),
-		objectViewsByObjectID:     make(map[uuid.UUID][]ObjectView),
+		objectViewsByAPIName:      make(map[string]ObjectView),
 		proceduresByCode:          make(map[string]Procedure),
 		automationRulesByObjectID: make(map[uuid.UUID][]AutomationRule),
 		loader:                    &noopCacheLoader{},

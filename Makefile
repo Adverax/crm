@@ -1,4 +1,4 @@
-.PHONY: build build-ee run run-ee test test-ee test-integration lint vet fmt clean \
+.PHONY: build build-ee run run-ee stop test test-ee test-integration lint vet fmt clean \
        docker-up docker-down docker-build docker-reset \
        migrate-up migrate-down migrate-create \
        sqlc-generate generate-api web-generate-types \
@@ -25,11 +25,14 @@ build-ee:
 	go build -tags enterprise -ldflags="-s -w" -o $(BIN_DIR)/$(APP_NAME) ./cmd/api
 
 run:
-	-pkill -f 'go-build.*/api$$' 2>/dev/null || true
 	go run ./cmd/api
 
-run-ee:
+stop:
+	-docker compose stop api 2>/dev/null || true
 	-pkill -f 'go-build.*/api$$' 2>/dev/null || true
+	@echo "Server stopped"
+
+run-ee:
 	go run -tags enterprise ./cmd/api
 
 test:

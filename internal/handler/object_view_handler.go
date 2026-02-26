@@ -30,7 +30,6 @@ func (h *ObjectViewHandler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 type createObjectViewRequest struct {
-	ObjectID    string            `json:"object_id" binding:"required"`
 	ProfileID   *string           `json:"profile_id"`
 	APIName     string            `json:"api_name" binding:"required"`
 	Label       string            `json:"label" binding:"required"`
@@ -53,14 +52,7 @@ func (h *ObjectViewHandler) Create(c *gin.Context) {
 		return
 	}
 
-	objectID, err := uuid.Parse(req.ObjectID)
-	if err != nil {
-		apperror.Respond(c, apperror.BadRequest("invalid object_id"))
-		return
-	}
-
 	input := metadata.CreateObjectViewInput{
-		ObjectID:  objectID,
 		APIName:   req.APIName,
 		Label:     req.Label,
 		IsDefault: req.IsDefault,
@@ -88,22 +80,6 @@ func (h *ObjectViewHandler) Create(c *gin.Context) {
 }
 
 func (h *ObjectViewHandler) List(c *gin.Context) {
-	objectIDStr := c.Query("object_id")
-	if objectIDStr != "" {
-		objectID, err := uuid.Parse(objectIDStr)
-		if err != nil {
-			apperror.Respond(c, apperror.BadRequest("invalid object_id"))
-			return
-		}
-		views, err := h.service.ListByObjectID(c.Request.Context(), objectID)
-		if err != nil {
-			apperror.Respond(c, err)
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"data": views})
-		return
-	}
-
 	views, err := h.service.ListAll(c.Request.Context())
 	if err != nil {
 		apperror.Respond(c, err)

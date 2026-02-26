@@ -1067,7 +1067,6 @@ export async function setupFunctionRoutes(page: Page) {
 export const mockObjectViews = [
   {
     id: 'ov111111-1111-1111-1111-111111111111',
-    object_id: '11111111-1111-1111-1111-111111111111',
     profile_id: null,
     api_name: 'account_default',
     label: 'Account Default View',
@@ -1121,7 +1120,6 @@ export const mockObjectViews = [
   },
   {
     id: 'ov222222-2222-2222-2222-222222222222',
-    object_id: '11111111-1111-1111-1111-111111111111',
     profile_id: 'pf222222-2222-2222-2222-222222222222',
     api_name: 'account_sales_view',
     label: 'Account Sales View',
@@ -1142,9 +1140,6 @@ export const mockObjectViews = [
 ]
 
 export async function setupObjectViewRoutes(page: Page) {
-  await page.route('**/api/v1/admin/object-views?*', (route) => {
-    route.fulfill({ json: singleResponse(mockObjectViews) })
-  })
   await page.route('**/api/v1/admin/object-views', (route) => {
     if (route.request().method() === 'GET') {
       return route.fulfill({ json: singleResponse(mockObjectViews) })
@@ -1167,6 +1162,16 @@ export async function setupObjectViewRoutes(page: Page) {
       }
       if (route.request().method() === 'DELETE') {
         return route.fulfill({ status: 204 })
+      }
+      return route.continue()
+    })
+  }
+
+  // View resolution endpoint
+  for (const view of mockObjectViews) {
+    await page.route(`**/api/v1/view/${view.api_name}`, (route) => {
+      if (route.request().method() === 'GET') {
+        return route.fulfill({ json: singleResponse(view) })
       }
       return route.continue()
     })
@@ -1750,108 +1755,6 @@ export async function setupNavigationRoutes(page: Page) {
   })
 }
 
-// ─── Dashboard mock data ────────────────────────────────────
-
-export const mockProfileDashboards = [
-  {
-    id: 'dsh11111-1111-1111-1111-111111111111',
-    profile_id: 'prf11111-1111-1111-1111-111111111111',
-    config: {
-      widgets: [
-        {
-          key: 'tasks',
-          type: 'list',
-          label: 'My Tasks',
-          size: 'half',
-          query: 'SELECT Id, subject FROM Task LIMIT 5',
-          columns: ['subject'],
-          object_api_name: 'Task',
-        },
-        {
-          key: 'count',
-          type: 'metric',
-          label: 'Total Deals',
-          size: 'third',
-          query: 'SELECT COUNT(Id) FROM Deal',
-          format: 'number',
-        },
-      ],
-    },
-    created_at: '2026-02-25T10:00:00Z',
-    updated_at: '2026-02-25T10:00:00Z',
-  },
-]
-
-export const mockResolvedDashboard = {
-  widgets: [
-    {
-      key: 'tasks',
-      type: 'list',
-      label: 'My Tasks',
-      size: 'half',
-      object_api_name: 'Task',
-      columns: ['subject'],
-      data: {
-        records: [{ id: 'r1', subject: 'Call client' }],
-        total_count: 1,
-      },
-    },
-    {
-      key: 'count',
-      type: 'metric',
-      label: 'Total Deals',
-      size: 'third',
-      format: 'number',
-      data: { value: 42 },
-    },
-    {
-      key: 'quick',
-      type: 'link_list',
-      label: 'Quick Actions',
-      size: 'third',
-      links: [{ label: 'New Account', url: '/app/Account/new', icon: 'building' }],
-      data: null,
-    },
-  ],
-}
-
-export async function setupDashboardRoutes(page: Page) {
-  await page.route('**/api/v1/admin/profile-dashboards', (route) => {
-    if (route.request().method() === 'GET') {
-      return route.fulfill({ json: { data: mockProfileDashboards } })
-    }
-    if (route.request().method() === 'POST') {
-      return route.fulfill({
-        status: 201,
-        json: { data: { ...mockProfileDashboards[0], id: 'dsh-new-1111-1111-1111-111111111111' } },
-      })
-    }
-    return route.continue()
-  })
-
-  for (const dash of mockProfileDashboards) {
-    await page.route(`**/api/v1/admin/profile-dashboards/${dash.id}`, (route) => {
-      if (route.request().method() === 'GET') {
-        return route.fulfill({ json: { data: dash } })
-      }
-      if (route.request().method() === 'PUT') {
-        return route.fulfill({ json: { data: dash } })
-      }
-      if (route.request().method() === 'DELETE') {
-        return route.fulfill({ status: 204 })
-      }
-      return route.continue()
-    })
-  }
-
-  await page.route('**/api/v1/dashboard', (route) => {
-    if (route.request().method() === 'GET') {
-      return route.fulfill({ json: { data: mockResolvedDashboard } })
-    }
-    return route.continue()
-  })
-}
-
 export async function setupAllRoutes(page: Page) {
   await seedAuthToken(page)
   await setupAuthRoutes(page)
@@ -1868,7 +1771,6 @@ export async function setupAllRoutes(page: Page) {
   await setupCredentialRoutes(page)
   await setupAutomationRuleRoutes(page)
   await setupNavigationRoutes(page)
-  await setupDashboardRoutes(page)
   await setupDescribeRoutes(page)
   await setupRecordRoutes(page)
 }

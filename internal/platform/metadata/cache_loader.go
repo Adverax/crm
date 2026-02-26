@@ -176,10 +176,10 @@ func (l *PgCacheLoader) LoadAllFunctions(ctx context.Context) ([]Function, error
 // LoadAllObjectViews loads all object views from the database.
 func (l *PgCacheLoader) LoadAllObjectViews(ctx context.Context) ([]ObjectView, error) {
 	rows, err := l.pool.Query(ctx, `
-		SELECT id, object_id, profile_id, api_name, label, description,
+		SELECT id, profile_id, api_name, label, description,
 			is_default, config, created_at, updated_at
 		FROM metadata.object_views
-		ORDER BY object_id, api_name
+		ORDER BY api_name
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("pgCacheLoader.LoadAllObjectViews: %w", err)

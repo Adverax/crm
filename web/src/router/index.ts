@@ -35,7 +35,13 @@ const router = createRouter({
         {
           path: '',
           name: 'app-home',
-          component: () => import('../views/app/DashboardView.vue'),
+          component: () => import('../views/app/WelcomeView.vue'),
+        },
+        {
+          path: 'page/:ovApiName',
+          name: 'app-page',
+          component: () => import('../views/app/PageView.vue'),
+          props: true,
         },
         {
           path: ':objectName/new',
@@ -199,23 +205,6 @@ const router = createRouter({
           path: 'metadata/navigation/:navigationId',
           name: 'admin-navigation-detail',
           component: () => import('../views/admin/metadata/NavigationDetailView.vue'),
-          props: true,
-        },
-        // Dashboards
-        {
-          path: 'metadata/dashboards',
-          name: 'admin-dashboards',
-          component: () => import('../views/admin/metadata/DashboardListView.vue'),
-        },
-        {
-          path: 'metadata/dashboards/new',
-          name: 'admin-dashboard-create',
-          component: () => import('../views/admin/metadata/DashboardCreateView.vue'),
-        },
-        {
-          path: 'metadata/dashboards/:dashboardId',
-          name: 'admin-dashboard-detail',
-          component: () => import('../views/admin/metadata/DashboardDetailView.vue'),
           props: true,
         },
         // Templates

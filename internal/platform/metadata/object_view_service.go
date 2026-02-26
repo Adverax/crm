@@ -17,11 +17,10 @@ var validOVAPIName = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 type ObjectViewService interface {
 	Create(ctx context.Context, input CreateObjectViewInput) (*ObjectView, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*ObjectView, error)
+	GetByAPIName(ctx context.Context, apiName string) (*ObjectView, error)
 	ListAll(ctx context.Context) ([]ObjectView, error)
-	ListByObjectID(ctx context.Context, objectID uuid.UUID) ([]ObjectView, error)
 	Update(ctx context.Context, id uuid.UUID, input UpdateObjectViewInput) (*ObjectView, error)
 	Delete(ctx context.Context, id uuid.UUID) error
-	ResolveForProfile(ctx context.Context, objectID uuid.UUID, profileID uuid.UUID) (*ObjectView, error)
 }
 
 type objectViewService struct {
@@ -48,12 +47,6 @@ func (s *objectViewService) Create(ctx context.Context, input CreateObjectViewIn
 		return nil, fmt.Errorf("objectViewService.Create: %w", err)
 	}
 
-	// Verify object exists
-	if _, ok := s.cache.GetObjectByID(input.ObjectID); !ok {
-		return nil, fmt.Errorf("objectViewService.Create: %w",
-			apperror.NotFound("object", input.ObjectID.String()))
-	}
-
 	ov, err := s.repo.Create(ctx, input)
 	if err != nil {
 		return nil, fmt.Errorf("objectViewService.Create: %w", err)
@@ -78,18 +71,22 @@ func (s *objectViewService) GetByID(ctx context.Context, id uuid.UUID) (*ObjectV
 	return ov, nil
 }
 
+func (s *objectViewService) GetByAPIName(ctx context.Context, apiName string) (*ObjectView, error) {
+	ov, err := s.repo.GetByAPIName(ctx, apiName)
+	if err != nil {
+		return nil, fmt.Errorf("objectViewService.GetByAPIName: %w", err)
+	}
+	if ov == nil {
+		return nil, fmt.Errorf("objectViewService.GetByAPIName: %w",
+			apperror.NotFound("object_view", apiName))
+	}
+	return ov, nil
+}
+
 func (s *objectViewService) ListAll(ctx context.Context) ([]ObjectView, error) {
 	views, err := s.repo.ListAll(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("objectViewService.ListAll: %w", err)
-	}
-	return views, nil
-}
-
-func (s *objectViewService) ListByObjectID(ctx context.Context, objectID uuid.UUID) ([]ObjectView, error) {
-	views, err := s.repo.ListByObjectID(ctx, objectID)
-	if err != nil {
-		return nil, fmt.Errorf("objectViewService.ListByObjectID: %w", err)
 	}
 	return views, nil
 }
@@ -145,30 +142,6 @@ func (s *objectViewService) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-// ResolveForProfile implements 3-step resolution: profile-specific → default → nil.
-func (s *objectViewService) ResolveForProfile(ctx context.Context, objectID uuid.UUID, profileID uuid.UUID) (*ObjectView, error) {
-	// 1. Try profile-specific view
-	ov, err := s.repo.FindForProfile(ctx, objectID, profileID)
-	if err != nil {
-		return nil, fmt.Errorf("objectViewService.ResolveForProfile: %w", err)
-	}
-	if ov != nil {
-		return ov, nil
-	}
-
-	// 2. Try default view for the object
-	ov, err = s.repo.FindDefault(ctx, objectID)
-	if err != nil {
-		return nil, fmt.Errorf("objectViewService.ResolveForProfile: %w", err)
-	}
-	if ov != nil {
-		return ov, nil
-	}
-
-	// 3. No view found — caller will use fallback
-	return nil, nil
-}
-
 func (s *objectViewService) validateCreate(input CreateObjectViewInput) error {
 	if !validOVAPIName.MatchString(input.APIName) {
 		return apperror.BadRequest("api_name must match ^[a-z][a-z0-9_]*$")
@@ -181,9 +154,6 @@ func (s *objectViewService) validateCreate(input CreateObjectViewInput) error {
 	}
 	if len(input.Label) > 255 {
 		return apperror.BadRequest("label must be at most 255 characters")
-	}
-	if input.ObjectID == uuid.Nil {
-		return apperror.BadRequest("object_id is required")
 	}
 	return nil
 }

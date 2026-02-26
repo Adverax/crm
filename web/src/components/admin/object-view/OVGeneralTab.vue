@@ -59,15 +59,9 @@ const emit = defineEmits<{
         <Label for="is-default">Default view for this object</Label>
       </div>
 
-      <div class="grid grid-cols-2 gap-4">
-        <div class="space-y-2">
-          <Label>Object</Label>
-          <Input :model-value="view.objectId" disabled class="font-mono text-xs" />
-        </div>
-        <div class="space-y-2">
-          <Label>Profile</Label>
-          <Input :model-value="view.profileId ?? 'None (global)'" disabled class="font-mono text-xs" />
-        </div>
+      <div class="space-y-2">
+        <Label>Profile</Label>
+        <Input :model-value="view.profileId ?? 'None (global)'" disabled class="font-mono text-xs" />
       </div>
     </CardContent>
   </Card>

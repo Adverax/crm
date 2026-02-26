@@ -61,9 +61,16 @@ function toggleGroup(key: string) {
   }
 }
 
+function isPageActive(ovApiName: string): boolean {
+  return route.path === `/app/page/${ovApiName}`
+}
+
 function getItemRoute(item: ResolvedNavItem): string {
   if (item.type === 'object' && item.objectApiName) {
     return `/app/${item.objectApiName}`
+  }
+  if (item.type === 'page' && item.ovApiName) {
+    return `/app/page/${item.ovApiName}`
   }
   if (item.type === 'link' && item.url) {
     return item.url
@@ -111,6 +118,7 @@ async function onLogout() {
                   :class="{
                     'bg-accent text-accent-foreground':
                       (item.type === 'object' && item.objectApiName && isActive(item.objectApiName)) ||
+                      (item.type === 'page' && item.ovApiName && isPageActive(item.ovApiName)) ||
                       (item.type === 'link' && item.url && isLinkActive(item.url))
                   }"
                 >

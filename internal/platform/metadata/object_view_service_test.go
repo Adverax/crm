@@ -14,31 +14,25 @@ import (
 // --- Mock ObjectViewRepository ---
 
 type mockObjectViewRepository struct {
-	views    map[uuid.UUID]*ObjectView
-	byAPIKey map[string]*ObjectView // key: objectID|api_name
+	views     map[uuid.UUID]*ObjectView
+	byAPIName map[string]*ObjectView
 }
 
 func newMockOVRepo() *mockObjectViewRepository {
 	return &mockObjectViewRepository{
-		views:    make(map[uuid.UUID]*ObjectView),
-		byAPIKey: make(map[string]*ObjectView),
+		views:     make(map[uuid.UUID]*ObjectView),
+		byAPIName: make(map[string]*ObjectView),
 	}
 }
 
-func ovKey(objectID uuid.UUID, apiName string) string {
-	return objectID.String() + "|" + apiName
-}
-
 func (m *mockObjectViewRepository) Create(_ context.Context, input CreateObjectViewInput) (*ObjectView, error) {
-	key := ovKey(input.ObjectID, input.APIName)
-	if _, exists := m.byAPIKey[key]; exists {
+	if _, exists := m.byAPIName[input.APIName]; exists {
 		return nil, &duplicateError{apiName: input.APIName}
 	}
 
 	now := time.Now()
 	ov := &ObjectView{
 		ID:          uuid.New(),
-		ObjectID:    input.ObjectID,
 		ProfileID:   input.ProfileID,
 		APIName:     input.APIName,
 		Label:       input.Label,
@@ -49,7 +43,7 @@ func (m *mockObjectViewRepository) Create(_ context.Context, input CreateObjectV
 		UpdatedAt:   now,
 	}
 	m.views[ov.ID] = ov
-	m.byAPIKey[key] = ov
+	m.byAPIName[input.APIName] = ov
 	return ov, nil
 }
 
@@ -57,20 +51,14 @@ func (m *mockObjectViewRepository) GetByID(_ context.Context, id uuid.UUID) (*Ob
 	return m.views[id], nil
 }
 
+func (m *mockObjectViewRepository) GetByAPIName(_ context.Context, apiName string) (*ObjectView, error) {
+	return m.byAPIName[apiName], nil
+}
+
 func (m *mockObjectViewRepository) ListAll(_ context.Context) ([]ObjectView, error) {
 	result := make([]ObjectView, 0, len(m.views))
 	for _, ov := range m.views {
 		result = append(result, *ov)
-	}
-	return result, nil
-}
-
-func (m *mockObjectViewRepository) ListByObjectID(_ context.Context, objectID uuid.UUID) ([]ObjectView, error) {
-	var result []ObjectView
-	for _, ov := range m.views {
-		if ov.ObjectID == objectID {
-			result = append(result, *ov)
-		}
 	}
 	return result, nil
 }
@@ -91,28 +79,10 @@ func (m *mockObjectViewRepository) Update(_ context.Context, id uuid.UUID, input
 func (m *mockObjectViewRepository) Delete(_ context.Context, id uuid.UUID) error {
 	ov := m.views[id]
 	if ov != nil {
-		delete(m.byAPIKey, ovKey(ov.ObjectID, ov.APIName))
+		delete(m.byAPIName, ov.APIName)
 		delete(m.views, id)
 	}
 	return nil
-}
-
-func (m *mockObjectViewRepository) FindForProfile(_ context.Context, objectID uuid.UUID, profileID uuid.UUID) (*ObjectView, error) {
-	for _, ov := range m.views {
-		if ov.ObjectID == objectID && ov.ProfileID != nil && *ov.ProfileID == profileID {
-			return ov, nil
-		}
-	}
-	return nil, nil
-}
-
-func (m *mockObjectViewRepository) FindDefault(_ context.Context, objectID uuid.UUID) (*ObjectView, error) {
-	for _, ov := range m.views {
-		if ov.ObjectID == objectID && ov.IsDefault {
-			return ov, nil
-		}
-	}
-	return nil, nil
 }
 
 // duplicateError is used by the mock to simulate DB unique constraint violation.
@@ -169,15 +139,13 @@ func (m *mockOVCacheLoader) RefreshMaterializedView(_ context.Context) error {
 
 // --- Test helpers ---
 
-var testObjectID = uuid.New()
-
 func setupOVServiceTest(t *testing.T) (ObjectViewService, *mockObjectViewRepository, *mockOVCacheLoader) {
 	t.Helper()
 
 	repo := newMockOVRepo()
 	loader := &mockOVCacheLoader{
 		objects: []ObjectDefinition{
-			{ID: testObjectID, APIName: "contacts"},
+			{ID: uuid.New(), APIName: "contacts"},
 		},
 	}
 	cache := NewMetadataCache(loader)
@@ -189,7 +157,6 @@ func setupOVServiceTest(t *testing.T) (ObjectViewService, *mockObjectViewReposit
 
 func validCreateInput() CreateObjectViewInput {
 	return CreateObjectViewInput{
-		ObjectID:  testObjectID,
 		APIName:   "default_view",
 		Label:     "Default View",
 		IsDefault: true,
@@ -221,7 +188,6 @@ func TestObjectViewService_Create(t *testing.T) {
 		{
 			name: "creates with profile_id",
 			input: CreateObjectViewInput{
-				ObjectID:  testObjectID,
 				ProfileID: &profileID,
 				APIName:   "sales_view",
 				Label:     "Sales View",
@@ -230,9 +196,8 @@ func TestObjectViewService_Create(t *testing.T) {
 		{
 			name: "rejects empty api_name",
 			input: CreateObjectViewInput{
-				ObjectID: testObjectID,
-				APIName:  "",
-				Label:    "Test",
+				APIName: "",
+				Label:   "Test",
 			},
 			wantErr: true,
 			errMsg:  "api_name must match",
@@ -240,9 +205,8 @@ func TestObjectViewService_Create(t *testing.T) {
 		{
 			name: "rejects uppercase api_name",
 			input: CreateObjectViewInput{
-				ObjectID: testObjectID,
-				APIName:  "DefaultView",
-				Label:    "Test",
+				APIName: "DefaultView",
+				Label:   "Test",
 			},
 			wantErr: true,
 			errMsg:  "api_name must match",
@@ -250,9 +214,8 @@ func TestObjectViewService_Create(t *testing.T) {
 		{
 			name: "rejects api_name starting with number",
 			input: CreateObjectViewInput{
-				ObjectID: testObjectID,
-				APIName:  "1view",
-				Label:    "Test",
+				APIName: "1view",
+				Label:   "Test",
 			},
 			wantErr: true,
 			errMsg:  "api_name must match",
@@ -260,9 +223,8 @@ func TestObjectViewService_Create(t *testing.T) {
 		{
 			name: "rejects api_name with special characters",
 			input: CreateObjectViewInput{
-				ObjectID: testObjectID,
-				APIName:  "my-view",
-				Label:    "Test",
+				APIName: "my-view",
+				Label:   "Test",
 			},
 			wantErr: true,
 			errMsg:  "api_name must match",
@@ -270,9 +232,8 @@ func TestObjectViewService_Create(t *testing.T) {
 		{
 			name: "rejects api_name longer than 100 characters",
 			input: CreateObjectViewInput{
-				ObjectID: testObjectID,
-				APIName:  strings.Repeat("a", 101),
-				Label:    "Test",
+				APIName: strings.Repeat("a", 101),
+				Label:   "Test",
 			},
 			wantErr: true,
 			errMsg:  "api_name must be at most 100 characters",
@@ -280,9 +241,8 @@ func TestObjectViewService_Create(t *testing.T) {
 		{
 			name: "rejects empty label",
 			input: CreateObjectViewInput{
-				ObjectID: testObjectID,
-				APIName:  "my_view",
-				Label:    "",
+				APIName: "my_view",
+				Label:   "",
 			},
 			wantErr: true,
 			errMsg:  "label is required",
@@ -290,32 +250,11 @@ func TestObjectViewService_Create(t *testing.T) {
 		{
 			name: "rejects label longer than 255 characters",
 			input: CreateObjectViewInput{
-				ObjectID: testObjectID,
-				APIName:  "my_view",
-				Label:    strings.Repeat("x", 256),
+				APIName: "my_view",
+				Label:   strings.Repeat("x", 256),
 			},
 			wantErr: true,
 			errMsg:  "label must be at most 255 characters",
-		},
-		{
-			name: "rejects nil object_id",
-			input: CreateObjectViewInput{
-				ObjectID: uuid.Nil,
-				APIName:  "my_view",
-				Label:    "Test",
-			},
-			wantErr: true,
-			errMsg:  "object_id is required",
-		},
-		{
-			name: "rejects nonexistent object_id",
-			input: CreateObjectViewInput{
-				ObjectID: uuid.New(),
-				APIName:  "my_view",
-				Label:    "Test",
-			},
-			wantErr: true,
-			errMsg:  "not found",
 		},
 	}
 
@@ -336,7 +275,6 @@ func TestObjectViewService_Create(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, ov)
 			assert.NotEqual(t, uuid.Nil, ov.ID)
-			assert.Equal(t, tt.input.ObjectID, ov.ObjectID)
 			assert.Equal(t, tt.input.APIName, ov.APIName)
 			assert.Equal(t, tt.input.Label, ov.Label)
 			assert.Equal(t, tt.input.IsDefault, ov.IsDefault)
@@ -352,11 +290,10 @@ func TestObjectViewService_Create_DuplicateAPIName(t *testing.T) {
 	_, err := svc.Create(ctx, validCreateInput())
 	require.NoError(t, err)
 
-	// Same api_name + same object = duplicate
+	// Same api_name = duplicate
 	_, err = svc.Create(ctx, CreateObjectViewInput{
-		ObjectID: testObjectID,
-		APIName:  "default_view",
-		Label:    "Another Label",
+		APIName: "default_view",
+		Label:   "Another Label",
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "duplicate")
@@ -420,6 +357,53 @@ func TestObjectViewService_GetByID(t *testing.T) {
 	}
 }
 
+func TestObjectViewService_GetByAPIName(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		setup   func(svc ObjectViewService)
+		apiName string
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "returns existing view by api_name",
+			setup: func(svc ObjectViewService) {
+				_, _ = svc.Create(context.Background(), validCreateInput())
+			},
+			apiName: "default_view",
+		},
+		{
+			name:    "returns not found for nonexistent api_name",
+			setup:   func(_ ObjectViewService) {},
+			apiName: "nonexistent",
+			wantErr: true,
+			errMsg:  "not found",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			svc, _, _ := setupOVServiceTest(t)
+			tt.setup(svc)
+
+			ov, err := svc.GetByAPIName(context.Background(), tt.apiName)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, ov)
+			assert.Equal(t, tt.apiName, ov.APIName)
+		})
+	}
+}
+
 func TestObjectViewService_ListAll(t *testing.T) {
 	t.Parallel()
 
@@ -438,13 +422,13 @@ func TestObjectViewService_ListAll(t *testing.T) {
 			setup: func(svc ObjectViewService) {
 				ctx := context.Background()
 				_, _ = svc.Create(ctx, CreateObjectViewInput{
-					ObjectID: testObjectID, APIName: "view_a", Label: "View A",
+					APIName: "view_a", Label: "View A",
 				})
 				_, _ = svc.Create(ctx, CreateObjectViewInput{
-					ObjectID: testObjectID, APIName: "view_b", Label: "View B",
+					APIName: "view_b", Label: "View B",
 				})
 				_, _ = svc.Create(ctx, CreateObjectViewInput{
-					ObjectID: testObjectID, APIName: "view_c", Label: "View C",
+					APIName: "view_c", Label: "View C",
 				})
 			},
 			wantCount: 3,
@@ -458,57 +442,6 @@ func TestObjectViewService_ListAll(t *testing.T) {
 			tt.setup(svc)
 
 			views, err := svc.ListAll(context.Background())
-			require.NoError(t, err)
-			assert.Len(t, views, tt.wantCount)
-		})
-	}
-}
-
-func TestObjectViewService_ListByObjectID(t *testing.T) {
-	t.Parallel()
-
-	otherObjectID := uuid.New()
-
-	tests := []struct {
-		name      string
-		setup     func(svc ObjectViewService, loader *mockOVCacheLoader)
-		objectID  uuid.UUID
-		wantCount int
-	}{
-		{
-			name:      "returns empty when no views for object",
-			setup:     func(_ ObjectViewService, _ *mockOVCacheLoader) {},
-			objectID:  testObjectID,
-			wantCount: 0,
-		},
-		{
-			name: "returns only views for the specified object",
-			setup: func(svc ObjectViewService, loader *mockOVCacheLoader) {
-				ctx := context.Background()
-				// Add another object to cache so we can create views for it
-				loader.objects = append(loader.objects, ObjectDefinition{
-					ID: otherObjectID, APIName: "accounts",
-				})
-
-				_, _ = svc.Create(ctx, CreateObjectViewInput{
-					ObjectID: testObjectID, APIName: "contact_view", Label: "Contact View",
-				})
-				_, _ = svc.Create(ctx, CreateObjectViewInput{
-					ObjectID: testObjectID, APIName: "contact_view_2", Label: "Contact View 2",
-				})
-			},
-			objectID:  testObjectID,
-			wantCount: 2,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			svc, _, loader := setupOVServiceTest(t)
-			tt.setup(svc, loader)
-
-			views, err := svc.ListByObjectID(context.Background(), tt.objectID)
 			require.NoError(t, err)
 			assert.Len(t, views, tt.wantCount)
 		})
@@ -624,123 +557,6 @@ func TestObjectViewService_Delete_NotFound(t *testing.T) {
 	assert.Contains(t, err.Error(), "not found")
 }
 
-func TestObjectViewService_ResolveForProfile(t *testing.T) {
-	t.Parallel()
-
-	profileSales := uuid.New()
-	profileSupport := uuid.New()
-
-	tests := []struct {
-		name      string
-		setup     func(svc ObjectViewService)
-		profileID uuid.UUID
-		wantLabel string
-		wantNil   bool
-	}{
-		{
-			name: "returns profile-specific view when available",
-			setup: func(svc ObjectViewService) {
-				ctx := context.Background()
-				// Default view
-				_, _ = svc.Create(ctx, CreateObjectViewInput{
-					ObjectID:  testObjectID,
-					APIName:   "default_view",
-					Label:     "Default View",
-					IsDefault: true,
-				})
-				// Profile-specific view
-				_, _ = svc.Create(ctx, CreateObjectViewInput{
-					ObjectID:  testObjectID,
-					ProfileID: &profileSales,
-					APIName:   "sales_view",
-					Label:     "Sales View",
-				})
-			},
-			profileID: profileSales,
-			wantLabel: "Sales View",
-		},
-		{
-			name: "falls back to default when no profile-specific view",
-			setup: func(svc ObjectViewService) {
-				ctx := context.Background()
-				// Only default view
-				_, _ = svc.Create(ctx, CreateObjectViewInput{
-					ObjectID:  testObjectID,
-					APIName:   "default_view",
-					Label:     "Default View",
-					IsDefault: true,
-				})
-			},
-			profileID: profileSupport,
-			wantLabel: "Default View",
-		},
-		{
-			name: "returns nil when no views exist at all",
-			setup: func(_ ObjectViewService) {
-				// No views created
-			},
-			profileID: profileSales,
-			wantNil:   true,
-		},
-		{
-			name: "returns nil when no profile-specific and no default view",
-			setup: func(svc ObjectViewService) {
-				ctx := context.Background()
-				// Non-default, different profile
-				otherProfile := uuid.New()
-				_, _ = svc.Create(ctx, CreateObjectViewInput{
-					ObjectID:  testObjectID,
-					ProfileID: &otherProfile,
-					APIName:   "other_profile_view",
-					Label:     "Other Profile View",
-				})
-			},
-			profileID: profileSales,
-			wantNil:   true,
-		},
-		{
-			name: "prefers profile-specific over default",
-			setup: func(svc ObjectViewService) {
-				ctx := context.Background()
-				_, _ = svc.Create(ctx, CreateObjectViewInput{
-					ObjectID:  testObjectID,
-					APIName:   "default_view",
-					Label:     "Default",
-					IsDefault: true,
-				})
-				_, _ = svc.Create(ctx, CreateObjectViewInput{
-					ObjectID:  testObjectID,
-					ProfileID: &profileSales,
-					APIName:   "sales_special",
-					Label:     "Sales Special",
-				})
-			},
-			profileID: profileSales,
-			wantLabel: "Sales Special",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			svc, _, _ := setupOVServiceTest(t)
-			tt.setup(svc)
-
-			ov, err := svc.ResolveForProfile(context.Background(), testObjectID, tt.profileID)
-			require.NoError(t, err)
-
-			if tt.wantNil {
-				assert.Nil(t, ov)
-				return
-			}
-
-			require.NotNil(t, ov)
-			assert.Equal(t, tt.wantLabel, ov.Label)
-			assert.Equal(t, testObjectID, ov.ObjectID)
-		})
-	}
-}
-
 func TestObjectViewService_Create_ValidAPINamePatterns(t *testing.T) {
 	t.Parallel()
 
@@ -767,9 +583,8 @@ func TestObjectViewService_Create_ValidAPINamePatterns(t *testing.T) {
 			svc, _, _ := setupOVServiceTest(t)
 
 			_, err := svc.Create(context.Background(), CreateObjectViewInput{
-				ObjectID: testObjectID,
-				APIName:  tt.apiName,
-				Label:    "Test Label",
+				APIName: tt.apiName,
+				Label:   "Test Label",
 			})
 
 			if tt.wantErr {
@@ -779,21 +594,6 @@ func TestObjectViewService_Create_ValidAPINamePatterns(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestObjectViewService_Create_ObjectExistenceCheck(t *testing.T) {
-	t.Parallel()
-	svc, _, _ := setupOVServiceTest(t)
-
-	nonexistentObjectID := uuid.New()
-	_, err := svc.Create(context.Background(), CreateObjectViewInput{
-		ObjectID: nonexistentObjectID,
-		APIName:  "my_view",
-		Label:    "Test",
-	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "not found")
-	assert.Contains(t, err.Error(), "object")
 }
 
 func TestObjectViewService_ErrorWrapping(t *testing.T) {
@@ -808,9 +608,8 @@ func TestObjectViewService_ErrorWrapping(t *testing.T) {
 			name: "Create wraps with method name",
 			operation: func(svc ObjectViewService) error {
 				_, err := svc.Create(context.Background(), CreateObjectViewInput{
-					ObjectID: uuid.Nil,
-					APIName:  "test",
-					Label:    "Test",
+					APIName: "",
+					Label:   "Test",
 				})
 				return err
 			},
@@ -823,6 +622,14 @@ func TestObjectViewService_ErrorWrapping(t *testing.T) {
 				return err
 			},
 			wantPrefix: "objectViewService.GetByID:",
+		},
+		{
+			name: "GetByAPIName wraps with method name",
+			operation: func(svc ObjectViewService) error {
+				_, err := svc.GetByAPIName(context.Background(), "nonexistent")
+				return err
+			},
+			wantPrefix: "objectViewService.GetByAPIName:",
 		},
 		{
 			name: "Update wraps with method name",
@@ -838,15 +645,6 @@ func TestObjectViewService_ErrorWrapping(t *testing.T) {
 				return svc.Delete(context.Background(), uuid.New())
 			},
 			wantPrefix: "objectViewService.Delete:",
-		},
-		{
-			name: "ResolveForProfile wraps with method name on success path",
-			operation: func(svc ObjectViewService) error {
-				// ResolveForProfile returns nil, nil when not found, so we just verify no error
-				_, err := svc.ResolveForProfile(context.Background(), testObjectID, uuid.New())
-				return err
-			},
-			wantPrefix: "", // no error expected
 		},
 	}
 
@@ -868,7 +666,7 @@ func TestObjectViewService_ErrorWrapping(t *testing.T) {
 	}
 }
 
-func TestObjectViewService_Update_PreservesObjectID(t *testing.T) {
+func TestObjectViewService_Update_PreservesAPIName(t *testing.T) {
 	t.Parallel()
 	svc, _, _ := setupOVServiceTest(t)
 	ctx := context.Background()
@@ -883,8 +681,7 @@ func TestObjectViewService_Update_PreservesObjectID(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, updated)
 
-	// Object ID and API name should remain unchanged
-	assert.Equal(t, created.ObjectID, updated.ObjectID)
+	// API name should remain unchanged
 	assert.Equal(t, created.APIName, updated.APIName)
 	assert.Equal(t, created.ID, updated.ID)
 	assert.Equal(t, "New Label", updated.Label)
@@ -913,12 +710,12 @@ func TestObjectViewService_ListAll_AfterCreateAndDelete(t *testing.T) {
 	ctx := context.Background()
 
 	ov1, err := svc.Create(ctx, CreateObjectViewInput{
-		ObjectID: testObjectID, APIName: "view_one", Label: "View One",
+		APIName: "view_one", Label: "View One",
 	})
 	require.NoError(t, err)
 
 	_, err = svc.Create(ctx, CreateObjectViewInput{
-		ObjectID: testObjectID, APIName: "view_two", Label: "View Two",
+		APIName: "view_two", Label: "View Two",
 	})
 	require.NoError(t, err)
 

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -19,7 +18,6 @@ type DescribeHandler struct {
 	cache       metadata.MetadataReader
 	olsEnforcer ols.Enforcer
 	flsEnforcer fls.Enforcer
-	ovService   metadata.ObjectViewService
 }
 
 // NewDescribeHandler creates a new DescribeHandler.
@@ -27,13 +25,11 @@ func NewDescribeHandler(
 	cache metadata.MetadataReader,
 	olsEnforcer ols.Enforcer,
 	flsEnforcer fls.Enforcer,
-	ovService metadata.ObjectViewService,
 ) *DescribeHandler {
 	return &DescribeHandler{
 		cache:       cache,
 		olsEnforcer: olsEnforcer,
 		flsEnforcer: flsEnforcer,
-		ovService:   ovService,
 	}
 }
 
@@ -178,26 +174,8 @@ func (h *DescribeHandler) DescribeObject(c *gin.Context) {
 
 	allFields := append(systemFields, userFields...)
 
-	// Build accessible field set for FLS intersection
-	accessibleFields := make(map[string]bool, len(allFields))
-	for _, f := range allFields {
-		accessibleFields[f.APIName] = true
-	}
-
-	// Resolve Object View form
-	var form *formDescribe
-	if h.ovService != nil {
-		ov, err := h.ovService.ResolveForProfile(c.Request.Context(), objDef.ID, uc.ProfileID)
-		if err != nil {
-			slog.Warn("describeHandler: failed to resolve object view", "error", err, "object", objectName)
-		}
-		if ov != nil {
-			form = buildFormFromOV(ov, accessibleFields)
-		}
-	}
-	if form == nil {
-		form = buildFallbackForm(allFields)
-	}
+	// Always use fallback form — OV routing is via Navigation config
+	form := buildFallbackForm(allFields)
 
 	desc := objectDescribe{
 		APIName:      objDef.APIName,
@@ -221,57 +199,6 @@ func buildSystemFieldDescriptions() []fieldDescribe {
 		{APIName: "UpdatedAt", Label: "Дата обновления", FieldType: "datetime", IsReadOnly: true, IsSystemField: true, SortOrder: -3},
 		{APIName: "CreatedById", Label: "Кем создано", FieldType: "reference", IsReadOnly: true, IsSystemField: true, SortOrder: -2},
 		{APIName: "UpdatedById", Label: "Кем обновлено", FieldType: "reference", IsReadOnly: true, IsSystemField: true, SortOrder: -1},
-	}
-}
-
-func buildFormFromOV(ov *metadata.ObjectView, accessible map[string]bool) *formDescribe {
-	cfg := ov.Config
-
-	// FLS-intersect fields
-	fields := filterAccessible(cfg.Read.Fields, accessible)
-
-	// Auto-generate single "Details" section from flat field list
-	sections := []formSection{}
-	if len(fields) > 0 {
-		sections = append(sections, formSection{
-			Key:     "details",
-			Label:   "Details",
-			Columns: 2,
-			Fields:  fields,
-		})
-	}
-
-	// Auto-generate highlight: first 3 fields
-	highlightFields := fields
-	if len(highlightFields) > 3 {
-		highlightFields = highlightFields[:3]
-	}
-
-	// Actions — pass through (visibility checked on frontend via CEL-js)
-	actions := make([]formAction, len(cfg.Read.Actions))
-	for i, a := range cfg.Read.Actions {
-		actions[i] = formAction{
-			Key:            a.Key,
-			Label:          a.Label,
-			Type:           a.Type,
-			Icon:           a.Icon,
-			VisibilityExpr: a.VisibilityExpr,
-		}
-	}
-
-	// Related lists — empty until Layout phase (ADR-0027)
-	relatedLists := []formRelatedList{}
-
-	// Auto-generate list fields from fields (FLS already applied above)
-	listFields := fields
-
-	return &formDescribe{
-		Sections:        sections,
-		HighlightFields: highlightFields,
-		Actions:         actions,
-		RelatedLists:    relatedLists,
-		ListFields:      listFields,
-		ListDefaultSort: "created_at DESC",
 	}
 }
 
@@ -315,16 +242,6 @@ func buildFallbackForm(fields []fieldDescribe) *formDescribe {
 		RelatedLists:    []formRelatedList{},
 		ListFields:      listFields,
 	}
-}
-
-func filterAccessible(names []string, accessible map[string]bool) []string {
-	result := make([]string, 0, len(names))
-	for _, name := range names {
-		if accessible[name] {
-			result = append(result, name)
-		}
-	}
-	return result
 }
 
 func (h *DescribeHandler) buildUserFields(c *gin.Context, userID uuid.UUID, objDef metadata.ObjectDefinition) []fieldDescribe {

@@ -73,7 +73,6 @@ test.describe('Object View create page', () => {
     await page.goto('/admin/metadata/object-views/new')
     await expect(page.locator('[data-testid="field-api-name"]')).toBeVisible()
     await expect(page.locator('[data-testid="field-label"]')).toBeVisible()
-    await expect(page.locator('[data-testid="field-object"]')).toBeVisible()
     await expect(page.locator('[data-testid="field-description"]')).toBeVisible()
   })
 
@@ -100,10 +99,6 @@ test.describe('Object View create page', () => {
 
     await page.locator('[data-testid="field-api-name"]').fill('test_view')
     await page.locator('[data-testid="field-label"]').fill('Test View')
-
-    // Select object from dropdown
-    await page.locator('[data-testid="field-object"]').click()
-    await page.getByRole('option').first().click()
 
     const requestPromise = page.waitForRequest(
       (req) =>

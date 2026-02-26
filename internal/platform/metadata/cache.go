@@ -34,7 +34,7 @@ type MetadataReader interface {
 	GetValidationRules(objectID uuid.UUID) []ValidationRule
 	GetFunctions() []Function
 	GetFunctionByName(name string) (Function, bool)
-	GetObjectViews(objectID uuid.UUID) []ObjectView
+	GetObjectViewByAPIName(apiName string) (ObjectView, bool)
 	GetProcedureByCode(code string) (Procedure, bool)
 	GetProcedures() []Procedure
 	GetAutomationRules(objectID uuid.UUID) []AutomationRule
@@ -61,7 +61,7 @@ type MetadataCache struct {
 	functionsByName map[string]Function
 
 	// Object views (ADR-0022)
-	objectViewsByObjectID map[uuid.UUID][]ObjectView
+	objectViewsByAPIName map[string]ObjectView
 
 	// Procedures (ADR-0024)
 	proceduresByCode map[string]Procedure
@@ -84,7 +84,7 @@ func NewMetadataCache(loader CacheLoader) *MetadataCache {
 		reverseRels:               make(map[uuid.UUID][]RelationshipInfo),
 		validationRulesByObjectID: make(map[uuid.UUID][]ValidationRule),
 		functionsByName:           make(map[string]Function),
-		objectViewsByObjectID:     make(map[uuid.UUID][]ObjectView),
+		objectViewsByAPIName:      make(map[string]ObjectView),
 		proceduresByCode:          make(map[string]Procedure),
 		automationRulesByObjectID: make(map[uuid.UUID][]AutomationRule),
 		loader:                    loader,
@@ -169,9 +169,9 @@ func (c *MetadataCache) Load(ctx context.Context) error {
 		c.functionsByName[fn.Name] = fn
 	}
 
-	c.objectViewsByObjectID = make(map[uuid.UUID][]ObjectView)
+	c.objectViewsByAPIName = make(map[string]ObjectView, len(objectViews))
 	for _, ov := range objectViews {
-		c.objectViewsByObjectID[ov.ObjectID] = append(c.objectViewsByObjectID[ov.ObjectID], ov)
+		c.objectViewsByAPIName[ov.APIName] = ov
 	}
 
 	c.proceduresByCode = make(map[string]Procedure, len(procedures))
@@ -312,11 +312,12 @@ func (c *MetadataCache) LoadFunctions(ctx context.Context) error {
 	return nil
 }
 
-// GetObjectViews returns all object views for an object from cache.
-func (c *MetadataCache) GetObjectViews(objectID uuid.UUID) []ObjectView {
+// GetObjectViewByAPIName returns an object view by API name from cache.
+func (c *MetadataCache) GetObjectViewByAPIName(apiName string) (ObjectView, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.objectViewsByObjectID[objectID]
+	ov, ok := c.objectViewsByAPIName[apiName]
+	return ov, ok
 }
 
 // LoadObjectViews reloads only object views into the cache.
@@ -329,9 +330,9 @@ func (c *MetadataCache) LoadObjectViews(ctx context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.objectViewsByObjectID = make(map[uuid.UUID][]ObjectView)
+	c.objectViewsByAPIName = make(map[string]ObjectView, len(views))
 	for _, ov := range views {
-		c.objectViewsByObjectID[ov.ObjectID] = append(c.objectViewsByObjectID[ov.ObjectID], ov)
+		c.objectViewsByAPIName[ov.APIName] = ov
 	}
 	return nil
 }
