@@ -2,9 +2,10 @@
 import { ref, computed, onMounted } from 'vue'
 import type { Extension } from '@codemirror/state'
 import { IconButton } from '@/components/ui/icon-button'
-import { Code, Type, Check, Eye, EyeOff } from 'lucide-vue-next'
+import { Code, Type, Check, Eye, EyeOff, Braces } from 'lucide-vue-next'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import CodeMirrorEditor from './CodeMirrorEditor.vue'
 import FieldPicker from './FieldPicker.vue'
 import FunctionPicker from './FunctionPicker.vue'
@@ -138,7 +139,7 @@ function onJumpToError(line: number, column: number) {
   }
 }
 
-const showSidePanel = computed(() => {
+const showHelper = computed(() => {
   if (!props.showFieldPicker) return false
   return fields.value.length > 0 ||
     props.functionParams.length > 0 ||
@@ -183,6 +184,55 @@ const hasFunctions = computed(() => functionsStore.functions.length > 0)
         data-testid="preview-toggle"
         @click="showPreview = !showPreview"
       />
+      <Popover v-if="showHelper">
+        <PopoverTrigger as-child>
+          <IconButton
+            type="button"
+            :icon="Braces"
+            tooltip="Fields & Functions"
+            variant="ghost"
+            size="icon-sm"
+            class="h-7 w-7"
+            data-testid="helper-btn"
+          />
+        </PopoverTrigger>
+        <PopoverContent
+          side="bottom"
+          align="end"
+          class="w-72 p-3"
+          @open-auto-focus.prevent
+        >
+          <Tabs v-model="pickerTab" class="w-full">
+            <TabsList class="h-8 w-full" data-testid="picker-tabs">
+              <TabsTrigger value="fields" class="text-xs h-7 flex-1">
+                Fields
+              </TabsTrigger>
+              <TabsTrigger
+                v-if="hasFunctions || context !== 'function_body'"
+                value="functions"
+                class="text-xs h-7 flex-1"
+                data-testid="functions-tab"
+              >
+                Functions
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="fields" class="mt-2 max-h-80 overflow-y-auto">
+              <FieldPicker
+                :fields="fields"
+                :params="functionParams"
+                :context="context"
+                class="!w-full !border-0 !pl-0"
+                @insert="onInsertFromPicker"
+              />
+            </TabsContent>
+
+            <TabsContent value="functions" class="mt-2 max-h-80 overflow-y-auto" data-testid="functions-tab-content">
+              <FunctionPicker @insert="onInsertFromPicker" />
+            </TabsContent>
+          </Tabs>
+        </PopoverContent>
+      </Popover>
       <span
         v-if="returnType"
         class="text-xs text-muted-foreground"
@@ -192,63 +242,26 @@ const hasFunctions = computed(() => functionsStore.functions.length > 0)
       </span>
     </div>
 
-    <!-- Editor + Side Panel -->
-    <div class="flex gap-3">
-      <div class="flex-1 min-w-0">
-        <CodeMirrorEditor
-          v-if="mode === 'editor'"
-          ref="editorRef"
-          :model-value="modelValue"
-          :extensions="autocompleteExtension"
-          :height="height"
-          :disabled="disabled"
-          @update:model-value="onInput"
-        />
-        <Textarea
-          v-else
-          :model-value="modelValue"
-          :rows="4"
-          :placeholder="placeholder"
-          :disabled="disabled"
-          class="font-mono text-sm"
-          data-testid="expression-textarea"
-          @update:model-value="onInput"
-        />
-      </div>
-
-      <!-- Side panel with tabs -->
-      <div v-if="showSidePanel" class="w-60 border-l pl-3">
-        <Tabs v-model="pickerTab" class="w-full">
-          <TabsList class="h-8 w-full" data-testid="picker-tabs">
-            <TabsTrigger value="fields" class="text-xs h-7 flex-1">
-              Fields
-            </TabsTrigger>
-            <TabsTrigger
-              v-if="hasFunctions || context !== 'function_body'"
-              value="functions"
-              class="text-xs h-7 flex-1"
-              data-testid="functions-tab"
-            >
-              Functions
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="fields" class="mt-2">
-            <FieldPicker
-              :fields="fields"
-              :params="functionParams"
-              :context="context"
-              class="!w-full !border-0 !pl-0"
-              @insert="onInsertFromPicker"
-            />
-          </TabsContent>
-
-          <TabsContent value="functions" class="mt-2" data-testid="functions-tab-content">
-            <FunctionPicker @insert="onInsertFromPicker" />
-          </TabsContent>
-        </Tabs>
-      </div>
-    </div>
+    <!-- Editor -->
+    <CodeMirrorEditor
+      v-if="mode === 'editor'"
+      ref="editorRef"
+      :model-value="modelValue"
+      :extensions="autocompleteExtension"
+      :height="height"
+      :disabled="disabled"
+      @update:model-value="onInput"
+    />
+    <Textarea
+      v-else
+      :model-value="modelValue"
+      :rows="4"
+      :placeholder="placeholder"
+      :disabled="disabled"
+      class="font-mono text-sm"
+      data-testid="expression-textarea"
+      @update:model-value="onInput"
+    />
 
     <!-- Preview -->
     <ExpressionPreview

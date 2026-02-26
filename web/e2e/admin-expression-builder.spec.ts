@@ -12,6 +12,9 @@ test.describe('ExpressionBuilder — Functions tab', () => {
     await page.locator('[data-testid="add-param-btn"]').click()
     await page.locator('[data-testid="param-name-0"]').fill('x')
 
+    // Open helper popover
+    await page.locator('[data-testid="helper-btn"]').click()
+
     await expect(page.locator('[data-testid="functions-tab"]')).toBeVisible()
   })
 
@@ -20,7 +23,8 @@ test.describe('ExpressionBuilder — Functions tab', () => {
     await page.locator('[data-testid="add-param-btn"]').click()
     await page.locator('[data-testid="param-name-0"]').fill('x')
 
-    // Switch to Functions tab
+    // Open helper popover and switch to Functions tab
+    await page.locator('[data-testid="helper-btn"]').click()
     await page.locator('[data-testid="functions-tab"]').click()
 
     // Check that custom functions are rendered
@@ -37,7 +41,8 @@ test.describe('ExpressionBuilder — Functions tab', () => {
     await page.locator('[data-testid="add-param-btn"]').click()
     await page.locator('[data-testid="param-name-0"]').fill('x')
 
-    // Switch to Functions tab
+    // Open helper popover and switch to Functions tab
+    await page.locator('[data-testid="helper-btn"]').click()
     await page.locator('[data-testid="functions-tab"]').click()
 
     // Click on the first custom function
