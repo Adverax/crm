@@ -207,6 +207,54 @@ func TestValidateViewConfig(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "valid: scalar query reference in computed field",
+			config: OVConfig{
+				View: OVViewConfig{
+					Queries: []OVQuery{
+						{Name: "main", SOQL: "SELECT Id FROM Account", Type: "scalar", Default: true},
+						{Name: "stats", SOQL: "SELECT COUNT(Id) AS total FROM Contact WHERE AccountId = :id", Type: "scalar"},
+					},
+					Fields: []OVViewField{
+						{Name: "name"},
+						{Name: "contact_count", Type: "int", Expr: "stats.total"},
+					},
+				},
+			},
+		},
+		{
+			name: "invalid: field expr references list query",
+			config: OVConfig{
+				View: OVViewConfig{
+					Queries: []OVQuery{
+						{Name: "main", SOQL: "SELECT Id FROM Account", Type: "scalar", Default: true},
+						{Name: "contacts", SOQL: "SELECT Id FROM Contact", Type: "list"},
+					},
+					Fields: []OVViewField{
+						{Name: "first_contact", Expr: "contacts.Name"},
+					},
+				},
+			},
+			wantErr:    true,
+			errContain: "references list query",
+		},
+		{
+			name: "invalid: field expr references list query with multiple fields",
+			config: OVConfig{
+				View: OVViewConfig{
+					Queries: []OVQuery{
+						{Name: "main", SOQL: "SELECT Id FROM Account", Type: "scalar", Default: true},
+						{Name: "deals", SOQL: "SELECT Id, Amount FROM Deal", Type: "list"},
+					},
+					Fields: []OVViewField{
+						{Name: "name"},
+						{Name: "deal_amount", Type: "float", Expr: "deals.Amount * 1.1"},
+					},
+				},
+			},
+			wantErr:    true,
+			errContain: "references list query",
+		},
 	}
 
 	for _, tt := range tests {

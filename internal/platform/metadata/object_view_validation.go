@@ -54,9 +54,9 @@ func validateQueries(queries []OVQuery) error {
 }
 
 func validateFields(fields []OVViewField, queries []OVQuery) error {
-	queryNames := make(map[string]bool, len(queries))
+	queryTypes := make(map[string]string, len(queries))
 	for _, q := range queries {
-		queryNames[q.Name] = true
+		queryTypes[q.Name] = q.Type
 	}
 
 	fieldNames := make(map[string]bool, len(fields))
@@ -71,7 +71,7 @@ func validateFields(fields []OVViewField, queries []OVQuery) error {
 
 		// Validate query references in expr
 		if f.Expr != "" {
-			if err := validateExprQueryRefs(f.Name, f.Expr, queryNames, fieldNames); err != nil {
+			if err := validateExprQueryRefs(f.Name, f.Expr, queryTypes, fieldNames); err != nil {
 				return err
 			}
 		}
@@ -86,8 +86,10 @@ func validateFields(fields []OVViewField, queries []OVQuery) error {
 }
 
 // validateExprQueryRefs checks that any query.field references in an expression
-// refer to existing queries. Uses simple prefix matching: "queryName.something".
-func validateExprQueryRefs(fieldName string, expr string, queryNames map[string]bool, fieldNames map[string]bool) error {
+// refer to existing scalar queries. List queries cannot be referenced from field
+// expressions — they are only used as data sources for related lists and tables.
+// Uses simple prefix matching: "queryName.something".
+func validateExprQueryRefs(fieldName string, expr string, queryTypes map[string]string, fieldNames map[string]bool) error {
 	// Simple heuristic: find identifiers that look like "word.word"
 	// This is not a full expression parser, just basic validation.
 	for _, token := range strings.Fields(expr) {
@@ -105,8 +107,15 @@ func validateExprQueryRefs(fieldName string, expr string, queryNames map[string]
 		if prefix == "record" || prefix == "size" || prefix == "has" || prefix == "int" || prefix == "double" || prefix == "string" || prefix == "bool" {
 			continue
 		}
-		// If it looks like a query reference, validate it exists
-		if !queryNames[prefix] && !fieldNames[prefix] {
+		// If it looks like a query reference, validate it exists and is scalar
+		qType, isQuery := queryTypes[prefix]
+		if isQuery {
+			if qType == "list" {
+				return apperror.BadRequest(fmt.Sprintf("field %q: expr references list query %q, only scalar queries are allowed in field expressions", fieldName, prefix))
+			}
+			continue
+		}
+		if !fieldNames[prefix] {
 			return apperror.BadRequest(fmt.Sprintf("field %q: expr references unknown query %q", fieldName, prefix))
 		}
 	}
