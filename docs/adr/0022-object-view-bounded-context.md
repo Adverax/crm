@@ -4,25 +4,25 @@
 **Date:** 2026-02-15
 **Participants:** @roman_myakotin
 
-## Amendment: Read/Write Config Split (2026-02-21)
+## Amendment: View/Edit Config Split (2026-02-21, renamed 2026-02-27)
 
 ### Motivation
 
-The original flat OVConfig mixed read and write concerns into a single level. Fields like `queries`, `computed`, `list_fields`, and `highlight_fields` (read-only concerns) lived alongside `validation`, `defaults`, and `mutations` (write concerns). This caused:
+The original flat OVConfig mixed view and edit concerns into a single level. Fields like `queries`, `computed`, `list_fields`, and `highlight_fields` (view-only concerns) lived alongside `validation`, `defaults`, and `mutations` (edit concerns). This caused:
 
 1. **Cognitive overload** — administrators editing OV config had to mentally separate "what affects display" from "what affects data entry", with no structural guidance.
 2. **Ambiguous API contract** — the frontend received a single config blob and had to decide which parts apply to record viewing vs. record creation/editing.
-3. **Unnecessary payload on read-only objects** — objects without create/update operations (e.g. audit logs, reports) still carried empty write-side fields.
+3. **Unnecessary payload on view-only objects** — objects without create/update operations (e.g. audit logs, reports) still carried empty edit-side fields.
 
 ### Changes
 
-1. **Split OVConfig into `read` / `write` sub-objects.** All display, query, and presentation concerns move under `read` (fields, actions, queries, computed); all mutation, validation, and default concerns move under `write`.
+1. **Split OVConfig into `view` / `edit` sub-objects.** All display, query, and presentation concerns move under `view` (fields, actions, queries, computed); all mutation, validation, and default concerns move under `edit`.
 
-2. **Rename `virtual_fields` to `computed` in read context (`read.computed`).** The term "virtual fields" was ambiguous — it conflicted with the write-side `computed` (fields evaluated on save). In the read context, these are display-time computed values, now consistently named `OVReadComputed`.
+2. **Rename `virtual_fields` to `computed` in view context (`view.computed`).** The term "virtual fields" was ambiguous — it conflicted with the edit-side `computed` (fields evaluated on save). In the view context, these are display-time computed values, now consistently named `OVViewComputed`.
 
-3. **`write` is optional (pointer/nullable).** When an object view describes a read-only context (e.g. a report view, an audit log), `write` is omitted entirely. The API returns `null` / omits the key, and the frontend disables create/edit forms.
+3. **`edit` is optional (pointer/nullable).** When an object view describes a view-only context (e.g. a report view, an audit log), `edit` is omitted entirely. The API returns `null` / omits the key, and the frontend disables create/edit forms.
 
-4. **`write.fields` is nullable.** When `write.fields` is `null`, the frontend falls back to `read.fields` for form rendering. This avoids duplicating the field list when read and write use the same fields. When `write.fields` is explicitly set, it overrides the read field list for create/edit forms.
+4. **`edit.fields` is nullable.** When `edit.fields` is `null`, the frontend falls back to `view.fields` for form rendering. This avoids duplicating the field list when view and edit use the same fields. When `edit.fields` is explicitly set, it overrides the view field list for create/edit forms.
 
 5. **Sections removed from OV config.** Per ADR-0027, sections and layout concerns belong to Layout, not Object View. OV defines WHAT data is relevant; Layout defines HOW it is presented (sections, columns, collapsed state). This amendment confirms their removal from the OV config schema.
 
@@ -30,8 +30,8 @@ The original flat OVConfig mixed read and write concerns into a single level. Fi
 
 ```jsonc
 {
-  // READ side: presentation + display-time data
-  "read": {
+  // VIEW side: presentation + display-time data
+  "view": {
     "fields": ["client_name", "contact_phone", "deal", "products", "total_amount", "discount"],
     "actions": [
       { "key": "send_proposal", "label": "Send Proposal", "type": "primary", "icon": "mail", "visibility_expr": "record.status == 'draft'" }
@@ -44,9 +44,9 @@ The original flat OVConfig mixed read and write concerns into a single level. Fi
     ]
   },
 
-  // WRITE side: optional (omitted = read-only object view)
-  "write": {
-    "fields": null,          // null = fallback to read.fields
+  // EDIT side: optional (omitted = view-only object view)
+  "edit": {
+    "fields": null,          // null = fallback to view.fields
     "validation": [
       { "expr": "record.amount > 0", "message": "Amount must be positive", "code": "invalid_amount", "severity": "error" }
     ],
@@ -63,7 +63,7 @@ The original flat OVConfig mixed read and write concerns into a single level. Fi
 }
 ```
 
-When `write` is omitted, the object view is read-only — no create/edit operations are available in the UI.
+When `edit` is omitted, the object view is view-only — no create/edit operations are available in the UI.
 
 ## Context
 
@@ -227,15 +227,15 @@ UNIQUE(object_id, profile_id)  — one view per (object, profile) pair
 
 ### Config JSON Schema
 
-The config has two sub-objects: **`read`** (presentation + display-time data) and **`write`** (mutation-time data, optional). Sections, highlight fields, related lists, and list configuration are not part of OV config — they belong to Layout (ADR-0027). Actions are part of `read` since they are tied to the read context (record detail page).
+The config has two sub-objects: **`view`** (presentation + display-time data) and **`edit`** (mutation-time data, optional). Sections, highlight fields, related lists, and list configuration are not part of OV config — they belong to Layout (ADR-0027). Actions are part of `view` since they are tied to the view context (record detail page).
 
-#### `read` — display-time data
+#### `view` — display-time data
 
-Per ADR-0019, Object View is a full bounded context adapter. The `read` sub-object defines what data to display for this context.
+Per ADR-0019, Object View is a full bounded context adapter. The `view` sub-object defines what data to display for this context.
 
 ```jsonc
 {
-  "read": {
+  "view": {
     // Fields visible on the record detail page
     "fields": ["client_name", "contact_phone", "deal", "products", "total_amount", "discount"],
 
@@ -272,16 +272,16 @@ Per ADR-0019, Object View is a full bounded context adapter. The `read` sub-obje
 }
 ```
 
-#### `write` — mutation-time data (optional)
+#### `edit` — mutation-time data (optional)
 
-The `write` sub-object is optional (pointer/nullable). When omitted or `null`, the object view is read-only — no create/edit operations are available in the UI.
+The `edit` sub-object is optional (pointer/nullable). When omitted or `null`, the object view is view-only — no create/edit operations are available in the UI.
 
-`write.fields` is nullable: when `null`, the frontend falls back to `read.fields` for form rendering. When explicitly set, it overrides the read field list for create/edit forms.
+`edit.fields` is nullable: when `null`, the frontend falls back to `view.fields` for form rendering. When explicitly set, it overrides the view field list for create/edit forms.
 
 ```jsonc
 {
-  "write": {
-    // Fields available in create/edit forms (null = fallback to read.fields)
+  "edit": {
+    // Fields available in create/edit forms (null = fallback to view.fields)
     "fields": null,
 
     // DML operations scoped to this view
@@ -294,7 +294,7 @@ The `write` sub-object is optional (pointer/nullable). When omitted or `null`, t
       }
     ],
 
-    // View-scoped validation rules (additive with metadata-level rules per ADR-0019)
+    // OV-scoped validation rules (additive with metadata-level rules per ADR-0019)
     "validation": [
       {
         "expr": "record.amount > 0",
@@ -305,7 +305,7 @@ The `write` sub-object is optional (pointer/nullable). When omitted or `null`, t
       }
     ],
 
-    // View-scoped defaults (replace metadata-level defaults per ADR-0019)
+    // OV-scoped defaults (replace metadata-level defaults per ADR-0019)
     "defaults": [
       {
         "field": "status",
@@ -326,7 +326,7 @@ The `write` sub-object is optional (pointer/nullable). When omitted or `null`, t
 }
 ```
 
-All fields within `read` and `write` are optional (`omitempty` in Go, `?? []` fallback on frontend). Existing Object View records without `read`/`write` sub-objects continue to work unchanged via migration or fallback logic.
+All fields within `view` and `edit` are optional (`omitempty` in Go, `?? []` fallback on frontend). Existing Object View records without `view`/`edit` sub-objects continue to work unchanged via legacy deserializer (supports old `read`/`write` keys and flat format).
 
 ### Resolution Rules
 
@@ -340,9 +340,9 @@ When opening a record of object `X` by a user with profile `P`:
    -> Found? Use it.
 
 3. Fallback: auto-generate from metadata
-   -> read.fields: all FLS-accessible fields
-   -> read.actions: standard (Save, Delete)
-   -> write: non-null with fields=null (fallback to read.fields)
+   -> view.fields: all FLS-accessible fields
+   -> view.actions: standard (Save, Delete)
+   -> edit: non-null with fields=null (fallback to view.fields)
    -> Layout (ADR-0027): highlight_fields, related_lists, list_fields
 ```
 
@@ -458,13 +458,13 @@ Fallback: no dashboard config -> standard dashboard with recent items and tasks.
 
 ### Example: one object — three bounded contexts
 
-> **Note:** These examples show the complete bounded context including both OV config (`read`/`write`) and Layout properties (`highlight_fields`, `related_lists`, `list_fields`) defined in ADR-0027. In the database, Layout properties are stored in `metadata.layouts`, not in the OV config JSONB.
+> **Note:** These examples show the complete bounded context including both OV config (`view`/`edit`) and Layout properties (`highlight_fields`, `related_lists`, `list_fields`) defined in ADR-0027. In the database, Layout properties are stored in `metadata.layouts`, not in the OV config JSONB.
 
 **Order for Sales Rep (Profile: "Sales"):**
 ```jsonc
 {
   // OV Config (metadata.object_views.config)
-  "read": {
+  "view": {
     "fields": ["client_name", "contact_phone", "deal", "products", "total_amount", "discount", "shipping_status", "delivery_date"],
     "actions": [
       { "key": "send_proposal", "label": "Send Proposal", "type": "primary" }
@@ -473,7 +473,7 @@ Fallback: no dashboard config -> standard dashboard with recent items and tasks.
       { "name": "client_history", "soql": "SELECT Id, Name, Amount FROM Order WHERE ClientId = :record.client_id AND Id != :recordId ORDER BY CreatedDate DESC LIMIT 5" }
     ]
   },
-  "write": {
+  "edit": {
     "fields": null,
     "validation": [
       { "expr": "record.discount <= 20", "message": "Discount cannot exceed 20% for sales reps", "severity": "error" }
@@ -493,7 +493,7 @@ Fallback: no dashboard config -> standard dashboard with recent items and tasks.
 ```jsonc
 {
   // OV Config (metadata.object_views.config)
-  "read": {
+  "view": {
     "fields": ["order_number", "client_name", "warehouse", "products", "shipping_status", "tracking", "total_weight", "packages_count"],
     "actions": [
       { "key": "mark_shipped", "label": "Ship", "type": "primary", "visibility_expr": "record.status == 'confirmed'" },
@@ -503,7 +503,7 @@ Fallback: no dashboard config -> standard dashboard with recent items and tasks.
       { "name": "is_oversized", "type": "bool", "expr": "record.total_weight > 50" }
     ]
   },
-  "write": {
+  "edit": {
     "fields": ["shipping_status", "tracking", "warehouse", "packages_count"],
     "validation": [
       { "expr": "record.tracking != ''", "message": "Tracking number required before shipping", "severity": "error", "when": "record.shipping_status == 'shipping'" }
@@ -520,7 +520,7 @@ Fallback: no dashboard config -> standard dashboard with recent items and tasks.
 ```jsonc
 {
   // OV Config (metadata.object_views.config)
-  "read": {
+  "view": {
     "fields": ["order_number", "client_name", "status", "total_amount", "cost_price", "margin", "revenue", "discount", "warehouse", "shipping_status", "delivery_date"],
     "actions": [
       { "key": "reassign", "label": "Reassign", "type": "secondary" },
@@ -530,7 +530,7 @@ Fallback: no dashboard config -> standard dashboard with recent items and tasks.
       { "name": "margin_pct", "type": "float", "expr": "record.margin / record.total_amount * 100" }
     ]
   },
-  "write": {
+  "edit": {
     "fields": null,
     "computed": [
       { "field": "revenue", "expr": "record.total_amount - record.cost_price" }
@@ -560,7 +560,7 @@ GET  /api/v1/admin/profile-dashboards/:id  — profile dashboard
 PUT  /api/v1/admin/profile-dashboards/:id  — update dashboard
 ```
 
-Describe API is extended: if an Object View exists for the current profile — the response includes `view` with `read`/`write` sub-objects. The frontend uses `view` for rendering instead of a flat list of fields.
+Describe API is extended: if an Object View exists for the current profile — the response includes `view`/`edit` sub-objects. The frontend uses the OV config for rendering instead of a flat list of fields.
 
 ### Storage
 
@@ -585,8 +585,8 @@ Phase 9a: Object View Core ✅                 Phase 9b: Navigation + Dashboard
 - FLS intersection                             - Widget types: list, metric
 - Actions with visibility_expr                 - Chart widgets (Phase 15 dependency)
 - Config (ADR-0019):
-  read (fields, actions, queries, computed),
-  write (fields, mutations, validation,
+  view (fields, actions, queries, computed),
+  edit (fields, mutations, validation,
   defaults, computed)
 - Admin UI: visual constructor
 ```

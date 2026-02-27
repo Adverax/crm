@@ -1072,7 +1072,7 @@ export const mockObjectViews = [
     label: 'Account Default View',
     description: 'Default view for accounts',
     config: {
-      read: {
+      view: {
         fields: ['Name', 'Industry', 'Phone'],
         actions: [
           {
@@ -1099,7 +1099,7 @@ export const mockObjectViews = [
           },
         ],
       },
-      write: {
+      edit: {
         validation: [
           {
             expr: 'size(record.Name) > 0',
@@ -1124,13 +1124,13 @@ export const mockObjectViews = [
     label: 'Account Sales View',
     description: 'Sales-specific view for accounts',
     config: {
-      read: {
+      view: {
         fields: [],
         actions: [],
         queries: [],
         computed: [],
       },
-      write: null,
+      edit: null,
     },
     created_at: '2026-02-16T11:00:00Z',
     updated_at: '2026-02-16T11:00:00Z',

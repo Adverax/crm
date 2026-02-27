@@ -509,6 +509,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/soql/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validate a SOQL query */
+        post: operations["validateSoqlQuery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/soql/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Execute a SOQL query for testing (no security enforcement) */
+        post: operations["testSoqlQuery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/soql/objects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all queryable objects (no OLS filtering) */
+        get: operations["listSoqlObjects"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/soql/objects/{objectName}/fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all fields for an object (no FLS filtering) */
+        get: operations["listSoqlObjectFields"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/profile-navigation": {
         parameters: {
             query?: never;
@@ -1078,16 +1146,16 @@ export interface components {
             updated_at: string;
         };
         ObjectViewConfig: {
-            read: components["schemas"]["OVReadConfig"];
-            write?: components["schemas"]["OVWriteConfig"];
+            view: components["schemas"]["OVViewConfig"];
+            edit?: components["schemas"]["OVEditConfig"];
         };
-        OVReadConfig: {
+        OVViewConfig: {
             fields?: string[];
             actions?: components["schemas"]["OVAction"][];
             queries?: components["schemas"]["OVQuery"][];
-            computed?: components["schemas"]["OVReadComputed"][];
+            computed?: components["schemas"]["OVViewComputed"][];
         };
-        OVWriteConfig: {
+        OVEditConfig: {
             fields?: string[];
             validation?: components["schemas"]["OVValidation"][];
             defaults?: components["schemas"]["OVDefault"][];
@@ -1116,7 +1184,7 @@ export interface components {
             key: string;
             value: string;
         };
-        OVReadComputed: {
+        OVViewComputed: {
             name: string;
             /** @enum {string} */
             type: "string" | "int" | "float" | "bool" | "timestamp";
@@ -1167,6 +1235,21 @@ export interface components {
             message: string;
             line?: number;
             column?: number;
+        };
+        SoqlValidateRequest: {
+            query: string;
+        };
+        SoqlValidateResponse: {
+            valid: boolean;
+            object?: string;
+            fields?: string[];
+            errors?: components["schemas"]["SoqlValidateError"][];
+        };
+        SoqlValidateError: {
+            message: string;
+            line?: number;
+            column?: number;
+            code?: string;
         };
         NavItem: {
             /** @enum {string} */
@@ -2483,6 +2566,126 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CelValidateResponse"];
+                };
+            };
+        };
+    };
+    validateSoqlQuery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SoqlValidateRequest"];
+            };
+        };
+        responses: {
+            /** @description Validation result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SoqlValidateResponse"];
+                };
+            };
+        };
+    };
+    testSoqlQuery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    query: string;
+                    /** @default 5 */
+                    pageSize?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Query execution result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        totalSize?: number;
+                        records?: {
+                            [key: string]: unknown;
+                        }[];
+                        error?: string;
+                    };
+                };
+            };
+        };
+    };
+    listSoqlObjects: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of queryable objects */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: {
+                            api_name?: string;
+                            label?: string;
+                        }[];
+                    };
+                };
+            };
+        };
+    };
+    listSoqlObjectFields: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                objectName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of fields */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: {
+                            api_name?: string;
+                            label?: string;
+                            field_type?: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description Object not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

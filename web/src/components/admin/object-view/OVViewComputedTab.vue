@@ -12,18 +12,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { OVReadComputed } from '@/types/object-views'
+import type { OVViewComputed } from '@/types/object-views'
 
 const props = defineProps<{
-  computed: OVReadComputed[]
+  computed: OVViewComputed[]
 }>()
 
 const emit = defineEmits<{
-  'update:computed': [value: OVReadComputed[]]
+  'update:computed': [value: OVViewComputed[]]
 }>()
 
 function addComputed() {
-  const updated: OVReadComputed[] = [...props.computed, { name: '', type: 'string' as const, expr: '', when: '' }]
+  const updated: OVViewComputed[] = [...props.computed, { name: '', type: 'string' as const, expr: '', when: '' }]
   emit('update:computed', updated)
 }
 
@@ -36,7 +36,7 @@ function removeComputed(index: number) {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function onTypeChange(index: number, value: any) {
   const field = props.computed[index]
-  if (field) field.type = String(value) as OVReadComputed['type']
+  if (field) field.type = String(value) as OVViewComputed['type']
 }
 </script>
 

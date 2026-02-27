@@ -5,13 +5,13 @@ import type { CamelCaseKeys } from './camelcase'
 
 export type ObjectView = CamelCaseKeys<components['schemas']['ObjectView']>
 export type ObjectViewConfig = CamelCaseKeys<components['schemas']['ObjectViewConfig']>
-export type OVReadConfig = CamelCaseKeys<components['schemas']['OVReadConfig']>
-export type OVWriteConfig = CamelCaseKeys<components['schemas']['OVWriteConfig']>
+export type OVViewConfig = CamelCaseKeys<components['schemas']['OVViewConfig']>
+export type OVEditConfig = CamelCaseKeys<components['schemas']['OVEditConfig']>
 export type OVAction = CamelCaseKeys<components['schemas']['OVAction']>
 export type OVQuery = CamelCaseKeys<components['schemas']['OVQuery']>
 export type OVMutation = CamelCaseKeys<components['schemas']['OVMutation']>
 export type OVMutSync = CamelCaseKeys<components['schemas']['OVMutSync']>
-export type OVReadComputed = CamelCaseKeys<components['schemas']['OVReadComputed']>
+export type OVViewComputed = CamelCaseKeys<components['schemas']['OVViewComputed']>
 export type OVValidation = CamelCaseKeys<components['schemas']['OVValidation']>
 export type OVDefault = CamelCaseKeys<components['schemas']['OVDefault']>
 export type OVComputed = CamelCaseKeys<components['schemas']['OVComputed']>

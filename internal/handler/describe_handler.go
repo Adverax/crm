@@ -336,25 +336,25 @@ func (h *DescribeHandler) mergeOVAndLayout(
 ) *formDescribe {
 	form := buildFallbackForm(fields)
 
-	// Apply OV sections if OV has read config with fields
-	if len(ov.Config.Read.Fields) > 0 {
+	// Apply OV sections if OV has view config with fields
+	if len(ov.Config.View.Fields) > 0 {
 		form.Sections = []formSection{{
 			Key:     "details",
 			Label:   "Details",
 			Columns: 2,
-			Fields:  ov.Config.Read.Fields,
+			Fields:  ov.Config.View.Fields,
 		}}
 
-		form.ListFields = ov.Config.Read.Fields
+		form.ListFields = ov.Config.View.Fields
 		if len(form.ListFields) > 5 {
 			form.ListFields = form.ListFields[:5]
 		}
 	}
 
 	// Apply OV actions
-	if len(ov.Config.Read.Actions) > 0 {
-		actions := make([]formAction, len(ov.Config.Read.Actions))
-		for i, a := range ov.Config.Read.Actions {
+	if len(ov.Config.View.Actions) > 0 {
+		actions := make([]formAction, len(ov.Config.View.Actions))
+		for i, a := range ov.Config.View.Actions {
 			actions[i] = formAction{
 				Key:            a.Key,
 				Label:          a.Label,

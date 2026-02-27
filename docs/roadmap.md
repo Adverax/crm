@@ -376,12 +376,12 @@ Users of the same system (Sales, Warehouse, Management) see a role-specific inte
 #### Phase 9a: Object View Core ✅
 
 - [x] **object_views table**: `metadata.object_views (api_name UNIQUE, profile_id, config JSONB)`
-- [x] **Config schema**: Read (fields, actions, queries, computed) + Write (optional: validation, defaults, computed, mutations)
+- [x] **Config schema**: View (fields, actions, queries, computed) + Edit (optional: validation, defaults, computed, mutations)
 - [x] **View endpoint**: `GET /api/v1/view/:ovApiName` — returns OV config by api_name
 - [x] **FLS intersection**: Object View fields ∩ FLS-accessible fields
 - [x] **Describe API**: always returns fallback form (all FLS-accessible fields)
 - [x] **Admin REST API**: CRUD for Object Views (5 endpoints)
-- [x] **Vue.js Admin UI**: Object View list/create/detail (visual constructor: Read tabs (General, Fields, Actions, Queries, Computed) + Write tabs (Validation, Defaults, Computed, Mutations))
+- [x] **Vue.js Admin UI**: Object View list/create/detail (visual constructor: View tabs (General, Fields, Actions, Queries, Computed) + Edit tabs (Validation, Defaults, Computed, Mutations))
 - [x] **Frontend renderer**: RecordDetailView/RecordCreateView render based on Object View config (sections, field order, actions with cel-js visibility)
 - [x] **Fallback**: without Object View — current behavior (all FLS-accessible fields, auto-generated form)
 - [x] **MetadataCache extension**: object views cached in memory, partial reload

@@ -18,29 +18,29 @@ func TestOVConfig_UnmarshalJSON(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:  "new format: read only",
-			input: `{"read":{"fields":["name","email"],"actions":[{"key":"send","label":"Send","type":"primary","icon":"mail","visibility_expr":""}]}}`,
+			name:  "new format: view only",
+			input: `{"view":{"fields":["name","email"],"actions":[{"key":"send","label":"Send","type":"primary","icon":"mail","visibility_expr":""}]}}`,
 			want: OVConfig{
-				Read: OVReadConfig{
+				View: OVViewConfig{
 					Fields:  []string{"name", "email"},
 					Actions: []OVAction{{Key: "send", Label: "Send", Type: "primary", Icon: "mail"}},
 				},
 			},
 		},
 		{
-			name: "new format: read + write",
+			name: "new format: view + edit",
 			input: `{
-				"read":{"fields":["name"],"actions":[],"queries":[{"name":"q1","soql":"SELECT Id FROM X"}],"computed":[{"name":"total","type":"float","expr":"a+b"}]},
-				"write":{"fields":["name"],"validation":[{"expr":"a>0","message":"positive","severity":"error"}],"defaults":[{"field":"status","expr":"'draft'","on":"create"}],"computed":[{"field":"total","expr":"a+b"}],"mutations":[{"dml":"INSERT INTO X"}]}
+				"view":{"fields":["name"],"actions":[],"queries":[{"name":"q1","soql":"SELECT Id FROM X"}],"computed":[{"name":"total","type":"float","expr":"a+b"}]},
+				"edit":{"fields":["name"],"validation":[{"expr":"a>0","message":"positive","severity":"error"}],"defaults":[{"field":"status","expr":"'draft'","on":"create"}],"computed":[{"field":"total","expr":"a+b"}],"mutations":[{"dml":"INSERT INTO X"}]}
 			}`,
 			want: OVConfig{
-				Read: OVReadConfig{
+				View: OVViewConfig{
 					Fields:   []string{"name"},
 					Actions:  []OVAction{},
 					Queries:  []OVQuery{{Name: "q1", SOQL: "SELECT Id FROM X"}},
-					Computed: []OVReadComputed{{Name: "total", Type: "float", Expr: "a+b"}},
+					Computed: []OVViewComputed{{Name: "total", Type: "float", Expr: "a+b"}},
 				},
-				Write: &OVWriteConfig{
+				Edit: &OVEditConfig{
 					Fields:     []string{"name"},
 					Validation: []OVValidation{{Expr: "a>0", Message: "positive", Severity: "error"}},
 					Defaults:   []OVDefault{{Field: "status", Expr: "'draft'", On: "create"}},
@@ -50,50 +50,82 @@ func TestOVConfig_UnmarshalJSON(t *testing.T) {
 			},
 		},
 		{
-			name:  "new format: read with empty arrays",
-			input: `{"read":{"fields":[],"actions":[]}}`,
+			name:  "new format: view with empty arrays",
+			input: `{"view":{"fields":[],"actions":[]}}`,
 			want: OVConfig{
-				Read: OVReadConfig{
+				View: OVViewConfig{
 					Fields:  []string{},
 					Actions: []OVAction{},
 				},
 			},
 		},
 		{
-			name:  "new format: write is null",
-			input: `{"read":{"fields":["a"],"actions":[]},"write":null}`,
+			name:  "new format: edit is null",
+			input: `{"view":{"fields":["a"],"actions":[]},"edit":null}`,
 			want: OVConfig{
-				Read: OVReadConfig{
+				View: OVViewConfig{
 					Fields:  []string{"a"},
 					Actions: []OVAction{},
 				},
 			},
 		},
 		{
-			name:  "legacy format: fields and actions only",
-			input: `{"fields":["name","email"],"actions":[{"key":"send","label":"Send","type":"primary","icon":"mail","visibility_expr":""}]}`,
+			name: "legacy nested format: read + write mapped to view + edit",
+			input: `{
+				"read":{"fields":["name"],"actions":[],"queries":[{"name":"q1","soql":"SELECT Id FROM X"}],"computed":[{"name":"total","type":"float","expr":"a+b"}]},
+				"write":{"fields":["name"],"validation":[{"expr":"a>0","message":"positive","severity":"error"}],"defaults":[{"field":"status","expr":"'draft'","on":"create"}],"computed":[{"field":"total","expr":"a+b"}],"mutations":[{"dml":"INSERT INTO X"}]}
+			}`,
 			want: OVConfig{
-				Read: OVReadConfig{
+				View: OVViewConfig{
+					Fields:   []string{"name"},
+					Actions:  []OVAction{},
+					Queries:  []OVQuery{{Name: "q1", SOQL: "SELECT Id FROM X"}},
+					Computed: []OVViewComputed{{Name: "total", Type: "float", Expr: "a+b"}},
+				},
+				Edit: &OVEditConfig{
+					Fields:     []string{"name"},
+					Validation: []OVValidation{{Expr: "a>0", Message: "positive", Severity: "error"}},
+					Defaults:   []OVDefault{{Field: "status", Expr: "'draft'", On: "create"}},
+					Computed:   []OVComputed{{Field: "total", Expr: "a+b"}},
+					Mutations:  []OVMutation{{DML: "INSERT INTO X"}},
+				},
+			},
+		},
+		{
+			name:  "legacy nested format: read only",
+			input: `{"read":{"fields":["name","email"],"actions":[{"key":"send","label":"Send","type":"primary","icon":"mail","visibility_expr":""}]}}`,
+			want: OVConfig{
+				View: OVViewConfig{
 					Fields:  []string{"name", "email"},
 					Actions: []OVAction{{Key: "send", Label: "Send", Type: "primary", Icon: "mail"}},
 				},
 			},
 		},
 		{
-			name:  "legacy format: with virtual_fields converted to read.computed",
+			name:  "legacy flat format: fields and actions only",
+			input: `{"fields":["name","email"],"actions":[{"key":"send","label":"Send","type":"primary","icon":"mail","visibility_expr":""}]}`,
+			want: OVConfig{
+				View: OVViewConfig{
+					Fields:  []string{"name", "email"},
+					Actions: []OVAction{{Key: "send", Label: "Send", Type: "primary", Icon: "mail"}},
+				},
+			},
+		},
+		{
+			name:  "legacy flat format: with virtual_fields converted to view.computed",
 			input: `{"fields":["amount"],"actions":[],"virtual_fields":[{"name":"total_tax","type":"float","expr":"record.amount * 0.2","when":"has(record.amount)"}]}`,
 			want: OVConfig{
-				Read: OVReadConfig{
+				View: OVViewConfig{
 					Fields:  []string{"amount"},
 					Actions: []OVAction{},
-					Computed: []OVReadComputed{
+					Computed: []OVViewComputed{
 						{Name: "total_tax", Type: "float", Expr: "record.amount * 0.2", When: "has(record.amount)"},
 					},
 				},
 			},
 		},
 		{
-			name: "legacy format: with write concerns creates write config",
+			name: "legacy flat format: with edit concerns creates edit config",
 			input: `{
 				"fields":["name"],
 				"actions":[],
@@ -103,11 +135,11 @@ func TestOVConfig_UnmarshalJSON(t *testing.T) {
 				"mutations":[{"dml":"UPDATE X SET y=1"}]
 			}`,
 			want: OVConfig{
-				Read: OVReadConfig{
+				View: OVViewConfig{
 					Fields:  []string{"name"},
 					Actions: []OVAction{},
 				},
-				Write: &OVWriteConfig{
+				Edit: &OVEditConfig{
 					Validation: []OVValidation{{Expr: "record.name != ''", Message: "Name required", Severity: "error"}},
 					Defaults:   []OVDefault{{Field: "status", Expr: "'new'", On: "create"}},
 					Computed:   []OVComputed{{Field: "total", Expr: "a+b"}},
@@ -116,33 +148,33 @@ func TestOVConfig_UnmarshalJSON(t *testing.T) {
 			},
 		},
 		{
-			name:  "legacy format: only validation creates write config",
+			name:  "legacy flat format: only validation creates edit config",
 			input: `{"fields":[],"actions":[],"validation":[{"expr":"a>0","message":"must be positive","severity":"error"}]}`,
 			want: OVConfig{
-				Read: OVReadConfig{
+				View: OVViewConfig{
 					Fields:  []string{},
 					Actions: []OVAction{},
 				},
-				Write: &OVWriteConfig{
+				Edit: &OVEditConfig{
 					Validation: []OVValidation{{Expr: "a>0", Message: "must be positive", Severity: "error"}},
 				},
 			},
 		},
 		{
-			name:  "legacy format: no write concerns means write is nil",
+			name:  "legacy flat format: no edit concerns means edit is nil",
 			input: `{"fields":["a","b"],"actions":[]}`,
 			want: OVConfig{
-				Read: OVReadConfig{
+				View: OVViewConfig{
 					Fields:  []string{"a", "b"},
 					Actions: []OVAction{},
 				},
 			},
 		},
 		{
-			name:  "legacy format: with queries",
+			name:  "legacy flat format: with queries",
 			input: `{"fields":[],"actions":[],"queries":[{"name":"q1","soql":"SELECT Id FROM X","when":"true"}]}`,
 			want: OVConfig{
-				Read: OVReadConfig{
+				View: OVViewConfig{
 					Fields:  []string{},
 					Actions: []OVAction{},
 					Queries: []OVQuery{{Name: "q1", SOQL: "SELECT Id FROM X", When: "true"}},
@@ -150,7 +182,7 @@ func TestOVConfig_UnmarshalJSON(t *testing.T) {
 			},
 		},
 		{
-			name:  "empty object treated as legacy format",
+			name:  "empty object treated as legacy flat format",
 			input: `{}`,
 			want:  OVConfig{},
 		},
@@ -187,24 +219,24 @@ func TestOVConfig_MarshalJSON_RoundTrip(t *testing.T) {
 		input OVConfig
 	}{
 		{
-			name: "read only",
+			name: "view only",
 			input: OVConfig{
-				Read: OVReadConfig{
+				View: OVViewConfig{
 					Fields:  []string{"name", "email"},
 					Actions: []OVAction{{Key: "edit", Label: "Edit", Type: "primary"}},
 				},
 			},
 		},
 		{
-			name: "read + write",
+			name: "view + edit",
 			input: OVConfig{
-				Read: OVReadConfig{
+				View: OVViewConfig{
 					Fields:   []string{"name"},
 					Actions:  []OVAction{},
 					Queries:  []OVQuery{{Name: "q1", SOQL: "SELECT Id FROM X"}},
-					Computed: []OVReadComputed{{Name: "total", Type: "float", Expr: "a+b", When: "true"}},
+					Computed: []OVViewComputed{{Name: "total", Type: "float", Expr: "a+b", When: "true"}},
 				},
-				Write: &OVWriteConfig{
+				Edit: &OVEditConfig{
 					Fields:     []string{"name"},
 					Validation: []OVValidation{{Expr: "a>0", Message: "positive", Severity: "error"}},
 					Defaults:   []OVDefault{{Field: "status", Expr: "'draft'", On: "create"}},
@@ -214,9 +246,9 @@ func TestOVConfig_MarshalJSON_RoundTrip(t *testing.T) {
 			},
 		},
 		{
-			name: "write nil omitted",
+			name: "edit nil omitted",
 			input: OVConfig{
-				Read: OVReadConfig{
+				View: OVViewConfig{
 					Fields:  []string{"a"},
 					Actions: []OVAction{},
 				},
@@ -239,13 +271,13 @@ func TestOVConfig_MarshalJSON_RoundTrip(t *testing.T) {
 	}
 }
 
-func TestConvertVirtualFieldsToReadComputed(t *testing.T) {
+func TestConvertVirtualFieldsToViewComputed(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name  string
 		input []OVVirtualField
-		want  []OVReadComputed
+		want  []OVViewComputed
 	}{
 		{
 			name:  "nil input returns nil",
@@ -263,7 +295,7 @@ func TestConvertVirtualFieldsToReadComputed(t *testing.T) {
 				{Name: "total", Type: "float", Expr: "a+b", When: "true"},
 				{Name: "is_active", Type: "bool", Expr: "record.status == 'active'"},
 			},
-			want: []OVReadComputed{
+			want: []OVViewComputed{
 				{Name: "total", Type: "float", Expr: "a+b", When: "true"},
 				{Name: "is_active", Type: "bool", Expr: "record.status == 'active'"},
 			},
@@ -273,7 +305,7 @@ func TestConvertVirtualFieldsToReadComputed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := convertVirtualFieldsToReadComputed(tt.input)
+			got := convertVirtualFieldsToViewComputed(tt.input)
 			assert.Equal(t, tt.want, got)
 		})
 	}

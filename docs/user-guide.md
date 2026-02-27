@@ -134,7 +134,7 @@ The CRM admin panel is designed for system administrators and allows:
 - Applying **app templates** — bootstrapping the system with pre-configured objects and fields.
 - Configuring **validation rules** — CEL expressions that check data on every save.
 - Creating **custom functions** — reusable CEL expressions callable from any context.
-- Configuring **object views** — role-based UI per profile with read config (fields, actions, queries, computed) and optional write config (validation, defaults, computed, mutations).
+- Configuring **object views** — role-based UI per profile with view config (fields, actions, queries, computed) and optional edit config (validation, defaults, computed, mutations).
 - Configuring **profile navigation** — per-profile sidebar with grouped items (objects, links, pages, dividers), OLS intersection for object items, `ov_api_name` for page views, fallback to alphabetical flat list.
 - Building **procedures** — named JSON-described business logic sequences (record operations, computations, branching, HTTP integrations) with a visual Constructor UI, versioning (draft/published), and dry-run testing.
 - Managing **named credentials** — encrypted secret storage for HTTP integrations (API keys, basic auth, OAuth2 client credentials) with SSRF protection and usage audit logging.

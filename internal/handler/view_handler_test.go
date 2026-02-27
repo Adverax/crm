@@ -94,7 +94,7 @@ func TestViewHandler_GetByAPIName(t *testing.T) {
 		APIName: "sales_dashboard",
 		Label:   "Sales Dashboard",
 		Config: metadata.OVConfig{
-			Read: metadata.OVReadConfig{
+			View: metadata.OVViewConfig{
 				Fields: []string{"name", "amount"},
 			},
 		},

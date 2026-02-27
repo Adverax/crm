@@ -21,23 +21,24 @@ type ObjectView struct {
 }
 
 // OVConfig holds the full Object View configuration stored as JSONB.
-// Split into Read (presentation) and Write (data contract) sub-objects.
+// Split into View (presentation) and Edit (data contract) sub-objects.
 type OVConfig struct {
-	Read  OVReadConfig   `json:"read"`
-	Write *OVWriteConfig `json:"write,omitempty"`
+	View OVViewConfig  `json:"view"`
+	Edit *OVEditConfig `json:"edit,omitempty"`
 }
 
-// UnmarshalJSON handles both the new nested format and legacy flat format.
-// Legacy flat format (pre-split) is detected by absence of the "read" key.
+// UnmarshalJSON handles three formats:
+// 1. New format: "view"/"edit" keys
+// 2. Legacy nested: "read"/"write" keys (mapped to View/Edit)
+// 3. Legacy flat: no "view"/"read" key — convert from flat fields
 func (c *OVConfig) UnmarshalJSON(data []byte) error {
-	// Try to detect format by checking for "read" key
 	var probe map[string]json.RawMessage
 	if err := json.Unmarshal(data, &probe); err != nil {
 		return err
 	}
 
-	if _, hasRead := probe["read"]; hasRead {
-		// New nested format
+	if _, hasView := probe["view"]; hasView {
+		// New format with "view"/"edit" keys
 		type Alias OVConfig
 		var alias Alias
 		if err := json.Unmarshal(data, &alias); err != nil {
@@ -47,23 +48,38 @@ func (c *OVConfig) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
+	if readRaw, hasRead := probe["read"]; hasRead {
+		// Legacy nested format: "read"/"write" → View/Edit
+		if err := json.Unmarshal(readRaw, &c.View); err != nil {
+			return err
+		}
+		if writeRaw, hasWrite := probe["write"]; hasWrite {
+			var edit OVEditConfig
+			if err := json.Unmarshal(writeRaw, &edit); err != nil {
+				return err
+			}
+			c.Edit = &edit
+		}
+		return nil
+	}
+
 	// Legacy flat format — convert to nested
 	var legacy legacyOVConfig
 	if err := json.Unmarshal(data, &legacy); err != nil {
 		return err
 	}
 
-	c.Read = OVReadConfig{
+	c.View = OVViewConfig{
 		Fields:   legacy.Fields,
 		Actions:  legacy.Actions,
 		Queries:  legacy.Queries,
-		Computed: convertVirtualFieldsToReadComputed(legacy.VirtualFields),
+		Computed: convertVirtualFieldsToViewComputed(legacy.VirtualFields),
 	}
 
-	// Only create Write if there's any write-related data
+	// Only create Edit if there's any edit-related data
 	if len(legacy.Validation) > 0 || len(legacy.Defaults) > 0 ||
 		len(legacy.Computed) > 0 || len(legacy.Mutations) > 0 {
-		c.Write = &OVWriteConfig{
+		c.Edit = &OVEditConfig{
 			Validation: legacy.Validation,
 			Defaults:   legacy.Defaults,
 			Computed:   legacy.Computed,
@@ -86,28 +102,28 @@ type legacyOVConfig struct {
 	Computed      []OVComputed     `json:"computed,omitempty"`
 }
 
-func convertVirtualFieldsToReadComputed(vfs []OVVirtualField) []OVReadComputed {
+func convertVirtualFieldsToViewComputed(vfs []OVVirtualField) []OVViewComputed {
 	if len(vfs) == 0 {
 		return nil
 	}
-	result := make([]OVReadComputed, len(vfs))
+	result := make([]OVViewComputed, len(vfs))
 	for i, vf := range vfs {
-		result[i] = OVReadComputed(vf)
+		result[i] = OVViewComputed(vf)
 	}
 	return result
 }
 
-// OVReadConfig holds read-time (presentation) configuration.
-type OVReadConfig struct {
+// OVViewConfig holds view-time (presentation) configuration.
+type OVViewConfig struct {
 	Fields   []string         `json:"fields"`
 	Actions  []OVAction       `json:"actions"`
 	Queries  []OVQuery        `json:"queries,omitempty"`
-	Computed []OVReadComputed `json:"computed,omitempty"`
+	Computed []OVViewComputed `json:"computed,omitempty"`
 }
 
-// OVWriteConfig holds write-time (data contract) configuration.
+// OVEditConfig holds edit-time (data contract) configuration.
 // Optional — only present when create/update operations make sense.
-type OVWriteConfig struct {
+type OVEditConfig struct {
 	Fields     []string       `json:"fields,omitempty"`
 	Validation []OVValidation `json:"validation,omitempty"`
 	Defaults   []OVDefault    `json:"defaults,omitempty"`
@@ -115,9 +131,9 @@ type OVWriteConfig struct {
 	Mutations  []OVMutation   `json:"mutations,omitempty"`
 }
 
-// OVReadComputed describes a computed virtual field for read context.
+// OVViewComputed describes a computed virtual field for view context.
 // Renamed from OVVirtualField.
-type OVReadComputed struct {
+type OVViewComputed struct {
 	Name string `json:"name"`
 	Type string `json:"type"`
 	Expr string `json:"expr"`
@@ -155,7 +171,7 @@ type OVMutSync struct {
 }
 
 // OVVirtualField is kept for backward compatibility during deserialization.
-// New code should use OVReadComputed instead.
+// New code should use OVViewComputed instead.
 type OVVirtualField struct {
 	Name string `json:"name"`
 	Type string `json:"type"`

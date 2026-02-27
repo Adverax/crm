@@ -2583,14 +2583,14 @@ components:
     ObjectViewConfig:
       type: object
       required:
-        - read
+        - view
       properties:
-        read:
-          $ref: "#/components/schemas/OVReadConfig"
-        write:
-          $ref: "#/components/schemas/OVWriteConfig"
+        view:
+          $ref: "#/components/schemas/OVViewConfig"
+        edit:
+          $ref: "#/components/schemas/OVEditConfig"
 
-    OVReadConfig:
+    OVViewConfig:
       type: object
       properties:
         fields:
@@ -2608,9 +2608,9 @@ components:
         computed:
           type: array
           items:
-            $ref: "#/components/schemas/OVReadComputed"
+            $ref: "#/components/schemas/OVViewComputed"
 
-    OVWriteConfig:
+    OVEditConfig:
       type: object
       properties:
         fields:
@@ -2692,7 +2692,7 @@ components:
         value:
           type: string
 
-    OVReadComputed:
+    OVViewComputed:
       type: object
       required:
         - name

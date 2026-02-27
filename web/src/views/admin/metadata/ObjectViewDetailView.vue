@@ -21,7 +21,7 @@ import type {
   ObjectView,
   OVAction,
   OVQuery,
-  OVReadComputed,
+  OVViewComputed,
   OVMutation,
   OVValidation,
   OVDefault,
@@ -31,20 +31,20 @@ import OVGeneralTab from '@/components/admin/object-view/OVGeneralTab.vue'
 import OVFieldsTab from '@/components/admin/object-view/OVFieldsTab.vue'
 import OVActionsTab from '@/components/admin/object-view/OVActionsTab.vue'
 import OVQueriesTab from '@/components/admin/object-view/OVQueriesTab.vue'
-import OVReadComputedTab from '@/components/admin/object-view/OVReadComputedTab.vue'
+import OVViewComputedTab from '@/components/admin/object-view/OVViewComputedTab.vue'
 import OVMutationsTab from '@/components/admin/object-view/OVMutationsTab.vue'
 import OVValidationTab from '@/components/admin/object-view/OVValidationTab.vue'
 import OVDefaultsTab from '@/components/admin/object-view/OVDefaultsTab.vue'
 import OVComputedTab from '@/components/admin/object-view/OVComputedTab.vue'
 
 interface FormConfig {
-  read: {
+  view: {
     fields: string[]
     actions: OVAction[]
     queries: OVQuery[]
-    computed: OVReadComputed[]
+    computed: OVViewComputed[]
   }
-  write?: {
+  edit?: {
     fields?: string[]
     validation: OVValidation[]
     defaults: OVDefault[]
@@ -66,7 +66,7 @@ const submitting = ref(false)
 const showDeleteDialog = ref(false)
 const error = ref<string | null>(null)
 
-function emptyWriteConfig(): Required<FormConfig>['write'] {
+function emptyEditConfig(): Required<FormConfig>['edit'] {
   return {
     validation: [],
     defaults: [],
@@ -79,7 +79,7 @@ const form = ref<{ label: string; description: string; config: FormConfig }>({
   label: '',
   description: '',
   config: {
-    read: {
+    view: {
       fields: [],
       actions: [],
       queries: [],
@@ -88,11 +88,11 @@ const form = ref<{ label: string; description: string; config: FormConfig }>({
   },
 })
 
-function ensureWrite(): Required<FormConfig>['write'] {
-  if (!form.value.config.write) {
-    form.value.config.write = emptyWriteConfig()
+function ensureEdit(): Required<FormConfig>['edit'] {
+  if (!form.value.config.edit) {
+    form.value.config.edit = emptyEditConfig()
   }
-  return form.value.config.write
+  return form.value.config.edit
 }
 
 async function loadView() {
@@ -106,18 +106,18 @@ async function loadView() {
       label: response.data.label ?? '',
       description: response.data.description ?? '',
       config: {
-        read: {
-          fields: cfg?.read?.fields ?? [],
-          actions: cfg?.read?.actions ?? [],
-          queries: cfg?.read?.queries ?? [],
-          computed: cfg?.read?.computed ?? [],
+        view: {
+          fields: cfg?.view?.fields ?? [],
+          actions: cfg?.view?.actions ?? [],
+          queries: cfg?.view?.queries ?? [],
+          computed: cfg?.view?.computed ?? [],
         },
-        write: cfg?.write ? {
-          fields: cfg.write.fields,
-          validation: cfg.write.validation ?? [],
-          defaults: cfg.write.defaults ?? [],
-          computed: cfg.write.computed ?? [],
-          mutations: cfg.write.mutations ?? [],
+        edit: cfg?.edit ? {
+          fields: cfg.edit.fields,
+          validation: cfg.edit.validation ?? [],
+          defaults: cfg.edit.defaults ?? [],
+          computed: cfg.edit.computed ?? [],
+          mutations: cfg.edit.mutations ?? [],
         } : undefined,
       },
     }
@@ -198,24 +198,24 @@ const breadcrumbs = computed(() => [
       <Tabs default-value="general" class="mt-4">
         <div class="flex items-center gap-2 mb-1">
           <Eye class="h-4 w-4 text-muted-foreground" />
-          <span class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Read</span>
+          <span class="text-xs font-medium text-muted-foreground uppercase tracking-wide">View</span>
         </div>
         <TabsList data-testid="view-tabs">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="fields">Fields</TabsTrigger>
           <TabsTrigger value="actions">Actions</TabsTrigger>
           <TabsTrigger value="queries">Queries</TabsTrigger>
-          <TabsTrigger value="read-computed">Computed</TabsTrigger>
+          <TabsTrigger value="view-computed">Computed</TabsTrigger>
         </TabsList>
 
         <div class="flex items-center gap-2 mb-1 mt-3">
           <Pencil class="h-4 w-4 text-muted-foreground" />
-          <span class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Write</span>
+          <span class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Edit</span>
         </div>
         <TabsList data-testid="data-tabs">
           <TabsTrigger value="validation">Validation</TabsTrigger>
           <TabsTrigger value="defaults">Defaults</TabsTrigger>
-          <TabsTrigger value="write-computed">Computed</TabsTrigger>
+          <TabsTrigger value="edit-computed">Computed</TabsTrigger>
           <TabsTrigger value="mutations">Mutations</TabsTrigger>
         </TabsList>
 
@@ -230,57 +230,57 @@ const breadcrumbs = computed(() => [
 
         <TabsContent value="fields">
           <OVFieldsTab
-            :fields="form.config.read.fields"
-            @update:fields="form.config.read.fields = $event"
+            :fields="form.config.view.fields"
+            @update:fields="form.config.view.fields = $event"
           />
         </TabsContent>
 
         <TabsContent value="actions">
           <OVActionsTab
-            :actions="form.config.read.actions"
-            @update:actions="form.config.read.actions = $event"
+            :actions="form.config.view.actions"
+            @update:actions="form.config.view.actions = $event"
           />
         </TabsContent>
 
         <TabsContent value="queries">
           <OVQueriesTab
-            :queries="form.config.read.queries"
-            @update:queries="form.config.read.queries = $event"
+            :queries="form.config.view.queries"
+            @update:queries="form.config.view.queries = $event"
           />
         </TabsContent>
 
-        <TabsContent value="read-computed">
-          <OVReadComputedTab
-            :computed="form.config.read.computed"
-            @update:computed="form.config.read.computed = $event"
+        <TabsContent value="view-computed">
+          <OVViewComputedTab
+            :computed="form.config.view.computed"
+            @update:computed="form.config.view.computed = $event"
           />
         </TabsContent>
 
         <TabsContent value="mutations">
           <OVMutationsTab
-            :mutations="ensureWrite().mutations"
-            @update:mutations="ensureWrite().mutations = $event"
+            :mutations="ensureEdit().mutations"
+            @update:mutations="ensureEdit().mutations = $event"
           />
         </TabsContent>
 
         <TabsContent value="validation">
           <OVValidationTab
-            :validation="ensureWrite().validation"
-            @update:validation="ensureWrite().validation = $event"
+            :validation="ensureEdit().validation"
+            @update:validation="ensureEdit().validation = $event"
           />
         </TabsContent>
 
         <TabsContent value="defaults">
           <OVDefaultsTab
-            :defaults="ensureWrite().defaults"
-            @update:defaults="ensureWrite().defaults = $event"
+            :defaults="ensureEdit().defaults"
+            @update:defaults="ensureEdit().defaults = $event"
           />
         </TabsContent>
 
-        <TabsContent value="write-computed">
+        <TabsContent value="edit-computed">
           <OVComputedTab
-            :computed="ensureWrite().computed"
-            @update:computed="ensureWrite().computed = $event"
+            :computed="ensureEdit().computed"
+            @update:computed="ensureEdit().computed = $event"
           />
         </TabsContent>
       </Tabs>

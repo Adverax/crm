@@ -102,7 +102,7 @@ func TestObjectViewHandler_Create(t *testing.T) {
 				"api_name": "default_view",
 				"label":    "Default View",
 				"config": map[string]interface{}{
-					"read": map[string]interface{}{
+					"view": map[string]interface{}{
 						"fields": []string{"first_name", "last_name"},
 					},
 				},
@@ -333,7 +333,7 @@ func TestObjectViewHandler_Get(t *testing.T) {
 						APIName: "default_view",
 						Label:   "Default View",
 						Config: metadata.OVConfig{
-							Read: metadata.OVReadConfig{
+							View: metadata.OVViewConfig{
 								Fields: []string{"name"},
 							},
 						},
@@ -413,7 +413,7 @@ func TestObjectViewHandler_Update(t *testing.T) {
 			body: map[string]interface{}{
 				"label": "Updated View",
 				"config": map[string]interface{}{
-					"read": map[string]interface{}{
+					"view": map[string]interface{}{
 						"fields": []string{"email", "phone"},
 					},
 				},
