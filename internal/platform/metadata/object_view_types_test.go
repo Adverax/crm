@@ -50,28 +50,12 @@ func TestOVConfig_MarshalUnmarshal(t *testing.T) {
 			},
 		},
 		{
-			name: "view + edit",
+			name: "view with single default query",
 			input: OVConfig{
 				View: OVViewConfig{
 					Fields:  []OVViewField{{Name: "name"}},
 					Actions: []OVAction{},
 					Queries: []OVQuery{{Name: "q1", SOQL: "SELECT Id FROM X", Type: "list", Default: true}},
-				},
-				Edit: &OVEditConfig{
-					Fields:     []string{"name"},
-					Validation: []OVValidation{{Expr: "a>0", Message: "positive", Severity: "error"}},
-					Defaults:   []OVDefault{{Field: "status", Expr: "'draft'", On: "create"}},
-					Computed:   []OVComputed{{Field: "total", Expr: "a+b"}},
-					Mutations:  []OVMutation{{DML: "INSERT INTO X"}},
-				},
-			},
-		},
-		{
-			name: "edit nil omitted",
-			input: OVConfig{
-				View: OVViewConfig{
-					Fields:  []OVViewField{{Name: "a"}},
-					Actions: []OVAction{},
 				},
 			},
 		},

@@ -20,10 +20,8 @@ type ObjectView struct {
 }
 
 // OVConfig holds the full Object View configuration stored as JSONB.
-// Split into View (presentation) and Edit (data contract) sub-objects.
 type OVConfig struct {
-	View OVViewConfig  `json:"view"`
-	Edit *OVEditConfig `json:"edit,omitempty"`
+	View OVViewConfig `json:"view"`
 }
 
 // OVViewConfig holds view-time (presentation) configuration.
@@ -44,16 +42,6 @@ type OVViewField struct {
 	When string `json:"when,omitempty"`
 }
 
-// OVEditConfig holds edit-time (data contract) configuration.
-// Optional — only present when create/update operations make sense.
-type OVEditConfig struct {
-	Fields     []string       `json:"fields,omitempty"`
-	Validation []OVValidation `json:"validation,omitempty"`
-	Defaults   []OVDefault    `json:"defaults,omitempty"`
-	Computed   []OVComputed   `json:"computed,omitempty"`
-	Mutations  []OVMutation   `json:"mutations,omitempty"`
-}
-
 // OVAction describes a button action on the record detail page.
 type OVAction struct {
 	Key            string `json:"key"`
@@ -70,43 +58,6 @@ type OVQuery struct {
 	Type    string `json:"type"`
 	Default bool   `json:"default,omitempty"`
 	When    string `json:"when,omitempty"`
-}
-
-// OVMutation describes a DML operation scoped to this Object View.
-type OVMutation struct {
-	DML     string     `json:"dml"`
-	Foreach string     `json:"foreach,omitempty"`
-	Sync    *OVMutSync `json:"sync,omitempty"`
-	When    string     `json:"when,omitempty"`
-}
-
-// OVMutSync describes synchronization mapping for a mutation.
-type OVMutSync struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
-}
-
-// OVValidation describes a validation rule scoped to this Object View.
-type OVValidation struct {
-	Expr     string `json:"expr"`
-	Message  string `json:"message"`
-	Code     string `json:"code,omitempty"`
-	Severity string `json:"severity"`
-	When     string `json:"when,omitempty"`
-}
-
-// OVDefault describes a default value expression scoped to this Object View.
-type OVDefault struct {
-	Field string `json:"field"`
-	Expr  string `json:"expr"`
-	On    string `json:"on"`
-	When  string `json:"when,omitempty"`
-}
-
-// OVComputed describes a computed field expression scoped to this Object View.
-type OVComputed struct {
-	Field string `json:"field"`
-	Expr  string `json:"expr"`
 }
 
 // CreateObjectViewInput is the input for creating a new Object View.
