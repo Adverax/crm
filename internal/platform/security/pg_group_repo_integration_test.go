@@ -160,16 +160,16 @@ func TestPgGroupRepo_Integration(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, g)
 		assert.Equal(t, roleGroup.ID, g.ID)
-		assert.Equal(t, "RoleGroup_TestGroupRole", g.APIName)
+		assert.Equal(t, "role_group_test_group_role", g.APIName)
 		assert.Equal(t, security.GroupTypeRole, g.GroupType)
 	})
 
 	// --- Test: GetByAPIName ---
 	t.Run("GetByAPIName returns existing group", func(t *testing.T) {
-		g, err := repo.GetByAPIName(ctx, "AllUsers")
+		g, err := repo.GetByAPIName(ctx, "all_users")
 		require.NoError(t, err)
 		require.NotNil(t, g)
-		assert.Equal(t, "AllUsers", g.APIName)
+		assert.Equal(t, "all_users", g.APIName)
 		assert.Equal(t, security.GroupTypePublic, g.GroupType)
 	})
 
@@ -235,7 +235,7 @@ func TestPgGroupRepo_Integration(t *testing.T) {
 	// --- Test: Delete ---
 	t.Run("Delete removes group", func(t *testing.T) {
 		// Get the public group to delete it.
-		pubGroup, err := repo.GetByAPIName(ctx, "AllUsers")
+		pubGroup, err := repo.GetByAPIName(ctx, "all_users")
 		require.NoError(t, err)
 		require.NotNil(t, pubGroup)
 

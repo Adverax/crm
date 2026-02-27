@@ -70,20 +70,23 @@ function isComputed(field: OVViewField): boolean {
 </script>
 
 <template>
+  <div class="space-y-4">
+    <div class="flex items-center justify-between">
+      <Label class="text-base">Fields</Label>
+      <IconButton
+        :icon="Plus"
+        tooltip="Add field"
+        variant="outline"
+        data-testid="add-field-btn"
+        @click="addField"
+      />
+    </div>
+    <p class="text-sm text-muted-foreground">
+      Order matters — first 3 are used as highlights. Fields with expr are computed.
+    </p>
+
   <Card>
     <CardContent class="pt-6 space-y-4">
-      <div class="flex items-center justify-between">
-        <p class="text-sm text-muted-foreground">
-          Order matters — first 3 are used as highlights. Fields with expr are computed.
-        </p>
-        <IconButton
-          :icon="Plus"
-          tooltip="Add field"
-          variant="outline"
-          data-testid="add-field-btn"
-          @click="addField"
-        />
-      </div>
 
       <div
         v-for="(field, idx) in fields"
@@ -156,4 +159,5 @@ function isComputed(field: OVViewField): boolean {
       </div>
     </CardContent>
   </Card>
+  </div>
 </template>
