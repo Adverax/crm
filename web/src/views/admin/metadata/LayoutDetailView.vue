@@ -125,10 +125,10 @@ const allFields = computed<SectionField[]>(() => {
   return ovFields.map(fieldToSectionField)
 })
 
-function fieldToSectionField(fieldName: string): SectionField {
+function fieldToSectionField(field: { name: string }): SectionField {
   return {
-    apiName: fieldName,
-    label: fieldName,
+    apiName: field.name,
+    label: field.name,
     type: 'text',
   }
 }

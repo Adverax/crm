@@ -1,7 +1,6 @@
 package metadata
 
 import (
-	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -27,98 +26,22 @@ type OVConfig struct {
 	Edit *OVEditConfig `json:"edit,omitempty"`
 }
 
-// UnmarshalJSON handles three formats:
-// 1. New format: "view"/"edit" keys
-// 2. Legacy nested: "read"/"write" keys (mapped to View/Edit)
-// 3. Legacy flat: no "view"/"read" key — convert from flat fields
-func (c *OVConfig) UnmarshalJSON(data []byte) error {
-	var probe map[string]json.RawMessage
-	if err := json.Unmarshal(data, &probe); err != nil {
-		return err
-	}
-
-	if _, hasView := probe["view"]; hasView {
-		// New format with "view"/"edit" keys
-		type Alias OVConfig
-		var alias Alias
-		if err := json.Unmarshal(data, &alias); err != nil {
-			return err
-		}
-		*c = OVConfig(alias)
-		return nil
-	}
-
-	if readRaw, hasRead := probe["read"]; hasRead {
-		// Legacy nested format: "read"/"write" → View/Edit
-		if err := json.Unmarshal(readRaw, &c.View); err != nil {
-			return err
-		}
-		if writeRaw, hasWrite := probe["write"]; hasWrite {
-			var edit OVEditConfig
-			if err := json.Unmarshal(writeRaw, &edit); err != nil {
-				return err
-			}
-			c.Edit = &edit
-		}
-		return nil
-	}
-
-	// Legacy flat format — convert to nested
-	var legacy legacyOVConfig
-	if err := json.Unmarshal(data, &legacy); err != nil {
-		return err
-	}
-
-	c.View = OVViewConfig{
-		Fields:   legacy.Fields,
-		Actions:  legacy.Actions,
-		Queries:  legacy.Queries,
-		Computed: convertVirtualFieldsToViewComputed(legacy.VirtualFields),
-	}
-
-	// Only create Edit if there's any edit-related data
-	if len(legacy.Validation) > 0 || len(legacy.Defaults) > 0 ||
-		len(legacy.Computed) > 0 || len(legacy.Mutations) > 0 {
-		c.Edit = &OVEditConfig{
-			Validation: legacy.Validation,
-			Defaults:   legacy.Defaults,
-			Computed:   legacy.Computed,
-			Mutations:  legacy.Mutations,
-		}
-	}
-
-	return nil
-}
-
-// legacyOVConfig represents the pre-split flat config format.
-type legacyOVConfig struct {
-	Fields        []string         `json:"fields"`
-	Actions       []OVAction       `json:"actions"`
-	Queries       []OVQuery        `json:"queries,omitempty"`
-	VirtualFields []OVVirtualField `json:"virtual_fields,omitempty"`
-	Mutations     []OVMutation     `json:"mutations,omitempty"`
-	Validation    []OVValidation   `json:"validation,omitempty"`
-	Defaults      []OVDefault      `json:"defaults,omitempty"`
-	Computed      []OVComputed     `json:"computed,omitempty"`
-}
-
-func convertVirtualFieldsToViewComputed(vfs []OVVirtualField) []OVViewComputed {
-	if len(vfs) == 0 {
-		return nil
-	}
-	result := make([]OVViewComputed, len(vfs))
-	for i, vf := range vfs {
-		result[i] = OVViewComputed(vf)
-	}
-	return result
-}
-
 // OVViewConfig holds view-time (presentation) configuration.
+// Fields is a unified list of regular and computed fields (ADR-0035).
 type OVViewConfig struct {
-	Fields   []string         `json:"fields"`
-	Actions  []OVAction       `json:"actions"`
-	Queries  []OVQuery        `json:"queries,omitempty"`
-	Computed []OVViewComputed `json:"computed,omitempty"`
+	Fields  []OVViewField `json:"fields"`
+	Actions []OVAction    `json:"actions"`
+	Queries []OVQuery     `json:"queries,omitempty"`
+}
+
+// OVViewField describes a field in the view configuration (ADR-0035).
+// Fields without Expr are simple field references (resolved from the default query).
+// Fields with Expr are computed from a CEL expression that can reference queries.
+type OVViewField struct {
+	Name string `json:"name"`
+	Type string `json:"type,omitempty"`
+	Expr string `json:"expr,omitempty"`
+	When string `json:"when,omitempty"`
 }
 
 // OVEditConfig holds edit-time (data contract) configuration.
@@ -131,15 +54,6 @@ type OVEditConfig struct {
 	Mutations  []OVMutation   `json:"mutations,omitempty"`
 }
 
-// OVViewComputed describes a computed virtual field for view context.
-// Renamed from OVVirtualField.
-type OVViewComputed struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
-	Expr string `json:"expr"`
-	When string `json:"when,omitempty"`
-}
-
 // OVAction describes a button action on the record detail page.
 type OVAction struct {
 	Key            string `json:"key"`
@@ -149,11 +63,13 @@ type OVAction struct {
 	VisibilityExpr string `json:"visibility_expr"`
 }
 
-// OVQuery describes a named SOQL query scoped to this Object View.
+// OVQuery describes a named SOQL query scoped to this Object View (ADR-0035).
 type OVQuery struct {
-	Name string `json:"name"`
-	SOQL string `json:"soql"`
-	When string `json:"when,omitempty"`
+	Name    string `json:"name"`
+	SOQL    string `json:"soql"`
+	Type    string `json:"type"`
+	Default bool   `json:"default,omitempty"`
+	When    string `json:"when,omitempty"`
 }
 
 // OVMutation describes a DML operation scoped to this Object View.
@@ -168,15 +84,6 @@ type OVMutation struct {
 type OVMutSync struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
-}
-
-// OVVirtualField is kept for backward compatibility during deserialization.
-// New code should use OVViewComputed instead.
-type OVVirtualField struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
-	Expr string `json:"expr"`
-	When string `json:"when,omitempty"`
 }
 
 // OVValidation describes a validation rule scoped to this Object View.
@@ -216,4 +123,16 @@ type UpdateObjectViewInput struct {
 	Label       string
 	Description string
 	Config      OVConfig
+}
+
+// FieldNames extracts field API names from OVViewField slice.
+func FieldNames(fields []OVViewField) []string {
+	if len(fields) == 0 {
+		return nil
+	}
+	names := make([]string, len(fields))
+	for i, f := range fields {
+		names[i] = f.Name
+	}
+	return names
 }

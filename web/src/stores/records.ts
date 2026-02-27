@@ -8,7 +8,7 @@ import type {
   RecordData,
   RecordPagination,
 } from '@/types/records'
-import type { FormDescribe } from '@/types/object-views'
+import type { FormDescribe, FormQuery } from '@/types/object-views'
 
 export const useRecordsStore = defineStore('records', () => {
   const navObjects = ref<ObjectNavItem[]>([])
@@ -16,6 +16,7 @@ export const useRecordsStore = defineStore('records', () => {
   const records = ref<RecordData[]>([])
   const currentRecord = ref<RecordData | null>(null)
   const recordsPagination = ref<RecordPagination | null>(null)
+  const queryResults = ref<Map<string, RecordData[]>>(new Map())
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -143,6 +144,24 @@ export const useRecordsStore = defineStore('records', () => {
     }
   }
 
+  const formQueries = computed<FormQuery[]>(() => {
+    return currentForm.value?.queries ?? []
+  })
+
+  async function fetchQuery(ovApiName: string, queryName: string, params?: Record<string, string>) {
+    loading.value = true
+    error.value = null
+    try {
+      const res = await recordsApi.executeQuery(ovApiName, queryName, params)
+      queryResults.value.set(queryName, res.data.records ?? [])
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'unknown error'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function deleteRecord(objectName: string, recordId: string) {
     loading.value = true
     error.value = null
@@ -162,9 +181,11 @@ export const useRecordsStore = defineStore('records', () => {
     records,
     currentRecord,
     recordsPagination,
+    queryResults,
     loading,
     error,
     currentForm,
+    formQueries,
     fieldMap,
     editableFields,
     tableFields,
@@ -175,6 +196,7 @@ export const useRecordsStore = defineStore('records', () => {
     fetchDescribe,
     fetchRecords,
     fetchRecord,
+    fetchQuery,
     createRecord,
     updateRecord,
     deleteRecord,

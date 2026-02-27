@@ -388,7 +388,7 @@ func setupRouter(pool *pgxpool.Pool, metadataCache *metadata.MetadataCache, cfg 
 	recordHandler.RegisterRoutes(apiGroup)
 
 	// --- View API ---
-	viewHandler := handler.NewViewHandler(metadataCache)
+	viewHandler := handler.NewViewHandler(metadataCache, soqlService)
 	viewHandler.RegisterRoutes(apiGroup)
 
 	// --- Public Metadata Describe API ---

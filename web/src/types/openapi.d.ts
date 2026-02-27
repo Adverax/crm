@@ -658,6 +658,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/view/{ovApiName}/query/{queryName}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ovApiName: string;
+                queryName: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Execute a named query from an Object View
+         * @description Finds the named query in the Object View config, substitutes URL query parameters into SOQL :paramName placeholders, and executes via the SOQL service with full security enforcement.
+         */
+        get: operations["executeViewQuery"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1062,6 +1085,13 @@ export interface components {
             related_lists?: components["schemas"]["FormRelatedList"][];
             list_fields?: string[];
             list_default_sort?: string;
+            queries?: components["schemas"]["FormQuery"][];
+        };
+        FormQuery: {
+            name: string;
+            /** @enum {string} */
+            type: "scalar" | "list";
+            default?: boolean;
         };
         FormSection: {
             key?: string;
@@ -1150,10 +1180,9 @@ export interface components {
             edit?: components["schemas"]["OVEditConfig"];
         };
         OVViewConfig: {
-            fields?: string[];
+            fields?: components["schemas"]["OVViewField"][];
             actions?: components["schemas"]["OVAction"][];
             queries?: components["schemas"]["OVQuery"][];
-            computed?: components["schemas"]["OVViewComputed"][];
         };
         OVEditConfig: {
             fields?: string[];
@@ -1172,6 +1201,9 @@ export interface components {
         OVQuery: {
             name: string;
             soql: string;
+            /** @enum {string} */
+            type: "scalar" | "list";
+            default?: boolean;
             when?: string;
         };
         OVMutation: {
@@ -1184,11 +1216,11 @@ export interface components {
             key: string;
             value: string;
         };
-        OVViewComputed: {
+        OVViewField: {
             name: string;
             /** @enum {string} */
-            type: "string" | "int" | "float" | "bool" | "timestamp";
-            expr: string;
+            type?: "string" | "int" | "float" | "bool" | "timestamp";
+            expr?: string;
             when?: string;
         };
         OVValidation: {
@@ -2858,6 +2890,35 @@ export interface operations {
                 content: {
                     "application/json": {
                         data?: components["schemas"]["ObjectView"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    executeViewQuery: {
+        parameters: {
+            query?: {
+                per_page?: number;
+            };
+            header?: never;
+            path: {
+                ovApiName: string;
+                queryName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Query execution result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["SOQLResult"];
                     };
                 };
             };

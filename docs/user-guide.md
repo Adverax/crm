@@ -2405,13 +2405,12 @@ This follows the Salesforce pattern: page layouts (the analog of Object Views) a
 
 Key capabilities:
 
-**Read (`read`):**
-- **Fields** — flat list of field `api_name` values to include in this view (WHAT to show). Sections and highlight fields are auto-generated from this list in the computed form.
+**Read (`view`):**
+- **Fields** — array of field objects (`{name, type?, expr?, when?}`). Simple fields reference data by name; fields with `expr` are computed from CEL expressions (ADR-0035). Order matters — first 3 are used as highlights.
 - **Actions** — custom buttons with CEL visibility expressions (e.g., show "Send Proposal" only when `record.Status == 'draft'`)
-- **Queries** — named SOQL queries scoped to this Object View context
-- **Computed** — computed fields derived from CEL expressions, scoped to this view (display-only, not persisted)
+- **Queries** — named SOQL queries as first-class data sources. Each query has a `type` (`scalar` or `list`) and an optional `default` flag. Fields reference query results via CEL expressions (e.g., `main.Name`). Per-query data endpoint: `GET /view/:ovApiName/query/:queryName`.
 
-**Write (`write`, optional):**
+**Write (`edit`, optional):**
 - **Validation** — view-scoped validation rules (additive with metadata-level rules)
 - **Defaults** — view-scoped default expressions (replace metadata-level defaults)
 - **Computed** — fields whose values are computed from CEL expressions on save
@@ -2433,12 +2432,18 @@ Object Views are created through the admin panel at `/admin/metadata/object-view
 
 ### 13.3 Config Structure
 
-The Object View config is a JSON object with two top-level sections: `read` (presentation and read-time data contract) and `write` (write-time data contract):
+The Object View config is a JSON object with two top-level sections: `view` (presentation and read-time data contract) and `edit` (write-time data contract):
 
 ```json
 {
-  "read": {
-    "fields": ["Name", "Industry", "Phone", "Revenue", "AnnualBudget"],
+  "view": {
+    "fields": [
+      { "name": "Name" },
+      { "name": "Industry" },
+      { "name": "Phone" },
+      { "name": "Revenue" },
+      { "name": "total_with_tax", "type": "float", "expr": "record.amount * 1.2" }
+    ],
     "actions": [
       {
         "key": "send_proposal",
@@ -2459,18 +2464,13 @@ The Object View config is a JSON object with two top-level sections: `read` (pre
       {
         "name": "recent_activities",
         "soql": "SELECT Id, Subject, Type FROM Activity WHERE AccountId = :recordId ORDER BY CreatedAt DESC LIMIT 5",
+        "type": "scalar",
+        "default": true,
         "when": "record.status == 'active'"
-      }
-    ],
-    "computed": [
-      {
-        "name": "total_with_tax",
-        "type": "float",
-        "expr": "record.amount * 1.2"
       }
     ]
   },
-  "write": {
+  "edit": {
     "validation": [
       {
         "expr": "record.amount > 0",
@@ -2504,69 +2504,69 @@ The Object View config is a JSON object with two top-level sections: `read` (pre
 
 **Property reference:**
 
-**Read properties (`read.*`):**
+**View properties (`view.*`):**
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `read.fields` | string[] | Field `api_name` values included in this view. Order matters — first 3 are used as highlights in the computed form. |
-| `read.actions` | array | Custom action buttons |
-| `read.actions[].key` | string | Unique action identifier |
-| `read.actions[].label` | string | Button text |
-| `read.actions[].type` | string | `primary`, `secondary`, or `danger` |
-| `read.actions[].icon` | string | Lucide icon name (e.g., `mail`, `check`, `alert-triangle`) |
-| `read.actions[].visibility_expr` | string | CEL expression evaluated against the current record |
-| `read.queries` | array | Named SOQL queries scoped to this Object View context |
-| `read.queries[].name` | string | Query identifier (e.g., `recent_activities`) |
-| `read.queries[].soql` | string | SOQL query with `:recordId` parameter binding |
-| `read.queries[].when` | string | Optional CEL condition for when query executes |
-| `read.computed` | array | Computed fields (read) — derived from CEL expressions, display-only |
-| `read.computed[].name` | string | Computed field name |
-| `read.computed[].type` | string | `string`, `int`, `float`, `bool`, or `timestamp` |
-| `read.computed[].expr` | string | CEL expression computing the value |
-| `read.computed[].when` | string | Optional CEL condition for when field applies |
+| `view.fields` | OVViewField[] | Field objects included in this view. Order matters — first 3 are used as highlights. Fields with `expr` are computed (display-only). |
+| `view.fields[].name` | string | Field `api_name` (or computed field name) |
+| `view.fields[].type` | string? | Optional type: `string`, `int`, `float`, `bool`, `timestamp` |
+| `view.fields[].expr` | string? | Optional CEL expression — makes this a computed field. Can reference queries (e.g., `main.Name`) |
+| `view.fields[].when` | string? | Optional CEL condition for when field is visible |
+| `view.actions` | array | Custom action buttons |
+| `view.actions[].key` | string | Unique action identifier |
+| `view.actions[].label` | string | Button text |
+| `view.actions[].type` | string | `primary`, `secondary`, or `danger` |
+| `view.actions[].icon` | string | Lucide icon name (e.g., `mail`, `check`, `alert-triangle`) |
+| `view.actions[].visibility_expr` | string | CEL expression evaluated against the current record |
+| `view.queries` | array | Named SOQL queries — first-class data sources (ADR-0035) |
+| `view.queries[].name` | string | Query identifier (e.g., `recent_activities`) |
+| `view.queries[].soql` | string | SOQL query with `:param` parameter binding |
+| `view.queries[].type` | string | `scalar` (single record) or `list` (multiple records) |
+| `view.queries[].default` | boolean | If `true`, this is the default query (at most one per OV) |
+| `view.queries[].when` | string | Optional CEL condition for when query executes |
 
-**Write properties (`write.*`):**
+**Edit properties (`edit.*`):**
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `write.validation` | array | View-scoped validation rules (additive with metadata-level rules) |
-| `write.validation[].expr` | string | CEL expression that must evaluate to `true` |
-| `write.validation[].message` | string | Error message shown when validation fails |
-| `write.validation[].code` | string | Optional error code identifier |
-| `write.validation[].severity` | string | `error` (blocks save) or `warning` (advisory) |
-| `write.validation[].when` | string | Optional CEL condition for when rule applies |
-| `write.defaults` | array | View-scoped default expressions (replace metadata-level defaults) |
-| `write.defaults[].field` | string | Target field `api_name` |
-| `write.defaults[].expr` | string | CEL expression computing the default value |
-| `write.defaults[].on` | string | `create`, `update`, or `create,update` |
-| `write.defaults[].when` | string | Optional CEL condition for when default applies |
-| `write.computed` | array | Computed fields (write) — values computed from CEL expressions on save |
-| `write.computed[].field` | string | Target field `api_name` |
-| `write.computed[].expr` | string | CEL expression computing the value |
-| `write.mutations` | array | DML operations scoped to this Object View |
-| `write.mutations[].dml` | string | DML statement with `:recordId` parameter binding |
-| `write.mutations[].foreach` | string | Optional CEL expression for iteration (e.g., `queries.line_items`) |
-| `write.mutations[].sync` | object | Optional sync mapping (`key`, `value` fields) |
-| `write.mutations[].when` | string | Optional CEL condition for when mutation executes |
+| `edit.validation` | array | View-scoped validation rules (additive with metadata-level rules) |
+| `edit.validation[].expr` | string | CEL expression that must evaluate to `true` |
+| `edit.validation[].message` | string | Error message shown when validation fails |
+| `edit.validation[].code` | string | Optional error code identifier |
+| `edit.validation[].severity` | string | `error` (blocks save) or `warning` (advisory) |
+| `edit.validation[].when` | string | Optional CEL condition for when rule applies |
+| `edit.defaults` | array | View-scoped default expressions (replace metadata-level defaults) |
+| `edit.defaults[].field` | string | Target field `api_name` |
+| `edit.defaults[].expr` | string | CEL expression computing the default value |
+| `edit.defaults[].on` | string | `create`, `update`, or `create,update` |
+| `edit.defaults[].when` | string | Optional CEL condition for when default applies |
+| `edit.computed` | array | Computed fields (write) — values computed from CEL expressions on save |
+| `edit.computed[].field` | string | Target field `api_name` |
+| `edit.computed[].expr` | string | CEL expression computing the value |
+| `edit.mutations` | array | DML operations scoped to this Object View |
+| `edit.mutations[].dml` | string | DML statement with `:recordId` parameter binding |
+| `edit.mutations[].foreach` | string | Optional CEL expression for iteration (e.g., `queries.line_items`) |
+| `edit.mutations[].sync` | object | Optional sync mapping (`key`, `value` fields) |
+| `edit.mutations[].when` | string | Optional CEL condition for when mutation executes |
 
 ### 13.4 Visual Constructor
 
 The Object View detail page provides a tab-based visual constructor for editing the config without writing JSON. Tabs are organized as follows:
 
-**Read tabs:**
+**View tabs:**
 
 1. **General** — edit label, description, is_default flag. Read-only: api_name, profile.
-2. **Fields** — add/remove field api_names to include in this view. Order matters — first 3 become highlights in the computed form.
+2. **Fields** — unified field list (ADR-0035). Each field has: name, optional type, optional CEL expression (`expr`), optional `when` condition. Simple fields (no `expr`) reference object data by name. Fields with `expr` are computed (display-only). Order matters — first 3 become highlights.
 3. **Actions** — add action buttons with key, label, type, icon, and a CEL visibility expression (uses the Expression Builder from Phase 8).
-4. **Queries** — define named SOQL queries scoped to this view (name, SOQL statement, optional `when` condition). Each query's SOQL is edited via the **SOQL Editor** — a rich CodeMirror-based editor with syntax highlighting, context-aware autocomplete (objects, fields, keywords, functions, date literals), server-side validation (`POST /admin/soql/validate`), and test query execution (preview first 5 records).
-5. **Computed (Read)** — define computed fields from CEL expressions (name, type, expression, optional `when` condition). These are display-only and not persisted.
+4. **Queries** — define named SOQL queries as first-class data sources. Each query has: name, SOQL statement, type (`scalar`/`list`), optional `default` flag, optional `when` condition. At most one query can be marked as default. SOQL is edited via the **SOQL Editor** — a rich CodeMirror-based editor with syntax highlighting, context-aware autocomplete, server-side validation (`POST /admin/soql/validate`), and test query execution (preview first 5 records).
 
-**Write tabs:**
+**Edit tabs:**
 
-6. **Validation** — define view-scoped validation rules (CEL expression, error message, optional code, severity: error/warning, optional `when` condition). These are additive with metadata-level validation rules.
-7. **Defaults** — define view-scoped default expressions (field, CEL expression, trigger: create/update/create,update, optional `when` condition). These replace metadata-level defaults.
-8. **Computed (Write)** — define fields whose values are computed from CEL expressions on save (field, CEL expression).
-9. **Mutations** — define DML operations scoped to this view (DML statement, optional `foreach` iteration, optional `sync` mapping, optional `when` condition).
+5. **Validation** — define view-scoped validation rules (CEL expression, error message, optional code, severity: error/warning, optional `when` condition). These are additive with metadata-level validation rules.
+6. **Defaults** — define view-scoped default expressions (field, CEL expression, trigger: create/update/create,update, optional `when` condition). These replace metadata-level defaults.
+7. **Computed** — define fields whose values are computed from CEL expressions on save (field, CEL expression).
+8. **Mutations** — define DML operations scoped to this view (DML statement, optional `foreach` iteration, optional `sync` mapping, optional `when` condition).
 
 Click **"Save"** to persist changes. All changes take effect immediately.
 
@@ -2584,17 +2584,33 @@ The Describe API (`GET /api/v1/describe/:objectName`) **always returns a fallbac
 
 This allows gradual adoption — the system works without any Object Views configured, and administrators can add views incrementally via navigation page items.
 
-### 13.6 FLS Intersection
+### 13.6 Per-Query Data Endpoint (ADR-0035)
+
+Each query defined in an Object View can be executed independently:
+
+```
+GET /api/v1/view/:ovApiName/query/:queryName
+```
+
+URL query parameters are substituted into the SOQL `:param` placeholders. For example:
+
+```
+GET /api/v1/view/account_default/query/recent_activities?recordId=123
+```
+
+This executes the `recent_activities` query from the `account_default` Object View with `:recordId` replaced by `123`. The response includes paginated query results. SOQL source is never exposed to the client.
+
+### 13.7 FLS Intersection
 
 The resolved Object View config is intersected with the current user's Field-Level Security (FLS) permissions:
 
-- **Fields** — fields the user cannot read are removed from the flat field list (and consequently from the auto-generated sections and highlights)
+- **Fields** — fields the user cannot read are removed from the field list (and consequently from the auto-generated sections and highlights)
 - **List fields** — inaccessible columns are removed
 - **Related lists** — related objects the user cannot read (OLS) are excluded
 
 This ensures that even if an administrator includes a field in the Object View, users without FLS access will never see it.
 
-### 13.7 Describe API (Fallback Form)
+### 13.8 Describe API (Fallback Form)
 
 The Describe API always returns a **fallback form** — auto-generated from all FLS-accessible fields. It no longer resolves Object Views.
 
@@ -2635,7 +2651,7 @@ The `fields` array remains for backward compatibility. The `form` property is al
 
 To get a customized view configuration, use the View endpoint: `GET /api/v1/view/:ovApiName`.
 
-### 13.8 CRM UI Rendering
+### 13.9 CRM UI Rendering
 
 When the CRM frontend (`/app/*`) receives a `form` in the Describe response, it renders:
 
@@ -2651,7 +2667,7 @@ When the CRM frontend (`/app/*`) receives a `form` in the Describe response, it 
 
 If no `form` is present (backward compatibility), the UI falls back to the original single-card layout with all fields.
 
-### 13.9 API
+### 13.10 API
 
 #### List Object Views
 

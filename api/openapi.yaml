@@ -1418,6 +1418,53 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /api/v1/view/{ovApiName}/query/{queryName}:
+    parameters:
+      - name: ovApiName
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: queryName
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Execute a named query from an Object View
+      description: >
+        Finds the named query in the Object View config, substitutes
+        URL query parameters into SOQL :paramName placeholders, and
+        executes via the SOQL service with full security enforcement.
+      operationId: executeViewQuery
+      tags:
+        - views
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 200
+      responses:
+        "200":
+          description: Query execution result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SOQLResult"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   # NOTE: Security endpoints (roles, permission-sets, profiles, users, groups,
   # sharing-rules) are registered manually via SecurityHandler.RegisterRoutes.
   # They are not included in OpenAPI codegen to avoid ServerInterface bloat.
@@ -2388,6 +2435,24 @@ components:
             type: string
         list_default_sort:
           type: string
+        queries:
+          type: array
+          items:
+            $ref: "#/components/schemas/FormQuery"
+
+    FormQuery:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [scalar, list]
+        default:
+          type: boolean
 
     FormSection:
       type: object
@@ -2596,7 +2661,7 @@ components:
         fields:
           type: array
           items:
-            type: string
+            $ref: "#/components/schemas/OVViewField"
         actions:
           type: array
           items:
@@ -2605,10 +2670,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/OVQuery"
-        computed:
-          type: array
-          items:
-            $ref: "#/components/schemas/OVViewComputed"
 
     OVEditConfig:
       type: object
@@ -2659,11 +2720,17 @@ components:
       required:
         - name
         - soql
+        - type
       properties:
         name:
           type: string
         soql:
           type: string
+        type:
+          type: string
+          enum: [scalar, list]
+        default:
+          type: boolean
         when:
           type: string
 
@@ -2692,12 +2759,10 @@ components:
         value:
           type: string
 
-    OVViewComputed:
+    OVViewField:
       type: object
       required:
         - name
-        - type
-        - expr
       properties:
         name:
           type: string

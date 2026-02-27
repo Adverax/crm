@@ -294,8 +294,10 @@ Every significant decision is documented as an ADR in [`docs/adr/`](docs/adr/):
 | [0030](docs/adr/0030-modular-monolith-strategy.md) | Modular Monolith: MetadataReader interface |
 | [0031](docs/adr/0031-automation-rules.md) | Automation Rules: reactive triggers on DML events |
 | [0032](docs/adr/0032-profile-navigation-and-dashboard.md) | Profile Navigation + OV Unbinding |
+| [0034](docs/adr/0034-industry-modules.md) | Industry Modules: vertical extensibility |
+| [0035](docs/adr/0035-ov-data-binding-model.md) | OV Data Binding: queries as first-class data sources |
 
-[All 32 ADRs →](docs/adr/)
+[All 34 ADRs →](docs/adr/)
 
 ---
 

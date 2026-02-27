@@ -41,7 +41,7 @@ func TestPgGroupMemberRepo_Integration(t *testing.T) {
 	tx, err := pool.Begin(ctx)
 	require.NoError(t, err)
 	ps, err := psRepo.Create(ctx, tx, security.CreatePermissionSetInput{
-		APIName:     "TestMemberPS",
+		APIName:     "test_member_ps",
 		Label:       "Test Member PS",
 		Description: "PS for group member integration tests",
 		PSType:      security.PSTypeGrant,
@@ -53,7 +53,7 @@ func TestPgGroupMemberRepo_Integration(t *testing.T) {
 	tx, err = pool.Begin(ctx)
 	require.NoError(t, err)
 	profile, err := profileRepo.Create(ctx, tx, &security.Profile{
-		APIName:             "TestMemberProfile",
+		APIName:             "test_member_profile",
 		Label:               "Test Member Profile",
 		Description:         "Profile for group member integration tests",
 		BasePermissionSetID: ps.ID,
@@ -65,7 +65,7 @@ func TestPgGroupMemberRepo_Integration(t *testing.T) {
 	tx, err = pool.Begin(ctx)
 	require.NoError(t, err)
 	role, err := roleRepo.Create(ctx, tx, security.CreateUserRoleInput{
-		APIName:     "TestMemberRole",
+		APIName:     "test_member_role",
 		Label:       "Test Member Role",
 		Description: "Role for group member integration tests",
 	})
@@ -90,14 +90,14 @@ func TestPgGroupMemberRepo_Integration(t *testing.T) {
 	tx, err = pool.Begin(ctx)
 	require.NoError(t, err)
 	publicGroup, err := groupRepo.Create(ctx, tx, security.CreateGroupInput{
-		APIName:   "MemberTestPublic",
+		APIName:   "member_test_public",
 		Label:     "Member Test Public",
 		GroupType: security.GroupTypePublic,
 	})
 	require.NoError(t, err)
 
 	roleGroup, err := groupRepo.Create(ctx, tx, security.CreateGroupInput{
-		APIName:       "MemberTestRole",
+		APIName:       "member_test_role",
 		Label:         "Member Test Role",
 		GroupType:     security.GroupTypeRole,
 		RelatedRoleID: &role.ID,

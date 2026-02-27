@@ -89,6 +89,13 @@ type formDescribe struct {
 	Root              *metadata.LayoutComponent        `json:"root,omitempty"`
 	ListConfig        *metadata.ListConfig             `json:"list_config,omitempty"`
 	FieldPresentation map[string]formFieldPresentation `json:"field_presentation,omitempty"`
+	Queries           []formQuery                      `json:"queries,omitempty"`
+}
+
+type formQuery struct {
+	Name    string `json:"name"`
+	Type    string `json:"type"`
+	Default bool   `json:"default,omitempty"`
 }
 
 type formSection struct {
@@ -337,18 +344,32 @@ func (h *DescribeHandler) mergeOVAndLayout(
 	form := buildFallbackForm(fields)
 
 	// Apply OV sections if OV has view config with fields
-	if len(ov.Config.View.Fields) > 0 {
+	fieldNames := metadata.FieldNames(ov.Config.View.Fields)
+	if len(fieldNames) > 0 {
 		form.Sections = []formSection{{
 			Key:     "details",
 			Label:   "Details",
 			Columns: 2,
-			Fields:  ov.Config.View.Fields,
+			Fields:  fieldNames,
 		}}
 
-		form.ListFields = ov.Config.View.Fields
+		form.ListFields = fieldNames
 		if len(form.ListFields) > 5 {
 			form.ListFields = form.ListFields[:5]
 		}
+	}
+
+	// Map queries to form (without SOQL for security)
+	if len(ov.Config.View.Queries) > 0 {
+		queries := make([]formQuery, len(ov.Config.View.Queries))
+		for i, q := range ov.Config.View.Queries {
+			queries[i] = formQuery{
+				Name:    q.Name,
+				Type:    q.Type,
+				Default: q.Default,
+			}
+		}
+		form.Queries = queries
 	}
 
 	// Apply OV actions

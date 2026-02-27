@@ -1073,7 +1073,12 @@ export const mockObjectViews = [
     description: 'Default view for accounts',
     config: {
       view: {
-        fields: ['Name', 'Industry', 'Phone'],
+        fields: [
+          { name: 'Name' },
+          { name: 'Industry' },
+          { name: 'Phone' },
+          { name: 'display_name', type: 'string', expr: 'record.Name + " (" + record.Industry + ")"', when: '' },
+        ],
         actions: [
           {
             key: 'send_email',
@@ -1087,14 +1092,7 @@ export const mockObjectViews = [
           {
             name: 'recent_activities',
             soql: 'SELECT Id, Subject FROM Activity WHERE WhatId = :recordId',
-            when: '',
-          },
-        ],
-        computed: [
-          {
-            name: 'display_name',
-            type: 'string',
-            expr: 'record.Name + " (" + record.Industry + ")"',
+            type: 'scalar',
             when: '',
           },
         ],
@@ -1128,7 +1126,6 @@ export const mockObjectViews = [
         fields: [],
         actions: [],
         queries: [],
-        computed: [],
       },
       edit: null,
     },

@@ -21,7 +21,7 @@ func TestPgObjectRepo_Integration(t *testing.T) {
 	ctx := context.Background()
 
 	standardInput := CreateObjectInput{
-		APIName:               "TestAccount",
+		APIName:               "test_account",
 		Label:                 "Test Account",
 		PluralLabel:           "Test Accounts",
 		Description:           "Account for integration tests",
@@ -50,11 +50,11 @@ func TestPgObjectRepo_Integration(t *testing.T) {
 		require.NoError(t, tx.Commit(ctx))
 
 		assert.NotEqual(t, uuid.Nil, obj.ID)
-		assert.Equal(t, "TestAccount", obj.APIName)
+		assert.Equal(t, "test_account", obj.APIName)
 		assert.Equal(t, "Test Account", obj.Label)
 		assert.Equal(t, "Test Accounts", obj.PluralLabel)
 		assert.Equal(t, "Account for integration tests", obj.Description)
-		assert.Equal(t, "obj_testaccount", obj.TableName)
+		assert.Equal(t, "obj_test_account", obj.TableName)
 		assert.Equal(t, ObjectTypeStandard, obj.ObjectType)
 		assert.False(t, obj.IsPlatformManaged)
 		assert.True(t, obj.IsVisibleInSetup)
@@ -79,7 +79,7 @@ func TestPgObjectRepo_Integration(t *testing.T) {
 		tx, err := pool.Begin(ctx)
 		require.NoError(t, err)
 		created, err := repo.Create(ctx, tx, CreateObjectInput{
-			APIName:    "GetByIDObj",
+			APIName:    "get_by_id_obj",
 			Label:      "GetByID Object",
 			ObjectType: ObjectTypeStandard,
 			Visibility: VisibilityPrivate,
@@ -91,14 +91,14 @@ func TestPgObjectRepo_Integration(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, found)
 		assert.Equal(t, created.ID, found.ID)
-		assert.Equal(t, "GetByIDObj", found.APIName)
+		assert.Equal(t, "get_by_id_obj", found.APIName)
 	})
 
 	t.Run("GetByAPIName finds created object", func(t *testing.T) {
 		tx, err := pool.Begin(ctx)
 		require.NoError(t, err)
 		created, err := repo.Create(ctx, tx, CreateObjectInput{
-			APIName:    "FindByName",
+			APIName:    "find_by_name",
 			Label:      "Find By Name",
 			ObjectType: ObjectTypeStandard,
 			Visibility: VisibilityPrivate,
@@ -106,11 +106,11 @@ func TestPgObjectRepo_Integration(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, tx.Commit(ctx))
 
-		found, err := repo.GetByAPIName(ctx, "FindByName")
+		found, err := repo.GetByAPIName(ctx, "find_by_name")
 		require.NoError(t, err)
 		require.NotNil(t, found)
 		assert.Equal(t, created.ID, found.ID)
-		assert.Equal(t, "FindByName", found.APIName)
+		assert.Equal(t, "find_by_name", found.APIName)
 	})
 
 	t.Run("GetByID returns nil for non-existent UUID", func(t *testing.T) {
@@ -123,7 +123,7 @@ func TestPgObjectRepo_Integration(t *testing.T) {
 		// Truncate and create 3 objects for deterministic results.
 		pgtest.TruncateTables(t, pool, "metadata.object_definitions")
 
-		for _, name := range []string{"ListObj1", "ListObj2", "ListObj3"} {
+		for _, name := range []string{"list_obj1", "list_obj2", "list_obj3"} {
 			tx, err := pool.Begin(ctx)
 			require.NoError(t, err)
 			_, err = repo.Create(ctx, tx, CreateObjectInput{
@@ -159,7 +159,7 @@ func TestPgObjectRepo_Integration(t *testing.T) {
 		tx, err := pool.Begin(ctx)
 		require.NoError(t, err)
 		created, err := repo.Create(ctx, tx, CreateObjectInput{
-			APIName:      "UpdObj",
+			APIName:      "upd_obj",
 			Label:        "Original Label",
 			Description:  "Original Desc",
 			ObjectType:   ObjectTypeStandard,
@@ -193,7 +193,7 @@ func TestPgObjectRepo_Integration(t *testing.T) {
 		tx, err := pool.Begin(ctx)
 		require.NoError(t, err)
 		created, err := repo.Create(ctx, tx, CreateObjectInput{
-			APIName:    "DelObj",
+			APIName:    "del_obj",
 			Label:      "Delete Me",
 			ObjectType: ObjectTypeStandard,
 			Visibility: VisibilityPrivate,
@@ -222,7 +222,7 @@ func TestPgObjectRepo_Integration(t *testing.T) {
 		tx, err := pool.Begin(ctx)
 		require.NoError(t, err)
 		created, err := repo.Create(ctx, tx, CreateObjectInput{
-			APIName:    "CountObj",
+			APIName:    "count_obj",
 			Label:      "Count Object",
 			ObjectType: ObjectTypeStandard,
 			Visibility: VisibilityPrivate,
@@ -251,7 +251,7 @@ func TestPgObjectRepo_Integration(t *testing.T) {
 		tx, err := pool.Begin(ctx)
 		require.NoError(t, err)
 		obj, err := repo.Create(ctx, tx, CreateObjectInput{
-			APIName:    "MyCustom__c",
+			APIName:    "my_custom__c",
 			Label:      "My Custom Object",
 			ObjectType: ObjectTypeCustom,
 			Visibility: VisibilityPrivate,
@@ -259,7 +259,7 @@ func TestPgObjectRepo_Integration(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, tx.Commit(ctx))
 
-		assert.Equal(t, "obj_mycustom", obj.TableName)
+		assert.Equal(t, "obj_my_custom", obj.TableName)
 		assert.Equal(t, ObjectTypeCustom, obj.ObjectType)
 	})
 }

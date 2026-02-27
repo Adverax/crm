@@ -36,7 +36,7 @@ func TestPgObjectPermRepo_Integration(t *testing.T) {
 	tx, err := pool.Begin(ctx)
 	require.NoError(t, err)
 	ps1, err := psRepo.Create(ctx, tx, security.CreatePermissionSetInput{
-		APIName:     "TestObjPermPS1",
+		APIName:     "test_obj_perm_ps1",
 		Label:       "Test Object Perm PS 1",
 		Description: "PS1 for object permission integration tests",
 		PSType:      security.PSTypeGrant,
@@ -48,7 +48,7 @@ func TestPgObjectPermRepo_Integration(t *testing.T) {
 	tx, err = pool.Begin(ctx)
 	require.NoError(t, err)
 	ps2, err := psRepo.Create(ctx, tx, security.CreatePermissionSetInput{
-		APIName:     "TestObjPermPS2",
+		APIName:     "test_obj_perm_ps2",
 		Label:       "Test Object Perm PS 2",
 		Description: "PS2 for object permission integration tests",
 		PSType:      security.PSTypeGrant,
@@ -61,7 +61,7 @@ func TestPgObjectPermRepo_Integration(t *testing.T) {
 	tx, err = pool.Begin(ctx)
 	require.NoError(t, err)
 	metaObj, err := metaRepo.Create(ctx, tx, metadata.CreateObjectInput{
-		APIName:     "TestAccount",
+		APIName:     "test_account",
 		Label:       "Test Account",
 		PluralLabel: "Test Accounts",
 		ObjectType:  metadata.ObjectTypeStandard,

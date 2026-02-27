@@ -27,7 +27,7 @@ func TestPgFieldRepo_Integration(t *testing.T) {
 	tx, err := pool.Begin(ctx)
 	require.NoError(t, err)
 	parentObj, err := objRepo.Create(ctx, tx, CreateObjectInput{
-		APIName:    "FieldTestObj",
+		APIName:    "field_test_obj",
 		Label:      "Field Test Object",
 		ObjectType: ObjectTypeStandard,
 		Visibility: VisibilityPrivate,

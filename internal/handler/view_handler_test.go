@@ -14,28 +14,16 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/adverax/crm/internal/platform/metadata"
+	"github.com/adverax/crm/internal/platform/soql"
 )
 
 func buildViewHandlerTestCache(ovs []metadata.ObjectView) *metadata.MetadataCache {
-	loader := &stubDescribeCacheLoader{}
-	cache := metadata.NewMetadataCache(loader)
+	ovLoader := &ovCacheLoaderForView{objectViews: ovs}
+	cache := metadata.NewMetadataCache(ovLoader)
 	if err := cache.Load(context.Background()); err != nil {
 		panic(fmt.Sprintf("failed to load test cache: %v", err))
 	}
-
-	// Load OVs into cache via the loader override
-	loader2 := &stubDescribeCacheLoader{}
-	loader2Ovs := ovs
-	_ = loader2
-	_ = loader2Ovs
-
-	// Use a custom loader that returns the OVs
-	ovLoader := &ovCacheLoaderForView{objectViews: ovs}
-	cache2 := metadata.NewMetadataCache(ovLoader)
-	if err := cache2.Load(context.Background()); err != nil {
-		panic(fmt.Sprintf("failed to load test cache: %v", err))
-	}
-	return cache2
+	return cache
 }
 
 type ovCacheLoaderForView struct {
@@ -76,12 +64,12 @@ func (l *ovCacheLoaderForView) RefreshMaterializedView(_ context.Context) error 
 	return nil
 }
 
-func setupViewRouter(t *testing.T, cache *metadata.MetadataCache) *gin.Engine {
+func setupViewRouter(t *testing.T, cache *metadata.MetadataCache, soqlSvc soql.QueryService) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	api := r.Group("/api/v1")
-	h := NewViewHandler(cache)
+	h := NewViewHandler(cache, soqlSvc)
 	h.RegisterRoutes(api)
 	return r
 }
@@ -95,7 +83,7 @@ func TestViewHandler_GetByAPIName(t *testing.T) {
 		Label:   "Sales Dashboard",
 		Config: metadata.OVConfig{
 			View: metadata.OVViewConfig{
-				Fields: []string{"name", "amount"},
+				Fields: []metadata.OVViewField{{Name: "name"}, {Name: "amount"}},
 			},
 		},
 	}
@@ -133,7 +121,7 @@ func TestViewHandler_GetByAPIName(t *testing.T) {
 			t.Parallel()
 
 			cache := buildViewHandlerTestCache(tt.ovs)
-			r := setupViewRouter(t, cache)
+			r := setupViewRouter(t, cache, nil)
 
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodGet, "/api/v1/view/"+tt.apiName, nil)
@@ -150,6 +138,123 @@ func TestViewHandler_GetByAPIName(t *testing.T) {
 				assert.Equal(t, tt.wantLabel, resp.Data.Label)
 				assert.Equal(t, tt.apiName, resp.Data.APIName)
 			}
+		})
+	}
+}
+
+// --- Mock SOQL service ---
+
+type mockSOQLService struct {
+	executeFn func(ctx context.Context, query string, params *soql.QueryParams) (*soql.QueryResult, error)
+}
+
+func (m *mockSOQLService) Execute(ctx context.Context, query string, params *soql.QueryParams) (*soql.QueryResult, error) {
+	if m.executeFn != nil {
+		return m.executeFn(ctx, query, params)
+	}
+	return &soql.QueryResult{}, nil
+}
+
+func TestViewHandler_ExecuteQuery(t *testing.T) {
+	t.Parallel()
+
+	testOV := metadata.ObjectView{
+		ID:      uuid.New(),
+		APIName: "account_view",
+		Label:   "Account View",
+		Config: metadata.OVConfig{
+			View: metadata.OVViewConfig{
+				Fields: []metadata.OVViewField{{Name: "name"}},
+				Queries: []metadata.OVQuery{
+					{Name: "main", SOQL: "SELECT Id, Name FROM Account WHERE Id = :id", Type: "scalar", Default: true},
+					{Name: "contacts", SOQL: "SELECT Id, Name FROM Contact WHERE AccountId = :id", Type: "list"},
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		name       string
+		ovAPIName  string
+		queryName  string
+		queryStr   string
+		ovs        []metadata.ObjectView
+		setupSOQL  func(m *mockSOQLService)
+		wantStatus int
+	}{
+		{
+			name:      "executes scalar query successfully",
+			ovAPIName: "account_view",
+			queryName: "main",
+			queryStr:  "id=abc-123",
+			ovs:       []metadata.ObjectView{testOV},
+			setupSOQL: func(m *mockSOQLService) {
+				m.executeFn = func(_ context.Context, query string, params *soql.QueryParams) (*soql.QueryResult, error) {
+					assert.Contains(t, query, "'abc-123'")
+					return &soql.QueryResult{
+						TotalSize: 1,
+						Done:      true,
+						Records:   []map[string]any{{"Id": "abc-123", "Name": "Acme"}},
+					}, nil
+				}
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:      "executes list query",
+			ovAPIName: "account_view",
+			queryName: "contacts",
+			queryStr:  "id=abc-123&per_page=10",
+			ovs:       []metadata.ObjectView{testOV},
+			setupSOQL: func(m *mockSOQLService) {
+				m.executeFn = func(_ context.Context, _ string, params *soql.QueryParams) (*soql.QueryResult, error) {
+					assert.Equal(t, 10, params.PageSize)
+					return &soql.QueryResult{
+						TotalSize: 2,
+						Done:      true,
+						Records:   []map[string]any{{"Id": "c1"}, {"Id": "c2"}},
+					}, nil
+				}
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 404 for unknown OV",
+			ovAPIName:  "nonexistent",
+			queryName:  "main",
+			ovs:        []metadata.ObjectView{testOV},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:       "returns 404 for unknown query",
+			ovAPIName:  "account_view",
+			queryName:  "nonexistent",
+			ovs:        []metadata.ObjectView{testOV},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cache := buildViewHandlerTestCache(tt.ovs)
+			soqlSvc := &mockSOQLService{}
+			if tt.setupSOQL != nil {
+				tt.setupSOQL(soqlSvc)
+			}
+			r := setupViewRouter(t, cache, soqlSvc)
+
+			url := fmt.Sprintf("/api/v1/view/%s/query/%s", tt.ovAPIName, tt.queryName)
+			if tt.queryStr != "" {
+				url += "?" + tt.queryStr
+			}
+
+			w := httptest.NewRecorder()
+			req, _ := http.NewRequest(http.MethodGet, url, nil)
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.wantStatus, w.Code, "body: %s", w.Body.String())
 		})
 	}
 }

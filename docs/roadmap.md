@@ -488,6 +488,18 @@ Declarative automation: from atomic commands to composite procedures.
 | Assignment Rules | Automation Rule + Procedure |
 | Escalation Rules | Scenario + timers |
 
+#### OV Data Binding Model (ADR-0035, cross-cutting) ✅
+
+- [x] **ADR-0035**: Queries as first-class data sources, unified field model
+- [x] **Go types**: `OVViewField` (name, type?, expr?, when?) replaces `[]string` fields + `OVViewComputed`
+- [x] **OVQuery**: added `type` (scalar/list) and `default` flag
+- [x] **Validation**: query name uniqueness, max one default, field DAG cycle detection (Kahn's algorithm)
+- [x] **Describe handler**: `formQuery` struct, queries passed to form (without SOQL)
+- [x] **Per-query endpoint**: `GET /view/:ovApiName/query/:queryName` — SOQL execution with URL param substitution
+- [x] **OpenAPI spec**: updated schemas, new endpoint
+- [x] **Frontend**: unified OVFieldsTab (fields + computed merged), Queries tab (type dropdown, default checkbox)
+- [x] **E2E tests**: updated mock data, new tests for query type/default, field expressions
+
 #### SOQL Editor (cross-cutting enhancement) ✅
 
 - [x] **Backend**: `POST /admin/soql/validate` endpoint — server-side query validation with error position (line/column)

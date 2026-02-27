@@ -155,6 +155,9 @@ func (s *objectViewService) validateCreate(input CreateObjectViewInput) error {
 	if len(input.Label) > 255 {
 		return apperror.BadRequest("label must be at most 255 characters")
 	}
+	if err := validateViewConfig(input.Config); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -164,6 +167,9 @@ func (s *objectViewService) validateUpdate(input UpdateObjectViewInput) error {
 	}
 	if len(input.Label) > 255 {
 		return apperror.BadRequest("label must be at most 255 characters")
+	}
+	if err := validateViewConfig(input.Config); err != nil {
+		return err
 	}
 	return nil
 }

@@ -80,4 +80,19 @@ export const recordsApi = {
       skipCaseConversion: true,
     })
   },
+
+  executeQuery(ovApiName: string, queryName: string, params?: Record<string, string>): Promise<QueryResultResponse> {
+    return http.request<QueryResultResponse>('GET', `/api/v1/view/${ovApiName}/query/${queryName}`, {
+      params: params as Record<string, string | number>,
+      skipCaseConversion: true,
+    })
+  },
+}
+
+interface QueryResultResponse {
+  data: {
+    totalSize: number
+    done: boolean
+    records: RecordData[]
+  }
 }

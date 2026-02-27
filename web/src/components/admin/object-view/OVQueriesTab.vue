@@ -4,6 +4,14 @@ import { Trash2, Plus } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import SoqlEditor from '@/components/admin/soql-editor/SoqlEditor.vue'
 import type { OVQuery } from '@/types/object-views'
 
@@ -16,13 +24,29 @@ const emit = defineEmits<{
 }>()
 
 function addQuery() {
-  const updated = [...props.queries, { name: '', soql: '', when: '' }]
+  const updated: OVQuery[] = [...props.queries, { name: '', soql: '', type: 'scalar', when: '' }]
   emit('update:queries', updated)
 }
 
 function removeQuery(index: number) {
   const updated = [...props.queries]
   updated.splice(index, 1)
+  emit('update:queries', updated)
+}
+
+function onTypeChange(index: number, value: string) {
+  const updated = [...props.queries]
+  const q = props.queries[index]
+  if (!q) return
+  updated[index] = { name: q.name, soql: q.soql, type: value as OVQuery['type'], default: q.default, when: q.when }
+  emit('update:queries', updated)
+}
+
+function onDefaultChange(index: number, checked: boolean) {
+  const updated = props.queries.map((q, i) => ({
+    ...q,
+    default: i === index ? checked : false,
+  }))
   emit('update:queries', updated)
 }
 </script>
@@ -49,15 +73,38 @@ function removeQuery(index: number) {
       data-testid="query-card"
     >
       <CardContent class="pt-6 space-y-3">
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-4 gap-3">
           <div class="space-y-1">
             <Label class="text-xs">Name</Label>
             <Input v-model="query.name" placeholder="recent_activities" class="font-mono" />
           </div>
+          <div class="space-y-1">
+            <Label class="text-xs">Type</Label>
+            <Select
+              :model-value="query.type"
+              @update:model-value="(v) => onTypeChange(idx, String(v))"
+            >
+              <SelectTrigger data-testid="query-type-select">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="scalar">scalar</SelectItem>
+                <SelectItem value="list">list</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div class="space-y-1">
+            <Label class="text-xs">When (CEL)</Label>
+            <Input v-model="query.when" placeholder="record.status == 'active'" class="font-mono" />
+          </div>
           <div class="flex items-end gap-2">
-            <div class="flex-1 space-y-1">
-              <Label class="text-xs">When (CEL)</Label>
-              <Input v-model="query.when" placeholder="record.status == 'active'" class="font-mono" />
+            <div class="flex items-center gap-2 pb-2">
+              <Checkbox
+                :checked="query.default ?? false"
+                data-testid="query-default-checkbox"
+                @update:checked="(v: boolean) => onDefaultChange(idx, v)"
+              />
+              <Label class="text-xs">Default</Label>
             </div>
             <IconButton
               :icon="Trash2"

@@ -69,7 +69,6 @@ async function onSubmit() {
           fields: [],
           actions: [],
           queries: [],
-          computed: [],
         },
       },
     })

@@ -21,7 +21,7 @@ import type {
   ObjectView,
   OVAction,
   OVQuery,
-  OVViewComputed,
+  OVViewField,
   OVMutation,
   OVValidation,
   OVDefault,
@@ -31,7 +31,6 @@ import OVGeneralTab from '@/components/admin/object-view/OVGeneralTab.vue'
 import OVFieldsTab from '@/components/admin/object-view/OVFieldsTab.vue'
 import OVActionsTab from '@/components/admin/object-view/OVActionsTab.vue'
 import OVQueriesTab from '@/components/admin/object-view/OVQueriesTab.vue'
-import OVViewComputedTab from '@/components/admin/object-view/OVViewComputedTab.vue'
 import OVMutationsTab from '@/components/admin/object-view/OVMutationsTab.vue'
 import OVValidationTab from '@/components/admin/object-view/OVValidationTab.vue'
 import OVDefaultsTab from '@/components/admin/object-view/OVDefaultsTab.vue'
@@ -39,10 +38,9 @@ import OVComputedTab from '@/components/admin/object-view/OVComputedTab.vue'
 
 interface FormConfig {
   view: {
-    fields: string[]
+    fields: OVViewField[]
     actions: OVAction[]
     queries: OVQuery[]
-    computed: OVViewComputed[]
   }
   edit?: {
     fields?: string[]
@@ -83,7 +81,6 @@ const form = ref<{ label: string; description: string; config: FormConfig }>({
       fields: [],
       actions: [],
       queries: [],
-      computed: [],
     },
   },
 })
@@ -110,7 +107,6 @@ async function loadView() {
           fields: cfg?.view?.fields ?? [],
           actions: cfg?.view?.actions ?? [],
           queries: cfg?.view?.queries ?? [],
-          computed: cfg?.view?.computed ?? [],
         },
         edit: cfg?.edit ? {
           fields: cfg.edit.fields,
@@ -202,10 +198,9 @@ const breadcrumbs = computed(() => [
         </div>
         <TabsList data-testid="view-tabs">
           <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="queries">Queries</TabsTrigger>
           <TabsTrigger value="fields">Fields</TabsTrigger>
           <TabsTrigger value="actions">Actions</TabsTrigger>
-          <TabsTrigger value="queries">Queries</TabsTrigger>
-          <TabsTrigger value="view-computed">Computed</TabsTrigger>
         </TabsList>
 
         <div class="flex items-center gap-2 mb-1 mt-3">
@@ -246,13 +241,6 @@ const breadcrumbs = computed(() => [
           <OVQueriesTab
             :queries="form.config.view.queries"
             @update:queries="form.config.view.queries = $event"
-          />
-        </TabsContent>
-
-        <TabsContent value="view-computed">
-          <OVViewComputedTab
-            :computed="form.config.view.computed"
-            @update:computed="form.config.view.computed = $event"
           />
         </TabsContent>
 

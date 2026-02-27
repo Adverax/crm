@@ -146,7 +146,6 @@ test.describe('Object View detail page', () => {
     await expect(page.getByRole('tab', { name: 'Fields', exact: true })).toBeVisible()
     await expect(page.getByRole('tab', { name: 'Actions' })).toBeVisible()
     await expect(page.getByRole('tab', { name: 'Queries' })).toBeVisible()
-    await expect(page.locator('[data-testid="view-tabs"]').getByRole('tab', { name: 'Computed' })).toBeVisible()
   })
 
   test('data contract tabs render', async ({ page }) => {
@@ -193,11 +192,19 @@ test.describe('Object View detail page', () => {
     await expect(page.locator('[data-testid="add-query-btn"]')).toBeVisible()
   })
 
-  test('Computed (Read) tab shows computed field cards', async ({ page }) => {
+  test('Queries tab shows query type select and default checkbox', async ({ page }) => {
     await page.goto(`/admin/metadata/object-views/${view.id}`)
-    await page.locator('[data-testid="view-tabs"]').getByRole('tab', { name: 'Computed' }).click()
-    await expect(page.locator('[data-testid="read-computed-card"]')).toBeVisible()
-    await expect(page.locator('[data-testid="add-read-computed-btn"]')).toBeVisible()
+    await page.getByRole('tab', { name: 'Queries' }).click()
+    await expect(page.locator('[data-testid="query-type-select"]')).toBeVisible()
+    await expect(page.locator('[data-testid="query-default-checkbox"]')).toBeVisible()
+  })
+
+  test('Fields tab shows computed field with expression', async ({ page }) => {
+    await page.goto(`/admin/metadata/object-views/${view.id}`)
+    await page.getByRole('tab', { name: 'Fields', exact: true }).click()
+    // The 4th field (display_name) has an expr, so Expression textarea should be visible
+    const fields = page.locator('[data-testid="field-entry"]')
+    await expect(fields).toHaveCount(4)
   })
 
   test('Validation tab shows validation cards', async ({ page }) => {

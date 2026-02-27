@@ -40,7 +40,7 @@ func TestPgGroupRepo_Integration(t *testing.T) {
 	tx, err := pool.Begin(ctx)
 	require.NoError(t, err)
 	ps, err := psRepo.Create(ctx, tx, security.CreatePermissionSetInput{
-		APIName:     "TestGroupPS",
+		APIName:     "test_group_ps",
 		Label:       "Test Group PS",
 		Description: "PS for group integration tests",
 		PSType:      security.PSTypeGrant,
@@ -52,7 +52,7 @@ func TestPgGroupRepo_Integration(t *testing.T) {
 	tx, err = pool.Begin(ctx)
 	require.NoError(t, err)
 	profile, err := profileRepo.Create(ctx, tx, &security.Profile{
-		APIName:             "TestGroupProfile",
+		APIName:             "test_group_profile",
 		Label:               "Test Group Profile",
 		Description:         "Profile for group integration tests",
 		BasePermissionSetID: ps.ID,
@@ -64,7 +64,7 @@ func TestPgGroupRepo_Integration(t *testing.T) {
 	tx, err = pool.Begin(ctx)
 	require.NoError(t, err)
 	role, err := roleRepo.Create(ctx, tx, security.CreateUserRoleInput{
-		APIName:     "TestGroupRole",
+		APIName:     "test_group_role",
 		Label:       "Test Group Role",
 		Description: "Role for group integration tests",
 	})
@@ -91,7 +91,7 @@ func TestPgGroupRepo_Integration(t *testing.T) {
 		require.NoError(t, err)
 
 		g, err := repo.Create(ctx, tx, security.CreateGroupInput{
-			APIName:   "AllUsers",
+			APIName:   "all_users",
 			Label:     "All Users",
 			GroupType: security.GroupTypePublic,
 		})
@@ -99,7 +99,7 @@ func TestPgGroupRepo_Integration(t *testing.T) {
 		require.NoError(t, tx.Commit(ctx))
 
 		assert.NotEqual(t, uuid.Nil, g.ID)
-		assert.Equal(t, "AllUsers", g.APIName)
+		assert.Equal(t, "all_users", g.APIName)
 		assert.Equal(t, "All Users", g.Label)
 		assert.Equal(t, security.GroupTypePublic, g.GroupType)
 		assert.Nil(t, g.RelatedRoleID)
@@ -115,7 +115,7 @@ func TestPgGroupRepo_Integration(t *testing.T) {
 		require.NoError(t, err)
 
 		g, err := repo.Create(ctx, tx, security.CreateGroupInput{
-			APIName:       "RoleGroup_TestGroupRole",
+			APIName:       "role_group_test_group_role",
 			Label:         "Role Group: Test Group Role",
 			GroupType:     security.GroupTypeRole,
 			RelatedRoleID: &role.ID,
@@ -138,7 +138,7 @@ func TestPgGroupRepo_Integration(t *testing.T) {
 		require.NoError(t, err)
 
 		g, err := repo.Create(ctx, tx, security.CreateGroupInput{
-			APIName:       "PersonalGroup_grouptest_user",
+			APIName:       "personal_group_grouptest_user",
 			Label:         "Personal Group: grouptest_user",
 			GroupType:     security.GroupTypePersonal,
 			RelatedUserID: &user.ID,
