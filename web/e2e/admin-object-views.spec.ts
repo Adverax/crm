@@ -264,15 +264,25 @@ test.describe('OV queries tab — SOQL editor', () => {
     await setupAllRoutes(page)
   })
 
-  test('SOQL editor is visible in query card', async ({ page }) => {
+  test('query list shows items with name and type badge', async ({ page }) => {
     await page.goto(`/admin/metadata/object-views/${view.id}`)
     await page.getByRole('tab', { name: 'Queries' }).click()
+    await expect(page.locator('[data-testid="query-card"]')).toHaveCount(1)
+    await expect(page.locator('[data-testid="query-card"]').first()).toContainText('recent_activities')
+    await expect(page.locator('[data-testid="query-card"]').first()).toContainText('scalar')
+  })
+
+  test('selecting query shows detail panel with SOQL editor', async ({ page }) => {
+    await page.goto(`/admin/metadata/object-views/${view.id}`)
+    await page.getByRole('tab', { name: 'Queries' }).click()
+    await page.locator('[data-testid="query-card"]').first().click()
     await expect(page.locator('[data-testid="soql-editor"]')).toBeVisible()
   })
 
   test('Validate button sends POST to /soql/validate', async ({ page }) => {
     await page.goto(`/admin/metadata/object-views/${view.id}`)
     await page.getByRole('tab', { name: 'Queries' }).click()
+    await page.locator('[data-testid="query-card"]').first().click()
     await page.locator('[data-testid="soql-editor"]').first().click()
     const requestPromise = page.waitForRequest('**/api/v1/admin/soql/validate')
     await page.locator('[data-testid="soql-validate-btn"]').first().click()
@@ -295,6 +305,7 @@ test.describe('OV queries tab — SOQL editor', () => {
     })
     await page.goto(`/admin/metadata/object-views/${view.id}`)
     await page.getByRole('tab', { name: 'Queries' }).click()
+    await page.locator('[data-testid="query-card"]').first().click()
     await page.locator('[data-testid="soql-editor"]').first().click()
     await page.locator('[data-testid="soql-validate-btn"]').first().click()
     await expect(page.getByText('Unknown object: Foo')).toBeVisible()
@@ -303,6 +314,7 @@ test.describe('OV queries tab — SOQL editor', () => {
   test('Test Query executes and shows results', async ({ page }) => {
     await page.goto(`/admin/metadata/object-views/${view.id}`)
     await page.getByRole('tab', { name: 'Queries' }).click()
+    await page.locator('[data-testid="query-card"]').first().click()
     await page.locator('[data-testid="soql-editor"]').first().click()
     await page.locator('[data-testid="soql-test-btn"]').first().click()
     await expect(page.locator('[data-testid="soql-test-result"]')).toBeVisible()
