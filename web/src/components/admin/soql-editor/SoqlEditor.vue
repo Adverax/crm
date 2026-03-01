@@ -60,6 +60,42 @@ const objects = ref<ObjectInfo[]>([])
 const fields = ref<FieldInfo[]>([])
 const currentObject = ref<string | null>(null)
 const testResult = ref<QueryResult | null>(null)
+const focused = ref(false)
+const pickerOpen = ref(false)
+const toolbarVisible = computed(() => focused.value || pickerOpen.value)
+
+function onFocusIn() {
+  cancelBlur()
+  focused.value = true
+}
+
+let blurTimer: ReturnType<typeof setTimeout> | null = null
+
+function cancelBlur() {
+  if (blurTimer) {
+    clearTimeout(blurTimer)
+    blurTimer = null
+  }
+}
+
+function scheduleBlur() {
+  cancelBlur()
+  blurTimer = setTimeout(() => {
+    focused.value = false
+    testResult.value = null
+  }, 100)
+}
+
+function onEditorBlur() {
+  scheduleBlur()
+}
+
+function onFocusOut(e: FocusEvent) {
+  const container = (e.currentTarget as HTMLElement)
+  const related = e.relatedTarget as Node | null
+  if (related && container.contains(related)) return
+  scheduleBlur()
+}
 
 // Extract FROM object from query
 const fromObject = computed(() => {
@@ -198,9 +234,9 @@ function onJumpToError(line: number, column: number) {
 </script>
 
 <template>
-  <div class="space-y-2" data-testid="soql-editor">
+  <div class="space-y-2" data-testid="soql-editor" @focusin="onFocusIn" @focusout="onFocusOut">
     <!-- Toolbar -->
-    <div class="flex items-center gap-1">
+    <div v-show="toolbarVisible" class="flex items-center gap-1" @mousedown.prevent>
       <IconButton
         type="button"
         :icon="mode === 'editor' ? Type : Code"
@@ -233,7 +269,7 @@ function onJumpToError(line: number, column: number) {
         data-testid="soql-test-btn"
         @click="onTestQuery"
       />
-      <Popover @update:open="(open: boolean) => { if (open && objects.length === 0) loadObjects() }">
+      <Popover @update:open="(open: boolean) => { pickerOpen = open; if (open && objects.length === 0) loadObjects() }">
         <PopoverTrigger as-child>
           <IconButton
             type="button"
@@ -279,6 +315,8 @@ function onJumpToError(line: number, column: number) {
       :height="height"
       :disabled="disabled"
       @update:model-value="onInput"
+      @focus="onFocusIn"
+      @blur="onEditorBlur"
     />
     <Textarea
       v-else

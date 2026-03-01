@@ -273,6 +273,7 @@ test.describe('OV queries tab — SOQL editor', () => {
   test('Validate button sends POST to /soql/validate', async ({ page }) => {
     await page.goto(`/admin/metadata/object-views/${view.id}`)
     await page.getByRole('tab', { name: 'Queries' }).click()
+    await page.locator('[data-testid="soql-editor"]').first().click()
     const requestPromise = page.waitForRequest('**/api/v1/admin/soql/validate')
     await page.locator('[data-testid="soql-validate-btn"]').first().click()
     const request = await requestPromise
@@ -294,6 +295,7 @@ test.describe('OV queries tab — SOQL editor', () => {
     })
     await page.goto(`/admin/metadata/object-views/${view.id}`)
     await page.getByRole('tab', { name: 'Queries' }).click()
+    await page.locator('[data-testid="soql-editor"]').first().click()
     await page.locator('[data-testid="soql-validate-btn"]').first().click()
     await expect(page.getByText('Unknown object: Foo')).toBeVisible()
   })
@@ -301,6 +303,7 @@ test.describe('OV queries tab — SOQL editor', () => {
   test('Test Query executes and shows results', async ({ page }) => {
     await page.goto(`/admin/metadata/object-views/${view.id}`)
     await page.getByRole('tab', { name: 'Queries' }).click()
+    await page.locator('[data-testid="soql-editor"]').first().click()
     await page.locator('[data-testid="soql-test-btn"]').first().click()
     await expect(page.locator('[data-testid="soql-test-result"]')).toBeVisible()
     await expect(page.getByText('2 record(s) found')).toBeVisible()

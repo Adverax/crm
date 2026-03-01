@@ -25,6 +25,8 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
+  focus: []
+  blur: []
 }>()
 
 const editorContainer = ref<HTMLDivElement | null>(null)
@@ -47,6 +49,10 @@ function createExtensions(): Extension[] {
       if (update.docChanged && !isUpdating) {
         emit('update:modelValue', update.state.doc.toString())
       }
+    }),
+    EditorView.domEventHandlers({
+      focus: () => { emit('focus'); return false },
+      blur: () => { emit('blur'); return false },
     }),
     EditorView.editable.of(!props.disabled),
     EditorView.theme({
