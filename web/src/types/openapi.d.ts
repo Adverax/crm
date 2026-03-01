@@ -577,6 +577,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/dml/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validate a DML statement */
+        post: operations["validateDmlStatement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/dml/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Execute a DML statement in a rolled-back transaction (no security enforcement) */
+        post: operations["testDmlStatement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/dml/objects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all writable objects (no OLS filtering) */
+        get: operations["listDmlObjects"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/dml/objects/{objectName}/fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all writable fields for an object (no FLS filtering) */
+        get: operations["listDmlObjectFields"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/profile-navigation": {
         parameters: {
             query?: never;
@@ -1128,7 +1196,6 @@ export interface components {
             type?: string;
             icon?: string;
             visibility_expr?: string;
-            form?: components["schemas"]["OVActionField"][];
         };
         FormRelatedList: {
             object?: string;
@@ -1212,7 +1279,6 @@ export interface components {
             type: string;
             icon: string;
             visibility_expr: string;
-            form?: components["schemas"]["OVActionField"][];
             validation?: components["schemas"]["OVActionValidation"][];
             apply?: components["schemas"]["OVActionApply"];
         };
@@ -1221,13 +1287,6 @@ export interface components {
             /** @description SOQL query. Use SELECT ROW for scalar queries, SELECT for list queries. */
             soql: string;
             when?: string;
-        };
-        OVActionField: {
-            name: string;
-            type?: string;
-            label?: string;
-            required?: boolean;
-            default?: string;
         };
         OVActionValidation: {
             expr: string;
@@ -1309,6 +1368,33 @@ export interface components {
             line?: number;
             column?: number;
             code?: string;
+        };
+        DmlValidateRequest: {
+            statement: string;
+        };
+        DmlValidateResponse: {
+            valid: boolean;
+            operation?: string;
+            object?: string;
+            fields?: string[];
+            sql?: string;
+            errors?: components["schemas"]["DmlValidateError"][];
+        };
+        DmlValidateError: {
+            message: string;
+            line?: number;
+            column?: number;
+            code?: string;
+        };
+        DmlTestRequest: {
+            statement: string;
+        };
+        DmlTestResponse: {
+            operation?: string;
+            object?: string;
+            rows_affected?: number;
+            rolled_back: boolean;
+            error?: string;
         };
         NavItem: {
             /** @enum {string} */
@@ -2713,6 +2799,116 @@ export interface operations {
         };
     };
     listSoqlObjectFields: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                objectName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of fields */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: {
+                            api_name?: string;
+                            label?: string;
+                            field_type?: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description Object not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    validateDmlStatement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DmlValidateRequest"];
+            };
+        };
+        responses: {
+            /** @description Validation result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DmlValidateResponse"];
+                };
+            };
+        };
+    };
+    testDmlStatement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DmlTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Test execution result (always rolled back) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DmlTestResponse"];
+                };
+            };
+        };
+    };
+    listDmlObjects: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of writable objects */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: {
+                            api_name?: string;
+                            label?: string;
+                        }[];
+                    };
+                };
+            };
+        };
+    };
+    listDmlObjectFields: {
         parameters: {
             query?: never;
             header?: never;

@@ -9,7 +9,6 @@ export type OVReadConfig = CamelCaseKeys<components['schemas']['OVReadConfig']>
 export type OVAction = CamelCaseKeys<components['schemas']['OVAction']>
 export type OVQuery = CamelCaseKeys<components['schemas']['OVQuery']>
 export type OVViewField = CamelCaseKeys<components['schemas']['OVViewField']>
-export type OVActionField = CamelCaseKeys<components['schemas']['OVActionField']>
 export type OVActionValidation = CamelCaseKeys<components['schemas']['OVActionValidation']>
 export type OVActionApply = CamelCaseKeys<components['schemas']['OVActionApply']>
 export type OVScenarioRef = CamelCaseKeys<components['schemas']['OVScenarioRef']>

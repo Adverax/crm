@@ -53,18 +53,8 @@ type OVAction struct {
 	Icon           string `json:"icon"`
 	VisibilityExpr string `json:"visibility_expr"`
 
-	Form       []OVActionField      `json:"form,omitempty"`
 	Validation []OVActionValidation `json:"validation,omitempty"`
 	Apply      *OVActionApply       `json:"apply,omitempty"`
-}
-
-// OVActionField describes an input field for an action form.
-type OVActionField struct {
-	Name     string `json:"name"`
-	Type     string `json:"type,omitempty"`
-	Label    string `json:"label,omitempty"`
-	Required bool   `json:"required,omitempty"`
-	Default  string `json:"default,omitempty"`
 }
 
 // OVActionValidation describes a validation rule checked before action execution.

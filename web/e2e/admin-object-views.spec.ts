@@ -174,17 +174,8 @@ test.describe('Object View detail page', () => {
     await page.getByRole('tab', { name: 'Actions' }).click()
     await page.locator('[data-testid="action-card"]').first().click()
     await expect(page.locator('[data-testid="tab-action-identity"]')).toBeVisible()
-    await expect(page.locator('[data-testid="tab-action-form"]')).toBeVisible()
     await expect(page.locator('[data-testid="tab-action-validation"]')).toBeVisible()
     await expect(page.locator('[data-testid="tab-action-apply"]')).toBeVisible()
-  })
-
-  test('Actions tab — Form tab shows form fields', async ({ page }) => {
-    await page.goto(`/admin/metadata/object-views/${view.id}`)
-    await page.getByRole('tab', { name: 'Actions' }).click()
-    await page.locator('[data-testid="action-card"]').first().click()
-    await page.locator('[data-testid="tab-action-form"]').click()
-    await expect(page.locator('[data-testid="action-form-field"]').first()).toBeVisible()
   })
 
   test('Actions tab — Validation tab shows rules', async ({ page }) => {

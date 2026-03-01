@@ -117,21 +117,12 @@ type formFieldPresentation struct {
 	Reference      *metadata.RefConfig `json:"reference,omitempty"`
 }
 
-type formActionField struct {
-	Name     string `json:"name"`
-	Type     string `json:"type,omitempty"`
-	Label    string `json:"label,omitempty"`
-	Required bool   `json:"required,omitempty"`
-	Default  string `json:"default,omitempty"`
-}
-
 type formAction struct {
-	Key            string            `json:"key"`
-	Label          string            `json:"label"`
-	Type           string            `json:"type"`
-	Icon           string            `json:"icon"`
-	VisibilityExpr string            `json:"visibility_expr"`
-	Form           []formActionField `json:"form,omitempty"`
+	Key            string `json:"key"`
+	Label          string `json:"label"`
+	Type           string `json:"type"`
+	Icon           string `json:"icon"`
+	VisibilityExpr string `json:"visibility_expr"`
 }
 
 type formRelatedList struct {
@@ -385,30 +376,17 @@ func (h *DescribeHandler) mergeOVAndLayout(
 		form.Queries = queries
 	}
 
-	// Apply OV actions (include form fields, but NOT apply — server-side only)
+	// Apply OV actions (NOT apply — server-side only)
 	if len(ov.Config.Read.Actions) > 0 {
 		actions := make([]formAction, len(ov.Config.Read.Actions))
 		for i, a := range ov.Config.Read.Actions {
-			fa := formAction{
+			actions[i] = formAction{
 				Key:            a.Key,
 				Label:          a.Label,
 				Type:           a.Type,
 				Icon:           a.Icon,
 				VisibilityExpr: a.VisibilityExpr,
 			}
-			if len(a.Form) > 0 {
-				fa.Form = make([]formActionField, len(a.Form))
-				for j, f := range a.Form {
-					fa.Form[j] = formActionField{
-						Name:     f.Name,
-						Type:     f.Type,
-						Label:    f.Label,
-						Required: f.Required,
-						Default:  f.Default,
-					}
-				}
-			}
-			actions[i] = fa
 		}
 		form.Actions = actions
 	}

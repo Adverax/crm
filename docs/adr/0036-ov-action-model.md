@@ -49,6 +49,25 @@ OV actions need a simpler, safer primitive: a set of DML operations within a
 single database transaction, or a scenario start (which is itself just an INSERT
 into `scenario_runs` — transactional).
 
+### Why actions don't have their own fields
+
+An earlier iteration of this ADR included per-action field definitions
+(`OVActionField` with name, type, label, required, default) that would render
+as a modal dialog when the user clicks an action button. This was removed for
+three reasons:
+
+1. **Duplication.** For CRUD actions (95% of cases), action fields duplicate
+   information already present in `field_definitions` (type, label, required,
+   default). The admin re-enters what metadata already knows.
+
+2. **Bad UX.** The user sees a form on the page, clicks a button, and gets
+   *another* form in a modal with different fields. This is confusing.
+
+3. **Separation of concerns.** Actions operate on data **already present on
+   the page** (form fields from OV read config). If an action needs its own
+   input UI (e.g., "Send Email" with subject/body), it belongs to a different
+   mechanism — a Procedure (ADR-0024) or a separate OV page.
+
 ## Options
 
 ### Option A: Read + Actions unified model (chosen)
@@ -58,20 +77,23 @@ with a list of **available Actions**. CRUD operations are not special — they a
 predefined actions with the same structure as any custom action.
 
 Each action is a complete operation unit:
-1. **Form** (optional) — fields for user input (with optional per-field defaults)
-2. **Validation** (optional) — rules applied before execution
-3. **Apply** (required) — transactional execution: DML set OR scenario start
+1. **Validation** (optional) — rules applied before execution
+2. **Apply** (required) — transactional execution: DML set OR scenario start
+
+Actions do not define their own input fields. They operate on data from the
+current page: the form field values (`data`) and the current record (`record`).
 
 **Pros:**
 - Unified model — no artificial split between "CRUD" and "custom actions"
 - Explicit — no action configured = operation not supported
 - Transactional safety — actions are strictly within one DB transaction
-- Extensible — adding new action types (send_email, mark_hot) is the same as adding CRUD
+- No field duplication — actions use page data, field metadata stays in one place
 - Works with unbound OVs — no implicit target object assumed
 
 **Cons:**
 - More configuration for simple CRUD cases (mitigated by Constructor UI templates)
 - Breaking change to OVConfig structure (migration required)
+- Actions that need custom input require a separate mechanism (Procedure or OV page)
 
 ### Option B: Keep `edit` section, add action execution
 
@@ -100,18 +122,19 @@ The interaction flow is always the same:
 ```
 1. User opens page → Read (queries execute, form renders data)
 2. User sees available actions (buttons, based on visibility_expr)
-3. User clicks an action → action's form appears (if defined)
-4. User fills form → submits data + action key
+3. User clicks an action
+4. Frontend submits current page data + action key
 5. Server: validate → execute transactional action
 ```
 
-There is no distinction between "opening a create form" and "clicking a custom
-action button". Both follow the same flow: the action defines its form,
-validation, and apply step.
+There is no modal dialog for actions. Actions operate on the data already
+visible on the page. If an action needs only the record context (e.g., "Delete",
+"Mark Hot"), no form data is required — just `record.id`.
 
-Defaults are not a separate mechanism. Server-side defaults are expressed directly
-in CEL within `apply.dml[].fields` (e.g., `data.status ?? 'new'`). Client-side
-pre-fill values are an optional `default` property on each form field.
+For operations that require dedicated input (e.g., "Send Email" with subject
+and body fields), the correct approach is:
+- **Procedure** (ADR-0024) — for side-effect operations with their own UI
+- **Separate OV page** — a dedicated page with its own fields and queries
 
 ### Data model changes
 
@@ -141,42 +164,28 @@ configured by the admin. For convenience, Constructor UI may offer **templates**
 is a UX feature — not a model concept. The generated config is identical to
 manually written config.
 
-#### OVAction gains execution model
+#### OVAction — no own fields
 
 ```go
 type OVAction struct {
-    // Identity + UI (existing fields)
+    // Identity + UI
     Key            string `json:"key"`              // unique within OV
     Label          string `json:"label"`            // UI button text
     Type           string `json:"type"`             // "primary"|"secondary"|"danger"
     Icon           string `json:"icon"`             // lucide icon name
     VisibilityExpr string `json:"visibility_expr"`  // CEL: show/hide button
 
-    // Execution model (new fields)
-    Form       []OVActionField      `json:"form,omitempty"`       // input fields (with optional defaults)
+    // Execution model
     Validation []OVActionValidation `json:"validation,omitempty"` // validation rules
     Apply      *OVActionApply       `json:"apply,omitempty"`      // transactional action
 }
 ```
 
+Actions do not have a `Fields` property. They receive data from the page form
+(`data` in CEL context) and the current record (`record`).
+
 When `apply` is nil, the action is UI-only (e.g., a link or a client-side toggle).
 When `apply` is set, the action is executable server-side.
-
-#### Action form fields
-
-```go
-type OVActionField struct {
-    Name     string `json:"name"`               // field identifier
-    Type     string `json:"type,omitempty"`      // "string"|"int"|"float"|"bool"|"timestamp"|"reference"
-    Label    string `json:"label,omitempty"`     // UI label (default: derive from name)
-    Required bool   `json:"required,omitempty"`  // client-side hint
-    Default  string `json:"default,omitempty"`   // CEL expression for UI pre-fill
-}
-```
-
-Field names are arbitrary identifiers used in CEL expressions within
-`apply.dml[].fields`. For actions targeting a known object, field names
-typically match the object's field API names for clarity.
 
 #### Action validation
 
@@ -241,10 +250,15 @@ All CEL expressions within an action have access to:
 
 | Variable | Type | Description |
 |----------|------|-------------|
-| `data` | map | Form data submitted by the user |
+| `data` | map | Current form data from the page (OV field values) |
 | `user` | object | Current user (id, profile_id, role_id) |
 | `record` | map | Current record data (from default query, if available) |
 | `result` | list | Results of previous DML operations in the same transaction (for chaining) |
+
+The `data` variable contains the current values of the page form fields —
+the same fields defined in OV `read.fields` and rendered by the Layout.
+This is the key difference from the earlier design: there is no separate
+action-specific form. Actions always work with page data.
 
 The `result` variable enables chaining: a second DML can reference the ID of a
 record created by the first DML (e.g., `result[0].id`).
@@ -260,11 +274,6 @@ For an Account object, the admin (or Constructor UI template) configures:
   "label": "Create",
   "type": "primary",
   "icon": "plus",
-  "form": [
-    {"name": "Name", "type": "string", "required": true},
-    {"name": "Industry", "type": "string"},
-    {"name": "Status", "type": "string", "default": "'new'"}
-  ],
   "apply": {
     "type": "dml",
     "dml": [
@@ -278,14 +287,10 @@ For an Account object, the admin (or Constructor UI template) configures:
 ```json
 {
   "key": "edit",
-  "label": "Edit",
+  "label": "Save",
   "type": "secondary",
-  "icon": "pencil",
+  "icon": "check",
   "visibility_expr": "has(record)",
-  "form": [
-    {"name": "Name", "type": "string", "required": true},
-    {"name": "Industry", "type": "string"}
-  ],
   "apply": {
     "type": "dml",
     "dml": [
@@ -330,7 +335,8 @@ For an Account object, the admin (or Constructor UI template) configures:
 ```
 
 These are all identical in structure — CRUD and custom actions are indistinguishable
-at the model level.
+at the model level. None of them define their own fields — they all use `data.*`
+(page form values) and `record.*` (current record).
 
 ### Validation scoping
 
@@ -353,13 +359,27 @@ be bypassed).
 The Layout table currently uses `mode: edit|view`. With the new action model:
 
 - **Layout `mode: view`** → becomes the **Read layout** (how to display data)
-- **Layout `mode: edit`** → **deprecated** (actions define their own forms)
-- Action forms are defined **within the action config**, not in Layout
+- **Layout `mode: edit`** → **deprecated** (actions use page form, not a separate form)
 
 Migration path: existing `mode: edit` layouts are preserved for backward
 compatibility but are no longer used for form resolution. The `mode` column
 constraint changes from `('edit', 'view')` to `('read', 'view')` in a future
 migration, or `edit` is treated as an alias for `read`.
+
+### Actions needing custom input
+
+Some operations require user input that is not part of the page form (e.g.,
+"Send Email" needs subject and body). These are **not** OV actions — they
+belong to a different mechanism:
+
+| Mechanism | When to use | Example |
+|-----------|-------------|---------|
+| **Procedure** (ADR-0024) | Side-effect operations with their own Constructor UI | Send Email, HTTP integration, Create + notify |
+| **Separate OV page** | Operations needing a dedicated form with its own queries | Email compose page, Bulk update wizard |
+
+The OV action can **navigate** to a Procedure or another OV page via a UI-only
+action (no `apply`, just client-side navigation). Or the Procedure can be
+triggered by an Automation Rule (ADR-0031) as a post-DML hook.
 
 ### API changes
 
@@ -370,10 +390,13 @@ POST /api/v1/view/:ovApiName/action/:actionKey
 Content-Type: application/json
 
 {
-  "data": { "name": "Acme Corp", "industry": "Technology" },
+  "data": { "Name": "Acme Corp", "Industry": "Technology" },
   "record_id": "uuid-of-existing-record"  // optional, for actions on existing records
 }
 ```
+
+The `data` field contains the current page form values. The frontend collects
+field values from the rendered form and submits them with the action key.
 
 Response (success):
 ```json
@@ -397,8 +420,8 @@ Response (validation error):
 
 #### Describe API extension
 
-The Describe response includes the full action definitions (without `apply`
-details — security). The frontend uses this to render action buttons and forms:
+The Describe response includes action definitions (without `apply`
+details — security). The frontend uses this to render action buttons:
 
 ```json
 {
@@ -411,17 +434,20 @@ details — security). The frontend uses this to render action buttons and forms
         "key": "create",
         "label": "Create",
         "type": "primary",
-        "icon": "plus",
-        "form": [
-          {"name": "Name", "type": "string", "required": true},
-          {"name": "Status", "type": "string", "default": "'new'"}
-        ]
+        "icon": "plus"
       },
       {
         "key": "edit",
-        "label": "Edit",
+        "label": "Save",
         "type": "secondary",
-        "icon": "pencil",
+        "icon": "check",
+        "visibility_expr": "has(record)"
+      },
+      {
+        "key": "delete",
+        "label": "Delete",
+        "type": "danger",
+        "icon": "trash-2",
         "visibility_expr": "has(record)"
       }
     ]
@@ -431,7 +457,8 @@ details — security). The frontend uses this to render action buttons and forms
 
 Note: `apply` is **not included** in the Describe response — it contains
 server-side logic (DML targets, CEL expressions) that should not be exposed
-to the client.
+to the client. Actions no longer include field definitions either — the page
+form fields serve as the input source.
 
 ### Platform limits
 
@@ -439,7 +466,6 @@ to the client.
 |-----------|-------|-----------|
 | Max actions per OV | 20 | UI usability |
 | Max DML operations per action | 10 | Transaction scope |
-| Max form fields per action | 50 | Form usability |
 | Max validation rules per action | 20 | Performance |
 | DML transaction timeout | 5s | Prevent long-running transactions |
 
@@ -453,10 +479,12 @@ to the client.
   from URL context.
 - **Transactional safety.** All operations within an action execute in a single DB
   transaction, or the entire action rolls back.
+- **No field duplication.** Actions use page form data. Field definitions (type,
+  label, required, default) stay in metadata — single source of truth.
+- **No confusing modals.** Users interact with the page form directly. No
+  surprise modal with different fields when clicking an action button.
 - **Works with unbound OVs.** No assumption about a target object — actions
   explicitly declare their DML targets.
-- **Extensible.** Adding "send_email" or "mark_hot" actions is identical to adding
-  CRUD — same config structure, same execution flow.
 
 ### Negative
 
@@ -464,9 +492,9 @@ to the client.
   (mitigated by Constructor UI templates).
 - **Breaking change.** OVConfig structure changes significantly. Existing OV
   configs must be migrated to the new format.
-- **No Layout for action forms.** Action forms are simple field lists, not full
-  Layout component trees. Complex action forms may need Layout support in the
-  future.
+- **Custom input requires separate mechanism.** Operations needing their own
+  input fields (e.g., "Send Email") cannot be simple OV actions — they must
+  use Procedures or separate OV pages. This is intentional separation of concerns.
 - **DML chaining via `result`.** Referencing previous DML results in subsequent
   queries requires index-based access (`result[0].id`), which is fragile if
   query order changes.
@@ -475,7 +503,7 @@ to the client.
 
 - **Transaction scope.** Multiple DML operations in one transaction increase lock
   contention. Mitigated by the 10-operation limit and 5s timeout.
-- **CEL expression complexity.** Expressions in `fields` and `where` can become
+- **CEL expression complexity.** Expressions in DML values and `where` can become
   hard to debug. Mitigated by a dry-run endpoint (from Procedure Engine pattern).
 - **Configuration burden.** Every OV requires manual action setup. Mitigated
   by Constructor UI templates and the ability to copy/clone OV configs.
@@ -483,8 +511,8 @@ to the client.
 ### Related ADRs
 
 - **ADR-0022** — Object View (supersedes the `view`/`edit` config split)
-- **ADR-0024** — Procedure Engine (non-transactional DSL — complementary, not replaced)
-- **ADR-0027** — Layout + Form (Layout `mode` impact, action forms vs Layout forms)
+- **ADR-0024** — Procedure Engine (for operations needing custom input or side effects)
+- **ADR-0027** — Layout + Form (Layout `mode` impact)
 - **ADR-0031** — Automation Rules (post-transaction hooks — complementary)
 - **ADR-0032** — OV unbinding (enables unbound OVs with explicit action targets)
 - **ADR-0035** — Data binding model (queries as Read data sources)

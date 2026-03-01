@@ -4,7 +4,6 @@ import { Trash2, Plus } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Checkbox } from '@/components/ui/checkbox'
 import ExpressionBuilder from '@/components/admin/expression-builder/ExpressionBuilder.vue'
 import DmlEditor from '@/components/admin/dml-editor/DmlEditor.vue'
 import {
@@ -62,16 +61,6 @@ function removeAction(index: number) {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function onActionTypeChange(value: any) {
   if (selectedAction.value) selectedAction.value.type = String(value)
-}
-
-// --- Form Fields ---
-function addFormField(action: OVAction) {
-  if (!action.form) action.form = []
-  action.form.push({ name: '', type: 'string', label: '', required: false, default: '' })
-}
-
-function removeFormField(action: OVAction, idx: number) {
-  action.form?.splice(idx, 1)
 }
 
 // --- Validation ---
@@ -169,9 +158,6 @@ function typeBadgeVariant(type: string): 'default' | 'secondary' | 'destructive'
         <div class="flex items-center justify-between mb-3">
           <TabsList>
             <TabsTrigger value="identity" data-testid="tab-action-identity">Identity</TabsTrigger>
-            <TabsTrigger value="form" data-testid="tab-action-form">
-              Form ({{ selectedAction.form?.length ?? 0 }})
-            </TabsTrigger>
             <TabsTrigger value="validation" data-testid="tab-action-validation">
               Validation ({{ selectedAction.validation?.length ?? 0 }})
             </TabsTrigger>
@@ -232,58 +218,6 @@ function typeBadgeVariant(type: string): 'default' | 'secondary' | 'destructive'
               placeholder="record.status == 'draft'"
             />
           </div>
-        </TabsContent>
-
-        <!-- Form tab -->
-        <TabsContent value="form" class="space-y-3" data-testid="action-form-tab">
-          <div
-            v-for="(field, fIdx) in (selectedAction.form ?? [])"
-            :key="fIdx"
-            class="grid grid-cols-5 gap-2 items-end"
-            data-testid="action-form-field"
-          >
-            <div class="space-y-1">
-              <Label class="text-xs">Name</Label>
-              <Input v-model="field.name" placeholder="field_name" class="font-mono text-xs" />
-            </div>
-            <div class="space-y-1">
-              <Label class="text-xs">Type</Label>
-              <Input v-model="field.type" placeholder="string" class="font-mono text-xs" />
-            </div>
-            <div class="space-y-1">
-              <Label class="text-xs">Label</Label>
-              <Input v-model="field.label" placeholder="Field Label" class="text-xs" />
-            </div>
-            <div class="flex items-center gap-2">
-              <Checkbox :checked="field.required" @update:checked="(v: boolean) => field.required = v" />
-              <Label class="text-xs">Required</Label>
-            </div>
-            <div class="flex items-end gap-1">
-              <div class="flex-1 space-y-1">
-                <Label class="text-xs">Default</Label>
-                <Input v-model="field.default" placeholder="'value'" class="font-mono text-xs" />
-              </div>
-              <IconButton
-                :icon="Trash2"
-                tooltip="Remove field"
-                variant="ghost"
-                size="sm"
-                class="text-destructive hover:text-destructive"
-                @click="removeFormField(selectedAction, fIdx)"
-              />
-            </div>
-          </div>
-          <div v-if="(selectedAction.form?.length ?? 0) === 0" class="text-sm text-muted-foreground">
-            No form fields. This action won't show a dialog.
-          </div>
-          <IconButton
-            :icon="Plus"
-            tooltip="Add form field"
-            variant="outline"
-            size="sm"
-            data-testid="add-form-field-btn"
-            @click="addFormField(selectedAction)"
-          />
         </TabsContent>
 
         <!-- Validation tab -->

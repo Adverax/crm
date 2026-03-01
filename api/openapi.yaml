@@ -2636,10 +2636,6 @@ components:
           type: string
         visibility_expr:
           type: string
-        form:
-          type: array
-          items:
-            $ref: "#/components/schemas/OVActionField"
 
     FormRelatedList:
       type: object
@@ -2845,10 +2841,6 @@ components:
           type: string
         visibility_expr:
           type: string
-        form:
-          type: array
-          items:
-            $ref: "#/components/schemas/OVActionField"
         validation:
           type: array
           items:
@@ -2868,22 +2860,6 @@ components:
           type: string
           description: "SOQL query. Use SELECT ROW for scalar queries, SELECT for list queries."
         when:
-          type: string
-
-    OVActionField:
-      type: object
-      required:
-        - name
-      properties:
-        name:
-          type: string
-        type:
-          type: string
-        label:
-          type: string
-        required:
-          type: boolean
-        default:
           type: string
 
     OVActionValidation:

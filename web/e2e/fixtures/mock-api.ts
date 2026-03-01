@@ -1086,10 +1086,6 @@ export const mockObjectViews = [
             type: 'primary',
             icon: 'mail',
             visibility_expr: 'true',
-            form: [
-              { name: 'subject', type: 'string', label: 'Subject', required: true },
-              { name: 'body', type: 'string', label: 'Body' },
-            ],
             validation: [
               { expr: 'size(data.subject) > 0', message: 'Subject is required', code: 'subject_required' },
             ],

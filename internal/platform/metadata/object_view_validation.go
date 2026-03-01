@@ -201,23 +201,8 @@ func validateActions(actions []OVAction) error {
 		}
 		keys[a.Key] = true
 
-		if len(a.Form) > 50 {
-			return apperror.BadRequest(fmt.Sprintf("action %q: max 50 form fields", a.Key))
-		}
 		if len(a.Validation) > 20 {
 			return apperror.BadRequest(fmt.Sprintf("action %q: max 20 validation rules", a.Key))
-		}
-
-		// Validate form field name uniqueness
-		fieldNames := make(map[string]bool, len(a.Form))
-		for _, f := range a.Form {
-			if f.Name == "" {
-				return apperror.BadRequest(fmt.Sprintf("action %q: form field name is required", a.Key))
-			}
-			if fieldNames[f.Name] {
-				return apperror.BadRequest(fmt.Sprintf("action %q: duplicate form field name: %s", a.Key, f.Name))
-			}
-			fieldNames[f.Name] = true
 		}
 
 		if a.Apply != nil {
