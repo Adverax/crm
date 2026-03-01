@@ -322,3 +322,85 @@ test.describe('OV queries tab — SOQL editor', () => {
     await expect(page.getByText('Acme Corp')).toBeVisible()
   })
 })
+
+test.describe('OV actions tab — DML editor', () => {
+  const view = mockObjectViews[0]
+
+  test.beforeEach(async ({ page }) => {
+    await setupAllRoutes(page)
+  })
+
+  test('Apply tab shows DML editor instead of plain textarea', async ({ page }) => {
+    await page.goto(`/admin/metadata/object-views/${view.id}`)
+    await page.getByRole('tab', { name: 'Actions' }).click()
+    await page.locator('[data-testid="action-card"]').first().click()
+    await page.locator('[data-testid="tab-action-apply"]').click()
+    await expect(page.locator('[data-testid="dml-editor"]').first()).toBeVisible()
+  })
+
+  test('DML editor shows validate button on focus', async ({ page }) => {
+    await page.goto(`/admin/metadata/object-views/${view.id}`)
+    await page.getByRole('tab', { name: 'Actions' }).click()
+    await page.locator('[data-testid="action-card"]').first().click()
+    await page.locator('[data-testid="tab-action-apply"]').click()
+    await page.locator('[data-testid="dml-editor"] [data-testid="codemirror-editor"]').first().click()
+    await expect(page.locator('[data-testid="dml-validate-btn"]').first()).toBeVisible()
+  })
+
+  test('DML validate sends POST to /dml/validate', async ({ page }) => {
+    await page.goto(`/admin/metadata/object-views/${view.id}`)
+    await page.getByRole('tab', { name: 'Actions' }).click()
+    await page.locator('[data-testid="action-card"]').first().click()
+    await page.locator('[data-testid="tab-action-apply"]').click()
+    await page.locator('[data-testid="dml-editor"] [data-testid="codemirror-editor"]').first().click()
+    const requestPromise = page.waitForRequest('**/api/v1/admin/dml/validate')
+    await page.locator('[data-testid="dml-validate-btn"]').first().click()
+    const request = await requestPromise
+    expect(request.method()).toBe('POST')
+  })
+
+  test('DML test execute sends POST to /dml/test', async ({ page }) => {
+    await page.goto(`/admin/metadata/object-views/${view.id}`)
+    await page.getByRole('tab', { name: 'Actions' }).click()
+    await page.locator('[data-testid="action-card"]').first().click()
+    await page.locator('[data-testid="tab-action-apply"]').click()
+    await page.locator('[data-testid="dml-editor"] [data-testid="codemirror-editor"]').first().click()
+    const requestPromise = page.waitForRequest('**/api/v1/admin/dml/test')
+    await page.locator('[data-testid="dml-test-btn"]').first().click()
+    const request = await requestPromise
+    expect(request.method()).toBe('POST')
+  })
+
+  test('DML test result shows rolled back badge', async ({ page }) => {
+    await page.goto(`/admin/metadata/object-views/${view.id}`)
+    await page.getByRole('tab', { name: 'Actions' }).click()
+    await page.locator('[data-testid="action-card"]').first().click()
+    await page.locator('[data-testid="tab-action-apply"]').click()
+    await page.locator('[data-testid="dml-editor"] [data-testid="codemirror-editor"]').first().click()
+    await page.locator('[data-testid="dml-test-btn"]').first().click()
+    await expect(page.locator('[data-testid="dml-test-result"]')).toBeVisible()
+    await expect(page.getByText('Rolled back')).toBeVisible()
+    await expect(page.getByText('1 row(s) affected')).toBeVisible()
+  })
+
+  test('DML validation errors are displayed', async ({ page }) => {
+    await page.route('**/api/v1/admin/dml/validate', (route) => {
+      if (route.request().method() === 'POST') {
+        return route.fulfill({
+          json: {
+            valid: false,
+            errors: [{ message: 'Unknown object: Foo', line: 1, column: 13, code: 'UnknownObject' }],
+          },
+        })
+      }
+      return route.continue()
+    })
+    await page.goto(`/admin/metadata/object-views/${view.id}`)
+    await page.getByRole('tab', { name: 'Actions' }).click()
+    await page.locator('[data-testid="action-card"]').first().click()
+    await page.locator('[data-testid="tab-action-apply"]').click()
+    await page.locator('[data-testid="dml-editor"] [data-testid="codemirror-editor"]').first().click()
+    await page.locator('[data-testid="dml-validate-btn"]').first().click()
+    await expect(page.getByText('Unknown object: Foo')).toBeVisible()
+  })
+})

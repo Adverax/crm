@@ -1244,6 +1244,118 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  # ─── DML Admin (Design-time validation & testing) ─────────────
+
+  /api/v1/admin/dml/validate:
+    post:
+      summary: Validate a DML statement
+      operationId: validateDmlStatement
+      tags:
+        - dml
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DmlValidateRequest"
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DmlValidateResponse"
+
+  /api/v1/admin/dml/test:
+    post:
+      summary: Execute a DML statement in a rolled-back transaction (no security enforcement)
+      operationId: testDmlStatement
+      tags:
+        - dml
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DmlTestRequest"
+      responses:
+        "200":
+          description: Test execution result (always rolled back)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DmlTestResponse"
+
+  /api/v1/admin/dml/objects:
+    get:
+      summary: List all writable objects (no OLS filtering)
+      operationId: listDmlObjects
+      tags:
+        - dml
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of writable objects
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        api_name:
+                          type: string
+                        label:
+                          type: string
+
+  /api/v1/admin/dml/objects/{objectName}/fields:
+    get:
+      summary: List all writable fields for an object (no FLS filtering)
+      operationId: listDmlObjectFields
+      tags:
+        - dml
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: objectName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of fields
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        api_name:
+                          type: string
+                        label:
+                          type: string
+                        field_type:
+                          type: string
+        "404":
+          description: Object not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   # ─── Profile Navigation (Admin CRUD) ──────────────────────────
 
   /api/v1/admin/profile-navigation:
@@ -2969,6 +3081,76 @@ components:
         column:
           type: integer
         code:
+          type: string
+
+    # ─── DML Admin schemas ────────────────────────────────────
+
+    DmlValidateRequest:
+      type: object
+      required:
+        - statement
+      properties:
+        statement:
+          type: string
+
+    DmlValidateResponse:
+      type: object
+      required:
+        - valid
+      properties:
+        valid:
+          type: boolean
+        operation:
+          type: string
+        object:
+          type: string
+        fields:
+          type: array
+          items:
+            type: string
+        sql:
+          type: string
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/DmlValidateError"
+
+    DmlValidateError:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+        line:
+          type: integer
+        column:
+          type: integer
+        code:
+          type: string
+
+    DmlTestRequest:
+      type: object
+      required:
+        - statement
+      properties:
+        statement:
+          type: string
+
+    DmlTestResponse:
+      type: object
+      required:
+        - rolled_back
+      properties:
+        operation:
+          type: string
+        object:
+          type: string
+        rows_affected:
+          type: integer
+        rolled_back:
+          type: boolean
+        error:
           type: string
 
     # ─── Profile Navigation schemas ────────────────────────────

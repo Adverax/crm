@@ -7,12 +7,12 @@ import { Textarea } from '@/components/ui/textarea'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import CodeMirrorEditor from '@/components/admin/expression-builder/CodeMirrorEditor.vue'
 import ExpressionErrors from '@/components/admin/expression-builder/ExpressionErrors.vue'
-import SoqlObjectPicker from './SoqlObjectPicker.vue'
-import SoqlTestResult from './SoqlTestResult.vue'
-import { soqlApi, type SoqlValidateError } from '@/api/soql'
+import SoqlObjectPicker from '@/components/admin/soql-editor/SoqlObjectPicker.vue'
+import DmlTestResult from './DmlTestResult.vue'
+import { dmlApi, type DmlValidateError, type DmlTestResponse } from '@/api/dml'
 import { http } from '@/api/http'
-import { soqlLanguage } from '@/lib/codemirror/soql-language'
-import { soqlAutocomplete, type SoqlAutocompleteConfig } from '@/lib/codemirror/soql-autocomplete'
+import { dmlLanguage } from '@/lib/codemirror/dml-language'
+import { dmlAutocomplete, type DmlAutocompleteConfig } from '@/lib/codemirror/dml-autocomplete'
 
 interface ObjectInfo {
   apiName: string
@@ -25,25 +25,17 @@ interface FieldInfo {
   fieldType: string
 }
 
-interface QueryResult {
-  totalSize: number
-  records: Record<string, unknown>[]
-  error?: string
-}
-
 const props = withDefaults(
   defineProps<{
     modelValue: string
     height?: string
     placeholder?: string
     disabled?: boolean
-    showTestQuery?: boolean
   }>(),
   {
-    height: '120px',
-    placeholder: 'SELECT Id, Name FROM Account WHERE ...',
+    height: '80px',
+    placeholder: "INSERT INTO Account (Name) VALUES ('Acme')",
     disabled: false,
-    showTestQuery: true,
   },
 )
 
@@ -54,12 +46,12 @@ const emit = defineEmits<{
 const mode = ref<'editor' | 'plain'>('editor')
 const validating = ref(false)
 const testing = ref(false)
-const errors = ref<SoqlValidateError[]>([])
+const errors = ref<DmlValidateError[]>([])
 const editorRef = ref<InstanceType<typeof CodeMirrorEditor> | null>(null)
 const objects = ref<ObjectInfo[]>([])
 const fields = ref<FieldInfo[]>([])
 const currentObject = ref<string | null>(null)
-const testResult = ref<QueryResult | null>(null)
+const testResult = ref<DmlTestResponse | null>(null)
 const focused = ref(false)
 const pickerOpen = ref(false)
 const toolbarVisible = computed(() => focused.value || pickerOpen.value)
@@ -104,27 +96,35 @@ function onFocusOut(e: FocusEvent) {
   scheduleBlur()
 }
 
-// Extract FROM object from query
-const fromObject = computed(() => {
-  const match = props.modelValue.match(/\bFROM\s+(\w+)/i)
-  return match ? match[1] : null
+// Extract target object from DML statement
+const dmlObject = computed(() => {
+  const val = props.modelValue
+  const insertMatch = val.match(/\bINSERT\s+INTO\s+(\w+)/i)
+  if (insertMatch) return insertMatch[1]!
+  const updateMatch = val.match(/\bUPDATE\s+(\w+)/i)
+  if (updateMatch) return updateMatch[1]!
+  const deleteMatch = val.match(/\bDELETE\s+FROM\s+(\w+)/i)
+  if (deleteMatch) return deleteMatch[1]!
+  const upsertMatch = val.match(/\bUPSERT\s+(\w+)/i)
+  if (upsertMatch) return upsertMatch[1]!
+  return null
 })
 
 // Load objects list (admin endpoint, no OLS filtering)
 async function loadObjects() {
   try {
-    const response = await http.get<{ data: ObjectInfo[] }>('/api/v1/admin/soql/objects')
+    const response = await http.get<{ data: ObjectInfo[] }>('/api/v1/admin/dml/objects')
     objects.value = response.data ?? []
   } catch (err) {
-    console.error('[SoqlEditor] Failed to load objects:', err)
+    console.error('[DmlEditor] Failed to load objects:', err)
   }
 }
 
-// Load fields for detected FROM object (admin endpoint, no FLS filtering)
+// Load fields for detected object (admin endpoint, no FLS filtering)
 async function loadFields(objectName: string) {
   try {
     const response = await http.get<{ data: FieldInfo[] }>(
-      `/api/v1/admin/soql/objects/${objectName}/fields`,
+      `/api/v1/admin/dml/objects/${objectName}/fields`,
     )
     fields.value = response.data ?? []
   } catch {
@@ -132,19 +132,19 @@ async function loadFields(objectName: string) {
   }
 }
 
-// Debounce timer for FROM object detection
+// Debounce timer for object detection
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
 onMounted(() => {
   loadObjects()
-  if (fromObject.value) {
-    currentObject.value = fromObject.value
-    loadFields(fromObject.value)
+  if (dmlObject.value) {
+    currentObject.value = dmlObject.value
+    loadFields(dmlObject.value)
   }
 })
 
-// Watch for FROM object changes with debounce to avoid excessive API calls
-watch(fromObject, (newObj) => {
+// Watch for object changes with debounce
+watch(dmlObject, (newObj) => {
   if (debounceTimer) {
     clearTimeout(debounceTimer)
   }
@@ -158,55 +158,42 @@ watch(fromObject, (newObj) => {
 
 // Autocomplete config
 const autocompleteExtension = computed<Extension[]>(() => {
-  const config: SoqlAutocompleteConfig = {
+  const config: DmlAutocompleteConfig = {
     objects: objects.value,
     fields: fields.value,
   }
-  return [soqlAutocomplete(config)]
+  return [dmlAutocomplete(config)]
 })
 
 async function onValidate() {
   validating.value = true
   errors.value = []
   try {
-    const response = await soqlApi.validate({ query: props.modelValue })
+    const response = await dmlApi.validate({ statement: props.modelValue })
     if (response.valid) {
       errors.value = []
     } else {
-      errors.value = response.errors ?? [{ message: 'Query is invalid' }]
+      errors.value = response.errors ?? [{ message: 'Statement is invalid' }]
     }
   } catch {
-    errors.value = [{ message: 'Error validating query' }]
+    errors.value = [{ message: 'Error validating statement' }]
   } finally {
     validating.value = false
   }
 }
 
-async function onTestQuery() {
+async function onTestExecute() {
   testing.value = true
   testResult.value = null
   try {
-    const response = await http.post<{ totalSize: number; records: Record<string, unknown>[]; error?: string }>(
-      '/api/v1/admin/soql/test',
-      { query: props.modelValue, pageSize: 5 },
-    )
-    if (response.error) {
-      testResult.value = {
-        totalSize: 0,
-        records: [],
-        error: response.error,
-      }
-    } else {
-      testResult.value = {
-        totalSize: response.totalSize ?? 0,
-        records: response.records ?? [],
-      }
-    }
+    testResult.value = await dmlApi.test({ statement: props.modelValue })
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Query execution failed'
+    const message = err instanceof Error ? err.message : 'Statement execution failed'
     testResult.value = {
-      totalSize: 0,
-      records: [],
+      operation: '',
+      object: '',
+      rowsAffected: 0,
+      rolledBack: true,
       error: message,
     }
   } finally {
@@ -241,7 +228,7 @@ function onJumpToError(line: number, column: number) {
 </script>
 
 <template>
-  <div class="space-y-2" data-testid="soql-editor" @focusin="onFocusIn" @focusout="onFocusOut">
+  <div class="space-y-2" data-testid="dml-editor" @focusin="onFocusIn" @focusout="onFocusOut">
     <!-- Toolbar -->
     <div v-show="toolbarVisible" class="flex items-center gap-1" @mousedown.prevent>
       <IconButton
@@ -261,20 +248,19 @@ function onJumpToError(line: number, column: number) {
         size="icon-sm"
         class="h-7 w-7"
         :disabled="validating || !modelValue || disabled"
-        data-testid="soql-validate-btn"
+        data-testid="dml-validate-btn"
         @click="onValidate"
       />
       <IconButton
-        v-if="showTestQuery"
         type="button"
         :icon="Play"
-        :tooltip="testing ? 'Running...' : 'Test Query'"
+        :tooltip="testing ? 'Running...' : 'Test Execute'"
         variant="ghost"
         size="icon-sm"
         class="h-7 w-7"
         :disabled="testing || !modelValue || disabled"
-        data-testid="soql-test-btn"
-        @click="onTestQuery"
+        data-testid="dml-test-btn"
+        @click="onTestExecute"
       />
       <Popover @update:open="(open: boolean) => { pickerOpen = open; if (open && objects.length === 0) loadObjects() }">
         <PopoverTrigger as-child>
@@ -285,7 +271,7 @@ function onJumpToError(line: number, column: number) {
             variant="ghost"
             size="icon-sm"
             class="h-7 w-7"
-            data-testid="soql-picker-btn"
+            data-testid="dml-picker-btn"
           />
         </PopoverTrigger>
         <PopoverContent
@@ -308,7 +294,7 @@ function onJumpToError(line: number, column: number) {
         v-if="currentObject"
         class="text-xs text-muted-foreground"
       >
-        FROM {{ currentObject }}
+        {{ currentObject }}
       </span>
     </div>
 
@@ -317,7 +303,7 @@ function onJumpToError(line: number, column: number) {
       v-if="mode === 'editor'"
       ref="editorRef"
       :model-value="modelValue"
-      :language="soqlLanguage"
+      :language="dmlLanguage"
       :extensions="autocompleteExtension"
       :height="height"
       :disabled="disabled"
@@ -328,16 +314,16 @@ function onJumpToError(line: number, column: number) {
     <Textarea
       v-else
       :model-value="modelValue"
-      :rows="4"
+      :rows="2"
       :placeholder="placeholder"
       :disabled="disabled"
       class="font-mono text-sm"
-      data-testid="soql-textarea"
+      data-testid="dml-textarea"
       @update:model-value="onInput"
     />
 
     <!-- Test Result -->
-    <SoqlTestResult
+    <DmlTestResult
       v-if="testResult"
       :result="testResult"
       @close="testResult = null"

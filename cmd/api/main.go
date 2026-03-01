@@ -273,6 +273,11 @@ func setupRouter(pool *pgxpool.Pool, metadataCache *metadata.MetadataCache, cfg 
 	soqlHandler := handler.NewSOQLHandler(soqlValidationEngine, adminSoqlService, metadataCache)
 	soqlHandler.RegisterRoutes(adminGroup)
 
+	// DML validation handler (design-time, no access control)
+	adminDmlEngine := dmlengine.NewEngine(dmlengine.WithMetadata(dmlMetadataAdapter))
+	dmlHandler := handler.NewDMLHandler(adminDmlEngine, pool, metadataCache)
+	dmlHandler.RegisterRoutes(adminGroup)
+
 	// Create function service with onChange callback to rebuild CEL environments
 	functionService := metadata.NewFunctionService(pool, functionRepo, metadataCache,
 		func(_ context.Context) error {

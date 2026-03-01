@@ -1945,6 +1945,59 @@ export async function setupSoqlRoutes(page: Page) {
   })
 }
 
+export async function setupDmlRoutes(page: Page) {
+  await page.route('**/api/v1/admin/dml/validate', (route) => {
+    if (route.request().method() === 'POST') {
+      return route.fulfill({
+        json: { valid: true, operation: 'INSERT', object: 'Account', fields: ['Name'], sql: "INSERT INTO public.obj_account (name) VALUES ($1)" },
+      })
+    }
+    return route.continue()
+  })
+
+  await page.route('**/api/v1/admin/dml/test', (route) => {
+    if (route.request().method() === 'POST') {
+      return route.fulfill({
+        json: {
+          operation: 'INSERT',
+          object: 'Account',
+          rows_affected: 1,
+          rolled_back: true,
+        },
+      })
+    }
+    return route.continue()
+  })
+
+  await page.route('**/api/v1/admin/dml/objects', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({
+        json: {
+          data: [
+            { api_name: 'Account', label: 'Accounts' },
+            { api_name: 'Contact', label: 'Contacts' },
+          ],
+        },
+      })
+    }
+    return route.continue()
+  })
+
+  await page.route('**/api/v1/admin/dml/objects/*/fields', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({
+        json: {
+          data: [
+            { api_name: 'Name', label: 'Name', field_type: 'text' },
+            { api_name: 'Industry', label: 'Industry', field_type: 'text' },
+          ],
+        },
+      })
+    }
+    return route.continue()
+  })
+}
+
 export async function setupAllRoutes(page: Page) {
   await seedAuthToken(page)
   await setupAuthRoutes(page)
@@ -1966,4 +2019,5 @@ export async function setupAllRoutes(page: Page) {
   await setupDescribeRoutes(page)
   await setupRecordRoutes(page)
   await setupSoqlRoutes(page)
+  await setupDmlRoutes(page)
 }

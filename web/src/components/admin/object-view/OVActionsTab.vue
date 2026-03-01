@@ -5,8 +5,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Textarea } from '@/components/ui/textarea'
 import ExpressionBuilder from '@/components/admin/expression-builder/ExpressionBuilder.vue'
+import DmlEditor from '@/components/admin/dml-editor/DmlEditor.vue'
 import {
   Select,
   SelectContent,
@@ -385,12 +385,10 @@ function typeBadgeVariant(type: string): 'default' | 'secondary' | 'destructive'
                 class="flex gap-2 items-start"
                 data-testid="dml-statement"
               >
-                <Textarea
+                <DmlEditor
                   :model-value="stmt"
                   @update:model-value="(v) => { if (selectedAction!.apply?.dml) selectedAction!.apply.dml[dIdx] = String(v) }"
-                  placeholder="INSERT INTO Account (Name) VALUES (data.Name)"
-                  class="font-mono text-xs flex-1"
-                  rows="2"
+                  class="flex-1"
                 />
                 <IconButton
                   :icon="Trash2"
