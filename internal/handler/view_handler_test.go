@@ -145,7 +145,8 @@ func TestViewHandler_GetByAPIName(t *testing.T) {
 // --- Mock SOQL service ---
 
 type mockSOQLService struct {
-	executeFn func(ctx context.Context, query string, params *soql.QueryParams) (*soql.QueryResult, error)
+	executeFn  func(ctx context.Context, query string, params *soql.QueryParams) (*soql.QueryResult, error)
+	describeFn func(ctx context.Context, query string) (*soql.DescribeResult, error)
 }
 
 func (m *mockSOQLService) Execute(ctx context.Context, query string, params *soql.QueryParams) (*soql.QueryResult, error) {
@@ -153,6 +154,13 @@ func (m *mockSOQLService) Execute(ctx context.Context, query string, params *soq
 		return m.executeFn(ctx, query, params)
 	}
 	return &soql.QueryResult{}, nil
+}
+
+func (m *mockSOQLService) Describe(ctx context.Context, query string) (*soql.DescribeResult, error) {
+	if m.describeFn != nil {
+		return m.describeFn(ctx, query)
+	}
+	return &soql.DescribeResult{}, nil
 }
 
 func TestViewHandler_ExecuteQuery(t *testing.T) {

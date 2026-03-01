@@ -482,7 +482,7 @@ func (c *Compiler) compileSelectExpression(ctx *compileContext, sel *SelectExpre
 
 	case item.Expr != nil:
 		expr, err = c.compileExpression(ctx, item.Expr)
-		fieldType = item.Expr.FieldType
+		fieldType = item.Expr.InferFieldType()
 	}
 
 	if err != nil {
@@ -841,7 +841,7 @@ func (c *Compiler) compileSubquery(ctx *compileContext, sub *RelationshipSubquer
 
 		nestedShape.Fields = append(nestedShape.Fields, &FieldShape{
 			Name:  *alias,
-			Type:  sel.Item.Expr.FieldType,
+			Type:  sel.Item.Expr.InferFieldType(),
 			Alias: *alias,
 		})
 	}

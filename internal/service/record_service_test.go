@@ -17,11 +17,19 @@ import (
 // --- Mock QueryService ---
 
 type mockQueryService struct {
-	executeFunc func(ctx context.Context, query string, params *soql.QueryParams) (*soql.QueryResult, error)
+	executeFunc  func(ctx context.Context, query string, params *soql.QueryParams) (*soql.QueryResult, error)
+	describeFunc func(ctx context.Context, query string) (*soql.DescribeResult, error)
 }
 
 func (m *mockQueryService) Execute(ctx context.Context, query string, params *soql.QueryParams) (*soql.QueryResult, error) {
 	return m.executeFunc(ctx, query, params)
+}
+
+func (m *mockQueryService) Describe(ctx context.Context, query string) (*soql.DescribeResult, error) {
+	if m.describeFunc != nil {
+		return m.describeFunc(ctx, query)
+	}
+	return &soql.DescribeResult{}, nil
 }
 
 // --- Mock DMLService ---

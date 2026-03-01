@@ -256,6 +256,61 @@ type Const struct {
 	FieldType   FieldType
 }
 
+// InferFieldType walks the expression tree to find the leaf field type.
+// For simple field references or constants, returns their resolved type.
+// For complex expressions (comparisons, boolean ops), returns FieldTypeUnknown.
+func (e *Expression) InferFieldType() FieldType {
+	if e == nil || e.Or == nil || len(e.Or.And) != 1 {
+		return e.FieldType
+	}
+	and := e.Or.And[0]
+	if len(and.Not) != 1 {
+		return e.FieldType
+	}
+	cmp := and.Not[0].Compare
+	if cmp == nil || cmp.Operator != nil {
+		return e.FieldType
+	}
+	in := cmp.Left
+	if in == nil || in.In {
+		return e.FieldType
+	}
+	like := in.Left
+	if like == nil || like.Like {
+		return e.FieldType
+	}
+	is := like.Left
+	if is == nil || is.Is {
+		return e.FieldType
+	}
+	add := is.Left
+	if add == nil || len(add.Right) > 0 {
+		return e.FieldType
+	}
+	mul := add.Left
+	if mul == nil || len(mul.Right) > 0 {
+		return e.FieldType
+	}
+	unary := mul.Left
+	if unary == nil || unary.Primary == nil {
+		return e.FieldType
+	}
+	p := unary.Primary
+	switch {
+	case p.Field != nil:
+		return p.Field.FieldType
+	case p.Const != nil:
+		return p.Const.GetFieldType()
+	case p.FuncCall != nil:
+		return p.FuncCall.FieldType
+	case p.Aggregate != nil:
+		return p.Aggregate.FieldType
+	case p.Subexpression != nil:
+		return p.Subexpression.InferFieldType()
+	}
+	return e.FieldType
+}
+
 // GetFieldType returns the inferred type of the constant
 func (c *Const) GetFieldType() FieldType {
 	if c.FieldType != FieldTypeUnknown {

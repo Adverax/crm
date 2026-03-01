@@ -97,6 +97,7 @@ func (e *Executor) Execute(ctx context.Context, compiled *engine.CompiledQuery) 
 	}
 
 	return &QueryResult{
+		Fields:    shapeToFieldInfo(compiled.Shape),
 		TotalSize: len(mappedRecords),
 		Done:      true,
 		Records:   mappedRecords,

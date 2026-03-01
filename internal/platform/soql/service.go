@@ -10,6 +10,7 @@ import (
 // QueryService executes SOQL queries with full security enforcement.
 type QueryService interface {
 	Execute(ctx context.Context, query string, params *QueryParams) (*QueryResult, error)
+	Describe(ctx context.Context, query string) (*DescribeResult, error)
 }
 
 type queryService struct {
@@ -48,4 +49,18 @@ func (s *queryService) Execute(ctx context.Context, query string, params *QueryP
 	}
 
 	return result, nil
+}
+
+// Describe analyzes a SOQL query without executing it, returning field metadata.
+func (s *queryService) Describe(ctx context.Context, query string) (*DescribeResult, error) {
+	compiled, err := s.engine.Prepare(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("queryService.Describe: %w", err)
+	}
+
+	return &DescribeResult{
+		Object: compiled.Shape.Object,
+		Fields: shapeToFieldInfo(compiled.Shape),
+		IsRow:  compiled.IsRow,
+	}, nil
 }
