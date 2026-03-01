@@ -40,7 +40,7 @@ func TestValidateViewConfig(t *testing.T) {
 					},
 					Fields: []PortalViewField{
 						{Name: "name"},
-						{Name: "contact_count", Type: "int", Expr: "size(contacts)"},
+						{Name: "contact_count", Expr: "size(contacts)"},
 					},
 				},
 			},
@@ -188,7 +188,7 @@ func TestValidateViewConfig(t *testing.T) {
 						{Name: "main", SOQL: "SELECT ROW Id, Name FROM Account"},
 					},
 					Fields: []PortalViewField{
-						{Name: "display", Type: "string", Expr: "main.Name"},
+						{Name: "display", Expr: "main.Name"},
 					},
 				},
 			},
@@ -203,7 +203,7 @@ func TestValidateViewConfig(t *testing.T) {
 					},
 					Fields: []PortalViewField{
 						{Name: "name"},
-						{Name: "contact_count", Type: "int", Expr: "stats.total"},
+						{Name: "contact_count", Expr: "stats.total"},
 					},
 				},
 			},
@@ -234,7 +234,7 @@ func TestValidateViewConfig(t *testing.T) {
 					},
 					Fields: []PortalViewField{
 						{Name: "name"},
-						{Name: "deal_amount", Type: "float", Expr: "deals.Amount * 1.1"},
+						{Name: "deal_amount", Expr: "deals.Amount * 1.1"},
 					},
 				},
 			},

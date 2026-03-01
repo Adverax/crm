@@ -1077,7 +1077,7 @@ export const mockPortals = [
           { name: 'Name' },
           { name: 'Industry' },
           { name: 'Phone' },
-          { name: 'display_name', type: 'string', expr: 'record.Name + " (" + record.Industry + ")"', when: '' },
+          { name: 'display_name', expr: 'record.Name + " (" + record.Industry + ")"', when: '' },
         ],
         actions: [
           {

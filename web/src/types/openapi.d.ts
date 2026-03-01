@@ -1308,8 +1308,6 @@ export interface components {
         };
         PortalViewField: {
             name: string;
-            /** @enum {string} */
-            type?: "string" | "int" | "float" | "bool" | "timestamp";
             expr?: string;
             when?: string;
         };

@@ -35,10 +35,10 @@ type PortalReadConfig struct {
 
 // PortalViewField describes a field in the view configuration (ADR-0035).
 // Fields without Expr are simple field references (resolved from the default query).
-// Fields with Expr are computed from a CEL expression that can reference queries.
+// Fields with Expr are computed from a CEL expression that can reference queries and other fields.
+// The result type is inferred from the CEL expression at runtime — no explicit Type field needed.
 type PortalViewField struct {
 	Name string `json:"name"`
-	Type string `json:"type,omitempty"`
 	Expr string `json:"expr,omitempty"`
 	When string `json:"when,omitempty"`
 }

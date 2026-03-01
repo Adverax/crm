@@ -171,6 +171,7 @@ const breadcrumbs = computed(() => [
         <TabsContent value="fields">
           <PortalFieldsTab
             :fields="form.config.read.fields"
+            :queries="form.config.read.queries"
             @update:fields="form.config.read.fields = $event"
           />
         </TabsContent>

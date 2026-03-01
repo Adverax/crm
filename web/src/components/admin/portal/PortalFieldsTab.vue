@@ -1,163 +1,167 @@
 <script setup lang="ts">
 import { IconButton } from '@/components/ui/icon-button'
-import { Plus, Trash2 } from 'lucide-vue-next'
+import { Trash2, Plus } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent } from '@/components/ui/card'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import type { PortalViewField } from '@/types/portals'
+import { Badge } from '@/components/ui/badge'
+import ExpressionBuilder from '@/components/admin/expression-builder/ExpressionBuilder.vue'
+import { ref, computed } from 'vue'
+import type { PortalViewField, PortalQuery } from '@/types/portals'
 
 const props = defineProps<{
   fields: PortalViewField[]
+  queries: PortalQuery[]
 }>()
 
 const emit = defineEmits<{
   'update:fields': [value: PortalViewField[]]
 }>()
 
+const selectedIndex = ref<number | null>(null)
+
+const selectedField = computed(() =>
+  selectedIndex.value !== null ? props.fields[selectedIndex.value] ?? null : null,
+)
+
+function selectField(index: number) {
+  selectedIndex.value = index
+}
+
 function addField() {
   const updated: PortalViewField[] = [...props.fields, { name: '' }]
   emit('update:fields', updated)
+  selectedIndex.value = updated.length - 1
 }
 
 function removeField(index: number) {
   const updated = [...props.fields]
   updated.splice(index, 1)
   emit('update:fields', updated)
+  if (selectedIndex.value === index) {
+    selectedIndex.value = updated.length > 0 ? Math.min(index, updated.length - 1) : null
+  } else if (selectedIndex.value !== null && selectedIndex.value > index) {
+    selectedIndex.value--
+  }
 }
 
-function updateName(index: number, value: string | number) {
-  const updated = [...props.fields]
-  updated[index] = { ...updated[index], name: String(value) }
-  emit('update:fields', updated)
-}
-
-function updateType(index: number, value: string) {
-  const updated = [...props.fields]
-  const f = props.fields[index]
-  if (!f) return
-  const newType = value === 'none' ? undefined : value
-  updated[index] = { name: f.name, type: newType as PortalViewField['type'], expr: f.expr, when: f.when }
-  emit('update:fields', updated)
-}
-
-function updateExpr(index: number, value: string) {
-  const updated = [...props.fields]
-  const f = props.fields[index]
-  if (!f) return
-  updated[index] = { name: f.name, type: f.type, expr: value || undefined, when: f.when }
-  emit('update:fields', updated)
-}
-
-function updateWhen(index: number, value: string) {
-  const updated = [...props.fields]
-  const f = props.fields[index]
-  if (!f) return
-  updated[index] = { name: f.name, type: f.type, expr: f.expr, when: value || undefined }
-  emit('update:fields', updated)
+function fieldLabel(field: PortalViewField): string {
+  return field.name || 'unnamed'
 }
 
 function isComputed(field: PortalViewField): boolean {
   return !!field.expr
 }
+
+function queryNames(): string[] {
+  return props.queries.map((q) => q.name).filter(Boolean)
+}
 </script>
 
 <template>
-  <div class="space-y-4">
-    <div class="flex items-center justify-between">
-      <Label class="text-base">Fields</Label>
-      <IconButton
-        :icon="Plus"
-        tooltip="Add field"
-        variant="outline"
-        data-testid="add-field-btn"
-        @click="addField"
-      />
-    </div>
-    <p class="text-sm text-muted-foreground">
-      Order matters — first 3 are used as highlights. Fields with expr are computed.
-    </p>
-
-  <Card>
-    <CardContent class="pt-6 space-y-4">
-
-      <div
-        v-for="(field, idx) in fields"
-        :key="idx"
-        class="border rounded-lg p-3 space-y-2"
-        data-testid="field-entry"
-      >
-        <div class="grid grid-cols-4 gap-2 items-end">
-          <div class="space-y-1">
-            <Label class="text-xs">Name</Label>
-            <Input
-              :model-value="field.name"
-              placeholder="field_api_name"
-              class="font-mono"
-              @update:model-value="(v: string | number) => updateName(idx, v)"
-            />
-          </div>
-          <div class="space-y-1">
-            <Label class="text-xs">Type</Label>
-            <Select
-              :model-value="field.type ?? 'none'"
-              @update:model-value="(v) => updateType(idx, String(v))"
+  <div class="flex gap-4 min-h-[400px]" data-testid="fields-master-detail">
+    <!-- Left panel: field list -->
+    <div class="w-64 shrink-0 border rounded-md">
+      <div class="flex items-center justify-between p-3 border-b">
+        <span class="text-sm font-medium">Fields</span>
+        <IconButton
+          :icon="Plus"
+          tooltip="Add field"
+          variant="outline"
+          size="sm"
+          data-testid="add-field-btn"
+          @click="addField"
+        />
+      </div>
+      <p class="px-3 py-1.5 text-[11px] text-muted-foreground border-b">
+        First 3 fields are used as highlights
+      </p>
+      <div v-if="fields.length === 0" class="p-3 text-sm text-muted-foreground">
+        No fields configured.
+      </div>
+      <div v-else class="divide-y">
+        <button
+          v-for="(field, fIdx) in fields"
+          :key="fIdx"
+          type="button"
+          class="w-full text-left px-3 py-2 hover:bg-muted/50 transition-colors"
+          :class="{ 'bg-muted': selectedIndex === fIdx }"
+          data-testid="field-card"
+          @click="selectField(fIdx)"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <div class="min-w-0">
+              <div class="text-sm font-medium font-mono truncate">{{ fieldLabel(field) }}</div>
+            </div>
+            <Badge
+              v-if="isComputed(field)"
+              variant="secondary"
+              class="shrink-0 text-[10px]"
             >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">—</SelectItem>
-                <SelectItem value="string">string</SelectItem>
-                <SelectItem value="int">int</SelectItem>
-                <SelectItem value="float">float</SelectItem>
-                <SelectItem value="bool">bool</SelectItem>
-                <SelectItem value="timestamp">timestamp</SelectItem>
-              </SelectContent>
-            </Select>
+              computed
+            </Badge>
+            <Badge
+              v-else-if="fIdx < 3"
+              variant="outline"
+              class="shrink-0 text-[10px]"
+            >
+              highlight
+            </Badge>
           </div>
-          <div class="space-y-1">
-            <Label class="text-xs">When (CEL)</Label>
-            <Input
-              :model-value="field.when ?? ''"
-              placeholder=""
-              class="font-mono"
-              @update:model-value="(v: string | number) => updateWhen(idx, String(v))"
-            />
-          </div>
-          <div class="flex justify-end">
-            <IconButton
-              :icon="Trash2"
-              tooltip="Remove field"
-              variant="ghost"
-              class="text-destructive hover:text-destructive"
-              @click="removeField(idx)"
-            />
-          </div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Right panel: field detail -->
+    <div class="flex-1 min-w-0">
+      <div v-if="!selectedField" class="flex items-center justify-center h-full text-sm text-muted-foreground">
+        Select a field to edit
+      </div>
+
+      <div v-else class="space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="text-sm font-medium">Field Details</span>
+          <IconButton
+            :icon="Trash2"
+            tooltip="Delete field"
+            variant="ghost"
+            class="text-destructive hover:text-destructive"
+            data-testid="delete-field-btn"
+            @click="removeField(selectedIndex!)"
+          />
         </div>
-        <div v-if="isComputed(field) || field.type" class="space-y-1">
+
+        <div class="space-y-1">
+          <Label class="text-xs">Name</Label>
+          <Input v-model="selectedField.name" placeholder="field_api_name" class="font-mono" />
+        </div>
+
+        <div class="space-y-1">
           <Label class="text-xs">Expression (CEL)</Label>
-          <Textarea
-            :model-value="field.expr ?? ''"
-            placeholder="record.amount * 1.2"
-            class="font-mono text-sm"
-            rows="2"
-            @update:model-value="(v: string | number) => updateExpr(idx, String(v))"
+          <p class="text-[11px] text-muted-foreground">
+            Data source. Can reference queries (<span class="font-mono">{{ queryNames().join(', ') || 'none' }}</span>) and other fields.
+          </p>
+          <ExpressionBuilder
+            :model-value="selectedField.expr ?? ''"
+            context="default_expr"
+            height="120px"
+            placeholder="main.Name + ' (' + main.Industry + ')'"
+            :show-field-picker="false"
+            @update:model-value="selectedField.expr = $event || undefined"
+          />
+        </div>
+
+        <div class="space-y-1">
+          <Label class="text-xs">When (CEL)</Label>
+          <ExpressionBuilder
+            :model-value="selectedField.when ?? ''"
+            context="when_expression"
+            height="80px"
+            placeholder="has(main.amount)"
+            :show-field-picker="false"
+            @update:model-value="selectedField.when = $event || undefined"
           />
         </div>
       </div>
-
-      <div v-if="fields.length === 0" class="text-sm text-muted-foreground">
-        No fields configured. The system will auto-generate the form from all accessible fields.
-      </div>
-    </CardContent>
-  </Card>
+    </div>
   </div>
 </template>

@@ -30,7 +30,7 @@ func TestPortalConfig_MarshalUnmarshal(t *testing.T) {
 				Read: PortalReadConfig{
 					Fields: []PortalViewField{
 						{Name: "name"},
-						{Name: "total", Type: "float", Expr: "record.amount * 1.2", When: "has(record.amount)"},
+						{Name: "total", Expr: "record.amount * 1.2", When: "has(record.amount)"},
 					},
 					Actions: []PortalAction{},
 				},

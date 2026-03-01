@@ -154,10 +154,11 @@ test.describe('Portal detail page', () => {
     await expect(page.getByRole('tab', { name: 'Mutations' })).not.toBeVisible()
   })
 
-  test('Fields tab shows field entries', async ({ page }) => {
+  test('Fields tab shows master-detail layout with field list', async ({ page }) => {
     await page.goto(`/admin/metadata/portals/${view.id}`)
     await page.getByRole('tab', { name: 'Fields', exact: true }).click()
-    await expect(page.locator('[data-testid="field-entry"]').first()).toBeVisible()
+    await expect(page.locator('[data-testid="fields-master-detail"]')).toBeVisible()
+    await expect(page.locator('[data-testid="field-card"]').first()).toBeVisible()
     await expect(page.locator('[data-testid="add-field-btn"]')).toBeVisible()
   })
 
@@ -206,12 +207,29 @@ test.describe('Portal detail page', () => {
     await expect(page.locator('[data-testid="add-query-btn"]')).toBeVisible()
   })
 
-  test('Fields tab shows computed field with expression', async ({ page }) => {
+  test('Fields tab shows computed badge for fields with expr', async ({ page }) => {
     await page.goto(`/admin/metadata/portals/${view.id}`)
     await page.getByRole('tab', { name: 'Fields', exact: true }).click()
-    // The 4th field (display_name) has an expr, so Expression textarea should be visible
-    const fields = page.locator('[data-testid="field-entry"]')
+    const fields = page.locator('[data-testid="field-card"]')
     await expect(fields).toHaveCount(4)
+    // display_name has expr → "computed" badge
+    await expect(fields.nth(3)).toContainText('computed')
+  })
+
+  test('Fields tab — clicking field shows detail with ExpressionBuilder', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Fields', exact: true }).click()
+    await page.locator('[data-testid="field-card"]').nth(3).click()
+    await expect(page.getByText('Field Details')).toBeVisible()
+    await expect(page.getByText('Expression (CEL)')).toBeVisible()
+    await expect(page.getByText('When (CEL)')).toBeVisible()
+  })
+
+  test('Fields tab — shows available query names in description', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Fields', exact: true }).click()
+    await page.locator('[data-testid="field-card"]').first().click()
+    await expect(page.getByText('recent_activities')).toBeVisible()
   })
 
   test('delete button shows confirmation dialog', async ({ page }) => {
