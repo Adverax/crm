@@ -27,3 +27,12 @@ func DefaultEnv() (*cel.Env, error) {
 		ext.Strings(),
 	)
 }
+
+// PortalEnv creates a CEL environment for portal when-conditions.
+// Only args map is available — no record/old/user/now.
+func PortalEnv() (*cel.Env, error) {
+	return cel.NewEnv(
+		cel.Variable("args", cel.DynType),
+		ext.Strings(),
+	)
+}

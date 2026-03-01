@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	celutil "github.com/adverax/crm/internal/platform/cel"
 	"github.com/adverax/crm/internal/platform/metadata"
 	"github.com/adverax/crm/internal/platform/soql"
 )
@@ -69,7 +70,17 @@ func setupViewRouter(t *testing.T, cache *metadata.MetadataCache, soqlSvc soql.Q
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	api := r.Group("/api/v1")
-	h := NewPortalHandler(cache, soqlSvc, nil)
+	h := NewPortalHandler(cache, soqlSvc, nil, nil)
+	h.RegisterRoutes(api)
+	return r
+}
+
+func setupViewRouterWithCEL(t *testing.T, cache *metadata.MetadataCache, soqlSvc soql.QueryService, celCache *celutil.ProgramCache) *gin.Engine {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	api := r.Group("/api/v1")
+	h := NewPortalHandler(cache, soqlSvc, nil, celCache)
 	h.RegisterRoutes(api)
 	return r
 }
@@ -263,6 +274,386 @@ func TestPortalHandler_ExecuteQuery(t *testing.T) {
 			r.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.wantStatus, w.Code, "body: %s", w.Body.String())
+		})
+	}
+}
+
+func strPtr(s string) *string { return &s }
+
+func TestPortalHandler_TypedArgs(t *testing.T) {
+	t.Parallel()
+
+	portalWithArgs := metadata.Portal{
+		ID:      uuid.New(),
+		APIName: "typed_view",
+		Label:   "Typed View",
+		Config: metadata.PortalConfig{
+			Args: []metadata.PortalArg{
+				{Name: "account_id", Type: "string"},
+				{Name: "limit", Type: "int", Default: strPtr("10")},
+				{Name: "active", Type: "bool", Default: strPtr("true")},
+			},
+			Read: metadata.PortalReadConfig{
+				Fields: []metadata.PortalViewField{{Name: "name"}},
+				Queries: []metadata.PortalQuery{
+					{Name: "main", SOQL: "SELECT ROW Id, Name FROM Account WHERE Id = :account_id"},
+					{Name: "cond", SOQL: "SELECT ROW Id FROM Contact", When: "args.active == true"},
+				},
+			},
+		},
+	}
+
+	portalNoArgs := metadata.Portal{
+		ID:      uuid.New(),
+		APIName: "legacy_view",
+		Label:   "Legacy View",
+		Config: metadata.PortalConfig{
+			Read: metadata.PortalReadConfig{
+				Fields: []metadata.PortalViewField{{Name: "name"}},
+				Queries: []metadata.PortalQuery{
+					{Name: "main", SOQL: "SELECT ROW Id FROM Account WHERE Id = :id"},
+				},
+			},
+		},
+	}
+
+	celEnv, err := celutil.PortalEnv()
+	require.NoError(t, err)
+	celCache := celutil.NewProgramCache(celEnv)
+
+	tests := []struct {
+		name          string
+		portalAPIName string
+		queryName     string
+		queryStr      string
+		portals       []metadata.Portal
+		setupSOQL     func(m *mockSOQLService)
+		useCEL        bool
+		wantStatus    int
+		checkBody     func(t *testing.T, body []byte)
+	}{
+		{
+			name:          "required arg missing returns 400",
+			portalAPIName: "typed_view",
+			queryName:     "main",
+			queryStr:      "",
+			portals:       []metadata.Portal{portalWithArgs},
+			wantStatus:    http.StatusBadRequest,
+		},
+		{
+			name:          "int arg with non-numeric value returns 400",
+			portalAPIName: "typed_view",
+			queryName:     "main",
+			queryStr:      "account_id=abc&limit=notanumber",
+			portals:       []metadata.Portal{portalWithArgs},
+			wantStatus:    http.StatusBadRequest,
+		},
+		{
+			name:          "optional arg uses default",
+			portalAPIName: "typed_view",
+			queryName:     "main",
+			queryStr:      "account_id=abc-123",
+			portals:       []metadata.Portal{portalWithArgs},
+			setupSOQL: func(m *mockSOQLService) {
+				m.executeFn = func(_ context.Context, query string, _ *soql.QueryParams) (*soql.QueryResult, error) {
+					assert.Contains(t, query, "'abc-123'")
+					return &soql.QueryResult{
+						IsRow:   true,
+						Records: []map[string]any{{"Id": "abc-123", "Name": "Acme"}},
+					}, nil
+				}
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:          "when=false skips query (data: null)",
+			portalAPIName: "typed_view",
+			queryName:     "cond",
+			queryStr:      "account_id=abc&active=false",
+			portals:       []metadata.Portal{portalWithArgs},
+			useCEL:        true,
+			wantStatus:    http.StatusOK,
+			checkBody: func(t *testing.T, body []byte) {
+				var resp map[string]any
+				require.NoError(t, json.Unmarshal(body, &resp))
+				assert.Nil(t, resp["data"])
+			},
+		},
+		{
+			name:          "when=true executes query",
+			portalAPIName: "typed_view",
+			queryName:     "cond",
+			queryStr:      "account_id=abc&active=true",
+			portals:       []metadata.Portal{portalWithArgs},
+			useCEL:        true,
+			setupSOQL: func(m *mockSOQLService) {
+				m.executeFn = func(_ context.Context, _ string, _ *soql.QueryParams) (*soql.QueryResult, error) {
+					return &soql.QueryResult{
+						IsRow:   true,
+						Records: []map[string]any{{"Id": "c1"}},
+					}, nil
+				}
+			},
+			wantStatus: http.StatusOK,
+			checkBody: func(t *testing.T, body []byte) {
+				var resp map[string]any
+				require.NoError(t, json.Unmarshal(body, &resp))
+				assert.NotNil(t, resp["data"])
+			},
+		},
+		{
+			name:          "backward compat: no args uses old substitution",
+			portalAPIName: "legacy_view",
+			queryName:     "main",
+			queryStr:      "id=xyz-789",
+			portals:       []metadata.Portal{portalNoArgs},
+			setupSOQL: func(m *mockSOQLService) {
+				m.executeFn = func(_ context.Context, query string, _ *soql.QueryParams) (*soql.QueryResult, error) {
+					assert.Contains(t, query, "'xyz-789'")
+					return &soql.QueryResult{
+						IsRow:   true,
+						Records: []map[string]any{{"Id": "xyz-789"}},
+					}, nil
+				}
+			},
+			wantStatus: http.StatusOK,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cache := buildPortalHandlerTestCache(tt.portals)
+			soqlSvc := &mockSOQLService{}
+			if tt.setupSOQL != nil {
+				tt.setupSOQL(soqlSvc)
+			}
+
+			var r *gin.Engine
+			if tt.useCEL {
+				r = setupViewRouterWithCEL(t, cache, soqlSvc, celCache)
+			} else {
+				r = setupViewRouter(t, cache, soqlSvc)
+			}
+
+			url := fmt.Sprintf("/api/v1/portal/%s/query/%s", tt.portalAPIName, tt.queryName)
+			if tt.queryStr != "" {
+				url += "?" + tt.queryStr
+			}
+
+			w := httptest.NewRecorder()
+			req, _ := http.NewRequest(http.MethodGet, url, nil)
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.wantStatus, w.Code, "body: %s", w.Body.String())
+
+			if tt.checkBody != nil {
+				tt.checkBody(t, w.Body.Bytes())
+			}
+		})
+	}
+}
+
+func TestPortalHandler_ArgValidation(t *testing.T) {
+	t.Parallel()
+
+	portalWithValidation := metadata.Portal{
+		ID:      uuid.New(),
+		APIName: "validated_view",
+		Label:   "Validated View",
+		Config: metadata.PortalConfig{
+			Args: []metadata.PortalArg{
+				{
+					Name:         "limit",
+					Type:         "int",
+					Default:      strPtr("10"),
+					Validation:   "args.limit > 0 && args.limit <= 100",
+					ErrorMessage: "Limit must be between 1 and 100",
+				},
+				{
+					Name: "account_id",
+					Type: "string",
+				},
+			},
+			Read: metadata.PortalReadConfig{
+				Fields: []metadata.PortalViewField{{Name: "name"}},
+				Queries: []metadata.PortalQuery{
+					{Name: "main", SOQL: "SELECT ROW Id FROM Account WHERE Id = :account_id LIMIT :limit"},
+				},
+			},
+		},
+	}
+
+	celEnv, err := celutil.PortalEnv()
+	require.NoError(t, err)
+	celCache := celutil.NewProgramCache(celEnv)
+
+	tests := []struct {
+		name       string
+		queryStr   string
+		setupSOQL  func(m *mockSOQLService)
+		wantStatus int
+		checkBody  func(t *testing.T, body []byte)
+	}{
+		{
+			name:       "validation passes — request proceeds",
+			queryStr:   "account_id=abc&limit=50",
+			wantStatus: http.StatusOK,
+			setupSOQL: func(m *mockSOQLService) {
+				m.executeFn = func(_ context.Context, _ string, _ *soql.QueryParams) (*soql.QueryResult, error) {
+					return &soql.QueryResult{IsRow: true, Records: []map[string]any{{"Id": "abc"}}}, nil
+				}
+			},
+		},
+		{
+			name:       "validation fails — returns 400 with error_message",
+			queryStr:   "account_id=abc&limit=0",
+			wantStatus: http.StatusBadRequest,
+			checkBody: func(t *testing.T, body []byte) {
+				assert.Contains(t, string(body), "Limit must be between 1 and 100")
+			},
+		},
+		{
+			name:       "validation fails — negative value",
+			queryStr:   "account_id=abc&limit=-5",
+			wantStatus: http.StatusBadRequest,
+			checkBody: func(t *testing.T, body []byte) {
+				assert.Contains(t, string(body), "Limit must be between 1 and 100")
+			},
+		},
+		{
+			name:       "validation fails — exceeds max",
+			queryStr:   "account_id=abc&limit=200",
+			wantStatus: http.StatusBadRequest,
+			checkBody: func(t *testing.T, body []byte) {
+				assert.Contains(t, string(body), "Limit must be between 1 and 100")
+			},
+		},
+		{
+			name:       "validation passes with default value",
+			queryStr:   "account_id=abc",
+			wantStatus: http.StatusOK,
+			setupSOQL: func(m *mockSOQLService) {
+				m.executeFn = func(_ context.Context, _ string, _ *soql.QueryParams) (*soql.QueryResult, error) {
+					return &soql.QueryResult{IsRow: true, Records: []map[string]any{{"Id": "abc"}}}, nil
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cache := buildPortalHandlerTestCache([]metadata.Portal{portalWithValidation})
+			soqlSvc := &mockSOQLService{}
+			if tt.setupSOQL != nil {
+				tt.setupSOQL(soqlSvc)
+			}
+			r := setupViewRouterWithCEL(t, cache, soqlSvc, celCache)
+
+			url := fmt.Sprintf("/api/v1/portal/validated_view/query/main?%s", tt.queryStr)
+			w := httptest.NewRecorder()
+			req, _ := http.NewRequest(http.MethodGet, url, nil)
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.wantStatus, w.Code, "body: %s", w.Body.String())
+			if tt.checkBody != nil {
+				tt.checkBody(t, w.Body.Bytes())
+			}
+		})
+	}
+}
+
+func TestConvertArg(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		argName string
+		argType string
+		raw     string
+		want    any
+		wantErr bool
+	}{
+		{name: "string", argName: "s", argType: "string", raw: "hello", want: "hello"},
+		{name: "int valid", argName: "n", argType: "int", raw: "42", want: int64(42)},
+		{name: "int negative", argName: "n", argType: "int", raw: "-5", want: int64(-5)},
+		{name: "int invalid", argName: "n", argType: "int", raw: "abc", wantErr: true},
+		{name: "float valid", argName: "f", argType: "float", raw: "3.14", want: float64(3.14)},
+		{name: "float invalid", argName: "f", argType: "float", raw: "xyz", wantErr: true},
+		{name: "bool true", argName: "b", argType: "bool", raw: "true", want: true},
+		{name: "bool false", argName: "b", argType: "bool", raw: "false", want: false},
+		{name: "bool invalid", argName: "b", argType: "bool", raw: "yes", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := convertArg(tt.argName, tt.argType, tt.raw)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestSubstituteTypedArgs(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		soql string
+		args map[string]any
+		want string
+	}{
+		{
+			name: "string arg quoted with escaping",
+			soql: "SELECT Id FROM Account WHERE Name = :name",
+			args: map[string]any{"name": "O'Brien"},
+			want: "SELECT Id FROM Account WHERE Name = 'O''Brien'",
+		},
+		{
+			name: "int arg unquoted",
+			soql: "SELECT Id FROM Account LIMIT :limit",
+			args: map[string]any{"limit": int64(10)},
+			want: "SELECT Id FROM Account LIMIT 10",
+		},
+		{
+			name: "float arg unquoted",
+			soql: "SELECT Id FROM Deal WHERE Amount > :min",
+			args: map[string]any{"min": float64(1000.5)},
+			want: "SELECT Id FROM Deal WHERE Amount > 1000.5",
+		},
+		{
+			name: "bool arg unquoted",
+			soql: "SELECT Id FROM Account WHERE Active = :active",
+			args: map[string]any{"active": true},
+			want: "SELECT Id FROM Account WHERE Active = true",
+		},
+		{
+			name: "unknown param left as-is",
+			soql: "SELECT Id FROM Account WHERE Id = :unknown",
+			args: map[string]any{},
+			want: "SELECT Id FROM Account WHERE Id = :unknown",
+		},
+		{
+			name: "multiple params",
+			soql: "SELECT Id FROM Account WHERE Id = :id AND Status = :status",
+			args: map[string]any{"id": "abc", "status": "active"},
+			want: "SELECT Id FROM Account WHERE Id = 'abc' AND Status = 'active'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := substituteTypedArgs(tt.soql, tt.args)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

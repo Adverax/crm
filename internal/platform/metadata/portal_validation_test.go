@@ -10,6 +10,8 @@ import (
 func TestValidateViewConfig(t *testing.T) {
 	t.Parallel()
 
+	strPtr := func(s string) *string { return &s }
+
 	tests := []struct {
 		name       string
 		config     PortalConfig
@@ -19,6 +21,187 @@ func TestValidateViewConfig(t *testing.T) {
 		{
 			name: "valid: empty config",
 			config: PortalConfig{
+				Read: PortalReadConfig{},
+			},
+		},
+		// --- Args validation ---
+		{
+			name: "valid: single required arg",
+			config: PortalConfig{
+				Args: []PortalArg{{Name: "account_id", Type: "string"}},
+				Read: PortalReadConfig{
+					Queries: []PortalQuery{{Name: "main", SOQL: "SELECT ROW Id FROM Account WHERE Id = :account_id"}},
+				},
+			},
+		},
+		{
+			name: "valid: optional arg with default",
+			config: PortalConfig{
+				Args: []PortalArg{{Name: "limit", Type: "int", Default: strPtr("10")}},
+				Read: PortalReadConfig{},
+			},
+		},
+		{
+			name: "valid: mixed args",
+			config: PortalConfig{
+				Args: []PortalArg{
+					{Name: "account_id", Type: "string"},
+					{Name: "active", Type: "bool", Default: strPtr("true")},
+					{Name: "threshold", Type: "float", Default: strPtr("1.5")},
+				},
+				Read: PortalReadConfig{
+					Queries: []PortalQuery{{Name: "main", SOQL: "SELECT ROW Id FROM Account WHERE Id = :account_id"}},
+				},
+			},
+		},
+		{
+			name: "valid: no args (empty slice)",
+			config: PortalConfig{
+				Args: []PortalArg{},
+				Read: PortalReadConfig{},
+			},
+		},
+		{
+			name: "invalid: duplicate arg name",
+			config: PortalConfig{
+				Args: []PortalArg{{Name: "id", Type: "string"}, {Name: "id", Type: "int"}},
+				Read: PortalReadConfig{},
+			},
+			wantErr:    true,
+			errContain: "duplicate arg name: id",
+		},
+		{
+			name: "invalid: empty arg name",
+			config: PortalConfig{
+				Args: []PortalArg{{Name: "", Type: "string"}},
+				Read: PortalReadConfig{},
+			},
+			wantErr:    true,
+			errContain: "arg name is required",
+		},
+		{
+			name: "invalid: bad arg name format",
+			config: PortalConfig{
+				Args: []PortalArg{{Name: "MyParam", Type: "string"}},
+				Read: PortalReadConfig{},
+			},
+			wantErr:    true,
+			errContain: "must match",
+		},
+		{
+			name: "invalid: unknown arg type",
+			config: PortalConfig{
+				Args: []PortalArg{{Name: "val", Type: "date"}},
+				Read: PortalReadConfig{},
+			},
+			wantErr:    true,
+			errContain: "type must be one of",
+		},
+		{
+			name: "invalid: int default with non-numeric value",
+			config: PortalConfig{
+				Args: []PortalArg{{Name: "count", Type: "int", Default: strPtr("abc")}},
+				Read: PortalReadConfig{},
+			},
+			wantErr:    true,
+			errContain: "not a valid int",
+		},
+		{
+			name: "invalid: float default with non-numeric value",
+			config: PortalConfig{
+				Args: []PortalArg{{Name: "rate", Type: "float", Default: strPtr("xyz")}},
+				Read: PortalReadConfig{},
+			},
+			wantErr:    true,
+			errContain: "not a valid float",
+		},
+		{
+			name: "invalid: bool default with bad value",
+			config: PortalConfig{
+				Args: []PortalArg{{Name: "active", Type: "bool", Default: strPtr("yes")}},
+				Read: PortalReadConfig{},
+			},
+			wantErr:    true,
+			errContain: "not a valid bool",
+		},
+		{
+			name: "invalid: undeclared param in query",
+			config: PortalConfig{
+				Args: []PortalArg{{Name: "account_id", Type: "string"}},
+				Read: PortalReadConfig{
+					Queries: []PortalQuery{{Name: "main", SOQL: "SELECT ROW Id FROM Account WHERE Id = :unknown_id"}},
+				},
+			},
+			wantErr:    true,
+			errContain: "param :unknown_id is not declared",
+		},
+		{
+			name: "valid: all params declared in args",
+			config: PortalConfig{
+				Args: []PortalArg{
+					{Name: "account_id", Type: "string"},
+					{Name: "status", Type: "string", Default: strPtr("active")},
+				},
+				Read: PortalReadConfig{
+					Queries: []PortalQuery{{Name: "main", SOQL: "SELECT ROW Id FROM Account WHERE Id = :account_id AND Status = :status"}},
+				},
+			},
+		},
+		{
+			name: "valid: query without params when args declared",
+			config: PortalConfig{
+				Args: []PortalArg{{Name: "page", Type: "int", Default: strPtr("1")}},
+				Read: PortalReadConfig{
+					Queries: []PortalQuery{{Name: "main", SOQL: "SELECT ROW Id FROM Account LIMIT 10"}},
+				},
+			},
+		},
+		{
+			name: "valid: params in SOQL without args (backward compat, no validation)",
+			config: PortalConfig{
+				Read: PortalReadConfig{
+					Queries: []PortalQuery{{Name: "main", SOQL: "SELECT ROW Id FROM Account WHERE Id = :id"}},
+				},
+			},
+		},
+		// --- Arg validation expressions ---
+		{
+			name: "valid: arg with validation and error_message",
+			config: PortalConfig{
+				Args: []PortalArg{
+					{Name: "limit", Type: "int", Default: strPtr("10"), Validation: "args.limit > 0 && args.limit <= 100", ErrorMessage: "Limit must be between 1 and 100"},
+				},
+				Read: PortalReadConfig{},
+			},
+		},
+		{
+			name: "invalid: arg validation without error_message",
+			config: PortalConfig{
+				Args: []PortalArg{
+					{Name: "limit", Type: "int", Default: strPtr("10"), Validation: "args.limit > 0"},
+				},
+				Read: PortalReadConfig{},
+			},
+			wantErr:    true,
+			errContain: "error_message is required when validation is set",
+		},
+		{
+			name: "invalid: arg validation with bad CEL expression",
+			config: PortalConfig{
+				Args: []PortalArg{
+					{Name: "limit", Type: "int", Default: strPtr("10"), Validation: "args.limit > }", ErrorMessage: "bad"},
+				},
+				Read: PortalReadConfig{},
+			},
+			wantErr:    true,
+			errContain: "invalid validation expression",
+		},
+		{
+			name: "valid: arg without validation (no error_message needed)",
+			config: PortalConfig{
+				Args: []PortalArg{
+					{Name: "name", Type: "string"},
+				},
 				Read: PortalReadConfig{},
 			},
 		},

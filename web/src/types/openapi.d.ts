@@ -1177,6 +1177,14 @@ export interface components {
             list_fields?: string[];
             list_default_sort?: string;
             queries?: components["schemas"]["FormQuery"][];
+            args?: components["schemas"]["FormArg"][];
+        };
+        FormArg: {
+            name: string;
+            /** @enum {string} */
+            type: "string" | "int" | "float" | "bool";
+            required: boolean;
+            default?: string;
         };
         FormQuery: {
             name: string;
@@ -1273,7 +1281,16 @@ export interface components {
             updated_at: string;
         };
         PortalConfig: {
+            args?: components["schemas"]["PortalArg"][];
             read: components["schemas"]["PortalReadConfig"];
+        };
+        PortalArg: {
+            name: string;
+            /** @enum {string} */
+            type: "string" | "int" | "float" | "bool";
+            default?: string;
+            validation?: string;
+            error_message?: string;
         };
         PortalReadConfig: {
             fields?: components["schemas"]["PortalViewField"][];
@@ -1335,7 +1352,7 @@ export interface components {
         CelValidateRequest: {
             expression: string;
             /** @enum {string} */
-            context: "validation_rule" | "when_expression" | "default_expr" | "function_body" | "visibility_expr";
+            context: "validation_rule" | "when_expression" | "default_expr" | "function_body" | "visibility_expr" | "portal_when";
             object_api_name?: string;
             params?: components["schemas"]["CelParamDef"][];
         };

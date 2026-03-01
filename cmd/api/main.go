@@ -393,7 +393,13 @@ func setupRouter(pool *pgxpool.Pool, metadataCache *metadata.MetadataCache, cfg 
 	recordHandler.RegisterRoutes(apiGroup)
 
 	// --- Portal API ---
-	portalHandler := handler.NewPortalHandler(metadataCache, soqlService, dmlService)
+	portalCELEnv, err := celengine.PortalEnv()
+	if err != nil {
+		slog.Error("failed to create portal CEL env", "error", err)
+		os.Exit(1)
+	}
+	portalCELCache := celengine.NewProgramCache(portalCELEnv)
+	portalHandler := handler.NewPortalHandler(metadataCache, soqlService, dmlService, portalCELCache)
 	portalHandler.RegisterRoutes(apiGroup)
 
 	// --- Public Metadata Describe API ---

@@ -3,22 +3,48 @@ package metadata
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
+
+	"github.com/google/cel-go/cel"
+	"github.com/google/cel-go/ext"
 
 	"github.com/adverax/crm/internal/pkg/apperror"
 	"github.com/adverax/crm/internal/platform/soql/engine"
 )
 
-var actionKeyRegexp = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+// newPortalCELEnv creates a minimal CEL env for validating portal arg expressions.
+func newPortalCELEnv() (*cel.Env, error) {
+	return cel.NewEnv(
+		cel.Variable("args", cel.DynType),
+		ext.Strings(),
+	)
+}
+
+var (
+	actionKeyRegexp = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+	argNameRegexp   = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+	validArgTypes   = map[string]bool{"string": true, "int": true, "float": true, "bool": true}
+)
 
 // validateViewConfig validates the OV view config at save time.
-// Checks: query uniqueness, valid query types,
+// Checks: args, query uniqueness, valid query types,
 // field uniqueness, valid query references, DAG (no cycles).
 func validateViewConfig(config PortalConfig) error {
+	if err := validateArgs(config.Args); err != nil {
+		return err
+	}
+
 	view := config.Read
 
 	if err := validateQueries(view.Queries); err != nil {
 		return err
+	}
+
+	if len(config.Args) > 0 {
+		if err := validateQueryParamRefs(view.Queries, config.Args); err != nil {
+			return err
+		}
 	}
 
 	if err := validateFields(view.Fields, view.Queries); err != nil {
@@ -31,6 +57,102 @@ func validateViewConfig(config PortalConfig) error {
 
 	return nil
 }
+
+// validateArgs validates portal arg declarations.
+func validateArgs(args []PortalArg) error {
+	if len(args) > 50 {
+		return apperror.BadRequest("max 50 args per portal")
+	}
+
+	names := make(map[string]bool, len(args))
+	for _, a := range args {
+		if a.Name == "" {
+			return apperror.BadRequest("arg name is required")
+		}
+		if !argNameRegexp.MatchString(a.Name) {
+			return apperror.BadRequest(fmt.Sprintf("arg name %q: must match ^[a-z][a-z0-9_]*$", a.Name))
+		}
+		if names[a.Name] {
+			return apperror.BadRequest(fmt.Sprintf("duplicate arg name: %s", a.Name))
+		}
+		names[a.Name] = true
+
+		if !validArgTypes[a.Type] {
+			return apperror.BadRequest(fmt.Sprintf("arg %q: type must be one of: string, int, float, bool", a.Name))
+		}
+
+		if a.Default != nil {
+			if err := checkArgDefault(a.Name, a.Type, *a.Default); err != nil {
+				return err
+			}
+		}
+
+		if a.Validation != "" {
+			if err := checkArgValidationExpr(a.Name, a.Validation); err != nil {
+				return err
+			}
+			if a.ErrorMessage == "" {
+				return apperror.BadRequest(fmt.Sprintf("arg %q: error_message is required when validation is set", a.Name))
+			}
+		}
+	}
+
+	return nil
+}
+
+// checkArgValidationExpr checks that a validation expression compiles in PortalEnv.
+func checkArgValidationExpr(name, expr string) error {
+	env, err := newPortalCELEnv()
+	if err != nil {
+		return apperror.BadRequest(fmt.Sprintf("arg %q: failed to create CEL env: %v", name, err))
+	}
+	_, issues := env.Compile(expr)
+	if issues != nil && issues.Err() != nil {
+		return apperror.BadRequest(fmt.Sprintf("arg %q: invalid validation expression: %s", name, issues.Err()))
+	}
+	return nil
+}
+
+// checkArgDefault validates that a default value is compatible with the declared type.
+func checkArgDefault(name, argType, value string) error {
+	switch argType {
+	case "int":
+		if _, err := strconv.ParseInt(value, 10, 64); err != nil {
+			return apperror.BadRequest(fmt.Sprintf("arg %q: default %q is not a valid int", name, value))
+		}
+	case "float":
+		if _, err := strconv.ParseFloat(value, 64); err != nil {
+			return apperror.BadRequest(fmt.Sprintf("arg %q: default %q is not a valid float", name, value))
+		}
+	case "bool":
+		if value != "true" && value != "false" {
+			return apperror.BadRequest(fmt.Sprintf("arg %q: default %q is not a valid bool", name, value))
+		}
+	}
+	return nil
+}
+
+// validateQueryParamRefs checks that every :paramName in SOQL matches a declared arg.
+func validateQueryParamRefs(queries []PortalQuery, args []PortalArg) error {
+	argNames := make(map[string]bool, len(args))
+	for _, a := range args {
+		argNames[a.Name] = true
+	}
+
+	for _, q := range queries {
+		matches := paramRegexp.FindAllStringSubmatch(q.SOQL, -1)
+		for _, m := range matches {
+			paramName := m[1]
+			if !argNames[paramName] {
+				return apperror.BadRequest(fmt.Sprintf("query %q: param :%s is not declared in args", q.Name, paramName))
+			}
+		}
+	}
+
+	return nil
+}
+
+var paramRegexp = regexp.MustCompile(`:(\w+)`)
 
 func validateQueries(queries []PortalQuery) error {
 	names := make(map[string]bool, len(queries))

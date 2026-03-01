@@ -2594,6 +2594,27 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/FormQuery"
+        args:
+          type: array
+          items:
+            $ref: "#/components/schemas/FormArg"
+
+    FormArg:
+      type: object
+      required:
+        - name
+        - type
+        - required
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [string, int, float, bool]
+        required:
+          type: boolean
+        default:
+          type: string
 
     FormQuery:
       type: object
@@ -2823,8 +2844,32 @@ components:
       required:
         - read
       properties:
+        args:
+          type: array
+          items:
+            $ref: "#/components/schemas/PortalArg"
         read:
           $ref: "#/components/schemas/OVReadConfig"
+
+    PortalArg:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [string, int, float, bool]
+        default:
+          type: string
+        validation:
+          type: string
+          description: "CEL expression evaluated after type conversion. Must return bool."
+        error_message:
+          type: string
+          description: "Error message returned when validation fails."
 
     OVReadConfig:
       type: object
@@ -2972,7 +3017,7 @@ components:
           type: string
         context:
           type: string
-          enum: [validation_rule, when_expression, default_expr, function_body, visibility_expr]
+          enum: [validation_rule, when_expression, default_expr, function_body, visibility_expr, portal_when]
         object_api_name:
           type: string
         params:

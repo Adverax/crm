@@ -1072,6 +1072,16 @@ export const mockPortals = [
     label: 'Account Default View',
     description: 'Default view for accounts',
     config: {
+      args: [
+        { name: 'account_id', type: 'string' },
+        {
+          name: 'limit',
+          type: 'int',
+          default: '10',
+          validation: 'args.limit > 0 && args.limit <= 100',
+          error_message: 'Limit must be between 1 and 100',
+        },
+      ],
       read: {
         fields: [
           { name: 'Name' },
@@ -1095,7 +1105,7 @@ export const mockPortals = [
         queries: [
           {
             name: 'recent_activities',
-            soql: 'SELECT ROW Id, Subject FROM Activity WHERE WhatId = :recordId',
+            soql: 'SELECT ROW Id, Subject FROM Activity WHERE WhatId = :account_id',
             when: '',
           },
         ],

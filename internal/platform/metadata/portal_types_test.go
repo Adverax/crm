@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func ptrStr(s string) *string { return &s }
+
 func TestPortalConfig_MarshalUnmarshal(t *testing.T) {
 	t.Parallel()
 
@@ -46,6 +48,18 @@ func TestPortalConfig_MarshalUnmarshal(t *testing.T) {
 						{Name: "main", SOQL: "SELECT ROW Id FROM Account WHERE Id = :id"},
 						{Name: "contacts", SOQL: "SELECT Id FROM Contact WHERE AccountId = :id"},
 					},
+				},
+			},
+		},
+		{
+			name: "view with args",
+			input: PortalConfig{
+				Args: []PortalArg{
+					{Name: "account_id", Type: "string"},
+					{Name: "limit", Type: "int", Default: ptrStr("10")},
+				},
+				Read: PortalReadConfig{
+					Fields: []PortalViewField{{Name: "name"}},
 				},
 			},
 		},

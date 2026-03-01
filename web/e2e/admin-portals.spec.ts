@@ -138,10 +138,11 @@ test.describe('Portal detail page', () => {
     await expect(page.locator('[data-testid="delete-view-btn"]')).toBeVisible()
   })
 
-  test('tabs render (General, Queries, Fields, Actions)', async ({ page }) => {
+  test('tabs render (General, Args, Queries, Fields, Actions)', async ({ page }) => {
     await page.goto(`/admin/metadata/portals/${view.id}`)
     await expect(page.locator('[data-testid="view-tabs"]')).toBeVisible()
     await expect(page.getByRole('tab', { name: 'General' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Args' })).toBeVisible()
     await expect(page.getByRole('tab', { name: 'Fields', exact: true })).toBeVisible()
     await expect(page.getByRole('tab', { name: 'Actions' })).toBeVisible()
     await expect(page.getByRole('tab', { name: 'Queries' })).toBeVisible()
@@ -236,6 +237,130 @@ test.describe('Portal detail page', () => {
     await page.goto(`/admin/metadata/portals/${view.id}`)
     await page.locator('[data-testid="delete-view-btn"]').click()
     await expect(page.getByText('Delete object view?')).toBeVisible()
+  })
+})
+
+test.describe('Portal Args tab', () => {
+  const view = mockPortals[0]
+
+  test.beforeEach(async ({ page }) => {
+    await setupAllRoutes(page)
+  })
+
+  test('Args tab is visible in tab list', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await expect(page.getByRole('tab', { name: 'Args' })).toBeVisible()
+  })
+
+  test('master-detail layout renders', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Args' }).click()
+    await expect(page.locator('[data-testid="args-master-detail"]')).toBeVisible()
+  })
+
+  test('arg cards show name and type badge', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Args' }).click()
+    const cards = page.locator('[data-testid="arg-card"]')
+    await expect(cards).toHaveCount(2)
+    await expect(cards.first()).toContainText('account_id')
+    await expect(cards.first()).toContainText('string')
+  })
+
+  test('required/optional badges display correctly', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Args' }).click()
+    const cards = page.locator('[data-testid="arg-card"]')
+    // account_id has no default → required
+    await expect(cards.first()).toContainText('required')
+    // limit has default → optional
+    await expect(cards.nth(1)).toContainText('optional')
+  })
+
+  test('clicking arg shows detail form', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Args' }).click()
+    await page.locator('[data-testid="arg-card"]').first().click()
+    await expect(page.locator('[data-testid="arg-name-input"]')).toBeVisible()
+    await expect(page.locator('[data-testid="arg-default-input"]')).toBeVisible()
+  })
+
+  test('add arg button works', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Args' }).click()
+    const cardsBefore = page.locator('[data-testid="arg-card"]')
+    await expect(cardsBefore).toHaveCount(2)
+    await page.locator('[data-testid="add-arg-btn"]').click()
+    await expect(page.locator('[data-testid="arg-card"]')).toHaveCount(3)
+  })
+
+  test('delete arg button works', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Args' }).click()
+    await page.locator('[data-testid="arg-card"]').first().click()
+    await page.locator('[data-testid="delete-arg-btn"]').click()
+    await expect(page.locator('[data-testid="arg-card"]')).toHaveCount(1)
+  })
+
+  test('shows name validation error for empty name', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Args' }).click()
+    await page.locator('[data-testid="add-arg-btn"]').click()
+    // New arg has empty name — click it to see detail
+    await page.locator('[data-testid="arg-card"]').last().click()
+    await expect(page.locator('[data-testid="arg-name-error"]')).toContainText('Name is required')
+  })
+
+  test('shows name validation error for invalid format', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Args' }).click()
+    await page.locator('[data-testid="arg-card"]').first().click()
+    await page.locator('[data-testid="arg-name-input"]').fill('BadName')
+    await expect(page.locator('[data-testid="arg-name-error"]')).toContainText('Must match')
+  })
+
+  test('shows default validation error for int type with non-numeric value', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Args' }).click()
+    // Click the 'limit' arg (int type with default)
+    await page.locator('[data-testid="arg-card"]').nth(1).click()
+    await page.locator('[data-testid="arg-default-input"]').fill('abc')
+    await expect(page.locator('[data-testid="arg-default-error"]')).toContainText('not a valid int')
+  })
+
+  test('error indicator on arg card with invalid name', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Args' }).click()
+    await page.locator('[data-testid="add-arg-btn"]').click()
+    // New arg with empty name should have error border
+    const lastCard = page.locator('[data-testid="arg-card"]').last()
+    await expect(lastCard).toHaveClass(/border-l-destructive/)
+  })
+
+  test('validation and error_message fields are visible in arg detail', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Args' }).click()
+    // Click the 'limit' arg which has validation set
+    await page.locator('[data-testid="arg-card"]').nth(1).click()
+    await expect(page.locator('[data-testid="arg-validation-input"]')).toBeVisible()
+    await expect(page.locator('[data-testid="arg-error-message-input"]')).toBeVisible()
+  })
+
+  test('error_message shows error when validation is set but error_message is empty', async ({
+    page,
+  }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Args' }).click()
+    // Click account_id arg (no validation)
+    await page.locator('[data-testid="arg-card"]').first().click()
+    // Type a validation expression
+    const editor = page.locator('[data-testid="arg-validation-input"]')
+    await editor.locator('[data-testid="codemirror-editor"]').click()
+    await page.keyboard.type('args.account_id != ""')
+    // Error message should show validation error
+    await expect(page.locator('[data-testid="arg-validation-error"]')).toContainText(
+      'Error message is required',
+    )
   })
 })
 

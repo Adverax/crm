@@ -90,6 +90,13 @@ type objectDescribe struct {
 	Form         *formDescribe   `json:"form,omitempty"`
 }
 
+type formArg struct {
+	Name     string  `json:"name"`
+	Type     string  `json:"type"`
+	Required bool    `json:"required"`
+	Default  *string `json:"default,omitempty"`
+}
+
 type formDescribe struct {
 	Sections          []formSection                    `json:"sections"`
 	HighlightFields   []string                         `json:"highlight_fields"`
@@ -101,6 +108,7 @@ type formDescribe struct {
 	ListConfig        *metadata.ListConfig             `json:"list_config,omitempty"`
 	FieldPresentation map[string]formFieldPresentation `json:"field_presentation,omitempty"`
 	Queries           []formQuery                      `json:"queries,omitempty"`
+	Args              []formArg                        `json:"args,omitempty"`
 }
 
 type formQuery struct {
@@ -375,6 +383,20 @@ func (h *DescribeHandler) mergePortalAndLayout(
 		if len(form.ListFields) > 5 {
 			form.ListFields = form.ListFields[:5]
 		}
+	}
+
+	// Map args to form
+	if len(portal.Config.Args) > 0 {
+		args := make([]formArg, len(portal.Config.Args))
+		for i, a := range portal.Config.Args {
+			args[i] = formArg{
+				Name:     a.Name,
+				Type:     a.Type,
+				Required: a.Default == nil,
+				Default:  a.Default,
+			}
+		}
+		form.Args = args
 	}
 
 	// Map queries to form (without SOQL for security).

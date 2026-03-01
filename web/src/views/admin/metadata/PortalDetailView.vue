@@ -18,16 +18,19 @@ import {
 } from '@/components/ui/tabs'
 import type {
   Portal,
+  PortalArg,
   PortalAction,
   PortalQuery,
   PortalViewField,
 } from '@/types/portals'
 import PortalGeneralTab from '@/components/admin/portal/PortalGeneralTab.vue'
+import PortalArgsTab from '@/components/admin/portal/PortalArgsTab.vue'
 import PortalFieldsTab from '@/components/admin/portal/PortalFieldsTab.vue'
 import PortalActionsTab from '@/components/admin/portal/PortalActionsTab.vue'
 import PortalQueriesTab from '@/components/admin/portal/PortalQueriesTab.vue'
 
 interface FormConfig {
+  args: PortalArg[]
   read: {
     fields: PortalViewField[]
     actions: PortalAction[]
@@ -52,6 +55,7 @@ const form = ref<{ label: string; description: string; config: FormConfig }>({
   label: '',
   description: '',
   config: {
+    args: [],
     read: {
       fields: [],
       actions: [],
@@ -71,6 +75,7 @@ async function loadView() {
       label: response.data.label ?? '',
       description: response.data.description ?? '',
       config: {
+        args: cfg?.args ?? [],
         read: {
           fields: cfg?.read?.fields ?? [],
           actions: cfg?.read?.actions ?? [],
@@ -154,6 +159,7 @@ const breadcrumbs = computed(() => [
       <Tabs default-value="general" class="mt-4">
         <TabsList data-testid="view-tabs">
           <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="args">Args</TabsTrigger>
           <TabsTrigger value="queries">Queries</TabsTrigger>
           <TabsTrigger value="fields">Fields</TabsTrigger>
           <TabsTrigger value="actions">Actions</TabsTrigger>
@@ -165,6 +171,13 @@ const breadcrumbs = computed(() => [
             :form="form"
             @update:label="form.label = $event"
             @update:description="form.description = $event"
+          />
+        </TabsContent>
+
+        <TabsContent value="args">
+          <PortalArgsTab
+            :args="form.config.args"
+            @update:args="form.config.args = $event"
           />
         </TabsContent>
 

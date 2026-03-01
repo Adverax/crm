@@ -19,8 +19,20 @@ type Portal struct {
 	UpdatedAt   time.Time    `json:"updated_at"`
 }
 
+// PortalArg declares a typed parameter for the portal.
+// Args are resolved from URL query parameters at runtime and available in SOQL (:paramName) and CEL (args.*).
+// Validation is a CEL expression evaluated after type conversion; if it returns false, the request is rejected.
+type PortalArg struct {
+	Name         string  `json:"name"`
+	Type         string  `json:"type"`
+	Default      *string `json:"default,omitempty"`
+	Validation   string  `json:"validation,omitempty"`
+	ErrorMessage string  `json:"error_message,omitempty"`
+}
+
 // PortalConfig holds the full Object View configuration stored as JSONB.
 type PortalConfig struct {
+	Args []PortalArg      `json:"args,omitempty"`
 	Read PortalReadConfig `json:"read"`
 }
 
