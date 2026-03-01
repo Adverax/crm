@@ -1,9 +1,9 @@
 import { http } from './http'
-import type { ObjectView } from '@/types/object-views'
+import type { Portal } from '@/types/portals'
 import type { ApiResponse } from '@/types/metadata'
 
 export const viewsApi = {
-  getByAPIName(ovApiName: string): Promise<ApiResponse<ObjectView>> {
-    return http.get<ApiResponse<ObjectView>>(`/api/v1/view/${ovApiName}`)
+  getByAPIName(portalApiName: string): Promise<ApiResponse<Portal>> {
+    return http.get<ApiResponse<Portal>>(`/api/v1/portal/${portalApiName}`)
   },
 }

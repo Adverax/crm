@@ -73,9 +73,9 @@
     - [Expression Builder](#126-expression-builder)
     - [API](#127-api)
     - [Limits](#128-limits)
-13. [Object Views](#13-object-views)
+13. [Portals](#13-portals)
     - [Overview](#131-overview)
-    - [Creating an Object View](#132-creating-an-object-view)
+    - [Creating a Portal](#132-creating-a-portal)
     - [Config Structure](#133-config-structure)
     - [Visual Constructor](#134-visual-constructor)
     - [Resolution Logic](#135-resolution-logic)
@@ -134,12 +134,12 @@ The CRM admin panel is designed for system administrators and allows:
 - Applying **app templates** — bootstrapping the system with pre-configured objects and fields.
 - Configuring **validation rules** — CEL expressions that check data on every save.
 - Creating **custom functions** — reusable CEL expressions callable from any context.
-- Configuring **object views** — role-based UI per profile with read config (fields, actions, queries, computed). Actions support DML execution and scenario start; validation rules are auto-extracted from metadata for DML target fields.
-- Configuring **profile navigation** — per-profile sidebar with grouped items (objects, links, pages, dividers), OLS intersection for object items, `ov_api_name` for page views, fallback to alphabetical flat list.
+- Configuring **portals** — role-based UI per profile with read config (fields, actions, queries, computed). Actions support DML execution and scenario start; validation rules are auto-extracted from metadata for DML target fields.
+- Configuring **profile navigation** — per-profile sidebar with grouped items (objects, links, pages, dividers), OLS intersection for object items, `portal_api_name` for page views, fallback to alphabetical flat list.
 - Building **procedures** — named JSON-described business logic sequences (record operations, computations, branching, HTTP integrations) with a visual Constructor UI, versioning (draft/published), and dry-run testing.
 - Managing **named credentials** — encrypted secret storage for HTTP integrations (API keys, basic auth, OAuth2 client credentials) with SSRF protection and usage audit logging.
 - Configuring **automation rules** — DML triggers (before/after insert/update/delete) with CEL conditions that invoke published procedures.
-- Creating **layouts** — per Object View + form factor (desktop/tablet/mobile) + mode (edit/view) to control page structure, section grids, field presentation, and list configuration.
+- Creating **layouts** — per Portal + form factor (desktop/tablet/mobile) + mode (edit/view) to control page structure, section grids, field presentation, and list configuration.
 - Managing **shared layouts** — reusable configuration snippets (field/section/list) referenced via `layout_ref` from layouts, with RESTRICT delete protection.
 - Working with **records** — creating, editing, and deleting records of any object through a universal CRUD interface.
 
@@ -161,7 +161,7 @@ Sidebar structure:
 | **Objects** | `/admin/metadata/objects` |
 | **Templates** | `/admin/templates` |
 | **Functions** | `/admin/functions` |
-| **Object Views** | `/admin/metadata/object-views` |
+| **Portals** | `/admin/metadata/portals` |
 | **Navigation** | `/admin/metadata/navigation` |
 | **Procedures** | `/admin/metadata/procedures` |
 | **Credentials** | `/admin/metadata/credentials` |
@@ -1251,7 +1251,7 @@ Response:
 
 ### 6.8. SOQL Editor
 
-Административный интерфейс предоставляет Rich Editor для написания SOQL-запросов (используется в Object View Queries tab и будет переиспользоваться в отчётах).
+Административный интерфейс предоставляет Rich Editor для написания SOQL-запросов (используется в Portal Queries tab и будет переиспользоваться в отчётах).
 
 **Возможности:**
 
@@ -1746,7 +1746,7 @@ Only objects where the user has OLS Read permission appear in the list.
 GET /api/v1/describe/{objectName}
 ```
 
-Returns complete object metadata including all fields the user can see (filtered by FLS). Also includes a resolved `form` property from Object Views (see [section 13.7](#137-describe-api-extension)).
+Returns complete object metadata including all fields the user can see (filtered by FLS). Also includes a resolved `form` property from Portals (see [section 13.7](#137-describe-api-extension)).
 
 **Response:**
 ```json
@@ -2388,40 +2388,40 @@ Returns `204 No Content` on success. Returns `409 Conflict` if the function is r
 
 ---
 
-## 13. Object Views
+## 13. Portals
 
 ### 13.1 Overview
 
-Object Views allow administrators to configure **role-based UI** for each object. Different profiles (Sales, Support, Management) can see different field sets and action buttons — all without code changes. Object Views also serve as a **bounded context adapter** (ADR-0022), encapsulating data contract logic (queries, computed fields, actions) alongside the presentation config. Validation rules for actions are auto-extracted from `metadata.validation_rules` based on DML target fields. Related lists are deferred to the Layout layer (ADR-0027).
+Portals allow administrators to configure **role-based UI** for each object. Different profiles (Sales, Support, Management) can see different field sets and action buttons — all without code changes. Portals also serve as a **bounded context adapter** (ADR-0022), encapsulating data contract logic (queries, computed fields, actions) alongside the presentation config. Validation rules for actions are auto-extracted from `metadata.validation_rules` based on DML target fields. Related lists are deferred to the Layout layer (ADR-0027).
 
-Every Object View is stored as a JSONB config in the `metadata.object_views` table with a unique `api_name`. Object Views are **not bound to a specific object** — they are standalone entities that can be used as page views (via navigation `page` items) or referenced by api_name. Optionally, an OV can be linked to a specific profile.
+Every Portal is stored as a JSONB config in the `metadata.portals` table with a unique `api_name`. Portals are **not bound to a specific object** — they are standalone entities that can be used as page views (via navigation `page` items) or referenced by api_name. Optionally, a Portal can be linked to a specific profile.
 
-**Why profiles, not roles?** Object Views are bound to **profiles** rather than roles because profiles and roles serve fundamentally different purposes in the security model (ADR-0009):
+**Why profiles, not roles?** Portals are bound to **profiles** rather than roles because profiles and roles serve fundamentally different purposes in the security model (ADR-0009):
 
-- **Profile** defines *what a user can do* — OLS (CRUD on objects) and FLS (read/write on fields). It represents the user's **functional role**: Sales Rep, Support Agent, Manager. Since Object Views configure *which fields to display and how*, this directly aligns with FLS — the profile already determines which fields a user can access, so binding the UI configuration to the same entity ensures consistency. The resolved Object View config is intersected with the profile's FLS permissions (see [section 13.6](#136-fls-intersection)).
-- **Role** defines *what a user can see* — the position in the organizational hierarchy used for RLS (record visibility via role hierarchy, sharing rules). A "Sales Manager" and "Sales Director" may share the same UI but see different sets of records. Binding Object Views to roles would conflate presentation with data visibility.
+- **Profile** defines *what a user can do* — OLS (CRUD on objects) and FLS (read/write on fields). It represents the user's **functional role**: Sales Rep, Support Agent, Manager. Since Portals configure *which fields to display and how*, this directly aligns with FLS — the profile already determines which fields a user can access, so binding the UI configuration to the same entity ensures consistency. The resolved Portal config is intersected with the profile's FLS permissions (see [section 13.6](#136-fls-intersection)).
+- **Role** defines *what a user can see* — the position in the organizational hierarchy used for RLS (record visibility via role hierarchy, sharing rules). A "Sales Manager" and "Sales Director" may share the same UI but see different sets of records. Binding Portals to roles would conflate presentation with data visibility.
 
-This follows the Salesforce pattern: page layouts (the analog of Object Views) are assigned per profile, not per role.
+This follows the Salesforce pattern: page layouts (the analog of Portals) are assigned per profile, not per role.
 
 Key capabilities:
 
 **Read (`view`):**
 - **Fields** — array of field objects (`{name, type?, expr?, when?}`). Simple fields reference data by name; fields with `expr` are computed from CEL expressions (ADR-0035). Order matters — first 3 are used as highlights.
 - **Actions** — custom buttons with CEL visibility expressions (e.g., show "Send Proposal" only when `record.Status == 'draft'`)
-- **Queries** — named SOQL queries as first-class data sources. Query type is inferred from SOQL syntax: `SELECT ROW` for scalar (single record), `SELECT` for list (multiple records). Fields reference query results via CEL expressions (e.g., `main.Name`). Per-query data endpoint: `GET /view/:ovApiName/query/:queryName`.
+- **Queries** — named SOQL queries as first-class data sources. Query type is inferred from SOQL syntax: `SELECT ROW` for scalar (single record), `SELECT` for list (multiple records). Fields reference query results via CEL expressions (e.g., `main.Name`). Per-query data endpoint: `GET /portal/:portalApiName/query/:queryName`.
 
 **Write (`edit`, optional):**
 - **Validation** — view-scoped validation rules (additive with metadata-level rules)
 - **Defaults** — view-scoped default expressions (replace metadata-level defaults)
 - **Computed** — fields whose values are computed from CEL expressions on save
-- **Mutations** — DML operations scoped to this Object View context
+- **Mutations** — DML operations scoped to this Portal context
 
-### 13.2 Creating an Object View
+### 13.2 Creating a Portal
 
-Object Views are created through the admin panel at `/admin/metadata/object-views` or via the REST API.
+Portals are created through the admin panel at `/admin/metadata/portals` or via the REST API.
 
 **Admin UI:**
-1. Navigate to **Object Views** (`/admin/metadata/object-views`).
+1. Navigate to **Portals** (`/admin/metadata/portals`).
 2. Click the **"+"** button.
 3. Fill in the required fields:
    - **API Name:** `account_sales_view` (lowercase with underscores, unique)
@@ -2432,7 +2432,7 @@ Object Views are created through the admin panel at `/admin/metadata/object-view
 
 ### 13.3 Config Structure
 
-The Object View config is a JSON object with two top-level sections: `view` (presentation and read-time data contract) and `edit` (write-time data contract):
+The Portal config is a JSON object with two top-level sections: `view` (presentation and read-time data contract) and `edit` (write-time data contract):
 
 ```json
 {
@@ -2508,7 +2508,7 @@ The Object View config is a JSON object with two top-level sections: `view` (pre
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `view.fields` | OVViewField[] | Field objects included in this view. Order matters — first 3 are used as highlights. Fields with `expr` are computed (display-only). |
+| `view.fields` | PortalViewField[] | Field objects included in this view. Order matters — first 3 are used as highlights. Fields with `expr` are computed (display-only). |
 | `view.fields[].name` | string | Field `api_name` (or computed field name) |
 | `view.fields[].type` | string? | Optional type: `string`, `int`, `float`, `bool`, `timestamp` |
 | `view.fields[].expr` | string? | Optional CEL expression — makes this a computed field. Can reference queries (e.g., `main.Name`) |
@@ -2523,7 +2523,7 @@ The Object View config is a JSON object with two top-level sections: `view` (pre
 | `view.queries[].name` | string | Query identifier (e.g., `recent_activities`) |
 | `view.queries[].soql` | string | SOQL query with `:param` parameter binding |
 | `view.queries[].type` | string | `scalar` (single record) or `list` (multiple records) |
-| `view.queries[].default` | boolean | If `true`, this is the default query (at most one per OV) |
+| `view.queries[].default` | boolean | If `true`, this is the default query (at most one per Portal) |
 | `view.queries[].when` | string | Optional CEL condition for when query executes |
 
 **Edit properties (`edit.*`):**
@@ -2544,7 +2544,7 @@ The Object View config is a JSON object with two top-level sections: `view` (pre
 | `edit.computed` | array | Computed fields (write) — values computed from CEL expressions on save |
 | `edit.computed[].field` | string | Target field `api_name` |
 | `edit.computed[].expr` | string | CEL expression computing the value |
-| `edit.mutations` | array | DML operations scoped to this Object View |
+| `edit.mutations` | array | DML operations scoped to this Portal |
 | `edit.mutations[].dml` | string | DML statement with `:recordId` parameter binding |
 | `edit.mutations[].foreach` | string | Optional CEL expression for iteration (e.g., `queries.line_items`) |
 | `edit.mutations[].sync` | object | Optional sync mapping (`key`, `value` fields) |
@@ -2552,7 +2552,7 @@ The Object View config is a JSON object with two top-level sections: `view` (pre
 
 ### 13.4 Visual Constructor
 
-The Object View detail page provides a tab-based visual constructor for editing the config without writing JSON. Tabs are organized as follows:
+The Portal detail page provides a tab-based visual constructor for editing the config without writing JSON. Tabs are organized as follows:
 
 **View tabs:**
 
@@ -2572,47 +2572,47 @@ Click **"Save"** to persist changes. All changes take effect immediately.
 
 ### 13.5 View Resolution
 
-Object Views are accessed directly by `api_name` via the View endpoint:
+Portals are accessed directly by `api_name` via the Portal endpoint:
 
 ```
-GET /api/v1/view/:ovApiName
+GET /api/v1/portal/:portalApiName
 ```
 
-This returns the OV config with FLS intersection applied. Navigation items of type `page` reference an OV by `ov_api_name` — clicking such an item loads the OV as a standalone page.
+This returns the Portal config with FLS intersection applied. Navigation items of type `page` reference a Portal by `portal_api_name` — clicking such an item loads the Portal as a standalone page.
 
-The Describe API (`GET /api/v1/describe/:objectName`) **always returns a fallback form** — auto-generated from all FLS-accessible fields (one "Details" section, first 3 fields as highlights, first 5 as list columns). The Describe API no longer resolves Object Views.
+The Describe API (`GET /api/v1/describe/:objectName`) **always returns a fallback form** — auto-generated from all FLS-accessible fields (one "Details" section, first 3 fields as highlights, first 5 as list columns). The Describe API no longer resolves Portals.
 
-This allows gradual adoption — the system works without any Object Views configured, and administrators can add views incrementally via navigation page items.
+This allows gradual adoption — the system works without any Portals configured, and administrators can add portals incrementally via navigation page items.
 
 ### 13.6 Per-Query Data Endpoint (ADR-0035)
 
-Each query defined in an Object View can be executed independently:
+Each query defined in a Portal can be executed independently:
 
 ```
-GET /api/v1/view/:ovApiName/query/:queryName
+GET /api/v1/portal/:portalApiName/query/:queryName
 ```
 
 URL query parameters are substituted into the SOQL `:param` placeholders. For example:
 
 ```
-GET /api/v1/view/account_default/query/recent_activities?recordId=123
+GET /api/v1/portal/account_default/query/recent_activities?recordId=123
 ```
 
-This executes the `recent_activities` query from the `account_default` Object View with `:recordId` replaced by `123`. The response includes paginated query results. SOQL source is never exposed to the client.
+This executes the `recent_activities` query from the `account_default` Portal with `:recordId` replaced by `123`. The response includes paginated query results. SOQL source is never exposed to the client.
 
 ### 13.7 FLS Intersection
 
-The resolved Object View config is intersected with the current user's Field-Level Security (FLS) permissions:
+The resolved Portal config is intersected with the current user's Field-Level Security (FLS) permissions:
 
 - **Fields** — fields the user cannot read are removed from the field list (and consequently from the auto-generated sections and highlights)
 - **List fields** — inaccessible columns are removed
 - **Related lists** — related objects the user cannot read (OLS) are excluded
 
-This ensures that even if an administrator includes a field in the Object View, users without FLS access will never see it.
+This ensures that even if an administrator includes a field in the Portal, users without FLS access will never see it.
 
 ### 13.8 Describe API (Fallback Form)
 
-The Describe API always returns a **fallback form** — auto-generated from all FLS-accessible fields. It no longer resolves Object Views.
+The Describe API always returns a **fallback form** — auto-generated from all FLS-accessible fields. It no longer resolves Portals.
 
 ```
 GET /api/v1/describe/{objectName}
@@ -2649,7 +2649,7 @@ GET /api/v1/describe/{objectName}
 
 The `fields` array remains for backward compatibility. The `form` property is always present and always auto-generated from FLS-accessible fields.
 
-To get a customized view configuration, use the View endpoint: `GET /api/v1/view/:ovApiName`.
+To get a customized view configuration, use the Portal endpoint: `GET /api/v1/portal/:portalApiName`.
 
 ### 13.9 CRM UI Rendering
 
@@ -2669,13 +2669,13 @@ If no `form` is present (backward compatibility), the UI falls back to the origi
 
 ### 13.10 API
 
-#### List Object Views
+#### List Portals
 
 ```
-GET /api/v1/admin/object-views
+GET /api/v1/admin/portals
 ```
 
-Returns all Object Views.
+Returns all Portals.
 
 **Response:**
 ```json
@@ -2696,16 +2696,16 @@ Returns all Object Views.
 }
 ```
 
-#### Get a Single Object View
+#### Get a Single Portal
 
 ```
-GET /api/v1/admin/object-views/{viewId}
+GET /api/v1/admin/portals/{portalId}
 ```
 
-#### Create an Object View
+#### Create an Portal
 
 ```
-POST /api/v1/admin/object-views
+POST /api/v1/admin/portals
 
 {
   "profile_id": null,
@@ -2730,12 +2730,12 @@ POST /api/v1/admin/object-views
 }
 ```
 
-Returns `201 Created` with the created Object View.
+Returns `201 Created` with the created Portal.
 
-#### Update an Object View
+#### Update an Portal
 
 ```
-PUT /api/v1/admin/object-views/{viewId}
+PUT /api/v1/admin/portals/{portalId}
 
 {
   "label": "Updated Account View",
@@ -2747,10 +2747,10 @@ PUT /api/v1/admin/object-views/{viewId}
 
 Note: `api_name` and `profile_id` cannot be changed after creation.
 
-#### Delete an Object View
+#### Delete an Portal
 
 ```
-DELETE /api/v1/admin/object-views/{viewId}
+DELETE /api/v1/admin/portals/{portalId}
 ```
 
 Returns `204 No Content` on success.
@@ -2760,7 +2760,7 @@ Returns `204 No Content` on success.
 | HTTP Code | Condition |
 |-----------|-----------|
 | 400 | Invalid api_name format, missing required fields |
-| 404 | Object View not found |
+| 404 | Portal not found |
 | 409 | Duplicate api_name |
 
 ---
@@ -3339,7 +3339,7 @@ Profile Navigation (ADR-0032) allows administrators to configure per-profile sid
 
 Key features:
 - **Grouped navigation** — items are organized into collapsible groups (e.g., "Sales", "Support").
-- **Four item types** — `object` (links to an object's record list), `link` (external or internal URL), `page` (renders an Object View as a standalone page via `ov_api_name`), `divider` (visual separator).
+- **Four item types** — `object` (links to an object's record list), `link` (external or internal URL), `page` (renders an Portal as a standalone page via `portal_api_name`), `divider` (visual separator).
 - **OLS intersection** — object items are filtered by the user's read permissions. Objects the user cannot read are hidden.
 - **Fallback** — if no navigation config exists for the user's profile, the sidebar shows an OLS-filtered alphabetical list of all queryable objects (current default behavior).
 - **One config per profile** — `UNIQUE(profile_id)` constraint. `ON DELETE CASCADE` when the profile is deleted.
@@ -3359,7 +3359,7 @@ The navigation config is stored as JSONB in `metadata.profile_navigation`. Struc
         { "type": "object", "object_api_name": "Account" },
         { "type": "object", "object_api_name": "Opportunity" },
         { "type": "divider" },
-        { "type": "page", "label": "Sales Dashboard", "ov_api_name": "sales_dashboard", "icon": "layout-dashboard" },
+        { "type": "page", "label": "Sales Dashboard", "portal_api_name": "sales_dashboard", "icon": "layout-dashboard" },
         { "type": "link", "label": "Reports", "url": "/app/reports", "icon": "bar-chart" }
       ]
     }
@@ -3373,7 +3373,7 @@ The navigation config is stored as JSONB in `metadata.profile_navigation`. Struc
 |------|----------------|-------------|
 | `object` | `object_api_name` | Links to object record list (`/app/{objectApiName}`) |
 | `link` | `label`, `url` | External or internal URL |
-| `page` | `label`, `ov_api_name` | Renders Object View as a standalone page (`/app/page/{ovApiName}`) |
+| `page` | `label`, `portal_api_name` | Renders Portal as a standalone page (`/app/page/{portalApiName}`) |
 | `divider` | — | Visual separator |
 
 **Validation rules:**
@@ -3382,7 +3382,7 @@ The navigation config is stored as JSONB in `metadata.profile_navigation`. Struc
 - Group keys must be unique
 - Item types must be `object`, `link`, `page`, or `divider`
 - URLs in link items: no `javascript:` scheme allowed
-- `ov_api_name` in page items must reference an existing Object View
+- `portal_api_name` in page items must reference an existing Portal
 
 ### 16.3 Resolution Logic
 
@@ -3420,7 +3420,7 @@ Admin views for managing navigation configs:
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/api/v1/navigation` | Resolve navigation for current user's profile |
-| `GET` | `/api/v1/view/:ovApiName` | Get Object View config by api_name (with FLS intersection) |
+| `GET` | `/api/v1/portal/:portalApiName` | Get Portal config by api_name (with FLS intersection) |
 
 ---
 
@@ -3454,20 +3454,20 @@ Key features:
 
 ### 18.1 Overview
 
-Layouts (ADR-0027 revised) control **how** records are displayed per Object View, form factor, and mode. While an Object View defines **what** data is available (fields, actions, queries), a Layout defines **how** that data is presented on screen: section grids, field sizing, UI component types, and list column configuration.
+Layouts (ADR-0027 revised) control **how** records are displayed per Portal, form factor, and mode. While an Portal defines **what** data is available (fields, actions, queries), a Layout defines **how** that data is presented on screen: section grids, field sizing, UI component types, and list column configuration.
 
 Each Layout is scoped to a unique combination of:
-- **object_view_id** — the Object View this layout belongs to
+- **portal_id** — the Portal this layout belongs to
 - **form_factor** — `desktop`, `tablet`, or `mobile`
 - **mode** — `edit` or `view`
 
-This means you can have different layouts for the same Object View on different devices and for different interaction modes (viewing a record vs. editing it).
+This means you can have different layouts for the same Portal on different devices and for different interaction modes (viewing a record vs. editing it).
 
 ### 18.2 Layout Config
 
 The Layout config (stored as JSONB) can contain the following sections:
 
-**section_config** — overrides for OV sections:
+**section_config** — overrides for Portal sections:
 - `columns` (1-4) — number of grid columns in the section
 - `collapsed` (boolean) — whether the section starts collapsed
 - `visibility_expr` (CEL string) — condition for showing/hiding the section
@@ -3489,10 +3489,10 @@ The Layout config (stored as JSONB) can contain the following sections:
 
 When a client requests record metadata via the Describe API, the server performs a **form merge**:
 
-1. Resolves the Object View for the current user's profile
+1. Resolves the Portal for the current user's profile
 2. Finds the matching Layout based on `X-Form-Factor` and `X-Form-Mode` request headers
-3. Merges OV config + Layout config into a computed **Form**
-4. The frontend works exclusively with the Form — it never sees OV or Layout separately
+3. Merges Portal config + Layout config into a computed **Form**
+4. The frontend works exclusively with the Form — it never sees Portal or Layout separately
 
 **Fallback chain** (if no exact match is found):
 1. Requested form_factor + requested mode
@@ -3510,11 +3510,11 @@ When a client requests record metadata via the Describe API, the server performs
 The Layout admin UI is available at `/admin/metadata/layouts`. The detail page features a **Visual Layout Constructor** with three tabs:
 
 **Form Layout tab** (default):
-- **Canvas** (left panel, ~65%): displays OV sections as cards with field chips inside. Each section card shows the column count and collapsible icon. Fields show their name, type icon, and col_span badge. Clicking a section or field selects it for editing.
+- **Canvas** (left panel, ~65%): displays Portal sections as cards with field chips inside. Each section card shows the column count and collapsible icon. Fields show their name, type icon, and col_span badge. Clicking a section or field selects it for editing.
 - **Properties panel** (right panel, ~35%): context-sensitive editor that shows section properties (columns, collapsible, collapsed by default, visibility expression) when a section is selected, or field properties (col_span, shared layout ref, required/readonly/visibility expressions, reference config) when a field is selected.
 
 **List Config tab**:
-- **Available fields** (left): all OV fields as clickable items. Click to add a field as a column.
+- **Available fields** (left): all Portal fields as clickable items. Click to add a field as a column.
 - **Active columns** (right): drag-and-drop reorderable list (via vue-draggable-plus). Each column has inline settings: width, alignment, label override, sortable toggle, sort direction.
 - **Search config**: configurable search fields and placeholder text.
 
@@ -3522,15 +3522,15 @@ The Layout admin UI is available at `/admin/metadata/layouts`. The detail page f
 - Raw JSON textarea for direct editing of the full LayoutConfig. Bidirectional sync with visual tabs — changes in visual tabs update JSON and vice versa. Shows parse errors for invalid JSON.
 
 Other pages:
-- **List page**: all layouts with Object View name, form factor badge, mode badge, OV filter dropdown
-- **Create page**: select Object View, form factor, mode
+- **List page**: all layouts with Portal name, form factor badge, mode badge, Portal filter dropdown
+- **Create page**: select Portal, form factor, mode
 
 ### 18.5 API
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/api/v1/admin/layouts` | Create a layout |
-| `GET` | `/api/v1/admin/layouts` | List layouts (filter by `object_view_id`) |
+| `GET` | `/api/v1/admin/layouts` | List layouts (filter by `portal_id`) |
 | `GET` | `/api/v1/admin/layouts/:id` | Get layout by ID |
 | `PUT` | `/api/v1/admin/layouts/:id` | Update a layout |
 | `DELETE` | `/api/v1/admin/layouts/:id` | Delete a layout |
@@ -3843,9 +3843,9 @@ The entry will appear in the `obj_invoice__share` share table with reason `manua
    - **Return type display** — shows the inferred return type of the expression.
 2. The same Expression Builder component is used across all CEL contexts: validation rules, when-expressions, default expressions, function bodies, and action visibility expressions.
 
-### Scenario 22: Create an Object View for Sales
+### Scenario 22: Create an Portal for Sales
 
-1. Navigate to **Object Views** (`/admin/metadata/object-views`).
+1. Navigate to **Portals** (`/admin/metadata/portals`).
 2. Click **"+"** to create a new view.
 3. Fill in:
    - **API Name:** `account_sales`
@@ -3863,12 +3863,12 @@ The entry will appear in the `obj_invoice__share` share table with reason `manua
 7. Click **"Save"**.
 9. Log in as a user with the Sales Manager profile. Navigate to Accounts — the record detail page now shows fields, highlights, and the "Send Proposal" button (when Status is 'draft').
 
-### Scenario 23: Set Up a Default Object View for All Users
+### Scenario 23: Set Up a Default Portal for All Users
 
-1. Create an Object View with **Is Default** checked and **Profile** left empty.
+1. Create an Portal with **Is Default** checked and **Profile** left empty.
 2. Configure fields in the visual constructor.
 3. All users who don't have a profile-specific view will see this layout.
-4. To override for a specific profile — create another Object View for the same object with that profile selected.
+4. To override for a specific profile — create another Portal for the same object with that profile selected.
 
 ### Scenario 24: Create and Execute a Procedure
 
@@ -3955,7 +3955,7 @@ The entry will appear in the `obj_invoice__share` share table with reason `manua
          "items": [
            { "type": "object", "object_api_name": "Account" },
            { "type": "object", "object_api_name": "Opportunity" },
-           { "type": "page", "label": "Sales Dashboard", "ov_api_name": "sales_dashboard", "icon": "layout-dashboard" }
+           { "type": "page", "label": "Sales Dashboard", "portal_api_name": "sales_dashboard", "icon": "layout-dashboard" }
          ]
        },
        {
@@ -3973,4 +3973,4 @@ The entry will appear in the `obj_invoice__share` share table with reason `manua
 
 ---
 
-*Document created for CRM Platform. Current for Phase 0–10b (Scaffolding, Metadata engine, Security engine, SOQL, DML, Auth, App Templates, Generic CRUD, CEL engine, Validation Rules, Dynamic Defaults, Custom Functions, Object Views, Profile Navigation, Procedure Engine with Saga Rollback, Named Credentials, Automation Rules) + Territory Management (Enterprise).*
+*Document created for CRM Platform. Current for Phase 0–10b (Scaffolding, Metadata engine, Security engine, SOQL, DML, Auth, App Templates, Generic CRUD, CEL engine, Validation Rules, Dynamic Defaults, Custom Functions, Portals, Profile Navigation, Procedure Engine with Saga Rollback, Named Credentials, Automation Rules) + Territory Management (Enterprise).*

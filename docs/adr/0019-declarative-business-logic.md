@@ -66,7 +66,7 @@ A single YAML/JSON document per object describing everything: queries, computed 
 
 ### Option B — Decomposition into Subsystems with a Three-Level Cascade (chosen)
 
-Split behavioral logic into independent subsystems (Validation Rules, Default Expressions, Formula Fields, Object View, Automation Rules). Connect levels (Metadata -> Object View -> Layout) with a cascading inheritance model.
+Split behavioral logic into independent subsystems (Validation Rules, Default Expressions, Formula Fields, Portal, Automation Rules). Connect levels (Metadata -> Portal -> Layout) with a cascading inheritance model.
 
 **Pros:**
 - Each subsystem is independently useful and testable
@@ -78,7 +78,7 @@ Split behavioral logic into independent subsystems (Validation Rules, Default Ex
 **Cons:**
 - No single document for all object logic
 - More separate ADRs (each subsystem = a separate decision)
-- Composition layer (Object View) is deferred
+- Composition layer (Portal) is deferred
 
 ### Option C — Defer Entirely
 
@@ -116,14 +116,14 @@ Rules and settings are defined at three levels. Each subsequent level **inherits
 ```
 Metadata (base)
    ↓ inherits
-Object View (business context)
+Portal (business context)
    ↓ inherits
 Layout (presentation)
 ```
 
 #### Cascade Semantics by Type
 
-| Aspect | Metadata -> Object View | Object View -> Layout | Mechanism |
+| Aspect | Metadata -> Portal | Portal -> Layout | Mechanism |
 |--------|------------------------|----------------------|----------|
 | **Validation** | Additive (AND) | Additive (AND) | New rules can only be added |
 | **Defaults** | Replace | Replace | Last level wins |
@@ -135,7 +135,7 @@ Layout (presentation)
 Validation rules at each cascade level can only be **added**, never removed or replaced. The effective set is a conjunction (AND) of all rules:
 
 ```
-effective_validation = metadata_rules AND object_view_rules AND layout_rules
+effective_validation = metadata_rules AND portal_rules AND layout_rules
 ```
 
 This mathematically guarantees tightening: adding any new condition via AND narrows the set of valid values.
@@ -148,7 +148,7 @@ This mathematically guarantees tightening: adding any new condition via AND narr
 # Metadata (universal invariant):
 - expr: 'discount <= 50'          # data integrity
 
-# Object View "partner_portal" (adds business rule):
+# Portal "partner_portal" (adds business rule):
 - expr: 'discount <= 20'          # business context
 
 # Layout "mobile_form" (adds UI rule):
@@ -158,12 +158,12 @@ This mathematically guarantees tightening: adding any new condition via AND narr
 # = discount is required AND no more than 20%
 ```
 
-**Consequence for rule design:** if validation can differ across contexts, it belongs in **Object View**, not metadata. In metadata — only universal invariants whose violation = data corruption.
+**Consequence for rule design:** if validation can differ across contexts, it belongs in **Portal**, not metadata. In metadata — only universal invariants whose violation = data corruption.
 
 | Where to define | Criterion | Examples |
 |---|---|---|
 | **Metadata** | Universal invariant, violation = data corruption | `amount >= 0`, FK integrity, type safety |
-| **Object View** | Business context, may differ between views | Phone format, conditional required, `discount <= N` |
+| **Portal** | Business context, may differ between views | Phone format, conditional required, `discount <= N` |
 | **Layout** | UI-specific tightening | Field required on a specific form |
 
 #### Defaults: Replace (last level wins)
@@ -172,7 +172,7 @@ A default is "what value to substitute if not provided". Replacement is safe: th
 
 ```yaml
 # Metadata:       status default = "new"
-# Object View:    status default = "draft"      ← replaces
+# Portal:    status default = "draft"      ← replaces
 # Layout:         (does not override)
 # Effective:      "draft"
 ```
@@ -197,7 +197,7 @@ Behavioral logic is split into **6 independent subsystems**:
                                ▼
 ┌─────────────────────────────────────────────────────────┐
 │              PER-OBJECT (metadata level)                 │
-│   Base rules, inherited by all Object Views/Layouts     │
+│   Base rules, inherited by all Portals/Layouts     │
 │                                                         │
 │  ┌───────────────┐  ┌──────────────┐  ┌──────────────┐  │
 │  │  Validation   │  │   Default    │  │   Formula    │  │
@@ -212,7 +212,7 @@ Behavioral logic is split into **6 independent subsystems**:
                            │            replace defaults)
                            ▼
 ┌─────────────────────────────────────────────────────────┐
-│           PER-VIEW (Object View level)                   │
+│           PER-VIEW (Portal level)                   │
 │   Business context: specific UI screen or API endpoint  │
 │                                                         │
 │  ┌───────────────┐  ┌──────────────┐  ┌──────────────┐  │
@@ -278,7 +278,7 @@ field_definitions.field_subtype = "string" | "number" | "boolean" | "datetime"
 - Variables: `record` (all fields of the current record)
 - Frontend: computed locally using the same CEL
 
-#### 4. Object View (per-view, future)
+#### 4. Portal (per-view, future)
 
 Composition layer for a specific UI screen or API endpoint. Inherits validation and defaults from metadata (additive / replace). Contains its own components:
 
@@ -288,9 +288,9 @@ Composition layer for a specific UI screen or API endpoint. Inherits validation 
 - Validation overrides — additional rules (additive only)
 - Default overrides — alternative defaults (replace)
 
-**Architectural role: bounded context adapter (DDD).** The same object (e.g. `Order`) serves different business roles: sales manager, warehouse worker, manager. Each role operates in its own bounded context — with its own set of fields, actions, related lists, and sidebar. Object View, bound to a profile (`profile_id`), adapts unified data to the context of a specific role without code duplication. OLS/FLS/RLS controls *data access*, Object View controls *data presentation*. At the same time, Object View only narrows visibility (FLS intersection), but does not expand access.
+**Architectural role: bounded context adapter (DDD).** The same object (e.g. `Order`) serves different business roles: sales manager, warehouse worker, manager. Each role operates in its own bounded context — with its own set of fields, actions, related lists, and sidebar. Portal, bound to a profile (`profile_id`), adapts unified data to the context of a specific role without code duplication. OLS/FLS/RLS controls *data access*, Portal controls *data presentation*. At the same time, Portal only narrows visibility (FLS intersection), but does not expand access.
 
-Details: [ADR-0022](0022-object-view-bounded-context.md) — config structure, resolution logic, sidebar/dashboard per profile, role-based UI examples.
+Details: [ADR-0022](0022-portal-bounded-context.md) — config structure, resolution logic, sidebar/dashboard per profile, role-based UI examples.
 
 #### 5. Automation Rules (per-object, future)
 
@@ -325,20 +325,20 @@ Details: [ADR-0026](0026-custom-functions.md).
 When performing an operation, the DML Engine receives an **effective ruleset** — the result of cascading rule merging depending on the calling context:
 
 ```
-Call without Object View (raw DML, import, integration):
+Call without Portal (raw DML, import, integration):
   effective_validation = metadata_rules
   effective_defaults   = metadata_defaults
 
-Call through Object View (UI form, specific API endpoint):
-  effective_validation = metadata_rules AND object_view_rules
-  effective_defaults   = merge(metadata_defaults, object_view_defaults)
+Call through Portal (UI form, specific API endpoint):
+  effective_validation = metadata_rules AND portal_rules
+  effective_defaults   = merge(metadata_defaults, portal_defaults)
 
 Call through Layout:
-  effective_validation = metadata_rules AND object_view_rules AND layout_rules
-  effective_defaults   = merge(metadata_defaults, object_view_defaults, layout_defaults)
+  effective_validation = metadata_rules AND portal_rules AND layout_rules
+  effective_defaults   = merge(metadata_defaults, portal_defaults, layout_defaults)
 ```
 
-"Bare" DML (without Object View) always applies metadata-level rules — the minimum guaranteed level of data integrity protection.
+"Bare" DML (without Portal) always applies metadata-level rules — the minimum guaranteed level of data integrity protection.
 
 ### CEL as the Expression Language
 
@@ -360,7 +360,7 @@ CEL integration is introduced with the implementation of Validation Rules (Phase
 ```
 Phase 7a                  Phase 7b                Phase 10                Phase 9a/9b
 ──────────────────    ──────────────────    ──────────────────────    ──────────────────
-Generic CRUD          CEL engine (cel-go)   Custom Functions          Object Views
+Generic CRUD          CEL engine (cel-go)   Custom Functions          Portals
 + Metadata-driven UI  + Validation Rules    + fn.* namespace          + Query composition
 + Static defaults     + Dynamic defaults    + Function Constructor    + Actions
 + System fields       + DML pipeline ext.   + Expression Builder      + Automation Rules
@@ -374,7 +374,7 @@ Generic CRUD          CEL engine (cel-go)   Custom Functions          Object Vie
 
 **Phase 10 — Custom Functions + Formula Fields.** Custom Functions (ADR-0026): global named CEL expressions with `fn.*` namespace, dual-stack (cel-go + cel-js), Function Constructor + Expression Builder integration. Formula Fields: `field_type = "formula"`, CEL expression in config, SOQL executor computes after fetch, frontend computes locally. Formula Fields can call Custom Functions.
 
-**Phase 9a/9b — Object Views + Automation + Layout Cascade.** Full composition with the three-level cascade. Cascading merge (metadata + Object View + Layout). ADR-0022 (Object View), ADR-0023 (Action terminology), ADR-0024 (Procedure Engine), ADR-0025 (Scenario Engine).
+**Phase 9a/9b — Portals + Automation + Layout Cascade.** Full composition with the three-level cascade. Cascading merge (metadata + Portal + Layout). ADR-0022 (Portal), ADR-0023 (Action terminology), ADR-0024 (Procedure Engine), ADR-0025 (Scenario Engine).
 
 ## Consequences
 
@@ -382,10 +382,10 @@ Generic CRUD          CEL engine (cel-go)   Custom Functions          Object Vie
 
 - Phase 7a is not blocked — generic CRUD endpoints are built on existing infrastructure (SOQL + DML + MetadataCache)
 - Each subsystem is independently useful and testable
-- Three-level cascade (Metadata -> Object View -> Layout) provides DRY + flexibility
+- Three-level cascade (Metadata -> Portal -> Layout) provides DRY + flexibility
 - Additive validation model guarantees tightening without programmatic expression verification
 - Validation Rules work with any write method (API, import, integration)
-- "Bare" DML without Object View is still protected by metadata-level rules
+- "Bare" DML without Portal is still protected by metadata-level rules
 - Incremental value delivery
 - Matches the industry pattern (Salesforce, Dynamics, Zoho)
 
@@ -393,8 +393,8 @@ Generic CRUD          CEL engine (cel-go)   Custom Functions          Object Vie
 
 - No single document for all object logic (deliberate trade-off in favor of SoC)
 - More ADRs (each subsystem = a separate architectural decision)
-- Composition layer (Object View + Layout cascade) is deferred to Phase N+2
-- Additive validation model does not allow loosening a rule — if a rule can differ across contexts, it should be placed in Object View from the start, not in metadata
+- Composition layer (Portal + Layout cascade) is deferred to Phase N+2
+- Additive validation model does not allow loosening a rule — if a rule can differ across contexts, it should be placed in Portal from the start, not in metadata
 
 ### Related ADRs
 
@@ -404,9 +404,9 @@ Generic CRUD          CEL engine (cel-go)   Custom Functions          Object Vie
 - ADR-0009..0012 — Security layers (validation rules supplement but do not replace OLS/FLS/RLS)
 - ADR-0018 — App Templates (create schema; subsystems from this ADR define behavior)
 - ADR-0020 — DML Pipeline Extension (typed stages — subsystem integration points in DML Engine)
-- ADR-0022 — Object View as bounded context adapter (details for subsystem 4: role-based UI, config schema, resolution logic)
+- ADR-0022 — Portal as bounded context adapter (details for subsystem 4: role-based UI, config schema, resolution logic)
 - ADR-0023 — Action terminology: unified hierarchy Action -> Command -> Procedure -> Scenario + Function (orthogonal)
 - ADR-0024 — Procedure Engine: JSON DSL + Constructor UI for synchronous business logic (Mutations -> Action type: procedure)
 - ADR-0025 — Scenario Engine: JSON DSL + Constructor UI for asynchronous long-running processes
 - ADR-0026 — Custom Functions (details for subsystem 6: fn.* namespace, dual-stack, constraints, Constructor UI)
-- ADR-0027 — Layout + Form (third cascade level: Layout defines presentation on top of Object View, Form = computed merge for frontend)
+- ADR-0027 — Layout + Form (third cascade level: Layout defines presentation on top of Portal, Form = computed merge for frontend)

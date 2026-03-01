@@ -81,8 +81,8 @@ export const recordsApi = {
     })
   },
 
-  executeQuery(ovApiName: string, queryName: string, params?: Record<string, string>): Promise<QueryResultResponse> {
-    return http.request<QueryResultResponse>('GET', `/api/v1/view/${ovApiName}/query/${queryName}`, {
+  executeQuery(portalApiName: string, queryName: string, params?: Record<string, string>): Promise<QueryResultResponse> {
+    return http.request<QueryResultResponse>('GET', `/api/v1/portal/${portalApiName}/query/${queryName}`, {
       params: params as Record<string, string | number>,
       skipCaseConversion: true,
     })

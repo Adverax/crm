@@ -15,7 +15,7 @@ type CacheLoader interface {
 	LoadRelationships(ctx context.Context) ([]RelationshipInfo, error)
 	LoadAllValidationRules(ctx context.Context) ([]ValidationRule, error)
 	LoadAllFunctions(ctx context.Context) ([]Function, error)
-	LoadAllObjectViews(ctx context.Context) ([]ObjectView, error)
+	LoadAllPortals(ctx context.Context) ([]Portal, error)
 	LoadAllProcedures(ctx context.Context) ([]Procedure, error)
 	LoadAllAutomationRules(ctx context.Context) ([]AutomationRule, error)
 	LoadAllLayouts(ctx context.Context) ([]Layout, error)
@@ -36,11 +36,11 @@ type MetadataReader interface {
 	GetValidationRules(objectID uuid.UUID) []ValidationRule
 	GetFunctions() []Function
 	GetFunctionByName(name string) (Function, bool)
-	GetObjectViewByAPIName(apiName string) (ObjectView, bool)
+	GetPortalByAPIName(apiName string) (Portal, bool)
 	GetProcedureByCode(code string) (Procedure, bool)
 	GetProcedures() []Procedure
 	GetAutomationRules(objectID uuid.UUID) []AutomationRule
-	GetLayoutsForOV(ovID uuid.UUID) []Layout
+	GetLayoutsForPortal(ovID uuid.UUID) []Layout
 	GetSharedLayoutByAPIName(apiName string) (SharedLayout, bool)
 }
 
@@ -65,7 +65,7 @@ type MetadataCache struct {
 	functionsByName map[string]Function
 
 	// Object views (ADR-0022)
-	objectViewsByAPIName map[string]ObjectView
+	portalsByAPIName map[string]Portal
 
 	// Procedures (ADR-0024)
 	proceduresByCode map[string]Procedure
@@ -74,7 +74,7 @@ type MetadataCache struct {
 	automationRulesByObjectID map[uuid.UUID][]AutomationRule
 
 	// Layouts (ADR-0027)
-	layoutsByOVID      map[uuid.UUID][]Layout
+	layoutsByPortalID  map[uuid.UUID][]Layout
 	sharedLayoutsByAPI map[string]SharedLayout
 
 	loader CacheLoader
@@ -92,10 +92,10 @@ func NewMetadataCache(loader CacheLoader) *MetadataCache {
 		reverseRels:               make(map[uuid.UUID][]RelationshipInfo),
 		validationRulesByObjectID: make(map[uuid.UUID][]ValidationRule),
 		functionsByName:           make(map[string]Function),
-		objectViewsByAPIName:      make(map[string]ObjectView),
+		portalsByAPIName:          make(map[string]Portal),
 		proceduresByCode:          make(map[string]Procedure),
 		automationRulesByObjectID: make(map[uuid.UUID][]AutomationRule),
-		layoutsByOVID:             make(map[uuid.UUID][]Layout),
+		layoutsByPortalID:         make(map[uuid.UUID][]Layout),
 		sharedLayoutsByAPI:        make(map[string]SharedLayout),
 		loader:                    loader,
 	}
@@ -128,7 +128,7 @@ func (c *MetadataCache) Load(ctx context.Context) error {
 		return fmt.Errorf("metadataCache.Load: functions: %w", err)
 	}
 
-	objectViews, err := c.loader.LoadAllObjectViews(ctx)
+	portals, err := c.loader.LoadAllPortals(ctx)
 	if err != nil {
 		return fmt.Errorf("metadataCache.Load: object views: %w", err)
 	}
@@ -189,9 +189,9 @@ func (c *MetadataCache) Load(ctx context.Context) error {
 		c.functionsByName[fn.Name] = fn
 	}
 
-	c.objectViewsByAPIName = make(map[string]ObjectView, len(objectViews))
-	for _, ov := range objectViews {
-		c.objectViewsByAPIName[ov.APIName] = ov
+	c.portalsByAPIName = make(map[string]Portal, len(portals))
+	for _, ov := range portals {
+		c.portalsByAPIName[ov.APIName] = ov
 	}
 
 	c.proceduresByCode = make(map[string]Procedure, len(procedures))
@@ -204,9 +204,9 @@ func (c *MetadataCache) Load(ctx context.Context) error {
 		c.automationRulesByObjectID[ar.ObjectID] = append(c.automationRulesByObjectID[ar.ObjectID], ar)
 	}
 
-	c.layoutsByOVID = make(map[uuid.UUID][]Layout)
+	c.layoutsByPortalID = make(map[uuid.UUID][]Layout)
 	for _, l := range layouts {
-		c.layoutsByOVID[l.ObjectViewID] = append(c.layoutsByOVID[l.ObjectViewID], l)
+		c.layoutsByPortalID[l.PortalID] = append(c.layoutsByPortalID[l.PortalID], l)
 	}
 
 	c.sharedLayoutsByAPI = make(map[string]SharedLayout, len(sharedLayouts))
@@ -342,27 +342,27 @@ func (c *MetadataCache) LoadFunctions(ctx context.Context) error {
 	return nil
 }
 
-// GetObjectViewByAPIName returns an object view by API name from cache.
-func (c *MetadataCache) GetObjectViewByAPIName(apiName string) (ObjectView, bool) {
+// GetPortalByAPIName returns an object view by API name from cache.
+func (c *MetadataCache) GetPortalByAPIName(apiName string) (Portal, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	ov, ok := c.objectViewsByAPIName[apiName]
+	ov, ok := c.portalsByAPIName[apiName]
 	return ov, ok
 }
 
-// LoadObjectViews reloads only object views into the cache.
-func (c *MetadataCache) LoadObjectViews(ctx context.Context) error {
-	views, err := c.loader.LoadAllObjectViews(ctx)
+// LoadPortals reloads only object views into the cache.
+func (c *MetadataCache) LoadPortals(ctx context.Context) error {
+	views, err := c.loader.LoadAllPortals(ctx)
 	if err != nil {
-		return fmt.Errorf("metadataCache.LoadObjectViews: %w", err)
+		return fmt.Errorf("metadataCache.LoadPortals: %w", err)
 	}
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.objectViewsByAPIName = make(map[string]ObjectView, len(views))
+	c.portalsByAPIName = make(map[string]Portal, len(views))
 	for _, ov := range views {
-		c.objectViewsByAPIName[ov.APIName] = ov
+		c.portalsByAPIName[ov.APIName] = ov
 	}
 	return nil
 }
@@ -427,11 +427,11 @@ func (c *MetadataCache) LoadAutomationRules(ctx context.Context) error {
 	return nil
 }
 
-// GetLayoutsForOV returns all layouts for an object view from cache.
-func (c *MetadataCache) GetLayoutsForOV(ovID uuid.UUID) []Layout {
+// GetLayoutsForPortal returns all layouts for an object view from cache.
+func (c *MetadataCache) GetLayoutsForPortal(ovID uuid.UUID) []Layout {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.layoutsByOVID[ovID]
+	return c.layoutsByPortalID[ovID]
 }
 
 // GetSharedLayoutByAPIName returns a shared layout by API name from cache.
@@ -452,9 +452,9 @@ func (c *MetadataCache) LoadLayouts(ctx context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.layoutsByOVID = make(map[uuid.UUID][]Layout)
+	c.layoutsByPortalID = make(map[uuid.UUID][]Layout)
 	for _, l := range layouts {
-		c.layoutsByOVID[l.ObjectViewID] = append(c.layoutsByOVID[l.ObjectViewID], l)
+		c.layoutsByPortalID[l.PortalID] = append(c.layoutsByPortalID[l.PortalID], l)
 	}
 	return nil
 }

@@ -62,7 +62,7 @@ const currentObject = ref<string | null>(null)
 const testResult = ref<QueryResult | null>(null)
 const focused = ref(false)
 const pickerOpen = ref(false)
-const toolbarVisible = computed(() => focused.value || pickerOpen.value)
+const toolbarVisible = computed(() => focused.value || pickerOpen.value || testResult.value !== null)
 
 function onFocusIn() {
   cancelBlur()
@@ -82,7 +82,6 @@ function scheduleBlur() {
   cancelBlur()
   blurTimer = setTimeout(() => {
     focused.value = false
-    testResult.value = null
   }, 100)
 }
 

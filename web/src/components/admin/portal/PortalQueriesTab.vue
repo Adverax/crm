@@ -7,14 +7,14 @@ import { Badge } from '@/components/ui/badge'
 import SoqlEditor from '@/components/admin/soql-editor/SoqlEditor.vue'
 import ExpressionBuilder from '@/components/admin/expression-builder/ExpressionBuilder.vue'
 import { ref, computed } from 'vue'
-import type { OVQuery } from '@/types/object-views'
+import type { PortalQuery } from '@/types/portals'
 
 const props = defineProps<{
-  queries: OVQuery[]
+  queries: PortalQuery[]
 }>()
 
 const emit = defineEmits<{
-  'update:queries': [value: OVQuery[]]
+  'update:queries': [value: PortalQuery[]]
 }>()
 
 const selectedIndex = ref<number | null>(null)
@@ -23,7 +23,7 @@ const selectedQuery = computed(() =>
   selectedIndex.value !== null ? props.queries[selectedIndex.value] ?? null : null,
 )
 
-function queryType(query: OVQuery): string {
+function queryType(query: PortalQuery): string {
   return /\bSELECT\s+ROW\b/i.test(query.soql) ? 'scalar' : 'list'
 }
 
@@ -32,7 +32,7 @@ function selectQuery(index: number) {
 }
 
 function addQuery() {
-  const updated: OVQuery[] = [...props.queries, { name: '', soql: '', when: '' }]
+  const updated: PortalQuery[] = [...props.queries, { name: '', soql: '', when: '' }]
   emit('update:queries', updated)
   selectedIndex.value = updated.length - 1
 }

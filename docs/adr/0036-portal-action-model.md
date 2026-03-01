@@ -1,4 +1,4 @@
-# ADR-0036: OV Action Model — Read + Transactional Actions
+# ADR-0036: Portal Action Model — Read + Transactional Actions
 
 **Date:** 2026-02-27
 
@@ -10,8 +10,8 @@
 
 ### Problem: implicit CRUD operations with no execution model
 
-After ADR-0032 (OV unbinding from object_id) and ADR-0035 (data binding model),
-Object View became a general-purpose page configuration with explicit data sources
+After ADR-0032 (Portal unbinding from object_id) and ADR-0035 (data binding model),
+Portal became a general-purpose page configuration with explicit data sources
 (queries). However, the **write side** of the model has fundamental issues:
 
 | Aspect | Current state | Problem |
@@ -22,7 +22,7 @@ Object View became a general-purpose page configuration with explicit data sourc
 | Mutations | Raw DML strings in `edit.mutations` | Not integrated with DML engine, no transactional guarantees |
 | Operation scope | `edit` mode = both Create and Update | No way to show different forms or apply different rules per operation |
 
-The core issue: **OV knows how to display data (Read) but does not define what
+The core issue: **Portal knows how to display data (Read) but does not define what
 operations can be performed on it (Write).** The `edit` section was a half-measure —
 it assumed a single implicit object and fixed CRUD semantics.
 
@@ -30,29 +30,29 @@ it assumed a single implicit object and fixed CRUD semantics.
 
 | ADR | Relationship |
 |-----|-------------|
-| ADR-0022 | Introduced OV with `view`/`edit` split; actions were UI-only decorations |
+| ADR-0022 | Introduced Portal with `view`/`edit` split; actions were UI-only decorations |
 | ADR-0024 | Procedure Engine — JSON DSL for multi-step logic; contains non-transactional commands |
 | ADR-0027 | Layout + Form — presentation layer with `mode: edit\|view` |
 | ADR-0031 | Automation Rules — reactive triggers on DML events (post-transaction) |
-| ADR-0032 | OV unbound from object_id — OV may not have an implicit target object |
+| ADR-0032 | Portal unbound from object_id — Portal may not have an implicit target object |
 | ADR-0035 | Data binding model — queries as first-class data sources for Read |
 
-### Why Procedures don't fit as OV actions
+### Why Procedures don't fit as Portal actions
 
 ADR-0024 defined the Procedure Engine with 6 command types: record, compute,
 flow, integration, notification, wait. Procedures can contain **non-transactional**
 operations (HTTP calls, email, delays). This makes them unsuitable as the
-execution model for OV actions, which must be **strictly transactional** — either
+execution model for Portal actions, which must be **strictly transactional** — either
 all changes commit together, or none do.
 
-OV actions need a simpler, safer primitive: a set of DML operations within a
+Portal actions need a simpler, safer primitive: a set of DML operations within a
 single database transaction, or a scenario start (which is itself just an INSERT
 into `scenario_runs` — transactional).
 
 ### Why actions don't have their own fields
 
 An earlier iteration of this ADR included per-action field definitions
-(`OVActionField` with name, type, label, required, default) that would render
+(`PortalActionField` with name, type, label, required, default) that would render
 as a modal dialog when the user clicks an action button. This was removed for
 three reasons:
 
@@ -64,15 +64,15 @@ three reasons:
    *another* form in a modal with different fields. This is confusing.
 
 3. **Separation of concerns.** Actions operate on data **already present on
-   the page** (form fields from OV read config). If an action needs its own
+   the page** (form fields from Portal read config). If an action needs its own
    input UI (e.g., "Send Email" with subject/body), it belongs to a different
-   mechanism — a Procedure (ADR-0024) or a separate OV page.
+   mechanism — a Procedure (ADR-0024) or a separate Portal page.
 
 ## Options
 
 ### Option A: Read + Actions unified model (chosen)
 
-Every OV page is fundamentally a **Read** (display data via queries + form) combined
+Every Portal page is fundamentally a **Read** (display data via queries + form) combined
 with a list of **available Actions**. CRUD operations are not special — they are
 predefined actions with the same structure as any custom action.
 
@@ -88,19 +88,19 @@ current page: the form field values (`data`) and the current record (`record`).
 - Explicit — no action configured = operation not supported
 - Transactional safety — actions are strictly within one DB transaction
 - No field duplication — actions use page data, field metadata stays in one place
-- Works with unbound OVs — no implicit target object assumed
+- Works with unbound Portals — no implicit target object assumed
 
 **Cons:**
 - More configuration for simple CRUD cases (mitigated by Constructor UI templates)
-- Breaking change to OVConfig structure (migration required)
-- Actions that need custom input require a separate mechanism (Procedure or OV page)
+- Breaking change to PortalConfig structure (migration required)
+- Actions that need custom input require a separate mechanism (Procedure or Portal page)
 
 ### Option B: Keep `edit` section, add action execution
 
 Extend the existing `edit` section with an execution model. Keep `view`/`edit` split.
 
 **Pros:** Minimal structural change. **Cons:** Still assumes implicit CRUD.
-Cannot support custom actions beyond edit/create. Does not work with unbound OVs.
+Cannot support custom actions beyond edit/create. Does not work with unbound Portals.
 
 ### Option C: Extend Layout `mode` to CRUD enum
 
@@ -109,7 +109,7 @@ gets its own Layout.
 
 **Pros:** Differentiates create from update at the form level.
 **Cons:** Still hardcoded to 4 operations. Cannot add custom actions. Layout
-proliferation (4 modes × 3 form factors = 12 layouts per OV).
+proliferation (4 modes × 3 form factors = 12 layouts per Portal).
 
 ## Decision
 
@@ -134,28 +134,28 @@ visible on the page. If an action needs only the record context (e.g., "Delete",
 For operations that require dedicated input (e.g., "Send Email" with subject
 and body fields), the correct approach is:
 - **Procedure** (ADR-0024) — for side-effect operations with their own UI
-- **Separate OV page** — a dedicated page with its own fields and queries
+- **Separate Portal page** — a dedicated page with its own fields and queries
 
 ### Data model changes
 
-#### OVConfig restructured
+#### PortalConfig restructured
 
 The `view`/`edit` split is replaced by a single `read` section with embedded actions:
 
 ```go
-type OVConfig struct {
-    Read OVReadConfig `json:"read"`
+type PortalConfig struct {
+    Read PortalReadConfig `json:"read"`
 }
 
-type OVReadConfig struct {
-    Queries []OVQuery     `json:"queries,omitempty"` // data sources (SOQL)
-    Fields  []OVViewField `json:"fields,omitempty"`  // display fields
-    Actions []OVAction    `json:"actions,omitempty"` // available operations
+type PortalReadConfig struct {
+    Queries []PortalQuery     `json:"queries,omitempty"` // data sources (SOQL)
+    Fields  []PortalViewField `json:"fields,omitempty"`  // display fields
+    Actions []PortalAction    `json:"actions,omitempty"` // available operations
 }
 ```
 
 - `read.queries` — SOQL data sources (from ADR-0035).
-- `read.fields` — display fields (from ADR-0035, unified OVViewField).
+- `read.fields` — display fields (from ADR-0035, unified PortalViewField).
 - `read.actions` — all available operations, including CRUD.
 
 There is no `primary_object` or auto-generation. All actions are explicitly
@@ -164,19 +164,19 @@ configured by the admin. For convenience, Constructor UI may offer **templates**
 is a UX feature — not a model concept. The generated config is identical to
 manually written config.
 
-#### OVAction — no own fields
+#### PortalAction — no own fields
 
 ```go
-type OVAction struct {
+type PortalAction struct {
     // Identity + UI
-    Key            string `json:"key"`              // unique within OV
+    Key            string `json:"key"`              // unique within Portal
     Label          string `json:"label"`            // UI button text
     Type           string `json:"type"`             // "primary"|"secondary"|"danger"
     Icon           string `json:"icon"`             // lucide icon name
     VisibilityExpr string `json:"visibility_expr"`  // CEL: show/hide button
 
     // Execution model
-    Apply *OVActionApply `json:"apply,omitempty"` // transactional action
+    Apply *PortalActionApply `json:"apply,omitempty"` // transactional action
 }
 ```
 
@@ -189,10 +189,10 @@ When `apply` is set, the action is executable server-side.
 #### Transactional apply
 
 ```go
-type OVActionApply struct {
+type PortalActionApply struct {
     Type     string         `json:"type"`               // "dml" | "scenario"
     DML      []string       `json:"dml,omitempty"`      // DML query texts
-    Scenario *OVScenarioRef `json:"scenario,omitempty"` // for type="scenario"
+    Scenario *PortalScenarioRef `json:"scenario,omitempty"` // for type="scenario"
 }
 ```
 
@@ -212,7 +212,7 @@ against the action's context variables (`data`, `user`, `record`, `result`).
 **Type "scenario"** — starts a scenario (INSERT into scenario_runs):
 
 ```go
-type OVScenarioRef struct {
+type PortalScenarioRef struct {
     APIName string            `json:"api_name"`           // scenario api_name
     Params  map[string]string `json:"params,omitempty"`   // param_name → CEL expr
 }
@@ -229,7 +229,7 @@ wants "Create Deal + Create Task", they must include both DML queries in `apply.
 
 #### No action = operation not supported
 
-If no action with a given key is configured on the OV, the operation is not
+If no action with a given key is configured on the Portal, the operation is not
 available. The button is not rendered, and the server returns 404 if the action
 key is submitted. This is explicit by design — no implicit CRUD.
 
@@ -239,13 +239,13 @@ All CEL expressions within an action have access to:
 
 | Variable | Type | Description |
 |----------|------|-------------|
-| `data` | map | Current form data from the page (OV field values) |
+| `data` | map | Current form data from the page (Portal field values) |
 | `user` | object | Current user (id, profile_id, role_id) |
 | `record` | map | Current record data (from default query, if available) |
 | `result` | list | Results of previous DML operations in the same transaction (for chaining) |
 
 The `data` variable contains the current values of the page form fields —
-the same fields defined in OV `read.fields` and rendered by the Layout.
+the same fields defined in Portal `read.fields` and rendered by the Layout.
 This is the key difference from the earlier design: there is no separate
 action-specific form. Actions always work with page data.
 
@@ -386,15 +386,15 @@ migration, or `edit` is treated as an alias for `read`.
 ### Actions needing custom input
 
 Some operations require user input that is not part of the page form (e.g.,
-"Send Email" needs subject and body). These are **not** OV actions — they
+"Send Email" needs subject and body). These are **not** Portal actions — they
 belong to a different mechanism:
 
 | Mechanism | When to use | Example |
 |-----------|-------------|---------|
 | **Procedure** (ADR-0024) | Side-effect operations with their own Constructor UI | Send Email, HTTP integration, Create + notify |
-| **Separate OV page** | Operations needing a dedicated form with its own queries | Email compose page, Bulk update wizard |
+| **Separate Portal page** | Operations needing a dedicated form with its own queries | Email compose page, Bulk update wizard |
 
-The OV action can **navigate** to a Procedure or another OV page via a UI-only
+The Portal action can **navigate** to a Procedure or another Portal page via a UI-only
 action (no `apply`, just client-side navigation). Or the Procedure can be
 triggered by an Automation Rule (ADR-0031) as a post-DML hook.
 
@@ -403,7 +403,7 @@ triggered by an Automation Rule (ADR-0031) as a post-DML hook.
 #### Execute action endpoint
 
 ```
-POST /api/v1/view/:ovApiName/action/:actionKey
+POST /api/v1/view/:portalApiName/action/:actionKey
 Content-Type: application/json
 
 {
@@ -489,14 +489,14 @@ details — security). The frontend uses this to render action buttons:
 Note: `apply` is **not included** in the Describe response — it contains
 server-side logic (DML targets, CEL expressions) that should not be exposed
 to the client. `validation_rules` are auto-extracted from metadata at Describe
-time — they are not stored in OV config. Actions no longer include field
+time — they are not stored in Portal config. Actions no longer include field
 definitions either — the page form fields serve as the input source.
 
 ### Platform limits
 
 | Parameter | Limit | Rationale |
 |-----------|-------|-----------|
-| Max actions per OV | 20 | UI usability |
+| Max actions per Portal | 20 | UI usability |
 | Max DML operations per action | 10 | Transaction scope |
 | DML transaction timeout | 5s | Prevent long-running transactions |
 
@@ -506,7 +506,7 @@ definitions either — the page form fields serve as the input source.
 
 - **Unified model.** CRUD and custom actions share the same structure. No special
   cases, no implicit behavior.
-- **Explicit operations.** Each OV declares exactly what can be done — no guessing
+- **Explicit operations.** Each Portal declares exactly what can be done — no guessing
   from URL context.
 - **Transactional safety.** All operations within an action execute in a single DB
   transaction, or the entire action rolls back.
@@ -514,18 +514,18 @@ definitions either — the page form fields serve as the input source.
   label, required, default) stay in metadata — single source of truth.
 - **No confusing modals.** Users interact with the page form directly. No
   surprise modal with different fields when clicking an action button.
-- **Works with unbound OVs.** No assumption about a target object — actions
+- **Works with unbound Portals.** No assumption about a target object — actions
   explicitly declare their DML targets.
 
 ### Negative
 
 - **More verbose config.** Simple CRUD requires explicit action definitions
   (mitigated by Constructor UI templates).
-- **Breaking change.** OVConfig structure changes significantly. Existing OV
+- **Breaking change.** PortalConfig structure changes significantly. Existing Portal
   configs must be migrated to the new format.
 - **Custom input requires separate mechanism.** Operations needing their own
-  input fields (e.g., "Send Email") cannot be simple OV actions — they must
-  use Procedures or separate OV pages. This is intentional separation of concerns.
+  input fields (e.g., "Send Email") cannot be simple Portal actions — they must
+  use Procedures or separate Portal pages. This is intentional separation of concerns.
 - **DML chaining via `result`.** Referencing previous DML results in subsequent
   queries requires index-based access (`result[0].id`), which is fragile if
   query order changes.
@@ -536,14 +536,14 @@ definitions either — the page form fields serve as the input source.
   contention. Mitigated by the 10-operation limit and 5s timeout.
 - **CEL expression complexity.** Expressions in DML values and `where` can become
   hard to debug. Mitigated by a dry-run endpoint (from Procedure Engine pattern).
-- **Configuration burden.** Every OV requires manual action setup. Mitigated
-  by Constructor UI templates and the ability to copy/clone OV configs.
+- **Configuration burden.** Every Portal requires manual action setup. Mitigated
+  by Constructor UI templates and the ability to copy/clone Portal configs.
 
 ### Related ADRs
 
-- **ADR-0022** — Object View (supersedes the `view`/`edit` config split)
+- **ADR-0022** — Portal (supersedes the `view`/`edit` config split)
 - **ADR-0024** — Procedure Engine (for operations needing custom input or side effects)
 - **ADR-0027** — Layout + Form (Layout `mode` impact)
 - **ADR-0031** — Automation Rules (post-transaction hooks — complementary)
-- **ADR-0032** — OV unbinding (enables unbound OVs with explicit action targets)
+- **ADR-0032** — Portal unbinding (enables unbound Portals with explicit action targets)
 - **ADR-0035** — Data binding model (queries as Read data sources)

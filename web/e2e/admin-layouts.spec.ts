@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { setupAllRoutes, mockLayouts, mockObjectViews } from './fixtures/mock-api'
+import { setupAllRoutes, mockLayouts, mockPortals } from './fixtures/mock-api'
 
 test.describe('Layout list page', () => {
   test.beforeEach(async ({ page }) => {
@@ -70,7 +70,7 @@ test.describe('Layout create page', () => {
 
   test('renders form with all fields', async ({ page }) => {
     await page.goto('/admin/metadata/layouts/new')
-    await expect(page.locator('[data-testid="field-object-view"]')).toBeVisible()
+    await expect(page.locator('[data-testid="field-portal"]')).toBeVisible()
     await expect(page.locator('[data-testid="field-form-factor"]')).toBeVisible()
     await expect(page.locator('[data-testid="field-mode"]')).toBeVisible()
   })
@@ -97,8 +97,8 @@ test.describe('Layout create page', () => {
     await page.goto('/admin/metadata/layouts/new')
 
     // Select object view from dropdown
-    await page.locator('[data-testid="field-object-view"]').click()
-    await page.getByRole('option', { name: mockObjectViews[0].label }).click()
+    await page.locator('[data-testid="field-portal"]').click()
+    await page.getByRole('option', { name: mockPortals[0].label }).click()
 
     const requestPromise = page.waitForRequest(
       (req) =>

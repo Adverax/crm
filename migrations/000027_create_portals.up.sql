@@ -1,4 +1,4 @@
-CREATE TABLE metadata.object_views (
+CREATE TABLE metadata.portals (
     id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     profile_id  UUID         REFERENCES iam.profiles(id) ON DELETE CASCADE,
     api_name    VARCHAR(100) NOT NULL UNIQUE,
@@ -8,7 +8,7 @@ CREATE TABLE metadata.object_views (
     created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
 
-    CONSTRAINT chk_ov_api_name_format CHECK (api_name ~ '^[a-z][a-z0-9_]*$')
+    CONSTRAINT chk_portal_api_name_format CHECK (api_name ~ '^[a-z][a-z0-9_]*$')
 );
 
-CREATE INDEX idx_object_views_profile_id ON metadata.object_views(profile_id);
+CREATE INDEX idx_portals_profile_id ON metadata.portals(profile_id);

@@ -38,7 +38,7 @@ const router = createRouter({
           component: () => import('../views/app/WelcomeView.vue'),
         },
         {
-          path: 'page/:ovApiName',
+          path: 'page/:portalApiName',
           name: 'app-page',
           component: () => import('../views/app/PageView.vue'),
           props: true,
@@ -173,21 +173,21 @@ const router = createRouter({
           component: () => import('../views/admin/metadata/AutomationRuleDetailView.vue'),
           props: true,
         },
-        // Object Views
+        // Portals
         {
-          path: 'metadata/object-views',
-          name: 'admin-object-views',
-          component: () => import('../views/admin/metadata/ObjectViewListView.vue'),
+          path: 'metadata/portals',
+          name: 'admin-portals',
+          component: () => import('../views/admin/metadata/PortalListView.vue'),
         },
         {
-          path: 'metadata/object-views/new',
-          name: 'admin-object-view-create',
-          component: () => import('../views/admin/metadata/ObjectViewCreateView.vue'),
+          path: 'metadata/portals/new',
+          name: 'admin-portal-create',
+          component: () => import('../views/admin/metadata/PortalCreateView.vue'),
         },
         {
-          path: 'metadata/object-views/:viewId',
-          name: 'admin-object-view-detail',
-          component: () => import('../views/admin/metadata/ObjectViewDetailView.vue'),
+          path: 'metadata/portals/:portalId',
+          name: 'admin-portal-detail',
+          component: () => import('../views/admin/metadata/PortalDetailView.vue'),
           props: true,
         },
         // Layouts

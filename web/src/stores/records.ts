@@ -8,7 +8,7 @@ import type {
   RecordData,
   RecordPagination,
 } from '@/types/records'
-import type { FormDescribe, FormQuery } from '@/types/object-views'
+import type { FormDescribe, FormQuery } from '@/types/portals'
 
 export const useRecordsStore = defineStore('records', () => {
   const navObjects = ref<ObjectNavItem[]>([])
@@ -148,11 +148,11 @@ export const useRecordsStore = defineStore('records', () => {
     return currentForm.value?.queries ?? []
   })
 
-  async function fetchQuery(ovApiName: string, queryName: string, params?: Record<string, string>) {
+  async function fetchQuery(portalApiName: string, queryName: string, params?: Record<string, string>) {
     loading.value = true
     error.value = null
     try {
-      const res = await recordsApi.executeQuery(ovApiName, queryName, params)
+      const res = await recordsApi.executeQuery(portalApiName, queryName, params)
       queryResults.value.set(queryName, res.data.records ?? [])
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'unknown error'

@@ -25,7 +25,7 @@ var validModes = map[string]bool{
 type LayoutService interface {
 	Create(ctx context.Context, input CreateLayoutInput) (*Layout, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*Layout, error)
-	ListByObjectViewID(ctx context.Context, ovID uuid.UUID) ([]Layout, error)
+	ListByPortalID(ctx context.Context, ovID uuid.UUID) ([]Layout, error)
 	ListAll(ctx context.Context) ([]Layout, error)
 	Update(ctx context.Context, id uuid.UUID, input UpdateLayoutInput) (*Layout, error)
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -79,10 +79,10 @@ func (s *layoutService) GetByID(ctx context.Context, id uuid.UUID) (*Layout, err
 	return layout, nil
 }
 
-func (s *layoutService) ListByObjectViewID(ctx context.Context, ovID uuid.UUID) ([]Layout, error) {
-	layouts, err := s.repo.ListByObjectViewID(ctx, ovID)
+func (s *layoutService) ListByPortalID(ctx context.Context, ovID uuid.UUID) ([]Layout, error) {
+	layouts, err := s.repo.ListByPortalID(ctx, ovID)
 	if err != nil {
-		return nil, fmt.Errorf("layoutService.ListByObjectViewID: %w", err)
+		return nil, fmt.Errorf("layoutService.ListByPortalID: %w", err)
 	}
 	return layouts, nil
 }
@@ -150,8 +150,8 @@ func (s *layoutService) validateCreate(_ context.Context, input CreateLayoutInpu
 		return apperror.BadRequest("mode must be one of: read, view")
 	}
 
-	if input.ObjectViewID == (uuid.UUID{}) {
-		return apperror.BadRequest("object_view_id is required")
+	if input.PortalID == (uuid.UUID{}) {
+		return apperror.BadRequest("portal_id is required")
 	}
 
 	return nil

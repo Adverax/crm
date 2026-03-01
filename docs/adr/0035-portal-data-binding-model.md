@@ -1,4 +1,4 @@
-# ADR-0035: OV Data Binding Model
+# ADR-0035: Portal Data Binding Model
 
 **Date:** 2026-02-27
 
@@ -10,15 +10,15 @@
 
 ### Problem: disconnected Fields, Queries, and Computed
 
-After ADR-0032 (OV unbinding from object_id), Object View became a general-purpose
+After ADR-0032 (Portal unbinding from object_id), Portal became a general-purpose
 screen configuration that can represent any page — record detail, dashboard, or
 multi-object view. However, the data model still has fundamental limitations:
 
 | Component | Current state | Problem |
 |-----------|--------------|---------|
-| `OVViewConfig.Fields` | `[]string` — bare field names | No data source declaration; assumes "current record" |
-| `OVViewConfig.Queries` | `[]OVQuery` with `name`+`soql`+`when` | Defined but nothing references them; no `type` or `default` flag |
-| `OVViewConfig.Computed` | `[]OVViewComputed` — separate array | Disconnected from Fields; cannot be placed in sections alongside regular fields |
+| `PortalViewConfig.Fields` | `[]string` — bare field names | No data source declaration; assumes "current record" |
+| `PortalViewConfig.Queries` | `[]PortalQuery` with `name`+`soql`+`when` | Defined but nothing references them; no `type` or `default` flag |
+| `PortalViewConfig.Computed` | `[]PortalViewComputed` — separate array | Disconnected from Fields; cannot be placed in sections alongside regular fields |
 
 This creates several issues:
 
@@ -41,9 +41,9 @@ This creates several issues:
 
 | ADR | Relationship |
 |-----|-------------|
-| ADR-0022 | Introduced OV as bounded context adapter with sections/actions/queries |
-| ADR-0027 | Layout + Form — presentation layer that consumes OV fields |
-| ADR-0032 | Unbound OV from object_id, making OV a general-purpose page config |
+| ADR-0022 | Introduced Portal as bounded context adapter with sections/actions/queries |
+| ADR-0027 | Layout + Form — presentation layer that consumes Portal fields |
+| ADR-0032 | Unbound Portal from object_id, making Portal a general-purpose page config |
 
 ## Options
 
@@ -75,7 +75,7 @@ references resolved against the default query.
 - Per-query data endpoint for frontend consumption
 
 **Cons:**
-- Breaking change to `OVViewConfig.Fields` (mitigation: backward-compat UnmarshalJSON)
+- Breaking change to `PortalViewConfig.Fields` (mitigation: backward-compat UnmarshalJSON)
 - Slightly more verbose for simple record views
 
 ### Option B: Source enum per field
@@ -100,10 +100,10 @@ problem, implicit assumptions remain.
 
 ### Data model changes
 
-#### OVViewField replaces bare string
+#### PortalViewField replaces bare string
 
 ```go
-type OVViewField struct {
+type PortalViewField struct {
     Name string `json:"name"`           // field API name
     Type string `json:"type,omitempty"` // "string"|"int"|"float"|"bool"|"timestamp" (for computed)
     Expr string `json:"expr,omitempty"` // CEL expression referencing queries
@@ -114,10 +114,10 @@ type OVViewField struct {
 Fields without `expr` are simple field references. Fields with `expr` are computed.
 This **unifies** the old `Fields` and `Computed` arrays into a single `Fields` array.
 
-#### OVQuery — type inferred from SOQL syntax
+#### PortalQuery — type inferred from SOQL syntax
 
 ```go
-type OVQuery struct {
+type PortalQuery struct {
     Name string `json:"name"`
     SOQL string `json:"soql"`
     When string `json:"when,omitempty"`
@@ -135,11 +135,11 @@ The `ROW` keyword is a SOQL extension that:
 
 The first scalar query (`SELECT ROW`) in the array is the implicit default (context record).
 
-#### OVViewComputed is removed
+#### PortalViewComputed is removed
 
-Its functionality is absorbed by `OVViewField` with `expr` set.
+Its functionality is absorbed by `PortalViewField` with `expr` set.
 
-### Validation rules (at OV save time)
+### Validation rules (at Portal save time)
 
 1. Query name uniqueness — no duplicates
 2. Field name uniqueness — no duplicates
@@ -151,19 +151,19 @@ Its functionality is absorbed by `OVViewField` with `expr` set.
 ### Per-query data endpoint
 
 ```
-GET /api/v1/view/:ovApiName/query/:queryName?param1=val1&param2=val2
+GET /api/v1/view/:portalApiName/query/:queryName?param1=val1&param2=val2
 ```
 
-- Finds OV by `api_name`, finds query by `name`
+- Finds Portal by `api_name`, finds query by `name`
 - Substitutes URL query params into SOQL `:paramName` placeholders
 - Executes via SOQL service (with full security: OLS, FLS, RLS)
 - Returns query result with pagination
 
 ### Backward compatibility
 
-`OVConfig.UnmarshalJSON` handles the old format:
+`PortalConfig.UnmarshalJSON` handles the old format:
 - `fields: ["name", "email"]` → `fields: [{name: "name"}, {name: "email"}]`
-- `computed: [{name, type, expr, when}]` → appended to `fields` as `OVViewField`
+- `computed: [{name, type, expr, when}]` → appended to `fields` as `PortalViewField`
 
 ### Describe API extension
 
@@ -184,7 +184,7 @@ Type is inferred from SOQL syntax (`SELECT ROW` = scalar, `SELECT` = list):
 ### Positive
 
 - **Explicit data flow.** Every field's data source is declared and traceable.
-- **Dashboard pages.** OV can define multiple queries without an implicit record.
+- **Dashboard pages.** Portal can define multiple queries without an implicit record.
 - **Unified fields.** Regular and computed fields coexist in one array, simplifying
   sections, highlights, and list columns.
 - **Safety.** Cycle detection prevents infinite loops in computed field graphs.
@@ -192,9 +192,9 @@ Type is inferred from SOQL syntax (`SELECT ROW` = scalar, `SELECT` = list):
 
 ### Negative
 
-- **Breaking change.** `OVViewConfig.Fields` changes from `[]string` to
-  `[]OVViewField`. Mitigated by backward-compatible UnmarshalJSON.
-- **Migration.** Existing OV configs in the database will be transparently
+- **Breaking change.** `PortalViewConfig.Fields` changes from `[]string` to
+  `[]PortalViewField`. Mitigated by backward-compatible UnmarshalJSON.
+- **Migration.** Existing Portal configs in the database will be transparently
   converted on read (no schema migration needed — JSONB is flexible).
 - **Slightly more verbose.** Simple views need `{name: "X"}` instead of `"X"`.
 
@@ -202,5 +202,5 @@ Type is inferred from SOQL syntax (`SELECT ROW` = scalar, `SELECT` = list):
 
 - Expression parsing complexity — mitigated by using simple string prefix matching
   (`query_name.field_name`) rather than full CEL parsing for reference validation.
-- Performance of cycle detection — mitigated by limiting field count per OV
+- Performance of cycle detection — mitigated by limiting field count per Portal
   (practical limit ~100 fields, Kahn's algorithm is O(V+E)).

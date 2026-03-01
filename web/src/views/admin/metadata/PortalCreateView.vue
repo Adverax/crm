@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { objectViewsApi } from '@/api/object-views'
+import { portalsApi } from '@/api/portals'
 import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import { Button } from '@/components/ui/button'
@@ -59,7 +59,7 @@ onMounted(() => {
 async function onSubmit() {
   submitting.value = true
   try {
-    const result = await objectViewsApi.create({
+    const result = await portalsApi.create({
       profileId: form.value.profileId === NONE_PROFILE ? undefined : form.value.profileId,
       apiName: form.value.apiName,
       label: form.value.label,
@@ -73,7 +73,7 @@ async function onSubmit() {
       },
     })
     toast.success('Object view created')
-    await router.push({ name: 'admin-object-view-detail', params: { viewId: result.data.id } })
+    await router.push({ name: 'admin-portal-detail', params: { portalId: result.data.id } })
   } catch (err) {
     toast.errorFromApi(err)
   } finally {
@@ -82,7 +82,7 @@ async function onSubmit() {
 }
 
 function onCancel() {
-  router.push({ name: 'admin-object-views' })
+  router.push({ name: 'admin-portals' })
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -92,14 +92,14 @@ function onProfileChange(value: any) {
 
 const breadcrumbs = computed(() => [
   { label: 'Admin', to: '/admin' },
-  { label: 'Object Views', to: '/admin/metadata/object-views' },
+  { label: 'Portals', to: '/admin/metadata/portals' },
   { label: 'Create' },
 ])
 </script>
 
 <template>
   <div>
-    <PageHeader title="Create Object View" :breadcrumbs="breadcrumbs" />
+    <PageHeader title="Create Portal" :breadcrumbs="breadcrumbs" />
 
     <form class="max-w-3xl space-y-6 mt-4" @submit.prevent="onSubmit">
       <Card>

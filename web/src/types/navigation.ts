@@ -3,7 +3,7 @@
 export interface NavItem {
   type: 'object' | 'link' | 'divider' | 'page'
   objectApiName?: string
-  ovApiName?: string
+  portalApiName?: string
   label?: string
   url?: string
   icon?: string
@@ -41,7 +41,7 @@ export interface UpdateProfileNavigationRequest {
 export interface ResolvedNavItem {
   type: 'object' | 'link' | 'divider' | 'page'
   objectApiName?: string
-  ovApiName?: string
+  portalApiName?: string
   label?: string
   pluralLabel?: string
   url?: string

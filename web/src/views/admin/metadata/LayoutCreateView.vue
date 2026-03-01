@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { layoutsApi } from '@/api/layouts'
-import { objectViewsApi } from '@/api/object-views'
+import { portalsApi } from '@/api/portals'
 import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import { Button } from '@/components/ui/button'
@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { ObjectView } from '@/types/object-views'
+import type { Portal } from '@/types/portals'
 
 interface OvOption {
   id: string
@@ -31,18 +31,18 @@ const router = useRouter()
 const toast = useToast()
 const submitting = ref(false)
 
-const objectViews = ref<OvOption[]>([])
+const portals = ref<OvOption[]>([])
 
 const form = ref({
-  objectViewId: '',
+  portalId: '',
   formFactor: 'desktop',
   mode: 'read',
 })
 
-async function loadObjectViews() {
+async function loadPortals() {
   try {
-    const response = await objectViewsApi.list()
-    objectViews.value = (response.data ?? []).map((ov: ObjectView) => ({
+    const response = await portalsApi.list()
+    portals.value = (response.data ?? []).map((ov: Portal) => ({
       id: ov.id!,
       label: ov.label,
     }))
@@ -51,18 +51,18 @@ async function loadObjectViews() {
   }
 }
 
-onMounted(loadObjectViews)
+onMounted(loadPortals)
 
 async function onSubmit() {
-  if (!form.value.objectViewId) {
-    toast.error('Please select an Object View')
+  if (!form.value.portalId) {
+    toast.error('Please select an Portal')
     return
   }
 
   submitting.value = true
   try {
     const result = await layoutsApi.create({
-      objectViewId: form.value.objectViewId,
+      portalId: form.value.portalId,
       formFactor: form.value.formFactor,
       mode: form.value.mode,
       config: {},
@@ -82,7 +82,7 @@ function onCancel() {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function onOvChange(value: any) {
-  form.value.objectViewId = String(value)
+  form.value.portalId = String(value)
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -110,14 +110,14 @@ const breadcrumbs = computed(() => [
       <Card>
         <CardContent class="pt-6 space-y-4">
           <div class="space-y-2">
-            <Label>Object View</Label>
-            <Select :model-value="form.objectViewId" @update:model-value="onOvChange">
-              <SelectTrigger data-testid="field-object-view">
-                <SelectValue placeholder="Select an Object View" />
+            <Label>Portal</Label>
+            <Select :model-value="form.portalId" @update:model-value="onOvChange">
+              <SelectTrigger data-testid="field-portal">
+                <SelectValue placeholder="Select an Portal" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem
-                  v-for="ov in objectViews"
+                  v-for="ov in portals"
                   :key="ov.id"
                   :value="ov.id"
                 >

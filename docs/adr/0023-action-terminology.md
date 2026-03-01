@@ -10,7 +10,7 @@
 
 The platform is developing several subsystems that describe reactions to user actions:
 
-1. **Object View** (ADR-0022) — buttons on the record card ("Ship", "Send Proposal")
+1. **Portal** (ADR-0022) — buttons on the record card ("Ship", "Send Proposal")
 2. **Procedure Engine** (ADR-0024) — declarative YAML DSL for business logic with CEL expressions
 3. **Scenario Engine** (ADR-0025) — orchestration of long-lived business processes with durability
 4. **DML Pipeline** (ADR-0020) — data processing stages during writes
@@ -24,7 +24,7 @@ Terminological conflicts arose between them:
 | **Action** | ADR-0022 | UI button on the record card | — |
 | **Handler** | handler.md | Named set of actions (YAML DSL) | — |
 | **Handler** | Go code | HTTP handler (Gin) | — |
-| **Mutation** | ADR-0019 | DML orchestration in Object View | — |
+| **Mutation** | ADR-0019 | DML orchestration in Portal | — |
 | **Step** | scenario.md | Atomic step in a scenario | — |
 
 Three key conflicts:
@@ -143,7 +143,7 @@ Action (umbrella term)                       CEL Expression (inline, one-off)
 
 | Term | Definition | Analog (Salesforce) | Durability level |
 |------|-----------|--------------------|--------------------|
-| **Action** | System reaction to a trigger. Umbrella term, defined by type (`navigate`, `field_update`, `procedure`, `scenario`). Can be invoked from Object View (button), Automation Rule (trigger), API (endpoint), or another Action | Quick Action / Button | — |
+| **Action** | System reaction to a trigger. Umbrella term, defined by type (`navigate`, `field_update`, `procedure`, `scenario`). Can be invoked from Portal (button), Automation Rule (trigger), API (endpoint), or another Action | Quick Action / Button | — |
 | **Command** | Atomic operation inside a Procedure: `record.create`, `notification.email`, `POST url`, `transform`, `validate`. Executed synchronously. Has no own state | Flow Element / Action Step | None (in-memory) |
 | **Procedure** | Named set of Commands, described declaratively (JSON + CEL). Assembled through Constructor UI or edited as JSON. Stored as JSONB. Executed synchronously within a single request. Supports conditional logic (`when`, `if/else`, `match`), rollback (Saga pattern), calling other Procedures (`call`). Analog of a stored procedure, but safe (sandbox, limits) | Invocable Action / Autolaunched Flow | None (transaction) |
 | **Scenario** | Long-lived business process coordinating a sequence of Steps with durability guarantees (state survives restarts), consistency (rollback on errors), and observability (complete history). Executed asynchronously. Supports Signals (waiting for external events), Timers (deferred actions), Checkpoints | Screen Flow / Record-Triggered Flow | Yes (PostgreSQL) |
@@ -165,7 +165,7 @@ Action (umbrella term)                       CEL Expression (inline, one-off)
 
 ```
 +-------------------------------------------------------------+
-|                        Object View                               |
+|                        Portal                               |
 |   actions: [                                                     |
 |     { key: "ship", type: "field_update", ... }                  |
 |     { key: "send", type: "procedure", procedure: "send_prop" }  |
@@ -202,7 +202,7 @@ Client-side navigation. Does not call the backend. Executed by the frontend rout
 }
 ```
 
-Available: Phase 9a (Object View core).
+Available: Phase 9a (Portal core).
 
 #### field_update
 
@@ -223,7 +223,7 @@ Atomic field update via DML. One operation, one transaction. Does not require th
 
 Execution: `DML UPDATE obj_order SET status='shipped', shipped_at=NOW() WHERE id=:recordId` with OLS/FLS/RLS enforcement.
 
-Available: Phase 9a (Object View core).
+Available: Phase 9a (Portal core).
 
 #### procedure
 
@@ -318,13 +318,13 @@ Categories of atomic operations inside a Procedure:
 
 | Phase | What is available | Action types / CEL |
 |-------|-------------------|-------------------|
-| **Phase 9a** | Object View core | `navigate`, `field_update` |
+| **Phase 9a** | Portal core | `navigate`, `field_update` |
 | **Phase 10** | Custom Functions (ADR-0026) | `fn.*` in any CEL context |
 | **Phase 13a** | Procedure Engine | + `procedure` |
 | **Phase 13b** | Scenario Engine | + `scenario` |
 | **Phase 13c** | Approval Processes | Scenario + built-in approval commands |
 
-Phase 9a starts with `navigate` and `field_update` — they do not require the Procedure/Scenario Engine. Custom Functions (Phase 10) eliminate duplication in CEL expressions. When the Engine arrives, Object View gains new action types **without architectural changes**.
+Phase 9a starts with `navigate` and `field_update` — they do not require the Procedure/Scenario Engine. Custom Functions (Phase 10) eliminate duplication in CEL expressions. When the Engine arrives, Portal gains new action types **without architectural changes**.
 
 ### CEL as Cross-cutting Expression Language
 
@@ -332,7 +332,7 @@ All levels use CEL (ADR-0019, Phase 7b). Custom Functions (ADR-0026) eliminate d
 
 | Level | Where CEL is used | Example with Function |
 |-------|-------------------|-----------------------|
-| **Object View** | `visibility_expr` — when to show a button | `fn.is_high_value(record.amount)` |
+| **Portal** | `visibility_expr` — when to show a button | `fn.is_high_value(record.amount)` |
 | **Validation Rule** | `expression` — validation on save | `fn.discount(record.tier, record.amount) < 10000` |
 | **Default Expression** | `default_expr` — default value | `fn.discount(record.tier, record.amount)` |
 | **Procedure** | `when`, `input.*` — conditions and mapping | `fn.discount($.input.tier, $.input.amount)` |
@@ -371,9 +371,9 @@ A unified expression language from UI to backend — cel-go (backend) + cel-js (
 
 ### Related ADRs
 
-- **ADR-0019** — Declarative business logic: Automation Rules use Action types; Object View -> Action binding; the term "Mutation" is replaced by "Action type: procedure"
+- **ADR-0019** — Declarative business logic: Automation Rules use Action types; Portal -> Action binding; the term "Mutation" is replaced by "Action type: procedure"
 - **ADR-0020** — DML Pipeline: field_update action type is executed through DML Engine
-- **ADR-0022** — Object View: actions config uses the typing from this ADR (navigate, field_update, procedure, scenario)
+- **ADR-0022** — Portal: actions config uses the typing from this ADR (navigate, field_update, procedure, scenario)
 
 - **ADR-0024** — Procedure Engine: JSON DSL + Constructor UI. Terminology mapping: "Handler" -> **Procedure**, "Action" -> **Command**, "Action Type" -> **Command Type**
 - **ADR-0025** — Scenario Engine: JSON DSL + Constructor UI. Terminology mapping: "Scenario" -> **Scenario** (no change), "Step" -> **Step** (no change), "Handler" (in step context) -> **Procedure**

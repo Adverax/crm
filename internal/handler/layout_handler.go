@@ -30,10 +30,10 @@ func (h *LayoutHandler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 type createLayoutRequest struct {
-	ObjectViewID string              `json:"object_view_id" binding:"required"`
-	FormFactor   string              `json:"form_factor" binding:"required"`
-	Mode         string              `json:"mode" binding:"required"`
-	Config       metadata.LayoutConfig `json:"config"`
+	PortalID   string                `json:"portal_id" binding:"required"`
+	FormFactor string                `json:"form_factor" binding:"required"`
+	Mode       string                `json:"mode" binding:"required"`
+	Config     metadata.LayoutConfig `json:"config"`
 }
 
 type updateLayoutRequest struct {
@@ -47,17 +47,17 @@ func (h *LayoutHandler) Create(c *gin.Context) {
 		return
 	}
 
-	ovID, err := uuid.Parse(req.ObjectViewID)
+	ovID, err := uuid.Parse(req.PortalID)
 	if err != nil {
-		apperror.Respond(c, apperror.BadRequest("invalid object_view_id"))
+		apperror.Respond(c, apperror.BadRequest("invalid portal_id"))
 		return
 	}
 
 	input := metadata.CreateLayoutInput{
-		ObjectViewID: ovID,
-		FormFactor:   req.FormFactor,
-		Mode:         req.Mode,
-		Config:       req.Config,
+		PortalID:   ovID,
+		FormFactor: req.FormFactor,
+		Mode:       req.Mode,
+		Config:     req.Config,
 	}
 
 	layout, err := h.service.Create(c.Request.Context(), input)
@@ -70,14 +70,14 @@ func (h *LayoutHandler) Create(c *gin.Context) {
 }
 
 func (h *LayoutHandler) List(c *gin.Context) {
-	ovIDStr := c.Query("object_view_id")
+	ovIDStr := c.Query("portal_id")
 	if ovIDStr != "" {
 		ovID, err := uuid.Parse(ovIDStr)
 		if err != nil {
-			apperror.Respond(c, apperror.BadRequest("invalid object_view_id"))
+			apperror.Respond(c, apperror.BadRequest("invalid portal_id"))
 			return
 		}
-		layouts, err := h.service.ListByObjectViewID(c.Request.Context(), ovID)
+		layouts, err := h.service.ListByPortalID(c.Request.Context(), ovID)
 		if err != nil {
 			apperror.Respond(c, err)
 			return

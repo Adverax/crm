@@ -17,7 +17,7 @@ The platform contains several entity types with executable logic:
 | Custom Function (ADR-0026) | CEL expression | Any CEL context (inline) | No |
 | Validation Rule | CEL expression | DML pipeline (inline) | No |
 | Automation Rule | Trigger config | DML pipeline | No |
-| Object View (ADR-0022) | Config JSONB | Describe API | No |
+| Portal (ADR-0022) | Config JSONB | Describe API | No |
 | Layout (ADR-0027) | Config JSONB | Describe API | No |
 | Named Credential (ADR-0028) | Config | Procedure (integration.http) | No |
 
@@ -36,13 +36,13 @@ After publishing an erroneous version — only manual editing. No one-button "ro
 
 The problems are **not equally critical** for different entity types:
 
-| Problem | Procedure | Scenario | Function | VR / AR / OV / Layout / Credential |
+| Problem | Procedure | Scenario | Function | VR / AR / Portal / Layout / Credential |
 |---------|-----------|----------|----------|-------------------------------------|
 | Mid-flight | Low risk (synchronous, seconds) | **High** (async, days) | None (inline) | None |
 | Unsafe deploy | **Yes** (complex JSON DSL) | **Yes** (complex JSON DSL) | Low (single CEL expression, test endpoint) | None (simple configuration) |
 | No rollback | **Yes** | **Yes** | Low (editing a single line) | None |
 
-**Conclusion:** Full versioning is needed only for Procedure and Scenario. Other entities are either too simple (CEL expression) or are configuration (OV, Layout, Credential).
+**Conclusion:** Full versioning is needed only for Procedure and Scenario. Other entities are either too simple (CEL expression) or are configuration (Portal, Layout, Credential).
 
 ## Considered Options
 
@@ -120,7 +120,7 @@ Each save creates a new immutable version. Current = latest. No draft.
 | **Custom Function** | None | Single CEL expression; test endpoint on save; dependency check protects against breaking changes |
 | **Validation Rule** | None | CEL expression, immediate apply; error -> DML returns error |
 | **Automation Rule** | None | Trigger config; the Procedure it calls has its own draft/published |
-| **Object View** | None | Presentation configuration, not logic |
+| **Portal** | None | Presentation configuration, not logic |
 | **Layout** | None | Presentation configuration |
 | **Named Credential** | None | Connection configuration |
 
@@ -290,7 +290,7 @@ No semver (MAJOR.MINOR.PATCH). No version constraints (`^2.0`). A simple increme
 
 ### Entities WITHOUT Versioning
 
-For entities without versioning (Function, Validation Rule, Automation Rule, OV, Layout, Credential) — the definition is stored **inline** in the main table:
+For entities without versioning (Function, Validation Rule, Automation Rule, Portal, Layout, Credential) — the definition is stored **inline** in the main table:
 
 ```sql
 -- Function: definition inline
@@ -315,7 +315,7 @@ CREATE TABLE metadata.validation_rules (
 Save = live. Protection against errors:
 - **Function**: dependency check + type validation on save; test endpoint
 - **Validation Rule**: CEL compilation check on save
-- **OV / Layout**: preview in admin UI before saving
+- **Portal / Layout**: preview in admin UI before saving
 - **Credential**: test connection endpoint
 
 ### Constructor UI Integration
@@ -392,7 +392,7 @@ Auto-deleting superseded versions beyond 10 prevents table bloat during frequent
 | Version constraints (`^2.0`) | Assumes independent evolution of consumers; irrelevant in single-tenant CRM |
 | Backward compatibility validation | Requires formalizing input/output schema; dependency check on save is sufficient |
 | 4+ statuses (deprecated, archived) | Three statuses cover all needs |
-| Versioning Functions/VR/AR/OV/Layout | Simple entities; save = live + protection on save (type check, dependency check, test endpoint) |
+| Versioning Functions/VR/AR/Portal/Layout | Simple entities; save = live + protection on save (type check, dependency check, test endpoint) |
 | JSONB snapshot in Scenario run | Heavy; FK to version_id is sufficient + superseded versions are protected from deletion |
 
 ## Related ADRs
@@ -401,5 +401,5 @@ Auto-deleting superseded versions beyond 10 prevents table bloat during frequent
 - **ADR-0025** — Scenario Engine: analogous; `scenario_run_snapshots` pins Procedure versions at start
 - **ADR-0026** — Custom Functions: no versioning; dependency check + test endpoint on save
 - **ADR-0019** — Declarative business logic: Validation Rules, Automation Rules — no versioning (CEL inline, immediate apply)
-- **ADR-0022** — Object View: no versioning (configuration, not logic)
+- **ADR-0022** — Portal: no versioning (configuration, not logic)
 - **ADR-0027** — Layout: no versioning (presentation configuration)

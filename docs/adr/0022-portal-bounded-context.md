@@ -1,4 +1,4 @@
-# ADR-0022: Object View — Bounded Context Adapter via Role-based UI
+# ADR-0022: Portal — Bounded Context Adapter via Role-based UI
 
 **Status:** Accepted
 **Date:** 2026-02-15
@@ -8,23 +8,23 @@
 
 ### Motivation
 
-The original flat OVConfig mixed view and edit concerns into a single level. Fields like `queries`, `computed`, `list_fields`, and `highlight_fields` (view-only concerns) lived alongside `validation`, `defaults`, and `mutations` (edit concerns). This caused:
+The original flat PortalConfig mixed view and edit concerns into a single level. Fields like `queries`, `computed`, `list_fields`, and `highlight_fields` (view-only concerns) lived alongside `validation`, `defaults`, and `mutations` (edit concerns). This caused:
 
-1. **Cognitive overload** — administrators editing OV config had to mentally separate "what affects display" from "what affects data entry", with no structural guidance.
+1. **Cognitive overload** — administrators editing Portal config had to mentally separate "what affects display" from "what affects data entry", with no structural guidance.
 2. **Ambiguous API contract** — the frontend received a single config blob and had to decide which parts apply to record viewing vs. record creation/editing.
 3. **Unnecessary payload on view-only objects** — objects without create/update operations (e.g. audit logs, reports) still carried empty edit-side fields.
 
 ### Changes
 
-1. **Split OVConfig into `view` / `edit` sub-objects.** All display, query, and presentation concerns move under `view` (fields, actions, queries, computed); all mutation, validation, and default concerns move under `edit`.
+1. **Split PortalConfig into `view` / `edit` sub-objects.** All display, query, and presentation concerns move under `view` (fields, actions, queries, computed); all mutation, validation, and default concerns move under `edit`.
 
-2. **Rename `virtual_fields` to `computed` in view context (`view.computed`).** The term "virtual fields" was ambiguous — it conflicted with the edit-side `computed` (fields evaluated on save). In the view context, these are display-time computed values, now consistently named `OVViewComputed`.
+2. **Rename `virtual_fields` to `computed` in view context (`view.computed`).** The term "virtual fields" was ambiguous — it conflicted with the edit-side `computed` (fields evaluated on save). In the view context, these are display-time computed values, now consistently named `PortalViewComputed`.
 
 3. **`edit` is optional (pointer/nullable).** When an object view describes a view-only context (e.g. a report view, an audit log), `edit` is omitted entirely. The API returns `null` / omits the key, and the frontend disables create/edit forms.
 
 4. **`edit.fields` is nullable.** When `edit.fields` is `null`, the frontend falls back to `view.fields` for form rendering. This avoids duplicating the field list when view and edit use the same fields. When `edit.fields` is explicitly set, it overrides the view field list for create/edit forms.
 
-5. **Sections removed from OV config.** Per ADR-0027, sections and layout concerns belong to Layout, not Object View. OV defines WHAT data is relevant; Layout defines HOW it is presented (sections, columns, collapsed state). This amendment confirms their removal from the OV config schema.
+5. **Sections removed from Portal config.** Per ADR-0027, sections and layout concerns belong to Layout, not Portal. Portal defines WHAT data is relevant; Layout defines HOW it is presented (sections, columns, collapsed state). This amendment confirms their removal from the Portal config schema.
 
 ### New Config JSON Format
 
@@ -96,15 +96,15 @@ Result: all users see the same form with all available (per FLS) fields in the `
 
 ### Relationship with ADR-0019
 
-ADR-0019 defined Object View as the 4th subsystem of declarative business logic with a three-level cascade `Metadata -> Object View -> Layout`. However, ADR-0019 focused on cascade semantics (additive validation, replace defaults) and did not detail:
+ADR-0019 defined Portal as the 4th subsystem of declarative business logic with a three-level cascade `Metadata -> Portal -> Layout`. However, ADR-0019 focused on cascade semantics (additive validation, replace defaults) and did not detail:
 
-- Binding Object View to profile/role (bounded context adapter)
+- Binding Portal to profile/role (bounded context adapter)
 - Structure of sections, actions, related lists
 - Sidebar per profile
 - Dashboard per role
 - Fallback mechanism when no view exists
 
-This ADR details Object View as a **full-fledged bounded context adapter**, transforming unified data into role-specific UI without code duplication.
+This ADR details Portal as a **full-fledged bounded context adapter**, transforming unified data into role-specific UI without code duplication.
 
 ### Industry Context
 
@@ -133,17 +133,17 @@ Separate Vue components for each role: `OrderSalesView.vue`, `OrderWarehouseView
 - Custom objects do not get role-based views
 - Code is duplicated across views
 
-### Option B — Object View as metadata-driven configuration (chosen)
+### Option B — Portal as metadata-driven configuration (chosen)
 
-Object View — a JSON configuration in metadata, bound to `(object, profile)`. The frontend renders UI based on the configuration. Fallback: no Object View -> all FLS-accessible fields in `sort_order`.
+Portal — a JSON configuration in metadata, bound to `(object, profile)`. The frontend renders UI based on the configuration. Fallback: no Portal -> all FLS-accessible fields in `sort_order`.
 
 **Pros:**
 - Scales to any number of objects and roles
 - Administrator configures through UI without code
 - Custom objects get role-based views automatically
-- Single renderer — one component handles any Object View
+- Single renderer — one component handles any Portal
 - Fits into the three-level cascade of ADR-0019
-- Inherits security: Object View cannot show a field forbidden by FLS
+- Inherits security: Portal cannot show a field forbidden by FLS
 
 **Cons:**
 - Requires new metadata storage + Admin UI
@@ -179,7 +179,7 @@ Hide/show elements through CSS classes or visibility rules on the frontend.
 
 ## Decision
 
-**Option B chosen: Object View as metadata-driven configuration bound to profile.**
+**Option B chosen: Portal as metadata-driven configuration bound to profile.**
 
 ### Conceptual Model
 
@@ -205,12 +205,12 @@ Hide/show elements through CSS classes or visibility rules on the frontend.
 +-------------------------------------------------------------+
 ```
 
-### Object View Structure
+### Portal Structure
 
-Object View — a record in metadata describing how to display an object for a specific profile:
+Portal — a record in metadata describing how to display an object for a specific profile:
 
 ```
-metadata.object_views
+metadata.portals
 +-- id               UUID PK
 +-- object_id        FK -> object_definitions.id
 +-- profile_id       FK -> iam.profiles.id (nullable — default view)
@@ -227,11 +227,11 @@ UNIQUE(object_id, profile_id)  — one view per (object, profile) pair
 
 ### Config JSON Schema
 
-The config has two sub-objects: **`view`** (presentation + display-time data) and **`edit`** (mutation-time data, optional). Sections, highlight fields, related lists, and list configuration are not part of OV config — they belong to Layout (ADR-0027). Actions are part of `view` since they are tied to the view context (record detail page).
+The config has two sub-objects: **`view`** (presentation + display-time data) and **`edit`** (mutation-time data, optional). Sections, highlight fields, related lists, and list configuration are not part of Portal config — they belong to Layout (ADR-0027). Actions are part of `view` since they are tied to the view context (record detail page).
 
 #### `view` — display-time data
 
-Per ADR-0019, Object View is a full bounded context adapter. The `view` sub-object defines what data to display for this context.
+Per ADR-0019, Portal is a full bounded context adapter. The `view` sub-object defines what data to display for this context.
 
 ```jsonc
 {
@@ -294,7 +294,7 @@ The `edit` sub-object is optional (pointer/nullable). When omitted or `null`, th
       }
     ],
 
-    // OV-scoped validation rules (additive with metadata-level rules per ADR-0019)
+    // Portal-scoped validation rules (additive with metadata-level rules per ADR-0019)
     "validation": [
       {
         "expr": "record.amount > 0",
@@ -305,7 +305,7 @@ The `edit` sub-object is optional (pointer/nullable). When omitted or `null`, th
       }
     ],
 
-    // OV-scoped defaults (replace metadata-level defaults per ADR-0019)
+    // Portal-scoped defaults (replace metadata-level defaults per ADR-0019)
     "defaults": [
       {
         "field": "status",
@@ -326,17 +326,17 @@ The `edit` sub-object is optional (pointer/nullable). When omitted or `null`, th
 }
 ```
 
-All fields within `view` and `edit` are optional (`omitempty` in Go, `?? []` fallback on frontend). Existing Object View records without `view`/`edit` sub-objects continue to work unchanged via legacy deserializer (supports old `read`/`write` keys and flat format).
+All fields within `view` and `edit` are optional (`omitempty` in Go, `?? []` fallback on frontend). Existing Portal records without `view`/`edit` sub-objects continue to work unchanged via legacy deserializer (supports old `read`/`write` keys and flat format).
 
 ### Resolution Rules
 
 When opening a record of object `X` by a user with profile `P`:
 
 ```
-1. Look for object_views WHERE object_id = X AND profile_id = P
+1. Look for portals WHERE object_id = X AND profile_id = P
    -> Found? Use it.
 
-2. Look for object_views WHERE object_id = X AND is_default = true
+2. Look for portals WHERE object_id = X AND is_default = true
    -> Found? Use it.
 
 3. Fallback: auto-generate from metadata
@@ -346,24 +346,24 @@ When opening a record of object `X` by a user with profile `P`:
    -> Layout (ADR-0027): highlight_fields, related_lists, list_fields
 ```
 
-The fallback guarantees that **the system works without a single Object View** — current behavior is preserved. Object View is an optional enhancement.
+The fallback guarantees that **the system works without a single Portal** — current behavior is preserved. Portal is an optional enhancement.
 
 ### Interaction with Security
 
-Object View **does not expand** access — it only **narrows the presentation**:
+Portal **does not expand** access — it only **narrows the presentation**:
 
 ```
-Visible fields = Object View fields ∩ FLS-accessible fields
+Visible fields = Portal fields ∩ FLS-accessible fields
 ```
 
-If Object View includes a field forbidden by FLS — the field is not displayed (FLS wins).
-If FLS allows a field but Object View does not include it — the field is not displayed (View narrows).
+If Portal includes a field forbidden by FLS — the field is not displayed (FLS wins).
+If FLS allows a field but Portal does not include it — the field is not displayed (View narrows).
 
 ```
 +------------------------------------------+
 |             FLS-accessible fields         |
 |  +------------------------------------+  |
-|  |     Object View fields            |  |
+|  |     Portal fields            |  |
 |  |  +--------------------------+     |  |
 |  |  |  Displayed fields       |     |  |
 |  |  |  (intersection)         |     |  |
@@ -378,27 +378,27 @@ Actions undergo an analogous check:
 
 ### Integration with ADR-0019 Cascade
 
-Object View occupies the second level of the cascade:
+Portal occupies the second level of the cascade:
 
 ```
 Metadata (base)
    | additive validation, inherit defaults
-Object View (bounded context)        <- THIS ADR
+Portal (bounded context)        <- THIS ADR
    | additive validation, replace defaults, override visibility
 Layout (presentation, future)
 ```
 
-| Aspect | Metadata -> Object View | Mechanism |
+| Aspect | Metadata -> Portal | Mechanism |
 |--------|------------------------|----------|
-| **Validation Rules** | Additive (AND) | OV adds rules, does not remove metadata-level ones |
-| **Default Expressions** | Replace | OV can override the default for a field |
-| **Field visibility** | Restrict | OV shows a subset of fields from metadata |
-| **Actions** | Define | OV defines available actions |
-| **Related Lists** | Define | OV defines child objects for display |
+| **Validation Rules** | Additive (AND) | Portal adds rules, does not remove metadata-level ones |
+| **Default Expressions** | Replace | Portal can override the default for a field |
+| **Field visibility** | Restrict | Portal shows a subset of fields from metadata |
+| **Actions** | Define | Portal defines available actions |
+| **Related Lists** | Define | Portal defines child objects for display |
 
 ### Sidebar per Profile
 
-OLS already filters objects by profile. Object View supplements:
+OLS already filters objects by profile. Portal supplements:
 
 ```
 metadata.profile_navigation
@@ -458,12 +458,12 @@ Fallback: no dashboard config -> standard dashboard with recent items and tasks.
 
 ### Example: one object — three bounded contexts
 
-> **Note:** These examples show the complete bounded context including both OV config (`view`/`edit`) and Layout properties (`highlight_fields`, `related_lists`, `list_fields`) defined in ADR-0027. In the database, Layout properties are stored in `metadata.layouts`, not in the OV config JSONB.
+> **Note:** These examples show the complete bounded context including both Portal config (`view`/`edit`) and Layout properties (`highlight_fields`, `related_lists`, `list_fields`) defined in ADR-0027. In the database, Layout properties are stored in `metadata.layouts`, not in the Portal config JSONB.
 
 **Order for Sales Rep (Profile: "Sales"):**
 ```jsonc
 {
-  // OV Config (metadata.object_views.config)
+  // Portal Config (metadata.portals.config)
   "view": {
     "fields": ["client_name", "contact_phone", "deal", "products", "total_amount", "discount", "shipping_status", "delivery_date"],
     "actions": [
@@ -492,7 +492,7 @@ Fallback: no dashboard config -> standard dashboard with recent items and tasks.
 **Order for Warehouse Worker (Profile: "Warehouse"):**
 ```jsonc
 {
-  // OV Config (metadata.object_views.config)
+  // Portal Config (metadata.portals.config)
   "view": {
     "fields": ["order_number", "client_name", "warehouse", "products", "shipping_status", "tracking", "total_weight", "packages_count"],
     "actions": [
@@ -519,7 +519,7 @@ Fallback: no dashboard config -> standard dashboard with recent items and tasks.
 **Order for Manager (Profile: "Manager"):**
 ```jsonc
 {
-  // OV Config (metadata.object_views.config)
+  // Portal Config (metadata.portals.config)
   "view": {
     "fields": ["order_number", "client_name", "status", "total_amount", "cost_price", "margin", "revenue", "discount", "warehouse", "shipping_status", "delivery_date"],
     "actions": [
@@ -548,25 +548,25 @@ Three profiles, one URL `/app/Order/123` — three different interfaces. Without
 ### API
 
 ```
-GET  /api/v1/describe/:objectName          — includes resolved Object View for the current profile
-GET  /api/v1/admin/object-views            — list all Object Views (admin)
-POST /api/v1/admin/object-views            — create Object View
-GET  /api/v1/admin/object-views/:id        — get Object View
-PUT  /api/v1/admin/object-views/:id        — update Object View
-DELETE /api/v1/admin/object-views/:id      — delete Object View
+GET  /api/v1/describe/:objectName          — includes resolved Portal for the current profile
+GET  /api/v1/admin/portals            — list all Portals (admin)
+POST /api/v1/admin/portals            — create Portal
+GET  /api/v1/admin/portals/:id        — get Portal
+PUT  /api/v1/admin/portals/:id        — update Portal
+DELETE /api/v1/admin/portals/:id      — delete Portal
 GET  /api/v1/admin/profile-navigation/:id  — profile navigation
 PUT  /api/v1/admin/profile-navigation/:id  — update navigation
 GET  /api/v1/admin/profile-dashboards/:id  — profile dashboard
 PUT  /api/v1/admin/profile-dashboards/:id  — update dashboard
 ```
 
-Describe API is extended: if an Object View exists for the current profile — the response includes `view`/`edit` sub-objects. The frontend uses the OV config for rendering instead of a flat list of fields.
+Describe API is extended: if a Portal exists for the current profile — the response includes `view`/`edit` sub-objects. The frontend uses the Portal config for rendering instead of a flat list of fields.
 
 ### Storage
 
 Three tables in the `metadata` schema:
 
-- `metadata.object_views` — form/list configuration per (object, profile)
+- `metadata.portals` — form/list configuration per (object, profile)
 - `metadata.profile_navigation` — sidebar per profile
 - `metadata.profile_dashboards` — home page per profile
 
@@ -575,12 +575,12 @@ All configurations are stored in JSONB — flexibility without migrations when e
 ### Implementation Roadmap
 
 ```
-Phase 9a: Object View Core ✅                 Phase 9b: Navigation + Dashboard
+Phase 9a: Portal Core ✅                 Phase 9b: Navigation + Dashboard
 ------------------------------------          ----------------------------------
-- metadata.object_views table                  - metadata.profile_navigation table
+- metadata.portals table                  - metadata.profile_navigation table
 - Admin CRUD API + UI                          - metadata.profile_dashboards table
 - Describe API extension                       - Admin UI for navigation/dashboard
-- Frontend: render by Object View              - Sidebar per profile
+- Frontend: render by Portal              - Sidebar per profile
 - Fallback logic                               - Home dashboard per profile
 - FLS intersection                             - Widget types: list, metric
 - Actions with visibility_expr                 - Chart widgets (Phase 15 dependency)
@@ -598,26 +598,26 @@ Phase 9a: Object View Core ✅                 Phase 9b: Navigation + Dashboard
 ### Positive
 
 - **Bounded context without duplication** — one object, N presentations, zero code per view
-- **Graceful degradation** — the system works without Object Views (fallback = current behavior)
-- **Security-first** — Object View narrows but does not expand access (FLS intersection)
-- **Administrator configures, not developer** — Admin CRUD UI for Object Views
-- **CRM+ERP without ERP** — a warehouse role gets an "ERP-like" interface through Object View
+- **Graceful degradation** — the system works without Portals (fallback = current behavior)
+- **Security-first** — Portal narrows but does not expand access (FLS intersection)
+- **Administrator configures, not developer** — Admin CRUD UI for Portals
+- **CRM+ERP without ERP** — a warehouse role gets an "ERP-like" interface through Portal
 - **Fits into ADR-0019 cascade** — validation additive, defaults replace, visibility restrict
 - **Extensibility** — Layout Builder (drag-and-drop) can be added on top as a visual editor
-- **App Templates** can include Object Views per profile — out-of-the-box role-specific UI
+- **App Templates** can include Portals per profile — out-of-the-box role-specific UI
 
 ### Negative
 
 - Additional metadata request when loading a record (cached on the frontend)
-- Complexity: Object View configuration can be non-trivial for an inexperienced admin
+- Complexity: Portal configuration can be non-trivial for an inexperienced admin
 - Actions are currently declarative only — actual logic requires Automation Rules (Phase 13)
 - Dashboard widgets with SOQL — potential performance concern with complex queries (addressed through SOQL query limits)
 
 ### Related ADRs
 
-- **ADR-0009..0012** — Security layers (OLS/FLS/RLS): Object View is built on top, does not bypass
-- **ADR-0019** — Declarative business logic: Object View = second level of the cascade
-- **ADR-0020** — DML Pipeline: Object View can add validation rules (additive) and override defaults (replace)
-- **ADR-0010** — Permission model: Profile = key binding for Object View
-- **ADR-0018** — App Templates: can include Object View definitions
-- **ADR-0027** — Layout + Form: Layout defines presentation (HOW) on top of Object View (WHAT). Form = computed merge of OV + Layout for the frontend
+- **ADR-0009..0012** — Security layers (OLS/FLS/RLS): Portal is built on top, does not bypass
+- **ADR-0019** — Declarative business logic: Portal = second level of the cascade
+- **ADR-0020** — DML Pipeline: Portal can add validation rules (additive) and override defaults (replace)
+- **ADR-0010** — Permission model: Profile = key binding for Portal
+- **ADR-0018** — App Templates: can include Portal definitions
+- **ADR-0027** — Layout + Form: Layout defines presentation (HOW) on top of Portal (WHAT). Form = computed merge of Portal + Layout for the frontend

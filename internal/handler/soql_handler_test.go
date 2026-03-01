@@ -125,8 +125,8 @@ func (r *testMetadataReader) GetFunctions() []metadata.Function { return nil }
 func (r *testMetadataReader) GetFunctionByName(_ string) (metadata.Function, bool) {
 	return metadata.Function{}, false
 }
-func (r *testMetadataReader) GetObjectViewByAPIName(_ string) (metadata.ObjectView, bool) {
-	return metadata.ObjectView{}, false
+func (r *testMetadataReader) GetPortalByAPIName(_ string) (metadata.Portal, bool) {
+	return metadata.Portal{}, false
 }
 func (r *testMetadataReader) GetProcedureByCode(_ string) (metadata.Procedure, bool) {
 	return metadata.Procedure{}, false
@@ -135,7 +135,7 @@ func (r *testMetadataReader) GetProcedures() []metadata.Procedure { return nil }
 func (r *testMetadataReader) GetAutomationRules(_ uuid.UUID) []metadata.AutomationRule {
 	return nil
 }
-func (r *testMetadataReader) GetLayoutsForOV(_ uuid.UUID) []metadata.Layout { return nil }
+func (r *testMetadataReader) GetLayoutsForPortal(_ uuid.UUID) []metadata.Layout { return nil }
 func (r *testMetadataReader) GetSharedLayoutByAPIName(_ string) (metadata.SharedLayout, bool) {
 	return metadata.SharedLayout{}, false
 }

@@ -11,27 +11,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// --- Mock ObjectViewRepository ---
+// --- Mock PortalRepository ---
 
-type mockObjectViewRepository struct {
-	views     map[uuid.UUID]*ObjectView
-	byAPIName map[string]*ObjectView
+type mockPortalRepository struct {
+	views     map[uuid.UUID]*Portal
+	byAPIName map[string]*Portal
 }
 
-func newMockOVRepo() *mockObjectViewRepository {
-	return &mockObjectViewRepository{
-		views:     make(map[uuid.UUID]*ObjectView),
-		byAPIName: make(map[string]*ObjectView),
+func newMockOVRepo() *mockPortalRepository {
+	return &mockPortalRepository{
+		views:     make(map[uuid.UUID]*Portal),
+		byAPIName: make(map[string]*Portal),
 	}
 }
 
-func (m *mockObjectViewRepository) Create(_ context.Context, input CreateObjectViewInput) (*ObjectView, error) {
+func (m *mockPortalRepository) Create(_ context.Context, input CreatePortalInput) (*Portal, error) {
 	if _, exists := m.byAPIName[input.APIName]; exists {
 		return nil, &duplicateError{apiName: input.APIName}
 	}
 
 	now := time.Now()
-	ov := &ObjectView{
+	ov := &Portal{
 		ID:          uuid.New(),
 		ProfileID:   input.ProfileID,
 		APIName:     input.APIName,
@@ -46,23 +46,23 @@ func (m *mockObjectViewRepository) Create(_ context.Context, input CreateObjectV
 	return ov, nil
 }
 
-func (m *mockObjectViewRepository) GetByID(_ context.Context, id uuid.UUID) (*ObjectView, error) {
+func (m *mockPortalRepository) GetByID(_ context.Context, id uuid.UUID) (*Portal, error) {
 	return m.views[id], nil
 }
 
-func (m *mockObjectViewRepository) GetByAPIName(_ context.Context, apiName string) (*ObjectView, error) {
+func (m *mockPortalRepository) GetByAPIName(_ context.Context, apiName string) (*Portal, error) {
 	return m.byAPIName[apiName], nil
 }
 
-func (m *mockObjectViewRepository) ListAll(_ context.Context) ([]ObjectView, error) {
-	result := make([]ObjectView, 0, len(m.views))
+func (m *mockPortalRepository) ListAll(_ context.Context) ([]Portal, error) {
+	result := make([]Portal, 0, len(m.views))
 	for _, ov := range m.views {
 		result = append(result, *ov)
 	}
 	return result, nil
 }
 
-func (m *mockObjectViewRepository) Update(_ context.Context, id uuid.UUID, input UpdateObjectViewInput) (*ObjectView, error) {
+func (m *mockPortalRepository) Update(_ context.Context, id uuid.UUID, input UpdatePortalInput) (*Portal, error) {
 	ov := m.views[id]
 	if ov == nil {
 		return nil, nil
@@ -74,7 +74,7 @@ func (m *mockObjectViewRepository) Update(_ context.Context, id uuid.UUID, input
 	return ov, nil
 }
 
-func (m *mockObjectViewRepository) Delete(_ context.Context, id uuid.UUID) error {
+func (m *mockPortalRepository) Delete(_ context.Context, id uuid.UUID) error {
 	ov := m.views[id]
 	if ov != nil {
 		delete(m.byAPIName, ov.APIName)
@@ -95,8 +95,8 @@ func (e *duplicateError) Error() string {
 // --- Mock CacheLoader ---
 
 type mockOVCacheLoader struct {
-	objects     []ObjectDefinition
-	objectViews []ObjectView
+	objects []ObjectDefinition
+	portals []Portal
 }
 
 func (m *mockOVCacheLoader) LoadAllObjects(_ context.Context) ([]ObjectDefinition, error) {
@@ -119,8 +119,8 @@ func (m *mockOVCacheLoader) LoadAllFunctions(_ context.Context) ([]Function, err
 	return nil, nil
 }
 
-func (m *mockOVCacheLoader) LoadAllObjectViews(_ context.Context) ([]ObjectView, error) {
-	return m.objectViews, nil
+func (m *mockOVCacheLoader) LoadAllPortals(_ context.Context) ([]Portal, error) {
+	return m.portals, nil
 }
 
 func (m *mockOVCacheLoader) LoadAllProcedures(_ context.Context) ([]Procedure, error) {
@@ -145,7 +145,7 @@ func (m *mockOVCacheLoader) RefreshMaterializedView(_ context.Context) error {
 
 // --- Test helpers ---
 
-func setupOVServiceTest(t *testing.T) (ObjectViewService, *mockObjectViewRepository, *mockOVCacheLoader) {
+func setupOVServiceTest(t *testing.T) (PortalService, *mockPortalRepository, *mockOVCacheLoader) {
 	t.Helper()
 
 	repo := newMockOVRepo()
@@ -157,17 +157,17 @@ func setupOVServiceTest(t *testing.T) (ObjectViewService, *mockObjectViewReposit
 	cache := NewMetadataCache(loader)
 	require.NoError(t, cache.Load(context.Background()))
 
-	svc := NewObjectViewService(nil, repo, cache)
+	svc := NewPortalService(nil, repo, cache)
 	return svc, repo, loader
 }
 
-func validCreateInput() CreateObjectViewInput {
-	return CreateObjectViewInput{
+func validCreateInput() CreatePortalInput {
+	return CreatePortalInput{
 		APIName: "default_view",
 		Label:   "Default View",
-		Config: OVConfig{
-			Read: OVReadConfig{
-				Fields: []OVViewField{{Name: "first_name"}, {Name: "last_name"}},
+		Config: PortalConfig{
+			Read: PortalReadConfig{
+				Fields: []PortalViewField{{Name: "first_name"}, {Name: "last_name"}},
 			},
 		},
 	}
@@ -175,14 +175,14 @@ func validCreateInput() CreateObjectViewInput {
 
 // --- Tests ---
 
-func TestObjectViewService_Create(t *testing.T) {
+func TestPortalService_Create(t *testing.T) {
 	t.Parallel()
 
 	profileID := uuid.New()
 
 	tests := []struct {
 		name    string
-		input   CreateObjectViewInput
+		input   CreatePortalInput
 		wantErr bool
 		errMsg  string
 	}{
@@ -192,7 +192,7 @@ func TestObjectViewService_Create(t *testing.T) {
 		},
 		{
 			name: "creates with profile_id",
-			input: CreateObjectViewInput{
+			input: CreatePortalInput{
 				ProfileID: &profileID,
 				APIName:   "sales_view",
 				Label:     "Sales View",
@@ -200,7 +200,7 @@ func TestObjectViewService_Create(t *testing.T) {
 		},
 		{
 			name: "rejects empty api_name",
-			input: CreateObjectViewInput{
+			input: CreatePortalInput{
 				APIName: "",
 				Label:   "Test",
 			},
@@ -209,7 +209,7 @@ func TestObjectViewService_Create(t *testing.T) {
 		},
 		{
 			name: "rejects uppercase api_name",
-			input: CreateObjectViewInput{
+			input: CreatePortalInput{
 				APIName: "DefaultView",
 				Label:   "Test",
 			},
@@ -218,7 +218,7 @@ func TestObjectViewService_Create(t *testing.T) {
 		},
 		{
 			name: "rejects api_name starting with number",
-			input: CreateObjectViewInput{
+			input: CreatePortalInput{
 				APIName: "1view",
 				Label:   "Test",
 			},
@@ -227,7 +227,7 @@ func TestObjectViewService_Create(t *testing.T) {
 		},
 		{
 			name: "rejects api_name with special characters",
-			input: CreateObjectViewInput{
+			input: CreatePortalInput{
 				APIName: "my-view",
 				Label:   "Test",
 			},
@@ -236,7 +236,7 @@ func TestObjectViewService_Create(t *testing.T) {
 		},
 		{
 			name: "rejects api_name longer than 100 characters",
-			input: CreateObjectViewInput{
+			input: CreatePortalInput{
 				APIName: strings.Repeat("a", 101),
 				Label:   "Test",
 			},
@@ -245,7 +245,7 @@ func TestObjectViewService_Create(t *testing.T) {
 		},
 		{
 			name: "rejects empty label",
-			input: CreateObjectViewInput{
+			input: CreatePortalInput{
 				APIName: "my_view",
 				Label:   "",
 			},
@@ -254,7 +254,7 @@ func TestObjectViewService_Create(t *testing.T) {
 		},
 		{
 			name: "rejects label longer than 255 characters",
-			input: CreateObjectViewInput{
+			input: CreatePortalInput{
 				APIName: "my_view",
 				Label:   strings.Repeat("x", 256),
 			},
@@ -286,7 +286,7 @@ func TestObjectViewService_Create(t *testing.T) {
 	}
 }
 
-func TestObjectViewService_Create_DuplicateAPIName(t *testing.T) {
+func TestPortalService_Create_DuplicateAPIName(t *testing.T) {
 	t.Parallel()
 	svc, _, _ := setupOVServiceTest(t)
 	ctx := context.Background()
@@ -295,7 +295,7 @@ func TestObjectViewService_Create_DuplicateAPIName(t *testing.T) {
 	require.NoError(t, err)
 
 	// Same api_name = duplicate
-	_, err = svc.Create(ctx, CreateObjectViewInput{
+	_, err = svc.Create(ctx, CreatePortalInput{
 		APIName: "default_view",
 		Label:   "Another Label",
 	})
@@ -303,36 +303,36 @@ func TestObjectViewService_Create_DuplicateAPIName(t *testing.T) {
 	assert.Contains(t, err.Error(), "duplicate")
 }
 
-func TestObjectViewService_Create_CacheRefresh(t *testing.T) {
+func TestPortalService_Create_CacheRefresh(t *testing.T) {
 	t.Parallel()
 	svc, _, _ := setupOVServiceTest(t)
 	ctx := context.Background()
 
-	// Create triggers cache.LoadObjectViews
+	// Create triggers cache.LoadPortals
 	ov, err := svc.Create(ctx, validCreateInput())
 	require.NoError(t, err)
 	require.NotNil(t, ov)
 }
 
-func TestObjectViewService_GetByID(t *testing.T) {
+func TestPortalService_GetByID(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name    string
-		setup   func(svc ObjectViewService) uuid.UUID
+		setup   func(svc PortalService) uuid.UUID
 		wantErr bool
 		errMsg  string
 	}{
 		{
 			name: "returns existing view",
-			setup: func(svc ObjectViewService) uuid.UUID {
+			setup: func(svc PortalService) uuid.UUID {
 				ov, _ := svc.Create(context.Background(), validCreateInput())
 				return ov.ID
 			},
 		},
 		{
 			name: "returns not found for nonexistent id",
-			setup: func(_ ObjectViewService) uuid.UUID {
+			setup: func(_ PortalService) uuid.UUID {
 				return uuid.New()
 			},
 			wantErr: true,
@@ -361,26 +361,26 @@ func TestObjectViewService_GetByID(t *testing.T) {
 	}
 }
 
-func TestObjectViewService_GetByAPIName(t *testing.T) {
+func TestPortalService_GetByAPIName(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name    string
-		setup   func(svc ObjectViewService)
+		setup   func(svc PortalService)
 		apiName string
 		wantErr bool
 		errMsg  string
 	}{
 		{
 			name: "returns existing view by api_name",
-			setup: func(svc ObjectViewService) {
+			setup: func(svc PortalService) {
 				_, _ = svc.Create(context.Background(), validCreateInput())
 			},
 			apiName: "default_view",
 		},
 		{
 			name:    "returns not found for nonexistent api_name",
-			setup:   func(_ ObjectViewService) {},
+			setup:   func(_ PortalService) {},
 			apiName: "nonexistent",
 			wantErr: true,
 			errMsg:  "not found",
@@ -408,30 +408,30 @@ func TestObjectViewService_GetByAPIName(t *testing.T) {
 	}
 }
 
-func TestObjectViewService_ListAll(t *testing.T) {
+func TestPortalService_ListAll(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name      string
-		setup     func(svc ObjectViewService)
+		setup     func(svc PortalService)
 		wantCount int
 	}{
 		{
 			name:      "returns empty list when no views exist",
-			setup:     func(_ ObjectViewService) {},
+			setup:     func(_ PortalService) {},
 			wantCount: 0,
 		},
 		{
 			name: "returns all views",
-			setup: func(svc ObjectViewService) {
+			setup: func(svc PortalService) {
 				ctx := context.Background()
-				_, _ = svc.Create(ctx, CreateObjectViewInput{
+				_, _ = svc.Create(ctx, CreatePortalInput{
 					APIName: "view_a", Label: "View A",
 				})
-				_, _ = svc.Create(ctx, CreateObjectViewInput{
+				_, _ = svc.Create(ctx, CreatePortalInput{
 					APIName: "view_b", Label: "View B",
 				})
-				_, _ = svc.Create(ctx, CreateObjectViewInput{
+				_, _ = svc.Create(ctx, CreatePortalInput{
 					APIName: "view_c", Label: "View C",
 				})
 			},
@@ -452,36 +452,36 @@ func TestObjectViewService_ListAll(t *testing.T) {
 	}
 }
 
-func TestObjectViewService_Update(t *testing.T) {
+func TestPortalService_Update(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name    string
-		input   UpdateObjectViewInput
+		input   UpdatePortalInput
 		wantErr bool
 		errMsg  string
 	}{
 		{
 			name: "updates label successfully",
-			input: UpdateObjectViewInput{
+			input: UpdatePortalInput{
 				Label:       "Updated Label",
 				Description: "Updated desc",
 			},
 		},
 		{
 			name: "updates config successfully",
-			input: UpdateObjectViewInput{
+			input: UpdatePortalInput{
 				Label: "With Config",
-				Config: OVConfig{
-					Read: OVReadConfig{
-						Fields: []OVViewField{{Name: "email"}},
+				Config: PortalConfig{
+					Read: PortalReadConfig{
+						Fields: []PortalViewField{{Name: "email"}},
 					},
 				},
 			},
 		},
 		{
 			name: "rejects empty label",
-			input: UpdateObjectViewInput{
+			input: UpdatePortalInput{
 				Label: "",
 			},
 			wantErr: true,
@@ -489,7 +489,7 @@ func TestObjectViewService_Update(t *testing.T) {
 		},
 		{
 			name: "rejects label longer than 255 characters",
-			input: UpdateObjectViewInput{
+			input: UpdatePortalInput{
 				Label: strings.Repeat("x", 256),
 			},
 			wantErr: true,
@@ -522,18 +522,18 @@ func TestObjectViewService_Update(t *testing.T) {
 	}
 }
 
-func TestObjectViewService_Update_NotFound(t *testing.T) {
+func TestPortalService_Update_NotFound(t *testing.T) {
 	t.Parallel()
 	svc, _, _ := setupOVServiceTest(t)
 
-	_, err := svc.Update(context.Background(), uuid.New(), UpdateObjectViewInput{
+	_, err := svc.Update(context.Background(), uuid.New(), UpdatePortalInput{
 		Label: "Updated",
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
 
-func TestObjectViewService_Delete(t *testing.T) {
+func TestPortalService_Delete(t *testing.T) {
 	t.Parallel()
 	svc, _, _ := setupOVServiceTest(t)
 	ctx := context.Background()
@@ -550,7 +550,7 @@ func TestObjectViewService_Delete(t *testing.T) {
 	assert.Contains(t, err.Error(), "not found")
 }
 
-func TestObjectViewService_Delete_NotFound(t *testing.T) {
+func TestPortalService_Delete_NotFound(t *testing.T) {
 	t.Parallel()
 	svc, _, _ := setupOVServiceTest(t)
 
@@ -559,7 +559,7 @@ func TestObjectViewService_Delete_NotFound(t *testing.T) {
 	assert.Contains(t, err.Error(), "not found")
 }
 
-func TestObjectViewService_Create_ValidAPINamePatterns(t *testing.T) {
+func TestPortalService_Create_ValidAPINamePatterns(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -584,7 +584,7 @@ func TestObjectViewService_Create_ValidAPINamePatterns(t *testing.T) {
 			t.Parallel()
 			svc, _, _ := setupOVServiceTest(t)
 
-			_, err := svc.Create(context.Background(), CreateObjectViewInput{
+			_, err := svc.Create(context.Background(), CreatePortalInput{
 				APIName: tt.apiName,
 				Label:   "Test Label",
 			})
@@ -598,55 +598,55 @@ func TestObjectViewService_Create_ValidAPINamePatterns(t *testing.T) {
 	}
 }
 
-func TestObjectViewService_ErrorWrapping(t *testing.T) {
+func TestPortalService_ErrorWrapping(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name       string
-		operation  func(svc ObjectViewService) error
+		operation  func(svc PortalService) error
 		wantPrefix string
 	}{
 		{
 			name: "Create wraps with method name",
-			operation: func(svc ObjectViewService) error {
-				_, err := svc.Create(context.Background(), CreateObjectViewInput{
+			operation: func(svc PortalService) error {
+				_, err := svc.Create(context.Background(), CreatePortalInput{
 					APIName: "",
 					Label:   "Test",
 				})
 				return err
 			},
-			wantPrefix: "objectViewService.Create:",
+			wantPrefix: "portalService.Create:",
 		},
 		{
 			name: "GetByID wraps with method name",
-			operation: func(svc ObjectViewService) error {
+			operation: func(svc PortalService) error {
 				_, err := svc.GetByID(context.Background(), uuid.New())
 				return err
 			},
-			wantPrefix: "objectViewService.GetByID:",
+			wantPrefix: "portalService.GetByID:",
 		},
 		{
 			name: "GetByAPIName wraps with method name",
-			operation: func(svc ObjectViewService) error {
+			operation: func(svc PortalService) error {
 				_, err := svc.GetByAPIName(context.Background(), "nonexistent")
 				return err
 			},
-			wantPrefix: "objectViewService.GetByAPIName:",
+			wantPrefix: "portalService.GetByAPIName:",
 		},
 		{
 			name: "Update wraps with method name",
-			operation: func(svc ObjectViewService) error {
-				_, err := svc.Update(context.Background(), uuid.New(), UpdateObjectViewInput{Label: "Test"})
+			operation: func(svc PortalService) error {
+				_, err := svc.Update(context.Background(), uuid.New(), UpdatePortalInput{Label: "Test"})
 				return err
 			},
-			wantPrefix: "objectViewService.Update:",
+			wantPrefix: "portalService.Update:",
 		},
 		{
 			name: "Delete wraps with method name",
-			operation: func(svc ObjectViewService) error {
+			operation: func(svc PortalService) error {
 				return svc.Delete(context.Background(), uuid.New())
 			},
-			wantPrefix: "objectViewService.Delete:",
+			wantPrefix: "portalService.Delete:",
 		},
 	}
 
@@ -668,7 +668,7 @@ func TestObjectViewService_ErrorWrapping(t *testing.T) {
 	}
 }
 
-func TestObjectViewService_Update_PreservesAPIName(t *testing.T) {
+func TestPortalService_Update_PreservesAPIName(t *testing.T) {
 	t.Parallel()
 	svc, _, _ := setupOVServiceTest(t)
 	ctx := context.Background()
@@ -676,7 +676,7 @@ func TestObjectViewService_Update_PreservesAPIName(t *testing.T) {
 	created, err := svc.Create(ctx, validCreateInput())
 	require.NoError(t, err)
 
-	updated, err := svc.Update(ctx, created.ID, UpdateObjectViewInput{
+	updated, err := svc.Update(ctx, created.ID, UpdatePortalInput{
 		Label:       "New Label",
 		Description: "New Desc",
 	})
@@ -689,7 +689,7 @@ func TestObjectViewService_Update_PreservesAPIName(t *testing.T) {
 	assert.Equal(t, "New Label", updated.Label)
 }
 
-func TestObjectViewService_Delete_ThenGetReturnsNotFound(t *testing.T) {
+func TestPortalService_Delete_ThenGetReturnsNotFound(t *testing.T) {
 	t.Parallel()
 	svc, _, _ := setupOVServiceTest(t)
 	ctx := context.Background()
@@ -706,17 +706,17 @@ func TestObjectViewService_Delete_ThenGetReturnsNotFound(t *testing.T) {
 	assert.Contains(t, err.Error(), "not found")
 }
 
-func TestObjectViewService_ListAll_AfterCreateAndDelete(t *testing.T) {
+func TestPortalService_ListAll_AfterCreateAndDelete(t *testing.T) {
 	t.Parallel()
 	svc, _, _ := setupOVServiceTest(t)
 	ctx := context.Background()
 
-	ov1, err := svc.Create(ctx, CreateObjectViewInput{
+	ov1, err := svc.Create(ctx, CreatePortalInput{
 		APIName: "view_one", Label: "View One",
 	})
 	require.NoError(t, err)
 
-	_, err = svc.Create(ctx, CreateObjectViewInput{
+	_, err = svc.Create(ctx, CreatePortalInput{
 		APIName: "view_two", Label: "View Two",
 	})
 	require.NoError(t, err)

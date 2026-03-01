@@ -30,12 +30,12 @@ func (r *PgLayoutRepository) Create(ctx context.Context, input CreateLayoutInput
 	var configRaw []byte
 	err = r.pool.QueryRow(ctx, `
 		INSERT INTO metadata.layouts
-			(object_view_id, form_factor, mode, config)
+			(portal_id, form_factor, mode, config)
 		VALUES ($1, $2, $3, $4)
-		RETURNING id, object_view_id, form_factor, mode, config, created_at, updated_at`,
-		input.ObjectViewID, input.FormFactor, input.Mode, configJSON,
+		RETURNING id, portal_id, form_factor, mode, config, created_at, updated_at`,
+		input.PortalID, input.FormFactor, input.Mode, configJSON,
 	).Scan(
-		&layout.ID, &layout.ObjectViewID, &layout.FormFactor, &layout.Mode,
+		&layout.ID, &layout.PortalID, &layout.FormFactor, &layout.Mode,
 		&configRaw, &layout.CreatedAt, &layout.UpdatedAt,
 	)
 	if err != nil {
@@ -52,11 +52,11 @@ func (r *PgLayoutRepository) GetByID(ctx context.Context, id uuid.UUID) (*Layout
 	layout := &Layout{}
 	var configRaw []byte
 	err := r.pool.QueryRow(ctx, `
-		SELECT id, object_view_id, form_factor, mode, config, created_at, updated_at
+		SELECT id, portal_id, form_factor, mode, config, created_at, updated_at
 		FROM metadata.layouts
 		WHERE id = $1`, id,
 	).Scan(
-		&layout.ID, &layout.ObjectViewID, &layout.FormFactor, &layout.Mode,
+		&layout.ID, &layout.PortalID, &layout.FormFactor, &layout.Mode,
 		&configRaw, &layout.CreatedAt, &layout.UpdatedAt,
 	)
 	if err != nil {
@@ -72,14 +72,14 @@ func (r *PgLayoutRepository) GetByID(ctx context.Context, id uuid.UUID) (*Layout
 	return layout, nil
 }
 
-func (r *PgLayoutRepository) ListByObjectViewID(ctx context.Context, ovID uuid.UUID) ([]Layout, error) {
+func (r *PgLayoutRepository) ListByPortalID(ctx context.Context, ovID uuid.UUID) ([]Layout, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, object_view_id, form_factor, mode, config, created_at, updated_at
+		SELECT id, portal_id, form_factor, mode, config, created_at, updated_at
 		FROM metadata.layouts
-		WHERE object_view_id = $1
+		WHERE portal_id = $1
 		ORDER BY form_factor, mode`, ovID)
 	if err != nil {
-		return nil, fmt.Errorf("pgLayoutRepo.ListByObjectViewID: %w", err)
+		return nil, fmt.Errorf("pgLayoutRepo.ListByPortalID: %w", err)
 	}
 	defer rows.Close()
 
@@ -88,9 +88,9 @@ func (r *PgLayoutRepository) ListByObjectViewID(ctx context.Context, ovID uuid.U
 
 func (r *PgLayoutRepository) ListAll(ctx context.Context) ([]Layout, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, object_view_id, form_factor, mode, config, created_at, updated_at
+		SELECT id, portal_id, form_factor, mode, config, created_at, updated_at
 		FROM metadata.layouts
-		ORDER BY object_view_id, form_factor, mode`)
+		ORDER BY portal_id, form_factor, mode`)
 	if err != nil {
 		return nil, fmt.Errorf("pgLayoutRepo.ListAll: %w", err)
 	}
@@ -111,10 +111,10 @@ func (r *PgLayoutRepository) Update(ctx context.Context, id uuid.UUID, input Upd
 		UPDATE metadata.layouts SET
 			config = $2, updated_at = now()
 		WHERE id = $1
-		RETURNING id, object_view_id, form_factor, mode, config, created_at, updated_at`,
+		RETURNING id, portal_id, form_factor, mode, config, created_at, updated_at`,
 		id, configJSON,
 	).Scan(
-		&layout.ID, &layout.ObjectViewID, &layout.FormFactor, &layout.Mode,
+		&layout.ID, &layout.PortalID, &layout.FormFactor, &layout.Mode,
 		&configRaw, &layout.CreatedAt, &layout.UpdatedAt,
 	)
 	if err != nil {
@@ -144,7 +144,7 @@ func scanLayouts(rows pgx.Rows) ([]Layout, error) {
 		var layout Layout
 		var configRaw []byte
 		if err := rows.Scan(
-			&layout.ID, &layout.ObjectViewID, &layout.FormFactor, &layout.Mode,
+			&layout.ID, &layout.PortalID, &layout.FormFactor, &layout.Mode,
 			&configRaw, &layout.CreatedAt, &layout.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scanLayouts: %w", err)

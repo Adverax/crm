@@ -4,15 +4,15 @@ import { viewsApi } from '@/api/views'
 import { useToast } from '@/composables/useToast'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import type { ObjectView } from '@/types/object-views'
+import type { Portal } from '@/types/portals'
 
 const props = defineProps<{
-  ovApiName: string
+  portalApiName: string
 }>()
 
 const toast = useToast()
 
-const view = ref<ObjectView | null>(null)
+const view = ref<Portal | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 
@@ -20,7 +20,7 @@ async function loadView() {
   loading.value = true
   error.value = null
   try {
-    const res = await viewsApi.getByAPIName(props.ovApiName)
+    const res = await viewsApi.getByAPIName(props.portalApiName)
     view.value = res.data
   } catch (err) {
     error.value = 'Failed to load page'
@@ -31,7 +31,7 @@ async function loadView() {
 }
 
 onMounted(loadView)
-watch(() => props.ovApiName, loadView)
+watch(() => props.portalApiName, loadView)
 </script>
 
 <template>

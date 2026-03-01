@@ -20,7 +20,7 @@ However, real vertical solutions require more:
 | Capability | App Template | Industry Module |
 |-----------|-------------|----------------|
 | Object + field definitions | Yes | Yes |
-| Object Views, Procedures, Automation Rules | No | Yes |
+| Portals, Procedures, Automation Rules | No | Yes |
 | Custom HTTP endpoints | No | Yes |
 | Custom business logic (Go code) | No | Yes |
 | DML lifecycle hooks | No | Yes |

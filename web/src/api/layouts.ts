@@ -9,10 +9,10 @@ import type { ApiResponse } from '@/types/metadata'
 const BASE = '/api/v1/admin'
 
 export const layoutsApi = {
-  list(objectViewId?: string): Promise<ApiResponse<Layout[]>> {
+  list(portalId?: string): Promise<ApiResponse<Layout[]>> {
     const params: Record<string, string | undefined> = {}
-    if (objectViewId) {
-      params.object_view_id = objectViewId
+    if (portalId) {
+      params.portal_id = portalId
     }
     return http.get<ApiResponse<Layout[]>>(`${BASE}/layouts`, params)
   },

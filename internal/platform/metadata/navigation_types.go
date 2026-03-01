@@ -33,7 +33,7 @@ type NavGroup struct {
 type NavItem struct {
 	Type          string `json:"type"`
 	ObjectAPIName string `json:"object_api_name,omitempty"`
-	OVAPIName     string `json:"ov_api_name,omitempty"`
+	PortalAPIName string `json:"portal_api_name,omitempty"`
 	Label         string `json:"label,omitempty"`
 	URL           string `json:"url,omitempty"`
 	Icon          string `json:"icon,omitempty"`

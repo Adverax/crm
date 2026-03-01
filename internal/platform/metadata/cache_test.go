@@ -55,7 +55,7 @@ func (m *mockCacheLoader) LoadAllFunctions(_ context.Context) ([]Function, error
 	return nil, nil
 }
 
-func (m *mockCacheLoader) LoadAllObjectViews(_ context.Context) ([]ObjectView, error) {
+func (m *mockCacheLoader) LoadAllPortals(_ context.Context) ([]Portal, error) {
 	return nil, nil
 }
 

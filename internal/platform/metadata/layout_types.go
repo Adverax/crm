@@ -8,23 +8,23 @@ import (
 )
 
 // Layout represents a presentation layer for an Object View (ADR-0027).
-// Layout per (object_view_id, form_factor, mode) defines HOW data is displayed.
+// Layout per (portal_id, form_factor, mode) defines HOW data is displayed.
 type Layout struct {
-	ID           uuid.UUID    `json:"id"`
-	ObjectViewID uuid.UUID    `json:"object_view_id"`
-	FormFactor   string       `json:"form_factor"`
-	Mode         string       `json:"mode"`
-	Config       LayoutConfig `json:"config"`
-	CreatedAt    time.Time    `json:"created_at"`
-	UpdatedAt    time.Time    `json:"updated_at"`
+	ID         uuid.UUID    `json:"id"`
+	PortalID   uuid.UUID    `json:"portal_id"`
+	FormFactor string       `json:"form_factor"`
+	Mode       string       `json:"mode"`
+	Config     LayoutConfig `json:"config"`
+	CreatedAt  time.Time    `json:"created_at"`
+	UpdatedAt  time.Time    `json:"updated_at"`
 }
 
 // LayoutConfig holds the full layout configuration stored as JSONB.
 type LayoutConfig struct {
-	Root          *LayoutComponent          `json:"root,omitempty"`
-	SectionConfig map[string]SectionConfig  `json:"section_config,omitempty"`
-	FieldConfig   map[string]LayoutFieldConfig    `json:"field_config,omitempty"`
-	ListConfig    *ListConfig               `json:"list_config,omitempty"`
+	Root          *LayoutComponent             `json:"root,omitempty"`
+	SectionConfig map[string]SectionConfig     `json:"section_config,omitempty"`
+	FieldConfig   map[string]LayoutFieldConfig `json:"field_config,omitempty"`
+	ListConfig    *ListConfig                  `json:"list_config,omitempty"`
 }
 
 // LayoutComponent represents a node in the page component tree.
@@ -112,10 +112,10 @@ type ListSearchConfig struct {
 
 // CreateLayoutInput is the input for creating a new Layout.
 type CreateLayoutInput struct {
-	ObjectViewID uuid.UUID
-	FormFactor   string
-	Mode         string
-	Config       LayoutConfig
+	PortalID   uuid.UUID
+	FormFactor string
+	Mode       string
+	Config     LayoutConfig
 }
 
 // UpdateLayoutInput is the input for updating an existing Layout.

@@ -1,4 +1,4 @@
-# ADR-0027: Layout + Form — Presentation Layer for Object View
+# ADR-0027: Layout + Form — Presentation Layer for Portal
 
 **Status:** Accepted (revised 2026-02-26)
 **Date:** 2026-02-15
@@ -7,13 +7,13 @@
 
 ## Context
 
-### Problem: Object View Defines WHAT, but Not HOW
+### Problem: Portal Defines WHAT, but Not HOW
 
-Object View (ADR-0022) solves the bounded context problem: one object — different representations for different profiles. OV defines **which** sections, fields, actions, and related lists each role sees.
+Portal (ADR-0022) solves the bounded context problem: one object — different representations for different profiles. Portal defines **which** sections, fields, actions, and related lists each role sees.
 
-But OV does not answer presentation questions:
+But Portal does not answer presentation questions:
 
-| Question | OV answers? |
+| Question | Portal answers? |
 |----------|-------------|
 | Which fields does Sales see? | Yes |
 | How is the page structured — sidebar, full width? | No |
@@ -25,20 +25,20 @@ But OV does not answer presentation questions:
 | How does the form adapt to mobile devices? | No |
 | Is this field visible in view mode but hidden in edit mode? | No |
 
-### Problem: God Object When Extending OV
+### Problem: God Object When Extending Portal
 
-If all layout attributes are added to the OV config, Object View becomes a God Object with two incompatible responsibilities:
+If all layout attributes are added to the Portal config, Portal becomes a God Object with two incompatible responsibilities:
 
 - **Bounded context** (WHAT) — business decision about which fields/actions are available
 - **Presentation** (HOW) — visual decision about how to render on different devices
 
 These responsibilities change independently. Different people may be responsible for each.
 
-### Problem: One OV — Multiple Devices and Modes
+### Problem: One Portal — Multiple Devices and Modes
 
 Desktop, tablet, and mobile require **structurally different** representations. Edit and view modes also differ: view mode uses display components (Badge, Avatar, RelativeTime), edit mode uses input components (Select, DatePicker).
 
-A single OV cannot contain multiple grid configurations and mode-specific settings without turning into a God Object. Hence the need for a **separate Layout entity** bound to form factor and mode.
+A single Portal cannot contain multiple grid configurations and mode-specific settings without turning into a God Object. Hence the need for a **separate Layout entity** bound to form factor and mode.
 
 ### Problem: Page Structure Is Hardcoded
 
@@ -48,7 +48,7 @@ The page structure must be configurable through the same Layout mechanism.
 
 ### Problem: Frontend Needs a Unified Contract
 
-The frontend should not know about OV and Layout as separate concepts. It needs **one object** (Form) containing everything for rendering. The Describe API should return a ready-made Form.
+The frontend should not know about Portal and Layout as separate concepts. It needs **one object** (Form) containing everything for rendering. The Describe API should return a ready-made Form.
 
 ### Relationship with ADR-0019 and ADR-0022
 
@@ -57,7 +57,7 @@ ADR-0019 defined a three-level cascade:
 ```
 Metadata (base)
    | additive validation, inherit defaults
-Object View (bounded context)        <- ADR-0022
+Portal (bounded context)        <- ADR-0022
    | additive validation, replace defaults, override visibility
 Layout (presentation)                <- THIS ADR
    | merge
@@ -66,13 +66,13 @@ Form (frontend contract)             <- THIS ADR
 
 ## Decision
 
-**Layout per Object View + form factor + mode, Form as the computed frontend contract.**
+**Layout per Portal + form factor + mode, Form as the computed frontend contract.**
 
 ### Three Entities, Three Responsibilities
 
 ```
 +--------------------------+
-|      Object View         |  Stored in metadata.object_views
+|      Portal         |  Stored in metadata.portals
 |   (bounded context)      |  Per profile (global api_name)
 |                          |
 |  WHAT: sections, fields, |
@@ -83,7 +83,7 @@ Form (frontend contract)             <- THIS ADR
              v
 +--------------------------+
 |        Layout            |  Stored in metadata.layouts
-|    (presentation)        |  Per (object_view, form_factor, mode)
+|    (presentation)        |  Per (portal, form_factor, mode)
 |                          |
 |  HOW: page structure,    |
 |  grid, col_span, ui_kind,|
@@ -247,7 +247,7 @@ Common page structures are expressed naturally:
 
 **Presets**: common page structures are offered as starting points in the admin UI (not a first-class entity — just pre-filled `root` configs).
 
-**Fallback**: if `root` is not defined, auto-generate a full-width layout: highlights at top, all OV sections in order, related lists at bottom.
+**Fallback**: if `root` is not defined, auto-generate a full-width layout: highlights at top, all Portal sections in order, related lists at bottom.
 
 ### Component Types
 
@@ -255,21 +255,21 @@ Components are placed inside GridLayout/GroupLayout children:
 
 | type | Description | Data source |
 |------|-------------|-------------|
-| `highlights` | Key field values at top of page | OV.read.highlight_fields |
-| `field_section` | Group of fields with label | OV.read.sections[key] |
-| `related_list` | Table of child records | OV.read.related_lists[key] |
-| `query_widget` | SOQL query result (table/metric) | OV.read.queries[name] |
-| `actions_bar` | Action buttons | OV.read.actions |
+| `highlights` | Key field values at top of page | Portal.read.highlight_fields |
+| `field_section` | Group of fields with label | Portal.read.sections[key] |
+| `related_list` | Table of child records | Portal.read.related_lists[key] |
+| `query_widget` | SOQL query result (table/metric) | Portal.read.queries[name] |
+| `actions_bar` | Action buttons | Portal.read.actions |
 | `activity_feed` | Activity timeline | Built-in |
 | `tabs` | Tab container grouping child components | Container |
 
-Components reference OV data by key/name. A component that references a non-existent OV key is silently skipped (OV is the source of truth).
+Components reference Portal data by key/name. A component that references a non-existent Portal key is silently skipped ( Portal is the source of truth).
 
 The set is extensible — new component types can be added in future phases.
 
 ### Form Factor + Mode
 
-Layout is scoped to `(object_view_id, form_factor, mode)`:
+Layout is scoped to `(portal_id, form_factor, mode)`:
 
 | Dimension | Values | Purpose |
 |-----------|--------|---------|
@@ -462,7 +462,7 @@ Fields, sections, and components support CEL-based conditional behavior:
 Actions support confirm dialogs and commands:
 
 ```jsonc
-// OV defines actions (WHAT)
+// Portal defines actions (WHAT)
 {
   "actions": [
     {
@@ -552,7 +552,7 @@ List view configuration with columns, sorting, filtering, search, and view modes
 
 ### Layout for Mobile
 
-Same OV, different Layout with mode=edit:
+Same Portal, different Layout with mode=edit:
 
 ```jsonc
 // Layout (form_factor=mobile, mode=edit)
@@ -592,7 +592,7 @@ Form is built by the server during a Describe API request:
 
 ```
 GET /api/v1/describe/Order
-Authorization: Bearer <jwt>        -> determines profile -> OV
+Authorization: Bearer <jwt>        -> determines profile -> Portal
 X-Form-Factor: desktop             -> determines form_factor
 X-Form-Mode: edit                  -> determines mode
 
@@ -647,10 +647,10 @@ Response: {
 ### Storage
 
 ```sql
--- Layouts — presentation per (object_view, form_factor, mode)
+-- Layouts — presentation per (portal, form_factor, mode)
 CREATE TABLE metadata.layouts (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    object_view_id  UUID NOT NULL REFERENCES metadata.object_views(id) ON DELETE CASCADE,
+    portal_id  UUID NOT NULL REFERENCES metadata.portals(id) ON DELETE CASCADE,
     form_factor     VARCHAR(20) NOT NULL DEFAULT 'desktop',
     mode            VARCHAR(20) NOT NULL DEFAULT 'edit',
     config          JSONB NOT NULL DEFAULT '{}',
@@ -662,10 +662,10 @@ CREATE TABLE metadata.layouts (
     CONSTRAINT layouts_mode_check
         CHECK (mode IN ('edit', 'view')),
     CONSTRAINT layouts_ov_ff_mode_unique
-        UNIQUE (object_view_id, form_factor, mode)
+        UNIQUE (portal_id, form_factor, mode)
 );
 
-CREATE INDEX idx_layouts_object_view_id ON metadata.layouts(object_view_id);
+CREATE INDEX idx_layouts_portal_id ON metadata.layouts(portal_id);
 
 -- Shared layouts — reusable fragments referenced via layout_ref
 CREATE TABLE metadata.shared_layouts (
@@ -684,12 +684,12 @@ CREATE TABLE metadata.shared_layouts (
 ### Resolution Rules
 
 ```
-1. Resolve Object View:
-   a. Find OV by api_name (from navigation config or route)
-   b. Fallback: auto-generate OV (all FLS-accessible fields, one section)
+1. Resolve Portal:
+   a. Find Portal by api_name (from navigation config or route)
+   b. Fallback: auto-generate Portal (all FLS-accessible fields, one section)
 
 2. Resolve Layout:
-   a. layouts WHERE object_view_id = OV.id
+   a. layouts WHERE portal_id = Portal.id
       AND form_factor = requested AND mode = requested -> found? use
    b. Same form_factor, any mode -> fallback
    c. desktop, same mode -> fallback
@@ -703,10 +703,10 @@ CREATE TABLE metadata.shared_layouts (
 
 4. Merge -> Form:
    a. root from Layout (or auto-generate if absent)
-   b. OV sections + Layout section_config -> merged sections
-   c. OV fields + Layout field_config (with resolved layout_ref) -> merged fields
-   d. OV actions (as-is, already have visibility_expr)
-   e. OV list_fields + Layout list_config -> merged list config
+   b. Portal sections + Layout section_config -> merged sections
+   c. Portal fields + Layout field_config (with resolved layout_ref) -> merged fields
+   d. Portal actions (as-is, already have visibility_expr)
+   e. Portal list_fields + Layout list_config -> merged list config
    f. FLS intersection: remove fields denied by FLS
 ```
 
@@ -715,40 +715,40 @@ CREATE TABLE metadata.shared_layouts (
 Layout **does not extend** access:
 
 ```
-Visible fields = OV fields ∩ FLS-accessible fields ∩ Layout visibility
+Visible fields = Portal fields ∩ FLS-accessible fields ∩ Layout visibility
 ```
 
 - If FLS denies a field -> the field is not in Form (security wins)
-- If OV does not include a field -> the field is not in Form (bounded context wins)
+- If Portal does not include a field -> the field is not in Form (bounded context wins)
 - If Layout hides a field (`visibility_expr: "false"`) -> the field is not rendered (presentation)
 
 Layout can only **narrow** visibility, not extend it.
 
-### Lifecycle: OV -> Layout Synchronization
+### Lifecycle: Portal -> Layout Synchronization
 
 ```
-OV field added (discount added to section "products")
+Portal field added (discount added to section "products")
   -> Layout does not change
   -> Form merge: discount appears with default presentation (col_span=1, ui_kind=auto)
   -> Admin can enrich the Layout for the new field
 
-OV field removed (discount removed from section)
+Portal field removed (discount removed from section)
   -> Layout field_config.discount remains (orphan — no effect)
-  -> Form merge: discount not in OV -> does not appear in Form
+  -> Form merge: discount not in Portal -> does not appear in Form
   -> Orphan cleanup: periodic or on Layout save
 
-OV section added
+Portal section added
   -> Layout section_config does not contain new section -> defaults
   -> root may not include the new section -> add to end of main region
 ```
 
-**Principle: OV is the source of truth for structure. Layout supplements, but cannot show what is not in OV.**
+**Principle: Portal is the source of truth for structure. Layout supplements, but cannot show what is not in Portal.**
 
 ### API
 
 ```
 -- Layout CRUD (Admin)
-GET    /api/v1/admin/layouts?object_view_id=:ovId     — list layouts for OV
+GET    /api/v1/admin/layouts?portal_id=:portalId     — list layouts for Portal
 POST   /api/v1/admin/layouts                           — create layout
 GET    /api/v1/admin/layouts/:id                       — get layout
 PUT    /api/v1/admin/layouts/:id                       — update layout
@@ -769,7 +769,7 @@ GET    /api/v1/describe/:objectName                    — includes resolved For
 
 ### Constructor UI
 
-**Layout Constructor** — dedicated admin screen, accessible from Object View detail:
+**Layout Constructor** — dedicated admin screen, accessible from Portal detail:
 
 1. **Page tab**: root component tree editor (drag components into grid, resize col_span)
 2. **Sections tab**: per-section config (columns slider, collapsed toggle, visibility_expr)
@@ -778,14 +778,14 @@ GET    /api/v1/describe/:objectName                    — includes resolved For
 5. **Preview**: live preview with test data (desktop/tablet/mobile + edit/view switching)
 6. **Presets**: start from common page structures (full-width, sidebar-right, two-columns)
 
-Navigation: Object View detail -> button "Layout (desktop, edit)" -> Layout Constructor.
+Navigation: Portal detail -> button "Layout (desktop, edit)" -> Layout Constructor.
 
 ### Limits
 
 | Parameter | Limit | Rationale |
 |-----------|-------|-----------|
-| Layouts per OV | 6 max (3 form_factors × 2 modes) | Fixed combinations |
-| field_config entries | Unlimited | Depends on OV fields |
+| Layouts per Portal | 6 max (3 form_factors × 2 modes) | Fixed combinations |
+| field_config entries | Unlimited | Depends on Portal fields |
 | root nesting depth | 3 levels | Prevent over-complex grids |
 | grid columns | 1-12 | CSS grid column span |
 | visibility_expr size | 1 KB | CEL expression, not a program |
@@ -795,13 +795,13 @@ Navigation: Object View detail -> button "Layout (desktop, edit)" -> Layout Cons
 
 ### Positive
 
-- **Clean separation**: OV = WHAT (bounded context), Layout = HOW (presentation), Form = unified contract
+- **Clean separation**: Portal = WHAT (bounded context), Layout = HOW (presentation), Form = unified contract
 - **Composable pages**: GridLayout + GroupLayout express any page structure without a separate PageLayout entity
-- **Multi-platform**: one OV — different Layouts for desktop/tablet/mobile
+- **Multi-platform**: one Portal — different Layouts for desktop/tablet/mobile
 - **Edit/view modes**: different presentations for editing vs viewing
-- **Per-profile conditional behavior**: Layout per OV -> each profile can have its own conditions
+- **Per-profile conditional behavior**: Layout per Portal -> each profile can have its own conditions
 - **Shared layouts**: reusable field/section/list configs via layout_ref (DRY, consistency)
-- **Frontend simplicity**: receives Form, does not know about OV, Layout, or shared layouts
+- **Frontend simplicity**: receives Form, does not know about Portal, Layout, or shared layouts
 - **Graceful degradation**: no Layout -> default presentation; no root -> auto-generate full-width
 - **Dual-stack CEL**: expressions evaluated via cel-js on frontend for instant reactivity
 - **Custom Functions (ADR-0026)**: `fn.*` available in all Layout expressions
@@ -810,14 +810,14 @@ Navigation: Object View detail -> button "Layout (desktop, edit)" -> Layout Cons
 ### Negative
 
 - **Additional tables + API**: metadata.layouts + metadata.shared_layouts with CRUD endpoints
-- **Admin workflow**: two screens (OV editor + Layout editor) instead of one
-- **Orphan config**: field removed from OV -> Layout config has orphan entries (cleanup needed)
-- **Merge complexity**: Form resolution requires merging OV + Layout + shared layouts + FLS (cacheable)
+- **Admin workflow**: two screens ( Portal editor + Layout editor) instead of one
+- **Orphan config**: field removed from Portal -> Layout config has orphan entries (cleanup needed)
+- **Merge complexity**: Form resolution requires merging Portal + Layout + shared layouts + FLS (cacheable)
 - **layout_ref resolution**: additional DB lookups during Form resolution (cacheable in MetadataCache)
 
 ## Related ADRs
 
-- **ADR-0019** — Declarative business logic: Layout = third level of cascade (Metadata -> OV -> Layout -> Form)
-- **ADR-0022** — Object View: Layout builds on top of OV. Form = merge of OV + Layout
+- **ADR-0019** — Declarative business logic: Layout = third level of cascade (Metadata -> Portal -> Layout -> Form)
+- **ADR-0022** — Portal: Layout builds on top of Portal. Form = merge of Portal + Layout
 - **ADR-0026** — Custom Functions: fn.* available in visibility_expr, required_expr, readonly_expr
-- **ADR-0009..0012** — Security: Layout does not extend access. Form = OV ∩ FLS ∩ Layout visibility
+- **ADR-0009..0012** — Security: Layout does not extend access. Form = Portal ∩ FLS ∩ Layout visibility

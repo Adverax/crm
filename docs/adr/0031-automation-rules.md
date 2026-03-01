@@ -150,7 +150,7 @@ CREATE TABLE metadata.automation_rules (
 | Automation timeout | 30s | Total time for all rules per DML operation |
 
 ### No versioning (ADR-0029)
-Automation rules follow the save-as-live pattern (like Functions, VR, OV).
+Automation rules follow the save-as-live pattern (like Functions, VR, Portal).
 No draft/published workflow.
 
 ## Consequences

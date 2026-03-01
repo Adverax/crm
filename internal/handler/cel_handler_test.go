@@ -52,7 +52,7 @@ func (l *testCacheLoader) LoadAllFunctions(_ context.Context) ([]metadata.Functi
 	return nil, nil
 }
 
-func (l *testCacheLoader) LoadAllObjectViews(_ context.Context) ([]metadata.ObjectView, error) {
+func (l *testCacheLoader) LoadAllPortals(_ context.Context) ([]metadata.Portal, error) {
 	return nil, nil
 }
 

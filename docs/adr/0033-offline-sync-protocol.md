@@ -43,7 +43,7 @@ FMCG distribution is the chosen beachhead segment because:
 | **CEL dual-stack (cel-go + cel-js)** | Validations, defaults, conditions execute in browser without server |
 | **DML pipeline (8 stages)** | Same pipeline runs on server after sync — no separate offline logic |
 | **SOQL** | Subset can execute client-side against local storage |
-| **Object Views** | UI config (sections, fields, actions) downloads fully — offline rendering |
+| **Portals** | UI config (sections, fields, actions) downloads fully — offline rendering |
 | **Custom Functions (fn.*)** | cel-js executes pure functions locally |
 | **Procedure Engine** | Automation rules fire server-side on sync — no duplicate logic |
 
@@ -601,6 +601,6 @@ Tables: `sync.devices`, `sync.processed_operations`.
 - ADR-0019: Declarative business logic (CEL dual-stack enables offline validation)
 - ADR-0020: DML pipeline (sync push maps directly to DML operations)
 - ADR-0026: Custom Functions (fn.* via cel-js runs locally)
-- ADR-0022: Object Views (UI config syncs to client for offline form rendering)
+- ADR-0022: Portals (UI config syncs to client for offline form rendering)
 - ADR-0028: Named Credentials (post-sync integration with external ERP)
 - ADR-0031: Automation Rules (fire server-side during sync push execution)

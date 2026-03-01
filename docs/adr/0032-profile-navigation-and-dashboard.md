@@ -10,7 +10,7 @@
 
 ### Problem: one-size-fits-all navigation and home page
 
-After Phase 9a (Object View, ADR-0022), record forms adapt to the user's
+After Phase 9a (Portal, ADR-0022), record forms adapt to the user's
 profile — a Sales Rep sees different fields and actions than a Warehouse Worker.
 However, the **sidebar** and **home page** are still identical for everyone:
 
@@ -48,7 +48,7 @@ All enterprise CRMs provide profile/role-scoped navigation and dashboards.
 
 **Option A: Per-profile JSON config in a single table (Chosen)**
 - One row per profile with JSONB config containing groups and items.
-- Pros: Simple, consistent with Object View pattern, one query per login.
+- Pros: Simple, consistent with Portal pattern, one query per login.
 - Cons: No sharing of navigation configs between profiles.
 
 **Option B: Normalized tables (nav_groups, nav_items)**
@@ -94,7 +94,7 @@ All enterprise CRMs provide profile/role-scoped navigation and dashboards.
 
 ### Schema
 
-Two tables in the `metadata` schema, following the Object View JSONB pattern:
+Two tables in the `metadata` schema, following the Portal JSONB pattern:
 
 ```sql
 -- Profile Navigation: sidebar configuration per profile
@@ -308,7 +308,7 @@ Dashboard execution response:
 
 | Data | Cache layer | Invalidation |
 |------|------------|--------------|
-| Navigation config | MetadataCache (in-memory) | On admin save (same as Object View) |
+| Navigation config | MetadataCache (in-memory) | On admin save (same as Portal) |
 | Dashboard config | MetadataCache (in-memory) | On admin save |
 | Dashboard widget data | No cache (real-time SOQL) | N/A — always fresh |
 
@@ -352,7 +352,7 @@ to today if no navigation or dashboard configs are created.
 
 ### Security
 
-- Admin endpoints require OLS admin access (same as Object Views).
+- Admin endpoints require OLS admin access (same as Portals).
 - Navigation resolution endpoint (`/api/v1/navigation`): any authenticated user.
 - Dashboard resolution endpoint (`/api/v1/dashboard`): any authenticated user.
 - SOQL queries in widgets execute under the requesting user's security context
@@ -376,7 +376,7 @@ to today if no navigation or dashboard configs are created.
 - **Role-specific workspace** — each profile gets curated navigation and dashboard
 - **Zero-config fallback** — works identically to today without any configuration
 - **Security preserved** — OLS intersection for nav, RLS/FLS for dashboard queries
-- **Consistent pattern** — same JSONB-in-metadata approach as Object Views
+- **Consistent pattern** — same JSONB-in-metadata approach as Portals
 - **Admin-configurable** — no code changes needed to customize per profile
 - **Real-time dashboard data** — SOQL queries execute with current security context
 
@@ -389,7 +389,7 @@ to today if no navigation or dashboard configs are created.
 
 ### Related ADRs
 
-- ADR-0022: Object View (Phase 9a, bounded context adapter — this ADR implements Phase 9b)
+- ADR-0022: Portal (Phase 9a, bounded context adapter — this ADR implements Phase 9b)
 - ADR-0009..0012: Security layers (OLS/FLS/RLS enforcement)
 - ADR-0019: Declarative business logic (three-level cascade)
 - ADR-0027: Layout + Form (presentation layer, future)

@@ -14,7 +14,7 @@ The platform uses CEL (Common Expression Language) as the unified expression lan
 |-----------|-------------------|---------|
 | Validation Rules (Phase 7b) | `expression` | `record.amount > 0 && record.amount < 1000000` |
 | Default Expressions (Phase 7b) | `default_expr` | `record.tier == "gold" ? record.amount * 0.2 : 0` |
-| Object View (ADR-0022) | `visibility_expr` | `record.status == "draft" && record.amount > 10000` |
+| Portal (ADR-0022) | `visibility_expr` | `record.status == "draft" && record.amount > 10000` |
 | Procedure (ADR-0024) | `when`, `input.*` | `$.input.tier == "gold" ? $.input.amount * 0.2 : 0` |
 | Scenario (ADR-0025) | `when`, `input.*` | `$.steps.check.tier == "gold"` |
 | Automation Rules (ADR-0019) | `condition` | `new.status == "paid" && old.status != "paid"` |
@@ -32,7 +32,7 @@ record.tier == "gold" ? record.amount * 0.2 : record.tier == "silver" ? record.a
 // Procedure input:
 $.input.tier == "gold" ? $.input.amount * 0.2 : $.input.tier == "silver" ? $.input.amount * 0.1 : 0
 
-// Object View visibility:
+// Portal visibility:
 (record.tier == "gold" ? record.amount * 0.2 : record.tier == "silver" ? record.amount * 0.1 : 0) > 5000
 ```
 
@@ -60,7 +60,7 @@ The function `fn.discount(tier, amount)` is called **inside** a CEL expression. 
 
 CEL already works on both sides (ADR-0019):
 - **Backend**: cel-go — validation rules, defaults, procedure/scenario engine
-- **Frontend**: cel-js — Object View `visibility_expr`, Dynamic Forms field visibility
+- **Frontend**: cel-js — Portal `visibility_expr`, Dynamic Forms field visibility
 
 Custom Functions must be available on **both sides**. Since Functions are pure expressions without side effects, they are portable between cel-go and cel-js without adaptation.
 
@@ -165,7 +165,7 @@ fn.discount(record.tier, record.amount)
 // Procedure command input
 "discount": "fn.discount($.input.tier, $.input.amount)"
 
-// Object View visibility_expr
+// Portal visibility_expr
 fn.discount(record.tier, record.amount) > 5000
 
 // Scenario when
@@ -211,7 +211,7 @@ In the Expression Builder (ADR-0024), Functions appear as a category:
    - Live preview: test parameter values produce results in real time
    - Validation: type checking of the body upon saving
 
-3. **Dependency view**: where the function is used (list of validation rules, defaults, procedures, Object Views)
+3. **Dependency view**: where the function is used (list of validation rules, defaults, procedures, Portals)
 
 ### Limits
 
@@ -299,6 +299,6 @@ A Formula Field **can call** a Custom Function: `fn.discount(tier, amount)` as p
 ## Related ADRs
 
 - **ADR-0019** — Declarative business logic: CEL as the unified expression language. Functions extend the CEL Environment with user-defined computations
-- **ADR-0022** — Object View: `visibility_expr` can call Functions for complex visibility logic
+- **ADR-0022** — Portal: `visibility_expr` can call Functions for complex visibility logic
 - **ADR-0024** — Procedure Engine: CEL expressions in `when`, `input.*` can call Functions; Expression Builder shows Functions in the catalog
 - **ADR-0025** — Scenario Engine: CEL expressions in `when`, `input.*` can call Functions

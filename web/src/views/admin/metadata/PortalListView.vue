@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { objectViewsApi } from '@/api/object-views'
+import { portalsApi } from '@/api/portals'
 import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
@@ -12,12 +12,12 @@ import { Plus } from 'lucide-vue-next'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import type { ObjectView } from '@/types/object-views'
+import type { Portal } from '@/types/portals'
 
 const router = useRouter()
 const toast = useToast()
 
-const views = ref<ObjectView[]>([])
+const views = ref<Portal[]>([])
 const searchQuery = ref('')
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -36,7 +36,7 @@ async function loadViews() {
   loading.value = true
   error.value = null
   try {
-    const response = await objectViewsApi.list()
+    const response = await portalsApi.list()
     views.value = response.data ?? []
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err)
@@ -50,22 +50,22 @@ async function loadViews() {
 onMounted(loadViews)
 
 function goToCreate() {
-  router.push({ name: 'admin-object-view-create' })
+  router.push({ name: 'admin-portal-create' })
 }
 
-function goToDetail(viewId: string) {
-  router.push({ name: 'admin-object-view-detail', params: { viewId } })
+function goToDetail(portalId: string) {
+  router.push({ name: 'admin-portal-detail', params: { portalId } })
 }
 
 const breadcrumbs = [
   { label: 'Admin', to: '/admin' },
-  { label: 'Object Views' },
+  { label: 'Portals' },
 ]
 </script>
 
 <template>
   <div>
-    <PageHeader title="Object Views" :breadcrumbs="breadcrumbs">
+    <PageHeader title="Portals" :breadcrumbs="breadcrumbs">
       <template #actions>
         <IconButton
           :icon="Plus"

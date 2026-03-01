@@ -150,7 +150,7 @@ func (h *NavigationHandler) Delete(c *gin.Context) {
 type resolvedNavItem struct {
 	Type          string `json:"type"`
 	ObjectAPIName string `json:"object_api_name,omitempty"`
-	OVAPIName     string `json:"ov_api_name,omitempty"`
+	PortalAPIName string `json:"portal_api_name,omitempty"`
 	Label         string `json:"label,omitempty"`
 	PluralLabel   string `json:"plural_label,omitempty"`
 	URL           string `json:"url,omitempty"`
@@ -234,7 +234,7 @@ func (h *NavigationHandler) resolveNavItem(c *gin.Context, userID uuid.UUID, ite
 		return &resolvedNavItem{
 			Type:          "object",
 			ObjectAPIName: objDef.APIName,
-			OVAPIName:     item.OVAPIName,
+			PortalAPIName: item.PortalAPIName,
 			Label:         objDef.Label,
 			PluralLabel:   objDef.PluralLabel,
 		}
@@ -246,14 +246,14 @@ func (h *NavigationHandler) resolveNavItem(c *gin.Context, userID uuid.UUID, ite
 			Icon:  item.Icon,
 		}
 	case "page":
-		if item.OVAPIName == "" {
+		if item.PortalAPIName == "" {
 			return nil
 		}
 		return &resolvedNavItem{
-			Type:      "page",
-			OVAPIName: item.OVAPIName,
-			Label:     item.Label,
-			Icon:      item.Icon,
+			Type:          "page",
+			PortalAPIName: item.PortalAPIName,
+			Label:         item.Label,
+			Icon:          item.Icon,
 		}
 	case "divider":
 		return &resolvedNavItem{Type: "divider"}

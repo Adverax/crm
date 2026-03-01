@@ -30,20 +30,20 @@ func layoutKey(ovID uuid.UUID, ff, mode string) string {
 }
 
 func (m *mockLayoutRepository) Create(_ context.Context, input CreateLayoutInput) (*Layout, error) {
-	key := layoutKey(input.ObjectViewID, input.FormFactor, input.Mode)
+	key := layoutKey(input.PortalID, input.FormFactor, input.Mode)
 	if _, exists := m.byOVAndKey[key]; exists {
 		return nil, &layoutDuplicateError{key: key}
 	}
 
 	now := time.Now()
 	l := &Layout{
-		ID:           uuid.New(),
-		ObjectViewID: input.ObjectViewID,
-		FormFactor:   input.FormFactor,
-		Mode:         input.Mode,
-		Config:       input.Config,
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		ID:         uuid.New(),
+		PortalID:   input.PortalID,
+		FormFactor: input.FormFactor,
+		Mode:       input.Mode,
+		Config:     input.Config,
+		CreatedAt:  now,
+		UpdatedAt:  now,
 	}
 	m.layouts[l.ID] = l
 	m.byOVAndKey[key] = l
@@ -54,10 +54,10 @@ func (m *mockLayoutRepository) GetByID(_ context.Context, id uuid.UUID) (*Layout
 	return m.layouts[id], nil
 }
 
-func (m *mockLayoutRepository) ListByObjectViewID(_ context.Context, ovID uuid.UUID) ([]Layout, error) {
+func (m *mockLayoutRepository) ListByPortalID(_ context.Context, ovID uuid.UUID) ([]Layout, error) {
 	var result []Layout
 	for _, l := range m.layouts {
-		if l.ObjectViewID == ovID {
+		if l.PortalID == ovID {
 			result = append(result, *l)
 		}
 	}
@@ -85,7 +85,7 @@ func (m *mockLayoutRepository) Update(_ context.Context, id uuid.UUID, input Upd
 func (m *mockLayoutRepository) Delete(_ context.Context, id uuid.UUID) error {
 	l := m.layouts[id]
 	if l != nil {
-		key := layoutKey(l.ObjectViewID, l.FormFactor, l.Mode)
+		key := layoutKey(l.PortalID, l.FormFactor, l.Mode)
 		delete(m.byOVAndKey, key)
 		delete(m.layouts, id)
 	}
@@ -103,8 +103,8 @@ func (e *layoutDuplicateError) Error() string {
 // --- Mock CacheLoader for Layout tests ---
 
 type mockLayoutCacheLoader struct {
-	objectViews []ObjectView
-	layouts     []Layout
+	portals []Portal
+	layouts []Layout
 }
 
 func (m *mockLayoutCacheLoader) LoadAllObjects(_ context.Context) ([]ObjectDefinition, error) {
@@ -122,8 +122,8 @@ func (m *mockLayoutCacheLoader) LoadAllValidationRules(_ context.Context) ([]Val
 func (m *mockLayoutCacheLoader) LoadAllFunctions(_ context.Context) ([]Function, error) {
 	return nil, nil
 }
-func (m *mockLayoutCacheLoader) LoadAllObjectViews(_ context.Context) ([]ObjectView, error) {
-	return m.objectViews, nil
+func (m *mockLayoutCacheLoader) LoadAllPortals(_ context.Context) ([]Portal, error) {
+	return m.portals, nil
 }
 func (m *mockLayoutCacheLoader) LoadAllProcedures(_ context.Context) ([]Procedure, error) {
 	return nil, nil
@@ -160,9 +160,9 @@ func setupLayoutServiceTest(t *testing.T) (LayoutService, *mockLayoutRepository)
 
 func validCreateLayoutInput() CreateLayoutInput {
 	return CreateLayoutInput{
-		ObjectViewID: uuid.New(),
-		FormFactor:   "desktop",
-		Mode:         "read",
+		PortalID:   uuid.New(),
+		FormFactor: "desktop",
+		Mode:       "read",
 		Config: LayoutConfig{
 			Root: &LayoutComponent{
 				Type:    "grid",
@@ -190,25 +190,25 @@ func TestLayoutService_Create(t *testing.T) {
 		{
 			name: "creates with tablet form factor",
 			input: CreateLayoutInput{
-				ObjectViewID: uuid.New(),
-				FormFactor:   "tablet",
-				Mode:         "view",
+				PortalID:   uuid.New(),
+				FormFactor: "tablet",
+				Mode:       "view",
 			},
 		},
 		{
 			name: "creates with mobile form factor",
 			input: CreateLayoutInput{
-				ObjectViewID: uuid.New(),
-				FormFactor:   "mobile",
-				Mode:         "read",
+				PortalID:   uuid.New(),
+				FormFactor: "mobile",
+				Mode:       "read",
 			},
 		},
 		{
 			name: "rejects invalid form_factor",
 			input: CreateLayoutInput{
-				ObjectViewID: uuid.New(),
-				FormFactor:   "laptop",
-				Mode:         "read",
+				PortalID:   uuid.New(),
+				FormFactor: "laptop",
+				Mode:       "read",
 			},
 			wantErr: true,
 			errMsg:  "form_factor must be one of",
@@ -216,9 +216,9 @@ func TestLayoutService_Create(t *testing.T) {
 		{
 			name: "rejects invalid mode",
 			input: CreateLayoutInput{
-				ObjectViewID: uuid.New(),
-				FormFactor:   "desktop",
-				Mode:         "preview",
+				PortalID:   uuid.New(),
+				FormFactor: "desktop",
+				Mode:       "preview",
 			},
 			wantErr: true,
 			errMsg:  "mode must be one of",
@@ -310,7 +310,7 @@ func TestLayoutService_GetByID(t *testing.T) {
 	}
 }
 
-func TestLayoutService_ListByObjectViewID(t *testing.T) {
+func TestLayoutService_ListByPortalID(t *testing.T) {
 	t.Parallel()
 	svc, _ := setupLayoutServiceTest(t)
 	ctx := context.Background()
@@ -319,25 +319,25 @@ func TestLayoutService_ListByObjectViewID(t *testing.T) {
 	otherOVID := uuid.New()
 
 	_, err := svc.Create(ctx, CreateLayoutInput{
-		ObjectViewID: ovID, FormFactor: "desktop", Mode: "read",
+		PortalID: ovID, FormFactor: "desktop", Mode: "read",
 	})
 	require.NoError(t, err)
 
 	_, err = svc.Create(ctx, CreateLayoutInput{
-		ObjectViewID: ovID, FormFactor: "desktop", Mode: "view",
+		PortalID: ovID, FormFactor: "desktop", Mode: "view",
 	})
 	require.NoError(t, err)
 
 	_, err = svc.Create(ctx, CreateLayoutInput{
-		ObjectViewID: otherOVID, FormFactor: "desktop", Mode: "read",
+		PortalID: otherOVID, FormFactor: "desktop", Mode: "read",
 	})
 	require.NoError(t, err)
 
-	layouts, err := svc.ListByObjectViewID(ctx, ovID)
+	layouts, err := svc.ListByPortalID(ctx, ovID)
 	require.NoError(t, err)
 	assert.Len(t, layouts, 2)
 
-	layouts, err = svc.ListByObjectViewID(ctx, otherOVID)
+	layouts, err = svc.ListByPortalID(ctx, otherOVID)
 	require.NoError(t, err)
 	assert.Len(t, layouts, 1)
 }
@@ -361,10 +361,10 @@ func TestLayoutService_ListAll(t *testing.T) {
 				ctx := context.Background()
 				ovID := uuid.New()
 				_, _ = svc.Create(ctx, CreateLayoutInput{
-					ObjectViewID: ovID, FormFactor: "desktop", Mode: "read",
+					PortalID: ovID, FormFactor: "desktop", Mode: "read",
 				})
 				_, _ = svc.Create(ctx, CreateLayoutInput{
-					ObjectViewID: ovID, FormFactor: "desktop", Mode: "view",
+					PortalID: ovID, FormFactor: "desktop", Mode: "view",
 				})
 			},
 			wantCount: 2,

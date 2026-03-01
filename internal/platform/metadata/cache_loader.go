@@ -173,20 +173,20 @@ func (l *PgCacheLoader) LoadAllFunctions(ctx context.Context) ([]Function, error
 	return scanFunctions(rows)
 }
 
-// LoadAllObjectViews loads all object views from the database.
-func (l *PgCacheLoader) LoadAllObjectViews(ctx context.Context) ([]ObjectView, error) {
+// LoadAllPortals loads all object views from the database.
+func (l *PgCacheLoader) LoadAllPortals(ctx context.Context) ([]Portal, error) {
 	rows, err := l.pool.Query(ctx, `
 		SELECT id, profile_id, api_name, label, description,
 			config, created_at, updated_at
-		FROM metadata.object_views
+		FROM metadata.portals
 		ORDER BY api_name
 	`)
 	if err != nil {
-		return nil, fmt.Errorf("pgCacheLoader.LoadAllObjectViews: %w", err)
+		return nil, fmt.Errorf("pgCacheLoader.LoadAllPortals: %w", err)
 	}
 	defer rows.Close()
 
-	return scanObjectViews(rows)
+	return scanPortals(rows)
 }
 
 // LoadAllProcedures loads all procedures from the database (for cache).
@@ -226,9 +226,9 @@ func (l *PgCacheLoader) LoadAllAutomationRules(ctx context.Context) ([]Automatio
 // LoadAllLayouts loads all layouts from the database.
 func (l *PgCacheLoader) LoadAllLayouts(ctx context.Context) ([]Layout, error) {
 	rows, err := l.pool.Query(ctx, `
-		SELECT id, object_view_id, form_factor, mode, config, created_at, updated_at
+		SELECT id, portal_id, form_factor, mode, config, created_at, updated_at
 		FROM metadata.layouts
-		ORDER BY object_view_id, form_factor, mode
+		ORDER BY portal_id, form_factor, mode
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("pgCacheLoader.LoadAllLayouts: %w", err)

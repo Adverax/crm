@@ -453,7 +453,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/object-views": {
+    "/api/v1/admin/portals": {
         parameters: {
             query?: never;
             header?: never;
@@ -461,32 +461,32 @@ export interface paths {
             cookie?: never;
         };
         /** List object views */
-        get: operations["listObjectViews"];
+        get: operations["listPortals"];
         put?: never;
         /** Create an object view */
-        post: operations["createObjectView"];
+        post: operations["createPortal"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/object-views/{viewId}": {
+    "/api/v1/admin/portals/{portalId}": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                viewId: components["parameters"]["ViewId"];
+                portalId: components["parameters"]["ViewId"];
             };
             cookie?: never;
         };
         /** Get an object view by ID */
-        get: operations["getObjectView"];
+        get: operations["getPortal"];
         /** Update an object view */
-        put: operations["updateObjectView"];
+        put: operations["updatePortal"];
         post?: never;
         /** Delete an object view */
-        delete: operations["deleteObjectView"];
+        delete: operations["deletePortal"];
         options?: never;
         head?: never;
         patch?: never;
@@ -704,12 +704,12 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/view/{ovApiName}": {
+    "/api/v1/portal/{portalApiName}": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                ovApiName: string;
+                portalApiName: string;
             };
             cookie?: never;
         };
@@ -726,19 +726,19 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/view/{ovApiName}/query/{queryName}": {
+    "/api/v1/portal/{portalApiName}/query/{queryName}": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                ovApiName: string;
+                portalApiName: string;
                 queryName: string;
             };
             cookie?: never;
         };
         /**
-         * Execute a named query from an Object View
-         * @description Finds the named query in the Object View config, substitutes URL query parameters into SOQL :paramName placeholders, and executes via the SOQL service with full security enforcement.
+         * Execute a named query from an Portal
+         * @description Finds the named query in the Portal config, substitutes URL query parameters into SOQL :paramName placeholders, and executes via the SOQL service with full security enforcement.
          */
         get: operations["executeViewQuery"];
         put?: never;
@@ -749,12 +749,12 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/view/{ovApiName}/action/{actionKey}": {
+    "/api/v1/portal/{portalApiName}/action/{actionKey}": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                ovApiName: string;
+                portalApiName: string;
                 actionKey: string;
             };
             cookie?: never;
@@ -762,8 +762,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Execute an action from an Object View
-         * @description Executes the named action from the Object View config. For type=dml, runs all DML statements in a single transaction. For type=scenario, starts the referenced scenario.
+         * Execute an action from an Portal
+         * @description Executes the named action from the Portal config. For type=dml, runs all DML statements in a single transaction. For type=scenario, starts the referenced scenario.
          */
         post: operations["executeViewAction"];
         delete?: never;
@@ -858,13 +858,13 @@ export interface components {
              */
             visibility: "private" | "public_read" | "public_read_write" | "controlled_by_parent";
         };
-        CreateObjectViewRequest: {
+        CreatePortalRequest: {
             /** Format: uuid */
             profile_id?: string | null;
             api_name: string;
             label: string;
             description?: string;
-            config?: components["schemas"]["ObjectViewConfig"];
+            config?: components["schemas"]["PortalConfig"];
         };
         UpdateObjectRequest: {
             label: string;
@@ -1258,7 +1258,7 @@ export interface components {
             return_type?: "string" | "number" | "boolean" | "list" | "map" | "any";
             body: string;
         };
-        ObjectView: {
+        Portal: {
             /** Format: uuid */
             id: string;
             /** Format: uuid */
@@ -1266,57 +1266,57 @@ export interface components {
             api_name: string;
             label: string;
             description: string;
-            config: components["schemas"]["ObjectViewConfig"];
+            config: components["schemas"]["PortalConfig"];
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
             updated_at: string;
         };
-        ObjectViewConfig: {
-            read: components["schemas"]["OVReadConfig"];
+        PortalConfig: {
+            read: components["schemas"]["PortalReadConfig"];
         };
-        OVReadConfig: {
-            fields?: components["schemas"]["OVViewField"][];
-            actions?: components["schemas"]["OVAction"][];
-            queries?: components["schemas"]["OVQuery"][];
+        PortalReadConfig: {
+            fields?: components["schemas"]["PortalViewField"][];
+            actions?: components["schemas"]["PortalAction"][];
+            queries?: components["schemas"]["PortalQuery"][];
         };
-        OVAction: {
+        PortalAction: {
             key: string;
             label: string;
             type: string;
             icon: string;
             visibility_expr: string;
-            apply?: components["schemas"]["OVActionApply"];
+            apply?: components["schemas"]["PortalActionApply"];
         };
-        OVQuery: {
+        PortalQuery: {
             name: string;
             /** @description SOQL query. Use SELECT ROW for scalar queries, SELECT for list queries. */
             soql: string;
             when?: string;
         };
-        OVActionApply: {
+        PortalActionApply: {
             /** @enum {string} */
             type: "dml" | "scenario";
             dml?: string[];
-            scenario?: components["schemas"]["OVScenarioRef"];
+            scenario?: components["schemas"]["PortalScenarioRef"];
         };
-        OVScenarioRef: {
+        PortalScenarioRef: {
             api_name: string;
             params?: {
                 [key: string]: string;
             };
         };
-        OVViewField: {
+        PortalViewField: {
             name: string;
             /** @enum {string} */
             type?: "string" | "int" | "float" | "bool" | "timestamp";
             expr?: string;
             when?: string;
         };
-        UpdateObjectViewRequest: {
+        UpdatePortalRequest: {
             label: string;
             description?: string;
-            config?: components["schemas"]["ObjectViewConfig"];
+            config?: components["schemas"]["PortalConfig"];
         };
         ExecuteActionRequest: {
             data?: {
@@ -1401,7 +1401,7 @@ export interface components {
             /** @enum {string} */
             type: "object" | "link" | "divider" | "page";
             object_api_name?: string;
-            ov_api_name?: string;
+            portal_api_name?: string;
             label?: string;
             url?: string;
             icon?: string;
@@ -1438,7 +1438,7 @@ export interface components {
             /** @enum {string} */
             type: "object" | "link" | "divider" | "page";
             object_api_name?: string;
-            ov_api_name?: string;
+            portal_api_name?: string;
             label?: string;
             plural_label?: string;
             url?: string;
@@ -2561,7 +2561,7 @@ export interface operations {
             409: components["responses"]["Conflict"];
         };
     };
-    listObjectViews: {
+    listPortals: {
         parameters: {
             query?: {
                 /** @description Filter by object ID */
@@ -2580,14 +2580,14 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data?: components["schemas"]["ObjectView"][];
+                        data?: components["schemas"]["Portal"][];
                     };
                 };
             };
             400: components["responses"]["BadRequest"];
         };
     };
-    createObjectView: {
+    createPortal: {
         parameters: {
             query?: never;
             header?: never;
@@ -2596,7 +2596,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateObjectViewRequest"];
+                "application/json": components["schemas"]["CreatePortalRequest"];
             };
         };
         responses: {
@@ -2607,7 +2607,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data?: components["schemas"]["ObjectView"];
+                        data?: components["schemas"]["Portal"];
                     };
                 };
             };
@@ -2615,12 +2615,12 @@ export interface operations {
             409: components["responses"]["Conflict"];
         };
     };
-    getObjectView: {
+    getPortal: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                viewId: components["parameters"]["ViewId"];
+                portalId: components["parameters"]["ViewId"];
             };
             cookie?: never;
         };
@@ -2633,25 +2633,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data?: components["schemas"]["ObjectView"];
+                        data?: components["schemas"]["Portal"];
                     };
                 };
             };
             404: components["responses"]["NotFound"];
         };
     };
-    updateObjectView: {
+    updatePortal: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                viewId: components["parameters"]["ViewId"];
+                portalId: components["parameters"]["ViewId"];
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UpdateObjectViewRequest"];
+                "application/json": components["schemas"]["UpdatePortalRequest"];
             };
         };
         responses: {
@@ -2662,7 +2662,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data?: components["schemas"]["ObjectView"];
+                        data?: components["schemas"]["Portal"];
                     };
                 };
             };
@@ -2670,12 +2670,12 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
-    deleteObjectView: {
+    deletePortal: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                viewId: components["parameters"]["ViewId"];
+                portalId: components["parameters"]["ViewId"];
             };
             cookie?: never;
         };
@@ -3100,7 +3100,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                ovApiName: string;
+                portalApiName: string;
             };
             cookie?: never;
         };
@@ -3113,7 +3113,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data?: components["schemas"]["ObjectView"];
+                        data?: components["schemas"]["Portal"];
                     };
                 };
             };
@@ -3128,7 +3128,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                ovApiName: string;
+                portalApiName: string;
                 queryName: string;
             };
             cookie?: never;
@@ -3155,7 +3155,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                ovApiName: string;
+                portalApiName: string;
                 actionKey: string;
             };
             cookie?: never;

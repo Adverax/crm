@@ -14,7 +14,7 @@ The platform is metadata-driven (ADR-0003, ADR-0007): objects, fields, validatio
 |---|---|
 | Field validation (Validation Rules, ADR-0019) | Action chains: create record -> send email -> call API |
 | Dynamic defaults (Default Expressions) | Conditional logic: if amount > 10K -> request approval |
-| Buttons on the record card (Object View, ADR-0022) | Compensating actions: rollback on error (Saga) |
+| Buttons on the record card (Portal, ADR-0022) | Compensating actions: rollback on error (Saga) |
 | Action types (ADR-0023: navigate, field_update) | Synchronous and asynchronous processes |
 
 Every business process change (new notification, external system integration, routing condition) requires a development cycle: code -> review -> deploy. Typical changes take 2-5 days instead of 15 minutes.
@@ -201,7 +201,7 @@ Form-based interface for building procedures:
 
 #### Expression Builder
 
-Visual CEL expression constructor, applicable across all platform subsystems (Procedure, Validation Rules, Default Expressions, Object View `visibility_expr`, Scenario `when`):
+Visual CEL expression constructor, applicable across all platform subsystems (Procedure, Validation Rules, Default Expressions, Portal `visibility_expr`, Scenario `when`):
 
 1. **Field picker**: tree of available variables
    - `$.input.*` — input parameters
@@ -606,7 +606,7 @@ Stage 4: Marketplace commands
 
 - **ADR-0019** — Declarative business logic: CEL as expression language, validation rules, behavioral logic subsystems. Procedure Engine implements the procedural layer, complementing the declarative one. Expression Builder is reused across all subsystems
 - **ADR-0020** — DML Pipeline Extension: all `record.*` commands execute through DML Engine with typed stages (defaults -> validate -> compute -> execute)
-- **ADR-0022** — Object View: action type `procedure` in button configuration invokes Procedure Engine
+- **ADR-0022** — Portal: action type `procedure` in button configuration invokes Procedure Engine
 - **ADR-0023** — Action terminology: establishes the terminology (Procedure, Command, Command Type) used in this ADR
 - **ADR-0028** — Named Credentials: `integration.http` command uses the `credential` field for secure authentication. Replaces the `$.secrets` namespace
 - **ADR-0029** — Versioning: Procedure definition is stored in `procedure_versions`, not inline. Draft/Published lifecycle. Scenario captures the version at start

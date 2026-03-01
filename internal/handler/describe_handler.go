@@ -224,7 +224,7 @@ func (h *DescribeHandler) DescribeObject(c *gin.Context) {
 		formMode = "read"
 	}
 
-	// Try to resolve form via OV + Layout, fallback to auto-generated
+	// Try to resolve form via Portal + Layout, fallback to auto-generated
 	form := h.resolveForm(objDef, allFields, formFactor, formMode)
 
 	desc := objectDescribe{
@@ -294,25 +294,25 @@ func buildFallbackForm(fields []fieldDescribe) *formDescribe {
 	}
 }
 
-// resolveForm attempts to merge OV + Layout into a Form.
-// If no OV or Layout is found for this object, falls back to auto-generated form.
+// resolveForm attempts to merge Portal + Layout into a Form.
+// If no Portal or Layout is found for this object, falls back to auto-generated form.
 func (h *DescribeHandler) resolveForm(
 	objDef metadata.ObjectDefinition,
 	fields []fieldDescribe,
 	formFactor string,
 	mode string,
 ) *formDescribe {
-	// Find OV for this object via object api_name convention (ov api_name = object api_name)
-	ov, hasOV := h.cache.GetObjectViewByAPIName(objDef.APIName)
-	if !hasOV {
+	// Find Portal for this object via object api_name convention (portal api_name = object api_name)
+	portal, hasPortal := h.cache.GetPortalByAPIName(objDef.APIName)
+	if !hasPortal {
 		return buildFallbackForm(fields)
 	}
 
-	// Find Layout for this OV with fallback chain
-	layout := h.resolveLayout(ov.ID, formFactor, mode)
+	// Find Layout for this Portal with fallback chain
+	layout := h.resolveLayout(portal.ID, formFactor, mode)
 
-	// Build form from OV + Layout merge
-	return h.mergeOVAndLayout(ov, layout, fields)
+	// Build form from Portal + Layout merge
+	return h.mergePortalAndLayout(portal, layout, fields)
 }
 
 // resolveLayout finds the best matching layout with fallback chain:
@@ -321,8 +321,8 @@ func (h *DescribeHandler) resolveForm(
 // 3. desktop + same mode
 // 4. desktop + read
 // 5. nil (auto-generate)
-func (h *DescribeHandler) resolveLayout(ovID uuid.UUID, formFactor string, mode string) *metadata.Layout {
-	layouts := h.cache.GetLayoutsForOV(ovID)
+func (h *DescribeHandler) resolveLayout(portalID uuid.UUID, formFactor string, mode string) *metadata.Layout {
+	layouts := h.cache.GetLayoutsForPortal(portalID)
 	if len(layouts) == 0 {
 		return nil
 	}
@@ -353,16 +353,16 @@ func (h *DescribeHandler) resolveLayout(ovID uuid.UUID, formFactor string, mode 
 	return desktopRead // may be nil → auto-generate
 }
 
-// mergeOVAndLayout merges OV config + Layout config into formDescribe.
-func (h *DescribeHandler) mergeOVAndLayout(
-	ov metadata.ObjectView,
+// mergePortalAndLayout merges Portal config + Layout config into formDescribe.
+func (h *DescribeHandler) mergePortalAndLayout(
+	portal metadata.Portal,
 	layout *metadata.Layout,
 	fields []fieldDescribe,
 ) *formDescribe {
 	form := buildFallbackForm(fields)
 
-	// Apply OV sections if OV has view config with fields
-	fieldNames := metadata.FieldNames(ov.Config.Read.Fields)
+	// Apply Portal sections if Portal has view config with fields
+	fieldNames := metadata.FieldNames(portal.Config.Read.Fields)
 	if len(fieldNames) > 0 {
 		form.Sections = []formSection{{
 			Key:     "details",
@@ -379,9 +379,9 @@ func (h *DescribeHandler) mergeOVAndLayout(
 
 	// Map queries to form (without SOQL for security).
 	// Infer type from SOQL syntax: SELECT ROW = scalar, SELECT = list.
-	if len(ov.Config.Read.Queries) > 0 {
-		queries := make([]formQuery, len(ov.Config.Read.Queries))
-		for i, q := range ov.Config.Read.Queries {
+	if len(portal.Config.Read.Queries) > 0 {
+		queries := make([]formQuery, len(portal.Config.Read.Queries))
+		for i, q := range portal.Config.Read.Queries {
 			qType := "list"
 			if engine.IsRowQuery(q.SOQL) {
 				qType = "scalar"
@@ -394,10 +394,10 @@ func (h *DescribeHandler) mergeOVAndLayout(
 		form.Queries = queries
 	}
 
-	// Apply OV actions (NOT apply — server-side only)
-	if len(ov.Config.Read.Actions) > 0 {
-		actions := make([]formAction, len(ov.Config.Read.Actions))
-		for i, a := range ov.Config.Read.Actions {
+	// Apply Portal actions (NOT apply — server-side only)
+	if len(portal.Config.Read.Actions) > 0 {
+		actions := make([]formAction, len(portal.Config.Read.Actions))
+		for i, a := range portal.Config.Read.Actions {
 			actions[i] = formAction{
 				Key:            a.Key,
 				Label:          a.Label,

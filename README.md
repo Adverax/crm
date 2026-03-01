@@ -78,7 +78,7 @@ ORDER BY CloseDate DESC
 LIMIT 50
 ```
 
-- **SOQL Editor** — Rich editor with syntax highlighting, context-aware autocomplete (objects, fields, keywords), server-side validation, and test query execution. Used in Object View queries and reusable across reports.
+- **SOQL Editor** — Rich editor with syntax highlighting, context-aware autocomplete (objects, fields, keywords), server-side validation, and test query execution. Used in Portal queries and reusable across reports.
 
 ### App Templates
 
@@ -106,12 +106,12 @@ One set of REST endpoints and Vue.js views serves **all objects** — no per-obj
 
 ### Layout + Form Resolution
 
-Control how records are displayed per Object View, form factor (desktop/tablet/mobile), and mode (edit/view):
+Control how records are displayed per Portal, form factor (desktop/tablet/mobile), and mode (edit/view):
 
-- **Layouts** — `metadata.layouts` table, per (object_view_id, form_factor, mode). Configures section grids, field presentation (col_span, ui_kind, reference config), and list columns.
+- **Layouts** — `metadata.layouts` table, per (portal_id, form_factor, mode). Configures section grids, field presentation (col_span, ui_kind, reference config), and list columns.
 - **Visual Layout Constructor** — tabbed admin editor: Form Layout tab (section canvas with field chips + property panels), List Config tab (DnD column reorder), JSON tab (power-user fallback).
 - **Shared Layouts** — `metadata.shared_layouts` reusable configuration snippets (type: field/section/list) referenced via `layout_ref`. Inline overrides win. RESTRICT delete protects referenced shared layouts.
-- **Form merge** — Describe API merges OV config + Layout config into a computed Form. Frontend works only with the final Form.
+- **Form merge** — Describe API merges Portal config + Layout config into a computed Form. Frontend works only with the final Form.
 - **Fallback chain** — requested layout -> same form_factor any mode -> desktop same mode -> desktop edit -> auto-generate.
 - **Headers** — `X-Form-Factor` and `X-Form-Mode` request headers for layout resolution.
 
@@ -237,8 +237,8 @@ make docker-reset     # Reset all data and restart
 | Phase 7a | Done | Generic CRUD + metadata-driven UI — dynamic record views, describe API |
 | Phase 7b | Done | CEL engine, validation rules, dynamic defaults, DML pipeline extension |
 | Phase 8 | Done | Custom Functions — fn.* namespace, dual-stack (cel-go + cel-js), Expression Builder |
-| Phase 9a | Done | Object View Core — visual constructor, Describe API form resolution, section-based CRM rendering |
-| Phase 9b | Done | Navigation per profile + OV Unbinding — grouped sidebar, page nav items |
+| Phase 9a | Done | Portal Core — visual constructor, Describe API form resolution, section-based CRM rendering |
+| Phase 9b | Done | Navigation per profile + Portal Unbinding — grouped sidebar, page nav items |
 | Phase 9c | Done | Layout + Form Resolution — layouts + shared_layouts, form merge, fallback chain |
 | Phase 10a | Done | Procedure Engine Core — 6 command types, Named Credentials, versioning, Constructor UI |
 | Phase 10b | Done | Automation Rules — DML triggers with CEL conditions, procedure_code actions |
@@ -250,7 +250,7 @@ make docker-reset     # Reset all data and restart
 | Phase 13a-d | Planned | Production-Ready — file attachments, export, global search, audit log, formula fields |
 | Phase 14+ | Planned | Platform Completeness — scenarios, approvals, record types, advanced objects |
 
-The platform is **fully functional** across 16 completed phases (32 ADRs). It can create objects via metadata engine or App Templates, manage permissions, enforce 3-layer security (OLS/FLS/RLS), query data through SOQL, perform all DML operations with CEL-based validation rules and dynamic defaults, authenticate users via JWT, work with records through a dynamic metadata-driven UI, define reusable Custom Functions with fn.* namespace (dual-stack: cel-go backend + cel-js frontend with Expression Builder), configure **Object Views** as full bounded context adapters per profile, create **Layouts** per Object View + form factor + mode to control page structure and field presentation (with shared layouts for reuse), define **Procedures** with a visual Constructor UI (6 command types, Named Credentials, versioning, Saga rollback), set up **Automation Rules** (DML triggers with CEL conditions), and configure **per-profile Navigation** (grouped sidebar with OLS intersection, page nav items via OV api_name).
+The platform is **fully functional** across 16 completed phases (32 ADRs). It can create objects via metadata engine or App Templates, manage permissions, enforce 3-layer security (OLS/FLS/RLS), query data through SOQL, perform all DML operations with CEL-based validation rules and dynamic defaults, authenticate users via JWT, work with records through a dynamic metadata-driven UI, define reusable Custom Functions with fn.* namespace (dual-stack: cel-go backend + cel-js frontend with Expression Builder), configure **Portals** as full bounded context adapters per profile, create **Layouts** per Portal + form factor + mode to control page structure and field presentation (with shared layouts for reuse), define **Procedures** with a visual Constructor UI (6 command types, Named Credentials, versioning, Saga rollback), set up **Automation Rules** (DML triggers with CEL conditions), and configure **per-profile Navigation** (grouped sidebar with OLS intersection, page nav items via Portal api_name).
 
 Roadmap principle: **user value first** — each next phase delivers visible benefit to end users. Phase 11 makes CRM usable (related lists, search, recycle bin), Phase 12 makes it a daily tool (notifications, list views), Phase 13 makes it production-ready (files, audit, formulas). See [full roadmap](docs/roadmap.md) for details.
 
@@ -283,19 +283,19 @@ Every significant decision is documented as an ADR in [`docs/adr/`](docs/adr/):
 | [0019](docs/adr/0019-declarative-business-logic.md) | Declarative business logic: 5 subsystems, CEL |
 | [0020](docs/adr/0020-dml-pipeline-extension.md) | DML pipeline extension: typed stages with Option pattern |
 | [0021](docs/adr/0021-contract-testing.md) | Contract testing: OpenAPI validation + TS type generation |
-| [0022](docs/adr/0022-object-view-bounded-context.md) | Object View: role-based UI per profile |
+| [0022](docs/adr/0022-portal-bounded-context.md) | Portal: role-based UI per profile |
 | [0023](docs/adr/0023-action-terminology.md) | Action terminology: Command → Procedure → Scenario |
 | [0024](docs/adr/0024-procedure-engine.md) | Procedure Engine: JSON DSL + Constructor UI |
 | [0025](docs/adr/0025-scenario-engine.md) | Scenario Engine: durable async workflows |
 | [0026](docs/adr/0026-custom-functions.md) | Custom Functions: named pure CEL, fn.* namespace |
-| [0027](docs/adr/0027-layout-and-form.md) | Layout + Form: OV (what) + Layout (how) + Form (computed) |
+| [0027](docs/adr/0027-layout-and-form.md) | Layout + Form: Portal (what) + Layout (how) + Form (computed) |
 | [0028](docs/adr/0028-named-credentials.md) | Named Credentials: AES-256-GCM encrypted secrets |
 | [0029](docs/adr/0029-versioning-strategy.md) | Versioning: Draft/Published for Procedure + Scenario |
 | [0030](docs/adr/0030-modular-monolith-strategy.md) | Modular Monolith: MetadataReader interface |
 | [0031](docs/adr/0031-automation-rules.md) | Automation Rules: reactive triggers on DML events |
-| [0032](docs/adr/0032-profile-navigation-and-dashboard.md) | Profile Navigation + OV Unbinding |
+| [0032](docs/adr/0032-profile-navigation-and-dashboard.md) | Profile Navigation + Portal Unbinding |
 | [0034](docs/adr/0034-industry-modules.md) | Industry Modules: vertical extensibility |
-| [0035](docs/adr/0035-ov-data-binding-model.md) | OV Data Binding: queries as first-class data sources |
+| [0035](docs/adr/0035-portal-data-binding-model.md) | Portal Data Binding: queries as first-class data sources |
 
 [All 34 ADRs →](docs/adr/)
 

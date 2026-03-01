@@ -14,7 +14,7 @@ var actionKeyRegexp = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 // validateViewConfig validates the OV view config at save time.
 // Checks: query uniqueness, valid query types,
 // field uniqueness, valid query references, DAG (no cycles).
-func validateViewConfig(config OVConfig) error {
+func validateViewConfig(config PortalConfig) error {
 	view := config.Read
 
 	if err := validateQueries(view.Queries); err != nil {
@@ -32,7 +32,7 @@ func validateViewConfig(config OVConfig) error {
 	return nil
 }
 
-func validateQueries(queries []OVQuery) error {
+func validateQueries(queries []PortalQuery) error {
 	names := make(map[string]bool, len(queries))
 
 	for _, q := range queries {
@@ -48,7 +48,7 @@ func validateQueries(queries []OVQuery) error {
 	return nil
 }
 
-func validateFields(fields []OVViewField, queries []OVQuery) error {
+func validateFields(fields []PortalViewField, queries []PortalQuery) error {
 	queryTypes := make(map[string]string, len(queries))
 	for _, q := range queries {
 		if engine.IsRowQuery(q.SOQL) {
@@ -123,7 +123,7 @@ func validateExprQueryRefs(fieldName string, expr string, queryTypes map[string]
 
 // validateFieldDAG ensures computed fields form a DAG (no cycles).
 // Uses Kahn's algorithm (topological sort).
-func validateFieldDAG(fields []OVViewField) error {
+func validateFieldDAG(fields []PortalViewField) error {
 	// Build adjacency: field → set of fields it depends on
 	fieldIndex := make(map[string]int, len(fields))
 	for i, f := range fields {
@@ -183,7 +183,7 @@ func validateFieldDAG(fields []OVViewField) error {
 }
 
 // validateActions validates the actions list at save time (ADR-0036).
-func validateActions(actions []OVAction) error {
+func validateActions(actions []PortalAction) error {
 	if len(actions) > 20 {
 		return apperror.BadRequest("max 20 actions per object view")
 	}
@@ -211,7 +211,7 @@ func validateActions(actions []OVAction) error {
 	return nil
 }
 
-func validateActionApply(key string, apply *OVActionApply) error {
+func validateActionApply(key string, apply *PortalActionApply) error {
 	if apply.Type != "dml" && apply.Type != "scenario" {
 		return apperror.BadRequest(fmt.Sprintf("action %q: apply.type must be 'dml' or 'scenario'", key))
 	}

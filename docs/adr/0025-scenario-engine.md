@@ -38,9 +38,9 @@ The current architecture does not solve:
 
 ADR-0023 defined the hierarchy of executable logic: Action (umbrella) -> Command (atomic operation) -> Procedure (synchronous chain) -> **Scenario** (asynchronous long-lived process). Scenario is the top level of the hierarchy, providing durability and coordination. Each Scenario Step invokes a Procedure, inline Command, or built-in operation (`wait signal`, `wait timer`).
 
-### Relationship with Object View (ADR-0022) and Automation Rules (ADR-0019)
+### Relationship with Portal (ADR-0022) and Automation Rules (ADR-0019)
 
-- **Object View**: action type `scenario` launches a Scenario from a UI button on the record card
+- **Portal**: action type `scenario` launches a Scenario from a UI button on the record card
 - **Automation Rules**: a "record after update" trigger can launch a Scenario as a reaction (post-execute stage, ADR-0020)
 
 ## Considered Options
@@ -411,8 +411,8 @@ Planned syntax: `mode: state_machine`, `states` block instead of `steps`, transi
 - **Self-service for administrators** -- new processes are assembled through Constructor UI without development; deployment time: days instead of weeks
 - **Built-in primitives** -- signals, timers, retry policies, idempotency -- out of the box, without boilerplate in every service
 - **Fits into ADR-0023 hierarchy** -- Scenario = top level (Action -> Command -> Procedure -> Scenario); Step invokes Procedure
-- **CEL as cross-cutting expression language** -- unified language from Object View to Scenario (`when`, `input.*`)
-- **Incremental implementation** -- Phase 13b; does not block Phase 9a (Object View) or Phase 13a (Procedure Engine)
+- **CEL as cross-cutting expression language** -- unified language from Portal to Scenario (`when`, `input.*`)
+- **Incremental implementation** -- Phase 13b; does not block Phase 9a (Portal) or Phase 13a (Procedure Engine)
 - **Migration path to Temporal** -- as needs grow, the declarative DSL can be compiled into a Temporal workflow
 
 ### Negative
@@ -426,7 +426,7 @@ Planned syntax: `mode: state_machine`, `states` block instead of `steps`, transi
 
 - **ADR-0019** -- Declarative business logic: Automation Rules (post-execute trigger) launch Scenarios; CEL as expression language
 - **ADR-0020** -- DML Pipeline: post-execute stage can launch a Scenario through Automation Rules
-- **ADR-0022** -- Object View: action type `scenario` launches a Scenario from a UI button on the record card
+- **ADR-0022** -- Portal: action type `scenario` launches a Scenario from a UI button on the record card
 - **ADR-0023** -- Action terminology: Scenario in the hierarchy Action -> Command -> Procedure -> Scenario; Step invokes Procedure
 - **ADR-0024** -- Procedure Engine: Steps execute Procedures; Procedure = synchronous Command chain
 - **ADR-0029** -- Versioning: Scenario definition is stored in `scenario_versions`. Draft/Published lifecycle. Scenario run captures procedure versions at start through `scenario_run_snapshots`

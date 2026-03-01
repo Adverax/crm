@@ -99,7 +99,7 @@ func (m *mockFnCacheLoader) LoadAllValidationRules(_ context.Context) ([]Validat
 func (m *mockFnCacheLoader) LoadAllFunctions(_ context.Context) ([]Function, error) {
 	return m.functions, nil
 }
-func (m *mockFnCacheLoader) LoadAllObjectViews(_ context.Context) ([]ObjectView, error) {
+func (m *mockFnCacheLoader) LoadAllPortals(_ context.Context) ([]Portal, error) {
 	return nil, nil
 }
 func (m *mockFnCacheLoader) LoadAllProcedures(_ context.Context) ([]Procedure, error) {

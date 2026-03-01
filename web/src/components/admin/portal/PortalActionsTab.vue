@@ -15,14 +15,14 @@ import {
 } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ref, computed } from 'vue'
-import type { OVAction, OVActionApply } from '@/types/object-views'
+import type { PortalAction, PortalActionApply } from '@/types/portals'
 
 const props = defineProps<{
-  actions: OVAction[]
+  actions: PortalAction[]
 }>()
 
 const emit = defineEmits<{
-  'update:actions': [value: OVAction[]]
+  'update:actions': [value: PortalAction[]]
 }>()
 
 const selectedIndex = ref<number | null>(null)
@@ -64,29 +64,29 @@ function onActionTypeChange(value: any) {
 }
 
 // --- Apply ---
-function ensureApply(action: OVAction): OVActionApply {
+function ensureApply(action: PortalAction): PortalActionApply {
   if (!action.apply) {
     action.apply = { type: 'dml', dml: [] }
   }
   return action.apply
 }
 
-function removeApply(action: OVAction) {
+function removeApply(action: PortalAction) {
   action.apply = undefined
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function onApplyTypeChange(action: OVAction, value: any) {
+function onApplyTypeChange(action: PortalAction, value: any) {
   const apply = ensureApply(action)
   apply.type = String(value) as 'dml' | 'scenario'
 }
 
-function addDmlStatement(apply: OVActionApply) {
+function addDmlStatement(apply: PortalActionApply) {
   if (!apply.dml) apply.dml = []
   apply.dml.push('')
 }
 
-function removeDmlStatement(apply: OVActionApply, idx: number) {
+function removeDmlStatement(apply: PortalActionApply, idx: number) {
   apply.dml?.splice(idx, 1)
 }
 

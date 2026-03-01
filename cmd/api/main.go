@@ -358,11 +358,11 @@ func setupRouter(pool *pgxpool.Pool, metadataCache *metadata.MetadataCache, cfg 
 	automationRuleHandler := handler.NewAutomationRuleHandler(automationRuleService)
 	automationRuleHandler.RegisterRoutes(adminGroup)
 
-	// Object View
-	objectViewRepo := metadata.NewPgObjectViewRepository(pool)
-	objectViewService := metadata.NewObjectViewService(pool, objectViewRepo, metadataCache)
-	objectViewHandler := handler.NewObjectViewHandler(objectViewService)
-	objectViewHandler.RegisterRoutes(adminGroup)
+	// Portal
+	portalRepo := metadata.NewPgPortalRepository(pool)
+	portalService := metadata.NewPortalService(pool, portalRepo, metadataCache)
+	portalAdminHandler := handler.NewPortalAdminHandler(portalService)
+	portalAdminHandler.RegisterRoutes(adminGroup)
 
 	// Layout (ADR-0027)
 	layoutRepo := metadata.NewPgLayoutRepository(pool)
@@ -392,9 +392,9 @@ func setupRouter(pool *pgxpool.Pool, metadataCache *metadata.MetadataCache, cfg 
 	recordHandler := handler.NewRecordHandler(recordService)
 	recordHandler.RegisterRoutes(apiGroup)
 
-	// --- View API ---
-	viewHandler := handler.NewViewHandler(metadataCache, soqlService, dmlService)
-	viewHandler.RegisterRoutes(apiGroup)
+	// --- Portal API ---
+	portalHandler := handler.NewPortalHandler(metadataCache, soqlService, dmlService)
+	portalHandler.RegisterRoutes(apiGroup)
 
 	// --- Public Metadata Describe API ---
 	describeHandler := handler.NewDescribeHandler(metadataCache, olsEnforcer, flsEnforcer, dml.NewDescribeAdapter())

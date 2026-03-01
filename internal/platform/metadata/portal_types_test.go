@@ -8,41 +8,41 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestOVConfig_MarshalUnmarshal(t *testing.T) {
+func TestPortalConfig_MarshalUnmarshal(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name  string
-		input OVConfig
+		input PortalConfig
 	}{
 		{
 			name: "view only with simple fields",
-			input: OVConfig{
-				Read: OVReadConfig{
-					Fields:  []OVViewField{{Name: "name"}, {Name: "email"}},
-					Actions: []OVAction{{Key: "edit", Label: "Edit", Type: "primary", Icon: "pencil"}},
+			input: PortalConfig{
+				Read: PortalReadConfig{
+					Fields:  []PortalViewField{{Name: "name"}, {Name: "email"}},
+					Actions: []PortalAction{{Key: "edit", Label: "Edit", Type: "primary", Icon: "pencil"}},
 				},
 			},
 		},
 		{
 			name: "view with computed fields",
-			input: OVConfig{
-				Read: OVReadConfig{
-					Fields: []OVViewField{
+			input: PortalConfig{
+				Read: PortalReadConfig{
+					Fields: []PortalViewField{
 						{Name: "name"},
 						{Name: "total", Type: "float", Expr: "record.amount * 1.2", When: "has(record.amount)"},
 					},
-					Actions: []OVAction{},
+					Actions: []PortalAction{},
 				},
 			},
 		},
 		{
 			name: "view with queries",
-			input: OVConfig{
-				Read: OVReadConfig{
-					Fields:  []OVViewField{{Name: "name"}},
-					Actions: []OVAction{},
-					Queries: []OVQuery{
+			input: PortalConfig{
+				Read: PortalReadConfig{
+					Fields:  []PortalViewField{{Name: "name"}},
+					Actions: []PortalAction{},
+					Queries: []PortalQuery{
 						{Name: "main", SOQL: "SELECT ROW Id FROM Account WHERE Id = :id"},
 						{Name: "contacts", SOQL: "SELECT Id FROM Contact WHERE AccountId = :id"},
 					},
@@ -58,7 +58,7 @@ func TestOVConfig_MarshalUnmarshal(t *testing.T) {
 			data, err := json.Marshal(tt.input)
 			require.NoError(t, err)
 
-			var got OVConfig
+			var got PortalConfig
 			require.NoError(t, json.Unmarshal(data, &got))
 
 			assert.Equal(t, tt.input, got)
@@ -71,7 +71,7 @@ func TestFieldNames(t *testing.T) {
 
 	tests := []struct {
 		name   string
-		fields []OVViewField
+		fields []PortalViewField
 		want   []string
 	}{
 		{
@@ -81,17 +81,17 @@ func TestFieldNames(t *testing.T) {
 		},
 		{
 			name:   "empty returns nil",
-			fields: []OVViewField{},
+			fields: []PortalViewField{},
 			want:   nil,
 		},
 		{
 			name:   "extracts names from simple fields",
-			fields: []OVViewField{{Name: "name"}, {Name: "email"}},
+			fields: []PortalViewField{{Name: "name"}, {Name: "email"}},
 			want:   []string{"name", "email"},
 		},
 		{
 			name:   "extracts names from mixed fields",
-			fields: []OVViewField{{Name: "name"}, {Name: "total", Expr: "a+b"}},
+			fields: []PortalViewField{{Name: "name"}, {Name: "total", Expr: "a+b"}},
 			want:   []string{"name", "total"},
 		},
 	}

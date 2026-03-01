@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { objectViewsApi } from '@/api/object-views'
+import { portalsApi } from '@/api/portals'
 import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
@@ -17,32 +17,32 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs'
 import type {
-  ObjectView,
-  OVAction,
-  OVQuery,
-  OVViewField,
-} from '@/types/object-views'
-import OVGeneralTab from '@/components/admin/object-view/OVGeneralTab.vue'
-import OVFieldsTab from '@/components/admin/object-view/OVFieldsTab.vue'
-import OVActionsTab from '@/components/admin/object-view/OVActionsTab.vue'
-import OVQueriesTab from '@/components/admin/object-view/OVQueriesTab.vue'
+  Portal,
+  PortalAction,
+  PortalQuery,
+  PortalViewField,
+} from '@/types/portals'
+import PortalGeneralTab from '@/components/admin/portal/PortalGeneralTab.vue'
+import PortalFieldsTab from '@/components/admin/portal/PortalFieldsTab.vue'
+import PortalActionsTab from '@/components/admin/portal/PortalActionsTab.vue'
+import PortalQueriesTab from '@/components/admin/portal/PortalQueriesTab.vue'
 
 interface FormConfig {
   read: {
-    fields: OVViewField[]
-    actions: OVAction[]
-    queries: OVQuery[]
+    fields: PortalViewField[]
+    actions: PortalAction[]
+    queries: PortalQuery[]
   }
 }
 
 const props = defineProps<{
-  viewId: string
+  portalId: string
 }>()
 
 const router = useRouter()
 const toast = useToast()
 
-const view = ref<ObjectView | null>(null)
+const view = ref<Portal | null>(null)
 const loading = ref(false)
 const submitting = ref(false)
 const showDeleteDialog = ref(false)
@@ -64,7 +64,7 @@ async function loadView() {
   loading.value = true
   error.value = null
   try {
-    const response = await objectViewsApi.get(props.viewId)
+    const response = await portalsApi.get(props.portalId)
     view.value = response.data
     const cfg = response.data.config
     form.value = {
@@ -88,18 +88,18 @@ async function loadView() {
 }
 
 onMounted(loadView)
-watch(() => props.viewId, loadView)
+watch(() => props.portalId, loadView)
 
 async function onSave() {
   submitting.value = true
   try {
-    await objectViewsApi.update(props.viewId, {
+    await portalsApi.update(props.portalId, {
       label: form.value.label,
       description: form.value.description || undefined,
       config: form.value.config,
     })
     toast.success('Object view updated')
-    router.push({ name: 'admin-object-views' })
+    router.push({ name: 'admin-portals' })
   } catch (err) {
     toast.errorFromApi(err)
   } finally {
@@ -109,9 +109,9 @@ async function onSave() {
 
 async function onDelete() {
   try {
-    await objectViewsApi.delete(props.viewId)
+    await portalsApi.delete(props.portalId)
     toast.success('Object view deleted')
-    router.push({ name: 'admin-object-views' })
+    router.push({ name: 'admin-portals' })
   } catch (err) {
     toast.errorFromApi(err)
   } finally {
@@ -121,7 +121,7 @@ async function onDelete() {
 
 const breadcrumbs = computed(() => [
   { label: 'Admin', to: '/admin' },
-  { label: 'Object Views', to: '/admin/metadata/object-views' },
+  { label: 'Portals', to: '/admin/metadata/portals' },
   { label: view.value?.label ?? '...' },
 ])
 </script>
@@ -160,7 +160,7 @@ const breadcrumbs = computed(() => [
         </TabsList>
 
         <TabsContent value="general">
-          <OVGeneralTab
+          <PortalGeneralTab
             :view="view"
             :form="form"
             @update:label="form.label = $event"
@@ -169,21 +169,21 @@ const breadcrumbs = computed(() => [
         </TabsContent>
 
         <TabsContent value="fields">
-          <OVFieldsTab
+          <PortalFieldsTab
             :fields="form.config.read.fields"
             @update:fields="form.config.read.fields = $event"
           />
         </TabsContent>
 
         <TabsContent value="actions">
-          <OVActionsTab
+          <PortalActionsTab
             :actions="form.config.read.actions"
             @update:actions="form.config.read.actions = $event"
           />
         </TabsContent>
 
         <TabsContent value="queries">
-          <OVQueriesTab
+          <PortalQueriesTab
             :queries="form.config.read.queries"
             @update:queries="form.config.read.queries = $event"
           />

@@ -530,7 +530,7 @@ func (s *stubCacheLoader) LoadAllFunctions(_ context.Context) ([]metadata.Functi
 	return nil, nil
 }
 
-func (s *stubCacheLoader) LoadAllObjectViews(_ context.Context) ([]metadata.ObjectView, error) {
+func (s *stubCacheLoader) LoadAllPortals(_ context.Context) ([]metadata.Portal, error) {
 	return nil, nil
 }
 

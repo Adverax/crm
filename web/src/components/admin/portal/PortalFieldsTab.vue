@@ -12,18 +12,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { OVViewField } from '@/types/object-views'
+import type { PortalViewField } from '@/types/portals'
 
 const props = defineProps<{
-  fields: OVViewField[]
+  fields: PortalViewField[]
 }>()
 
 const emit = defineEmits<{
-  'update:fields': [value: OVViewField[]]
+  'update:fields': [value: PortalViewField[]]
 }>()
 
 function addField() {
-  const updated: OVViewField[] = [...props.fields, { name: '' }]
+  const updated: PortalViewField[] = [...props.fields, { name: '' }]
   emit('update:fields', updated)
 }
 
@@ -44,7 +44,7 @@ function updateType(index: number, value: string) {
   const f = props.fields[index]
   if (!f) return
   const newType = value === 'none' ? undefined : value
-  updated[index] = { name: f.name, type: newType as OVViewField['type'], expr: f.expr, when: f.when }
+  updated[index] = { name: f.name, type: newType as PortalViewField['type'], expr: f.expr, when: f.when }
   emit('update:fields', updated)
 }
 
@@ -64,7 +64,7 @@ function updateWhen(index: number, value: string) {
   emit('update:fields', updated)
 }
 
-function isComputed(field: OVViewField): boolean {
+function isComputed(field: PortalViewField): boolean {
   return !!field.expr
 }
 </script>

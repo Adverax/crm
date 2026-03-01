@@ -19,7 +19,7 @@ Current state and target coverage relative to Salesforce Platform.
 | Data Mutation (DML) | Insert, Update, Upsert, Delete, Undelete, Merge + triggers | INSERT/UPDATE/DELETE/UPSERT, OLS+FLS enforcement, RLS injection for UPDATE/DELETE, batch operations, Custom Functions (fn.* dual-stack), validation rules (CEL), dynamic defaults (CEL), Automation Rules (triggers) | 70% SF |
 | Auth | OAuth 2.0, SAML, MFA, Connected Apps | JWT (access + refresh), login, password reset, rate limiting | JWT + refresh tokens |
 | Automation | Flow Builder, Triggers, Workflow Rules, Approval Processes | Automation Rules (before/after triggers, CEL conditions, procedure_code), Procedure Engine (6 command types, Named Credentials) | Triggers + basic Flows |
-| UI Framework | Lightning App Builder, LWC, Dynamic Forms | Vue.js admin + metadata-driven CRM UI (AppLayout, dynamic record views, FieldRenderer), Expression Builder (CodeMirror + autocomplete + live preview), Object View (role-based sections, actions, highlights, related lists), Profile Navigation (grouped sidebar, page views via OV + Navigation), Layout + Form Resolution (per form_factor + mode, shared layouts, fallback chain) | Admin + Record UI + Object Views + Navigation + Layouts |
+| UI Framework | Lightning App Builder, LWC, Dynamic Forms | Vue.js admin + metadata-driven CRM UI (AppLayout, dynamic record views, FieldRenderer), Expression Builder (CodeMirror + autocomplete + live preview), Portal (role-based sections, actions, highlights, related lists), Profile Navigation (grouped sidebar, page views via Portal + Navigation), Layout + Form Resolution (per form_factor + mode, shared layouts, fallback chain) | Admin + Record UI + Portals + Navigation + Layouts |
 | APIs | REST, SOAP, Bulk, Streaming, Metadata, Tooling, GraphQL | REST admin endpoints (metadata + security + groups + sharing rules) | REST + Streaming |
 | Analytics | Reports, Dashboards, Einstein | Not implemented | Basic reports |
 | Integration | Platform Events, CDC, External Services | Not implemented | CDC + webhooks |
@@ -63,8 +63,8 @@ Platform core — dynamic object and field definitions.
 | SF Capability | Our Status | When |
 |---------------|-----------|------|
 | Record Types | Not implemented | Phase 14b |
-| Object Views (role-based layouts) | ✅ Implemented (Phase 9a) | — |
-| Compact Layouts (highlight fields) | ✅ Implemented (highlight_fields in OV config) | — |
+| Portals (role-based layouts) | ✅ Implemented (Phase 9a) | — |
+| Compact Layouts (highlight fields) | ✅ Implemented (highlight_fields in Portal config) | — |
 | Formula Fields | Not implemented | Phase 13d |
 | Roll-Up Summary Fields | Not implemented | Phase 13d |
 | Validation Rules (formula-based) | ✅ CEL-based (Phase 7b) | — |
@@ -331,8 +331,8 @@ Transition from admin-only to a full CRM interface. Backend: generic CRUD endpoi
 | Kanban view (Opportunity stages) | Phase 14+ |
 | Calendar view (Events) | Phase 14+ |
 | Dynamic Forms (visibility rules) | Phase 14b |
-| Object Views per profile (role-based UI) | ✅ Phase 9a |
-| Navigation per profile + OV Unbinding | ✅ Phase 9b |
+| Portals per profile (role-based UI) | ✅ Phase 9a |
+| Navigation per profile + Portal Unbinding | ✅ Phase 9b |
 | Mobile-responsive layout | Phase 7a (basic) |
 
 ---
@@ -368,39 +368,39 @@ Named pure CEL expressions — foundation for reusable computational logic.
 
 ---
 
-### Phase 9: Object View — Role-Based UI (ADR-0022) ✅ (9a-9c done, 9d → Phase 14b)
+### Phase 9: Portal — Role-Based UI (ADR-0022) ✅ (9a-9c done, 9d → Phase 14b)
 
 Bounded context adapter: one object — different presentations for different roles.
 Users of the same system (Sales, Warehouse, Management) see a role-specific interface without code duplication.
 
-#### Phase 9a: Object View Core ✅
+#### Phase 9a: Portal Core ✅
 
-- [x] **object_views table**: `metadata.object_views (api_name UNIQUE, profile_id, config JSONB)`
+- [x] **portals table**: `metadata.portals (api_name UNIQUE, profile_id, config JSONB)`
 - [x] **Config schema**: View (fields, actions, queries, computed) + Edit (optional: validation, defaults, computed, mutations)
-- [x] **View endpoint**: `GET /api/v1/view/:ovApiName` — returns OV config by api_name
-- [x] **FLS intersection**: Object View fields ∩ FLS-accessible fields
+- [x] **View endpoint**: `GET /api/v1/portal/:portalApiName` — returns Portal config by api_name
+- [x] **FLS intersection**: Portal fields ∩ FLS-accessible fields
 - [x] **Describe API**: always returns fallback form (all FLS-accessible fields)
-- [x] **Admin REST API**: CRUD for Object Views (5 endpoints)
-- [x] **Vue.js Admin UI**: Object View list/create/detail (visual constructor: View tabs (General, Fields, Actions, Queries, Computed) + Edit tabs (Validation, Defaults, Computed, Mutations))
-- [x] **Frontend renderer**: RecordDetailView/RecordCreateView render based on Object View config (sections, field order, actions with cel-js visibility)
-- [x] **Fallback**: without Object View — current behavior (all FLS-accessible fields, auto-generated form)
-- [x] **MetadataCache extension**: object views cached in memory, partial reload
+- [x] **Admin REST API**: CRUD for Portals (5 endpoints)
+- [x] **Vue.js Admin UI**: Portal list/create/detail (visual constructor: View tabs (General, Fields, Actions, Queries, Computed) + Edit tabs (Validation, Defaults, Computed, Mutations))
+- [x] **Frontend renderer**: RecordDetailView/RecordCreateView render based on Portal config (sections, field order, actions with cel-js visibility)
+- [x] **Fallback**: without Portal — current behavior (all FLS-accessible fields, auto-generated form)
+- [x] **MetadataCache extension**: portals cached in memory, partial reload
 - [x] **Go unit tests**: service + handler with OpenAPI response validation
-- [x] **pgTAP tests**: schema tests for metadata.object_views
+- [x] **pgTAP tests**: schema tests for metadata.portals
 - [x] **E2E tests**: 24 tests (list, create, detail, sidebar)
 - [x] **Layout + Form Resolution (ADR-0027 revised)**: moved to Phase 9c (see below)
 
-#### Phase 9b: Navigation per Profile + OV Unbinding ✅
+#### Phase 9b: Navigation per Profile + Portal Unbinding ✅
 
-- [x] **OV Unbinding**: `object_id` removed from object_views — OV is no longer bound to a specific object
+- [x] **Portal Unbinding**: `object_id` removed from portals — Portal is no longer bound to a specific object
 - [x] **profile_navigation table**: `metadata.profile_navigation` (migration 000031), UNIQUE(profile_id), JSONB config
-- [x] **Navigation config extension**: `ov_api_name` field on nav items, `page` item type (renders OV as a standalone page)
+- [x] **Navigation config extension**: `portal_api_name` field on nav items, `page` item type (renders Portal as a standalone page)
 - [x] **Navigation service**: CRUD + `ResolveForProfile`, validation (max 20 groups, 50 items/group, URL safety)
 - [x] **Admin REST API**: 5 navigation endpoints on `/admin/profile-navigation`
-- [x] **Resolution endpoints**: `GET /navigation` (OLS intersection, fallback to flat list), `GET /view/:ovApiName` (OV config by api_name)
+- [x] **Resolution endpoints**: `GET /navigation` ( OLS intersection, fallback to flat list), `GET /portal/:portalApiName` (Portal config by api_name)
 - [x] **Sidebar per profile**: AppSidebar enhanced — grouped navigation from config, collapsible groups, fallback to OLS-filtered flat list
 - [x] **Welcome page**: `/app` home page shows a welcome page instead of dashboard
-- [x] **Dashboard removed**: separate dashboard entity eliminated — page-like dashboards achievable via OV + `page` nav items
+- [x] **Dashboard removed**: separate dashboard entity eliminated — page-like dashboards achievable via Portal + `page` nav items
 - [x] **Admin UI**: Navigation list/create/detail (3 views)
 - [x] **Go unit tests**: navigation service, table-driven
 - [x] **pgTAP tests**: schema tests for profile_navigation
@@ -409,10 +409,10 @@ Users of the same system (Sales, Warehouse, Management) see a role-specific inte
 
 #### Phase 9c: Layout + Form Resolution (ADR-0027 revised) ✅
 
-- [x] **metadata.layouts table**: Layout per (object_view_id, form_factor, mode), UNIQUE constraint, ON DELETE CASCADE
+- [x] **metadata.layouts table**: Layout per (portal_id, form_factor, mode), UNIQUE constraint, ON DELETE CASCADE
 - [x] **metadata.shared_layouts table**: reusable configuration snippets (type: field/section/list), api_name UNIQUE, RESTRICT delete protects referenced layouts
 - [x] **Layout config**: section_config (columns, collapsed, visibility_expr), field_config (col_span, ui_kind, required_expr, readonly_expr, reference_config), list_columns (width, align, sortable)
-- [x] **Form merge**: OV config + Layout config → computed Form in Describe API response. Frontend works only with Form
+- [x] **Form merge**: Portal config + Layout config → computed Form in Describe API response. Frontend works only with Form
 - [x] **Fallback chain**: requested layout → same form_factor any mode → desktop same mode → desktop edit → auto-generate
 - [x] **X-Form-Factor / X-Form-Mode headers**: request headers for layout resolution in Describe API
 - [x] **Shared layouts with layout_ref**: field/section/list references, inline overrides win, RESTRICT delete
@@ -428,7 +428,7 @@ Users of the same system (Sales, Warehouse, Management) see a role-specific inte
 - Root component tree rendering: RecordDetailView should render `root` component tree instead of flat sections. Deferred.
 - ExpressionBuilder integration: visibility/required/readonly expressions currently use plain textarea. Should integrate ExpressionBuilder.
 - Live preview: show production-like preview of how the form will look to end user.
-- Field order override: Layout can't reorder fields within sections (OV controls order). Consider optional field order in Layout.
+- Field order override: Layout can't reorder fields within sections (Portal controls order). Consider optional field order in Layout.
 
 #### Phase 9d: Advanced Metadata (deferred → Phase 14b)
 
@@ -488,15 +488,15 @@ Declarative automation: from atomic commands to composite procedures.
 | Assignment Rules | Automation Rule + Procedure |
 | Escalation Rules | Scenario + timers |
 
-#### OV Data Binding Model (ADR-0035, cross-cutting) ✅
+#### Portal Data Binding Model (ADR-0035, cross-cutting) ✅
 
 - [x] **ADR-0035**: Queries as first-class data sources, unified field model
-- [x] **Go types**: `OVViewField` (name, type?, expr?, when?) replaces `[]string` fields + `OVViewComputed`
-- [x] **OVQuery**: type inferred from SOQL syntax (`SELECT ROW` = scalar, `SELECT` = list)
+- [x] **Go types**: `PortalViewField` (name, type?, expr?, when?) replaces `[]string` fields + `PortalViewComputed`
+- [x] **PortalQuery**: type inferred from SOQL syntax (`SELECT ROW` = scalar, `SELECT` = list)
 - [x] **SOQL parser**: `SELECT ROW` keyword for single-record queries (LIMIT 2, >1 row error)
 - [x] **Validation**: query name uniqueness, field DAG cycle detection (Kahn's algorithm)
 - [x] **Describe handler**: `formQuery` struct, queries passed to form (type inferred, without SOQL)
-- [x] **Per-query endpoint**: `GET /view/:ovApiName/query/:queryName` — SOQL execution with URL param substitution
+- [x] **Per-query endpoint**: `GET /portal/:portalApiName/query/:queryName` — SOQL execution with URL param substitution
 - [x] **OpenAPI spec**: updated schemas, new endpoint
 - [x] **Frontend**: unified OVFieldsTab (fields + computed merged), Queries tab (name + SOQL, no type selector)
 - [x] **E2E tests**: updated mock data, tests for field expressions
@@ -710,7 +710,7 @@ Long-running process orchestration with durability and approval workflow.
 
 #### Phase 14b: Record Types + Dynamic Forms
 
-- [ ] **Record Types**: different picklist values and Object View per record type
+- [ ] **Record Types**: different picklist values and Portal per record type
 - [ ] **Dynamic Forms**: field visibility rules (CEL: `record.status == 'closed'`)
 - [ ] **Field History Tracking** (ee/): up to 20 fields per object, changelog table
 
@@ -831,10 +831,10 @@ Phase 0 ✅ ──→ Phase 1 ✅ ──→ Phase 2 ✅ ──→ Phase 3 ✅ �
                                                                                (generic CRUD)  (CEL+valid.)   (functions)
                                                                                                                    │
                                                                                                              Phase 9a ✅
-                                                                                                          (Object View)
+                                                                                                          (Portal)
                                                                                                                    │
                                                                                                              Phase 9b ✅
-                                                                                                        (Nav+OV Unbinding)
+                                                                                                        (Nav+Portal Unbinding)
                                                                                                                    │
                                                                                                              Phase 9c ✅
                                                                                                        (Layout+Form)
@@ -889,8 +889,8 @@ Principle: **user value first** — each phase should deliver visible benefit to
 
 **Completed (platform foundation):**
 1. ~~Phase 8~~ ✅ — Custom Functions
-2. ~~Phase 9a~~ ✅ — Object View core
-3. ~~Phase 9b~~ ✅ — Navigation per profile + OV Unbinding
+2. ~~Phase 9a~~ ✅ — Portal core
+3. ~~Phase 9b~~ ✅ — Navigation per profile + Portal Unbinding
 4. ~~Phase 9c~~ ✅ — Layout + Form Resolution
 5. ~~Phase 10a~~ ✅ — Procedure Engine core
 6. ~~Phase 10b~~ ✅ — Automation Rules
@@ -958,11 +958,11 @@ Criteria for assessing "Salesforce-grade" readiness by domain.
 
 | Domain | Bronze (v0.4) ✅ | Silver (v0.7) | Gold (v2.0) |
 |--------|-------------|---------------|-------------|
-| Metadata | Objects + Fields + References + Layouts + OV | + Record Types + Formulas | + Custom Metadata Types + Big Objects |
+| Metadata | Objects + Fields + References + Layouts + Portal | + Record Types + Formulas | + Custom Metadata Types + Big Objects |
 | Security | OLS + FLS + RLS + Groups + Sharing Rules | + Audit Log + Recycle Bin | + Territory + Encryption + Field Audit Trail |
 | Data Access | SOQL: SELECT/WHERE/JOIN/Aggregates/Subqueries | + Global Search (tsvector) | + SOSL + FOR UPDATE + Polymorphic |
 | Data Mutation | Insert + Update + Delete + Upsert + Triggers + Validation Rules | + Soft Delete + Undelete + CSV Import | + Merge + Flows |
-| UI | Admin + Record UI + Object Views + Navigation + Layouts | + Related Lists + Search/Sort + List Views + Activity | + App Builder + Kanban + Calendar |
+| UI | Admin + Record UI + Portals + Navigation + Layouts | + Related Lists + Search/Sort + List Views + Activity | + App Builder + Kanban + Calendar |
 | API | REST CRUD + SOQL + DML | + Bulk + Export + Import | + Streaming + CDC + GraphQL |
 | Automation | Procedure Engine + Automation Rules | + Notifications + Email | + Scenarios + Approvals |
 | Analytics | — | — | + Dashboard Builder + Scheduled reports |

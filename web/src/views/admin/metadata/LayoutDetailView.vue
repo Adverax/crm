@@ -2,7 +2,7 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { layoutsApi } from '@/api/layouts'
-import { objectViewsApi } from '@/api/object-views'
+import { portalsApi } from '@/api/portals'
 import { sharedLayoutsApi } from '@/api/shared-layouts'
 import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/admin/PageHeader.vue'
@@ -24,7 +24,7 @@ import FormLayoutTab from '@/components/admin/layouts/FormLayoutTab.vue'
 import ListConfigTab from '@/components/admin/layouts/ListConfigTab.vue'
 import JsonTab from '@/components/admin/layouts/JsonTab.vue'
 import type { Layout, LayoutConfig, SectionConfig, LayoutFieldConfig, ListConfig, SharedLayout } from '@/types/layouts'
-import type { ObjectView } from '@/types/object-views'
+import type { Portal } from '@/types/portals'
 import type { OVSection } from '@/components/admin/layouts/FormLayoutTab.vue'
 import type { SectionField } from '@/components/admin/layouts/SectionCard.vue'
 
@@ -36,7 +36,7 @@ const router = useRouter()
 const toast = useToast()
 
 const layout = ref<Layout | null>(null)
-const ov = ref<ObjectView | null>(null)
+const ov = ref<Portal | null>(null)
 const sharedLayouts = ref<SharedLayout[]>([])
 const loading = ref(false)
 const submitting = ref(false)
@@ -69,7 +69,7 @@ async function loadLayout() {
 
     // Load OV for section/field metadata
     try {
-      const ovRes = await objectViewsApi.get(layoutRes.data.objectViewId)
+      const ovRes = await portalsApi.get(layoutRes.data.portalId)
       ov.value = ovRes.data
     } catch {
       ov.value = null
@@ -185,7 +185,7 @@ function onCancel() {
   router.push({ name: 'admin-layouts' })
 }
 
-const ovLabel = computed(() => ov.value?.label ?? layout.value?.objectViewId ?? '')
+const ovLabel = computed(() => ov.value?.label ?? layout.value?.portalId ?? '')
 
 const heading = computed(() => {
   if (!layout.value) return '...'
@@ -225,7 +225,7 @@ const breadcrumbs = computed(() => [
         <!-- Info badges -->
         <div class="flex items-center gap-4 text-sm">
           <div class="flex items-center gap-2">
-            <span class="text-muted-foreground">Object View:</span>
+            <span class="text-muted-foreground">Portal:</span>
             <span class="font-medium">{{ ovLabel }}</span>
           </div>
           <Badge data-testid="badge-form-factor">{{ layout.formFactor }}</Badge>

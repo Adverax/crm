@@ -16,16 +16,16 @@ import (
 
 var paramRegexp = regexp.MustCompile(`:(\w+)`)
 
-// ViewHandler serves resolved Object View configs, per-query data, and action execution.
-type ViewHandler struct {
+// PortalHandler serves resolved Object View configs, per-query data, and action execution.
+type PortalHandler struct {
 	cache       metadata.MetadataReader
 	soqlService soql.QueryService
 	dmlService  dml.DMLService
 }
 
-// NewViewHandler creates a new ViewHandler.
-func NewViewHandler(cache metadata.MetadataReader, soqlService soql.QueryService, dmlService dml.DMLService) *ViewHandler {
-	return &ViewHandler{
+// NewPortalHandler creates a new PortalHandler.
+func NewPortalHandler(cache metadata.MetadataReader, soqlService soql.QueryService, dmlService dml.DMLService) *PortalHandler {
+	return &PortalHandler{
 		cache:       cache,
 		soqlService: soqlService,
 		dmlService:  dmlService,
@@ -33,19 +33,19 @@ func NewViewHandler(cache metadata.MetadataReader, soqlService soql.QueryService
 }
 
 // RegisterRoutes registers the view routes on the given API group.
-func (h *ViewHandler) RegisterRoutes(rg *gin.RouterGroup) {
-	rg.GET("/view/:ovApiName", h.GetByAPIName)
-	rg.GET("/view/:ovApiName/query/:queryName", h.ExecuteQuery)
-	rg.POST("/view/:ovApiName/action/:actionKey", h.ExecuteAction)
+func (h *PortalHandler) RegisterRoutes(rg *gin.RouterGroup) {
+	rg.GET("/portal/:portalApiName", h.GetByAPIName)
+	rg.GET("/portal/:portalApiName/query/:queryName", h.ExecuteQuery)
+	rg.POST("/portal/:portalApiName/action/:actionKey", h.ExecuteAction)
 }
 
 // GetByAPIName returns the OV config by api_name.
-func (h *ViewHandler) GetByAPIName(c *gin.Context) {
-	apiName := c.Param("ovApiName")
+func (h *PortalHandler) GetByAPIName(c *gin.Context) {
+	apiName := c.Param("portalApiName")
 
-	ov, ok := h.cache.GetObjectViewByAPIName(apiName)
+	ov, ok := h.cache.GetPortalByAPIName(apiName)
 	if !ok {
-		apperror.Respond(c, apperror.NotFound("object_view", apiName))
+		apperror.Respond(c, apperror.NotFound("portal", apiName))
 		return
 	}
 
@@ -53,18 +53,18 @@ func (h *ViewHandler) GetByAPIName(c *gin.Context) {
 }
 
 // ExecuteQuery executes a named query from an Object View.
-func (h *ViewHandler) ExecuteQuery(c *gin.Context) {
-	ovAPIName := c.Param("ovApiName")
+func (h *PortalHandler) ExecuteQuery(c *gin.Context) {
+	portalAPIName := c.Param("portalApiName")
 	queryName := c.Param("queryName")
 
-	ov, ok := h.cache.GetObjectViewByAPIName(ovAPIName)
+	ov, ok := h.cache.GetPortalByAPIName(portalAPIName)
 	if !ok {
-		apperror.Respond(c, apperror.NotFound("object_view", ovAPIName))
+		apperror.Respond(c, apperror.NotFound("portal", portalAPIName))
 		return
 	}
 
 	// Find the query
-	var query *metadata.OVQuery
+	var query *metadata.PortalQuery
 	for i := range ov.Config.Read.Queries {
 		if ov.Config.Read.Queries[i].Name == queryName {
 			query = &ov.Config.Read.Queries[i]
@@ -120,18 +120,18 @@ type actionResultItem struct {
 }
 
 // ExecuteAction executes a named action from an Object View (ADR-0036).
-func (h *ViewHandler) ExecuteAction(c *gin.Context) {
-	ovAPIName := c.Param("ovApiName")
+func (h *PortalHandler) ExecuteAction(c *gin.Context) {
+	portalAPIName := c.Param("portalApiName")
 	actionKey := c.Param("actionKey")
 
-	ov, ok := h.cache.GetObjectViewByAPIName(ovAPIName)
+	ov, ok := h.cache.GetPortalByAPIName(portalAPIName)
 	if !ok {
-		apperror.Respond(c, apperror.NotFound("object_view", ovAPIName))
+		apperror.Respond(c, apperror.NotFound("portal", portalAPIName))
 		return
 	}
 
 	// Find the action
-	var action *metadata.OVAction
+	var action *metadata.PortalAction
 	for i := range ov.Config.Read.Actions {
 		if ov.Config.Read.Actions[i].Key == actionKey {
 			action = &ov.Config.Read.Actions[i]

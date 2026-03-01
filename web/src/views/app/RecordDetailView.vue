@@ -16,7 +16,7 @@ import { Trash2, X, ChevronDown } from 'lucide-vue-next'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import type { FieldDescribe } from '@/types/records'
-import type { FormSection } from '@/types/object-views'
+import type { FormSection } from '@/types/portals'
 
 interface FieldPresentationInfo {
   colSpan?: number

@@ -10,47 +10,47 @@ import (
 	"github.com/adverax/crm/internal/platform/metadata"
 )
 
-// ObjectViewHandler handles admin CRUD for object views.
-type ObjectViewHandler struct {
-	service metadata.ObjectViewService
+// PortalAdminHandler handles admin CRUD for object views.
+type PortalAdminHandler struct {
+	service metadata.PortalService
 }
 
-// NewObjectViewHandler creates a new ObjectViewHandler.
-func NewObjectViewHandler(service metadata.ObjectViewService) *ObjectViewHandler {
-	return &ObjectViewHandler{service: service}
+// NewPortalAdminHandler creates a new PortalAdminHandler.
+func NewPortalAdminHandler(service metadata.PortalService) *PortalAdminHandler {
+	return &PortalAdminHandler{service: service}
 }
 
 // RegisterRoutes registers object view routes on the admin group.
-func (h *ObjectViewHandler) RegisterRoutes(rg *gin.RouterGroup) {
-	rg.POST("/object-views", h.Create)
-	rg.GET("/object-views", h.List)
-	rg.GET("/object-views/:viewId", h.Get)
-	rg.PUT("/object-views/:viewId", h.Update)
-	rg.DELETE("/object-views/:viewId", h.Delete)
+func (h *PortalAdminHandler) RegisterRoutes(rg *gin.RouterGroup) {
+	rg.POST("/portals", h.Create)
+	rg.GET("/portals", h.List)
+	rg.GET("/portals/:portalId", h.Get)
+	rg.PUT("/portals/:portalId", h.Update)
+	rg.DELETE("/portals/:portalId", h.Delete)
 }
 
-type createObjectViewRequest struct {
-	ProfileID   *string           `json:"profile_id"`
-	APIName     string            `json:"api_name" binding:"required"`
-	Label       string            `json:"label" binding:"required"`
-	Description *string           `json:"description"`
-	Config      metadata.OVConfig `json:"config"`
+type createPortalRequest struct {
+	ProfileID   *string               `json:"profile_id"`
+	APIName     string                `json:"api_name" binding:"required"`
+	Label       string                `json:"label" binding:"required"`
+	Description *string               `json:"description"`
+	Config      metadata.PortalConfig `json:"config"`
 }
 
-type updateObjectViewRequest struct {
-	Label       string            `json:"label" binding:"required"`
-	Description *string           `json:"description"`
-	Config      metadata.OVConfig `json:"config"`
+type updatePortalRequest struct {
+	Label       string                `json:"label" binding:"required"`
+	Description *string               `json:"description"`
+	Config      metadata.PortalConfig `json:"config"`
 }
 
-func (h *ObjectViewHandler) Create(c *gin.Context) {
-	var req createObjectViewRequest
+func (h *PortalAdminHandler) Create(c *gin.Context) {
+	var req createPortalRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		apperror.Respond(c, apperror.BadRequest("invalid request body"))
 		return
 	}
 
-	input := metadata.CreateObjectViewInput{
+	input := metadata.CreatePortalInput{
 		APIName: req.APIName,
 		Label:   req.Label,
 		Config:  req.Config,
@@ -76,7 +76,7 @@ func (h *ObjectViewHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"data": ov})
 }
 
-func (h *ObjectViewHandler) List(c *gin.Context) {
+func (h *PortalAdminHandler) List(c *gin.Context) {
 	views, err := h.service.ListAll(c.Request.Context())
 	if err != nil {
 		apperror.Respond(c, err)
@@ -86,8 +86,8 @@ func (h *ObjectViewHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": views})
 }
 
-func (h *ObjectViewHandler) Get(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("viewId"))
+func (h *PortalAdminHandler) Get(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("portalId"))
 	if err != nil {
 		apperror.Respond(c, apperror.BadRequest("invalid view ID"))
 		return
@@ -102,20 +102,20 @@ func (h *ObjectViewHandler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": ov})
 }
 
-func (h *ObjectViewHandler) Update(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("viewId"))
+func (h *PortalAdminHandler) Update(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("portalId"))
 	if err != nil {
 		apperror.Respond(c, apperror.BadRequest("invalid view ID"))
 		return
 	}
 
-	var req updateObjectViewRequest
+	var req updatePortalRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		apperror.Respond(c, apperror.BadRequest("invalid request body"))
 		return
 	}
 
-	input := metadata.UpdateObjectViewInput{
+	input := metadata.UpdatePortalInput{
 		Label:  req.Label,
 		Config: req.Config,
 	}
@@ -132,8 +132,8 @@ func (h *ObjectViewHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": ov})
 }
 
-func (h *ObjectViewHandler) Delete(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("viewId"))
+func (h *PortalAdminHandler) Delete(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("portalId"))
 	if err != nil {
 		apperror.Respond(c, apperror.BadRequest("invalid view ID"))
 		return

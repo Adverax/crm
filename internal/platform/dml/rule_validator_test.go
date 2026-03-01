@@ -39,7 +39,7 @@ func (m *mockCacheLoader) LoadAllFunctions(_ context.Context) ([]metadata.Functi
 	return nil, nil
 }
 
-func (m *mockCacheLoader) LoadAllObjectViews(_ context.Context) ([]metadata.ObjectView, error) {
+func (m *mockCacheLoader) LoadAllPortals(_ context.Context) ([]metadata.Portal, error) {
 	return nil, nil
 }
 

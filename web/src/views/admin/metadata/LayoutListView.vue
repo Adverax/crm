@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { layoutsApi } from '@/api/layouts'
-import { objectViewsApi } from '@/api/object-views'
+import { portalsApi } from '@/api/portals'
 import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/admin/PageHeader.vue'
 import ErrorAlert from '@/components/admin/ErrorAlert.vue'
@@ -21,14 +21,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { Layout } from '@/types/layouts'
-import type { ObjectView } from '@/types/object-views'
+import type { Portal } from '@/types/portals'
 
 const router = useRouter()
 const route = useRoute()
 const toast = useToast()
 
 const layouts = ref<Layout[]>([])
-const objectViews = ref<ObjectView[]>([])
+const portals = ref<Portal[]>([])
 const searchQuery = ref('')
 const filterOvId = ref('__all__')
 const loading = ref(false)
@@ -38,13 +38,13 @@ const filteredLayouts = computed(() => {
   let result = layouts.value
 
   if (filterOvId.value && filterOvId.value !== '__all__') {
-    result = result.filter((l) => l.objectViewId === filterOvId.value)
+    result = result.filter((l) => l.portalId === filterOvId.value)
   }
 
   const q = searchQuery.value.toLowerCase()
   if (q) {
     result = result.filter((l) => {
-      const ovLabel = ovLabelMap.value[l.objectViewId] ?? ''
+      const ovLabel = ovLabelMap.value[l.portalId] ?? ''
       return (
         l.formFactor.toLowerCase().includes(q) ||
         l.mode.toLowerCase().includes(q) ||
@@ -58,7 +58,7 @@ const filteredLayouts = computed(() => {
 
 const ovLabelMap = computed(() => {
   const map: Record<string, string> = {}
-  for (const ov of objectViews.value) {
+  for (const ov of portals.value) {
     if (ov.id) {
       map[ov.id] = ov.label
     }
@@ -70,17 +70,17 @@ async function loadData() {
   loading.value = true
   error.value = null
   try {
-    const queryOvId = route.query.object_view_id as string | undefined
+    const queryOvId = route.query.portal_id as string | undefined
     if (queryOvId) {
       filterOvId.value = queryOvId
     }
 
     const [layoutsRes, ovsRes] = await Promise.all([
       layoutsApi.list(queryOvId),
-      objectViewsApi.list(),
+      portalsApi.list(),
     ])
     layouts.value = layoutsRes.data ?? []
-    objectViews.value = ovsRes.data ?? []
+    portals.value = ovsRes.data ?? []
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err)
     error.value = `Failed to load layouts: ${detail}`
@@ -146,12 +146,12 @@ const breadcrumbs = [
       />
       <Select :model-value="filterOvId" @update:model-value="onOvFilterChange">
         <SelectTrigger class="w-64 h-9" data-testid="filter-ov">
-          <SelectValue placeholder="All Object Views" />
+          <SelectValue placeholder="All Portals" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="__all__">All Object Views</SelectItem>
+          <SelectItem value="__all__">All Portals</SelectItem>
           <SelectItem
-            v-for="ov in objectViews"
+            v-for="ov in portals"
             :key="ov.id"
             :value="ov.id!"
           >
@@ -185,7 +185,7 @@ const breadcrumbs = [
         <CardContent class="py-3 flex items-center justify-between">
           <div>
             <div class="font-medium">
-              {{ ovLabelMap[layout.objectViewId] || layout.objectViewId }}
+              {{ ovLabelMap[layout.portalId] || layout.portalId }}
             </div>
             <div class="text-sm text-muted-foreground">
               Layout for {{ layout.formFactor }} / {{ layout.mode }}

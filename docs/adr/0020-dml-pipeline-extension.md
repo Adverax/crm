@@ -28,7 +28,7 @@ The pipeline needs to be extended to integrate these subsystems.
 1. **Clear execution order** — each stage has a defined place in the pipeline, no ambiguity
 2. **Typed interfaces** — each stage = interface with a specific signature, not an arbitrary callback
 3. **Incrementality** — stages are added according to the ADR-0019 roadmap, not all at once
-4. **Effective ruleset** — pipeline accepts the calling context (metadata / Object View / Layout) for cascading rule merging (ADR-0019)
+4. **Effective ruleset** — pipeline accepts the calling context (metadata / Portal / Layout) for cascading rule merging (ADR-0019)
 5. **Testability** — each stage is tested in isolation via mock
 
 ## Options Considered
@@ -101,7 +101,7 @@ A fixed order of 10+ steps with a clear description of each:
 │     ├─ static: FieldConfig.default_value                 │
 │     └─ dynamic: FieldConfig.default_expr (CEL)           │
 │     Only for INSERT. Only for fields absent              │
-│     from the statement. Cascade: metadata → OV → Layout. │
+│     from the statement. Cascade: metadata → Portal → Layout. │
 │                                                          │
 │  4. VALIDATE                                             │
 │     a) Metadata constraints: required, type, unique      │
@@ -241,7 +241,7 @@ For INSERT: `old` = nil. Validation rules with `old` in the expression are autom
 2. For each absent field, check for a default:
    - First `default_value` (static) — lower priority
    - Then `default_expr` (CEL) — overrides static
-   - Cascade: Layout > Object View > Metadata
+   - Cascade: Layout > Portal > Metadata
 3. If `default_on` does not match the current operation — skip
 4. CEL expression is evaluated with variables `record`, `user`, `now`
 5. Result is added to `record` before the validate step
@@ -279,7 +279,7 @@ Stages are added incrementally, in accordance with ADR-0019:
 | **7a** | 3. Defaults (static `default_value` only) | — |
 | **7b** | 3. Defaults (dynamic `default_expr`) + 4b. Validation Rules | CEL engine (cel-go) |
 | **N+1** | 5. Compute | CEL engine (already available after 7b) |
-| **N+2** | 2. Resolve (cascade) + 8. Post-execute | Object View storage, Automation Rules |
+| **N+2** | 2. Resolve (cascade) + 8. Post-execute | Portal storage, Automation Rules |
 
 **Phase 7a** — static defaults: injection of `FieldConfig.default_value` for missing fields + system fields (`owner_id`, `created_by_id`, `created_at`, `updated_at`). No CEL. Pipeline is extended with Stage 3 in a minimal variant.
 

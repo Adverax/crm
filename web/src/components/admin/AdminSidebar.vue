@@ -30,7 +30,7 @@ const groups: NavGroup[] = [
   {
     label: 'Presentation',
     children: [
-      { label: 'Object Views', to: '/admin/metadata/object-views' },
+      { label: 'Portals', to: '/admin/metadata/portals' },
       { label: 'Layouts', to: '/admin/metadata/layouts' },
       { label: 'Shared Layouts', to: '/admin/metadata/shared-layouts' },
       { label: 'Navigation', to: '/admin/metadata/navigation' },

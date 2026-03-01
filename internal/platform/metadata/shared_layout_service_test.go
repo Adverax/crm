@@ -118,7 +118,7 @@ func (m *mockSharedLayoutCacheLoader) LoadAllValidationRules(_ context.Context) 
 func (m *mockSharedLayoutCacheLoader) LoadAllFunctions(_ context.Context) ([]Function, error) {
 	return nil, nil
 }
-func (m *mockSharedLayoutCacheLoader) LoadAllObjectViews(_ context.Context) ([]ObjectView, error) {
+func (m *mockSharedLayoutCacheLoader) LoadAllPortals(_ context.Context) ([]Portal, error) {
 	return nil, nil
 }
 func (m *mockSharedLayoutCacheLoader) LoadAllProcedures(_ context.Context) ([]Procedure, error) {

@@ -18,74 +18,74 @@ import (
 	"github.com/adverax/crm/internal/platform/metadata"
 )
 
-// --- Mock ObjectViewService ---
+// --- Mock PortalService ---
 
-type mockObjectViewService struct {
-	createFn   func(ctx context.Context, input metadata.CreateObjectViewInput) (*metadata.ObjectView, error)
-	getByIDFn  func(ctx context.Context, id uuid.UUID) (*metadata.ObjectView, error)
-	getByAPIFn func(ctx context.Context, apiName string) (*metadata.ObjectView, error)
-	listAllFn  func(ctx context.Context) ([]metadata.ObjectView, error)
-	updateFn   func(ctx context.Context, id uuid.UUID, input metadata.UpdateObjectViewInput) (*metadata.ObjectView, error)
+type mockPortalService struct {
+	createFn   func(ctx context.Context, input metadata.CreatePortalInput) (*metadata.Portal, error)
+	getByIDFn  func(ctx context.Context, id uuid.UUID) (*metadata.Portal, error)
+	getByAPIFn func(ctx context.Context, apiName string) (*metadata.Portal, error)
+	listAllFn  func(ctx context.Context) ([]metadata.Portal, error)
+	updateFn   func(ctx context.Context, id uuid.UUID, input metadata.UpdatePortalInput) (*metadata.Portal, error)
 	deleteFn   func(ctx context.Context, id uuid.UUID) error
 }
 
-func (m *mockObjectViewService) Create(ctx context.Context, input metadata.CreateObjectViewInput) (*metadata.ObjectView, error) {
+func (m *mockPortalService) Create(ctx context.Context, input metadata.CreatePortalInput) (*metadata.Portal, error) {
 	if m.createFn != nil {
 		return m.createFn(ctx, input)
 	}
-	return &metadata.ObjectView{
+	return &metadata.Portal{
 		ID:      uuid.New(),
 		APIName: input.APIName,
 		Label:   input.Label,
 	}, nil
 }
 
-func (m *mockObjectViewService) GetByID(ctx context.Context, id uuid.UUID) (*metadata.ObjectView, error) {
+func (m *mockPortalService) GetByID(ctx context.Context, id uuid.UUID) (*metadata.Portal, error) {
 	if m.getByIDFn != nil {
 		return m.getByIDFn(ctx, id)
 	}
-	return nil, fmt.Errorf("%w", apperror.NotFound("object_view", id.String()))
+	return nil, fmt.Errorf("%w", apperror.NotFound("portal", id.String()))
 }
 
-func (m *mockObjectViewService) GetByAPIName(ctx context.Context, apiName string) (*metadata.ObjectView, error) {
+func (m *mockPortalService) GetByAPIName(ctx context.Context, apiName string) (*metadata.Portal, error) {
 	if m.getByAPIFn != nil {
 		return m.getByAPIFn(ctx, apiName)
 	}
-	return nil, fmt.Errorf("%w", apperror.NotFound("object_view", apiName))
+	return nil, fmt.Errorf("%w", apperror.NotFound("portal", apiName))
 }
 
-func (m *mockObjectViewService) ListAll(ctx context.Context) ([]metadata.ObjectView, error) {
+func (m *mockPortalService) ListAll(ctx context.Context) ([]metadata.Portal, error) {
 	if m.listAllFn != nil {
 		return m.listAllFn(ctx)
 	}
-	return []metadata.ObjectView{}, nil
+	return []metadata.Portal{}, nil
 }
 
-func (m *mockObjectViewService) Update(ctx context.Context, id uuid.UUID, input metadata.UpdateObjectViewInput) (*metadata.ObjectView, error) {
+func (m *mockPortalService) Update(ctx context.Context, id uuid.UUID, input metadata.UpdatePortalInput) (*metadata.Portal, error) {
 	if m.updateFn != nil {
 		return m.updateFn(ctx, id, input)
 	}
-	return nil, fmt.Errorf("%w", apperror.NotFound("object_view", id.String()))
+	return nil, fmt.Errorf("%w", apperror.NotFound("portal", id.String()))
 }
 
-func (m *mockObjectViewService) Delete(ctx context.Context, id uuid.UUID) error {
+func (m *mockPortalService) Delete(ctx context.Context, id uuid.UUID) error {
 	if m.deleteFn != nil {
 		return m.deleteFn(ctx, id)
 	}
 	return nil
 }
 
-func setupObjectViewRouter(t *testing.T, svc *mockObjectViewService) *gin.Engine {
+func setupPortalRouter(t *testing.T, svc *mockPortalService) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	admin := r.Group("/api/v1/admin")
-	h := NewObjectViewHandler(svc)
+	h := NewPortalAdminHandler(svc)
 	h.RegisterRoutes(admin)
 	return r
 }
 
-func TestObjectViewHandler_Create(t *testing.T) {
+func TestPortalAdminHandler_Create(t *testing.T) {
 	t.Parallel()
 
 	profileID := uuid.New()
@@ -93,7 +93,7 @@ func TestObjectViewHandler_Create(t *testing.T) {
 	tests := []struct {
 		name       string
 		body       interface{}
-		setupSvc   func(*mockObjectViewService)
+		setupSvc   func(*mockPortalService)
 		wantStatus int
 	}{
 		{
@@ -116,15 +116,15 @@ func TestObjectViewHandler_Create(t *testing.T) {
 				"api_name":   "sales_view",
 				"label":      "Sales View",
 			},
-			setupSvc: func(m *mockObjectViewService) {
-				m.createFn = func(_ context.Context, input metadata.CreateObjectViewInput) (*metadata.ObjectView, error) {
+			setupSvc: func(m *mockPortalService) {
+				m.createFn = func(_ context.Context, input metadata.CreatePortalInput) (*metadata.Portal, error) {
 					if input.ProfileID == nil {
 						return nil, fmt.Errorf("expected profile_id to be set")
 					}
 					if *input.ProfileID != profileID {
 						return nil, fmt.Errorf("expected profile_id %s, got %s", profileID, *input.ProfileID)
 					}
-					return &metadata.ObjectView{
+					return &metadata.Portal{
 						ID:        uuid.New(),
 						ProfileID: input.ProfileID,
 						APIName:   input.APIName,
@@ -141,12 +141,12 @@ func TestObjectViewHandler_Create(t *testing.T) {
 				"label":       "Detailed View",
 				"description": "A detailed view for contacts",
 			},
-			setupSvc: func(m *mockObjectViewService) {
-				m.createFn = func(_ context.Context, input metadata.CreateObjectViewInput) (*metadata.ObjectView, error) {
+			setupSvc: func(m *mockPortalService) {
+				m.createFn = func(_ context.Context, input metadata.CreatePortalInput) (*metadata.Portal, error) {
 					if input.Description != "A detailed view for contacts" {
 						return nil, fmt.Errorf("expected description 'A detailed view for contacts', got %q", input.Description)
 					}
-					return &metadata.ObjectView{
+					return &metadata.Portal{
 						ID:          uuid.New(),
 						APIName:     input.APIName,
 						Label:       input.Label,
@@ -190,8 +190,8 @@ func TestObjectViewHandler_Create(t *testing.T) {
 				"api_name": "test_view",
 				"label":    "Test View",
 			},
-			setupSvc: func(m *mockObjectViewService) {
-				m.createFn = func(_ context.Context, _ metadata.CreateObjectViewInput) (*metadata.ObjectView, error) {
+			setupSvc: func(m *mockPortalService) {
+				m.createFn = func(_ context.Context, _ metadata.CreatePortalInput) (*metadata.Portal, error) {
 					return nil, fmt.Errorf("%w", apperror.BadRequest("api_name must match ^[a-z][a-z0-9_]*$"))
 				}
 			},
@@ -203,8 +203,8 @@ func TestObjectViewHandler_Create(t *testing.T) {
 				"api_name": "existing_view",
 				"label":    "Existing View",
 			},
-			setupSvc: func(m *mockObjectViewService) {
-				m.createFn = func(_ context.Context, _ metadata.CreateObjectViewInput) (*metadata.ObjectView, error) {
+			setupSvc: func(m *mockPortalService) {
+				m.createFn = func(_ context.Context, _ metadata.CreatePortalInput) (*metadata.Portal, error) {
 					return nil, fmt.Errorf("%w", apperror.Conflict("object view with this api_name already exists"))
 				}
 			},
@@ -215,15 +215,15 @@ func TestObjectViewHandler_Create(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			svc := &mockObjectViewService{}
+			svc := &mockPortalService{}
 			if tt.setupSvc != nil {
 				tt.setupSvc(svc)
 			}
-			r := setupObjectViewRouter(t, svc)
+			r := setupPortalRouter(t, svc)
 
 			body, _ := json.Marshal(tt.body)
 			w := httptest.NewRecorder()
-			req, _ := http.NewRequest(http.MethodPost, "/api/v1/admin/object-views", bytes.NewReader(body))
+			req, _ := http.NewRequest(http.MethodPost, "/api/v1/admin/portals", bytes.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
 			r.ServeHTTP(w, req)
 
@@ -232,14 +232,14 @@ func TestObjectViewHandler_Create(t *testing.T) {
 	}
 }
 
-func TestObjectViewHandler_List(t *testing.T) {
+func TestPortalAdminHandler_List(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
 
 	tests := []struct {
 		name       string
-		setupSvc   func(*mockObjectViewService)
+		setupSvc   func(*mockPortalService)
 		wantStatus int
 		wantCount  int
 	}{
@@ -250,9 +250,9 @@ func TestObjectViewHandler_List(t *testing.T) {
 		},
 		{
 			name: "returns all object views",
-			setupSvc: func(m *mockObjectViewService) {
-				m.listAllFn = func(_ context.Context) ([]metadata.ObjectView, error) {
-					return []metadata.ObjectView{
+			setupSvc: func(m *mockPortalService) {
+				m.listAllFn = func(_ context.Context) ([]metadata.Portal, error) {
+					return []metadata.Portal{
 						{
 							ID:        uuid.New(),
 							APIName:   "view_a",
@@ -275,8 +275,8 @@ func TestObjectViewHandler_List(t *testing.T) {
 		},
 		{
 			name: "returns 500 on service error",
-			setupSvc: func(m *mockObjectViewService) {
-				m.listAllFn = func(_ context.Context) ([]metadata.ObjectView, error) {
+			setupSvc: func(m *mockPortalService) {
+				m.listAllFn = func(_ context.Context) ([]metadata.Portal, error) {
 					return nil, fmt.Errorf("database connection failed")
 				}
 			},
@@ -287,21 +287,21 @@ func TestObjectViewHandler_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			svc := &mockObjectViewService{}
+			svc := &mockPortalService{}
 			if tt.setupSvc != nil {
 				tt.setupSvc(svc)
 			}
-			r := setupObjectViewRouter(t, svc)
+			r := setupPortalRouter(t, svc)
 
 			w := httptest.NewRecorder()
-			req, _ := http.NewRequest(http.MethodGet, "/api/v1/admin/object-views", nil)
+			req, _ := http.NewRequest(http.MethodGet, "/api/v1/admin/portals", nil)
 			r.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
 
 			if tt.wantStatus == http.StatusOK {
 				var resp struct {
-					Data []metadata.ObjectView `json:"data"`
+					Data []metadata.Portal `json:"data"`
 				}
 				err := json.Unmarshal(w.Body.Bytes(), &resp)
 				assert.NoError(t, err)
@@ -311,7 +311,7 @@ func TestObjectViewHandler_List(t *testing.T) {
 	}
 }
 
-func TestObjectViewHandler_Get(t *testing.T) {
+func TestPortalAdminHandler_Get(t *testing.T) {
 	t.Parallel()
 
 	existingID := uuid.New()
@@ -320,21 +320,21 @@ func TestObjectViewHandler_Get(t *testing.T) {
 	tests := []struct {
 		name       string
 		id         string
-		setupSvc   func(*mockObjectViewService)
+		setupSvc   func(*mockPortalService)
 		wantStatus int
 	}{
 		{
 			name: "returns object view",
 			id:   existingID.String(),
-			setupSvc: func(m *mockObjectViewService) {
-				m.getByIDFn = func(_ context.Context, id uuid.UUID) (*metadata.ObjectView, error) {
-					return &metadata.ObjectView{
+			setupSvc: func(m *mockPortalService) {
+				m.getByIDFn = func(_ context.Context, id uuid.UUID) (*metadata.Portal, error) {
+					return &metadata.Portal{
 						ID:      id,
 						APIName: "default_view",
 						Label:   "Default View",
-						Config: metadata.OVConfig{
-							Read: metadata.OVReadConfig{
-								Fields: []metadata.OVViewField{{Name: "name"}},
+						Config: metadata.PortalConfig{
+							Read: metadata.PortalReadConfig{
+								Fields: []metadata.PortalViewField{{Name: "name"}},
 							},
 						},
 						CreatedAt: now,
@@ -357,8 +357,8 @@ func TestObjectViewHandler_Get(t *testing.T) {
 		{
 			name: "returns 500 on service error",
 			id:   existingID.String(),
-			setupSvc: func(m *mockObjectViewService) {
-				m.getByIDFn = func(_ context.Context, _ uuid.UUID) (*metadata.ObjectView, error) {
+			setupSvc: func(m *mockPortalService) {
+				m.getByIDFn = func(_ context.Context, _ uuid.UUID) (*metadata.Portal, error) {
 					return nil, fmt.Errorf("unexpected database error")
 				}
 			},
@@ -369,21 +369,21 @@ func TestObjectViewHandler_Get(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			svc := &mockObjectViewService{}
+			svc := &mockPortalService{}
 			if tt.setupSvc != nil {
 				tt.setupSvc(svc)
 			}
-			r := setupObjectViewRouter(t, svc)
+			r := setupPortalRouter(t, svc)
 
 			w := httptest.NewRecorder()
-			req, _ := http.NewRequest(http.MethodGet, "/api/v1/admin/object-views/"+tt.id, nil)
+			req, _ := http.NewRequest(http.MethodGet, "/api/v1/admin/portals/"+tt.id, nil)
 			r.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.wantStatus, w.Code, "body: %s", w.Body.String())
 
 			if tt.wantStatus == http.StatusOK {
 				var resp struct {
-					Data metadata.ObjectView `json:"data"`
+					Data metadata.Portal `json:"data"`
 				}
 				err := json.Unmarshal(w.Body.Bytes(), &resp)
 				assert.NoError(t, err)
@@ -394,7 +394,7 @@ func TestObjectViewHandler_Get(t *testing.T) {
 	}
 }
 
-func TestObjectViewHandler_Update(t *testing.T) {
+func TestPortalAdminHandler_Update(t *testing.T) {
 	t.Parallel()
 
 	existingID := uuid.New()
@@ -404,7 +404,7 @@ func TestObjectViewHandler_Update(t *testing.T) {
 		name       string
 		id         string
 		body       interface{}
-		setupSvc   func(*mockObjectViewService)
+		setupSvc   func(*mockPortalService)
 		wantStatus int
 	}{
 		{
@@ -418,9 +418,9 @@ func TestObjectViewHandler_Update(t *testing.T) {
 					},
 				},
 			},
-			setupSvc: func(m *mockObjectViewService) {
-				m.updateFn = func(_ context.Context, id uuid.UUID, input metadata.UpdateObjectViewInput) (*metadata.ObjectView, error) {
-					return &metadata.ObjectView{
+			setupSvc: func(m *mockPortalService) {
+				m.updateFn = func(_ context.Context, id uuid.UUID, input metadata.UpdatePortalInput) (*metadata.Portal, error) {
+					return &metadata.Portal{
 						ID:        id,
 						APIName:   "default_view",
 						Label:     input.Label,
@@ -439,12 +439,12 @@ func TestObjectViewHandler_Update(t *testing.T) {
 				"label":       "Updated View",
 				"description": "Updated description",
 			},
-			setupSvc: func(m *mockObjectViewService) {
-				m.updateFn = func(_ context.Context, id uuid.UUID, input metadata.UpdateObjectViewInput) (*metadata.ObjectView, error) {
+			setupSvc: func(m *mockPortalService) {
+				m.updateFn = func(_ context.Context, id uuid.UUID, input metadata.UpdatePortalInput) (*metadata.Portal, error) {
 					if input.Description != "Updated description" {
 						return nil, fmt.Errorf("expected description 'Updated description', got %q", input.Description)
 					}
-					return &metadata.ObjectView{
+					return &metadata.Portal{
 						ID:          id,
 						APIName:     "test_view",
 						Label:       input.Label,
@@ -488,8 +488,8 @@ func TestObjectViewHandler_Update(t *testing.T) {
 			body: map[string]interface{}{
 				"label": "Updated View",
 			},
-			setupSvc: func(m *mockObjectViewService) {
-				m.updateFn = func(_ context.Context, _ uuid.UUID, _ metadata.UpdateObjectViewInput) (*metadata.ObjectView, error) {
+			setupSvc: func(m *mockPortalService) {
+				m.updateFn = func(_ context.Context, _ uuid.UUID, _ metadata.UpdatePortalInput) (*metadata.Portal, error) {
 					return nil, fmt.Errorf("%w", apperror.BadRequest("label must be at most 255 characters"))
 				}
 			},
@@ -500,15 +500,15 @@ func TestObjectViewHandler_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			svc := &mockObjectViewService{}
+			svc := &mockPortalService{}
 			if tt.setupSvc != nil {
 				tt.setupSvc(svc)
 			}
-			r := setupObjectViewRouter(t, svc)
+			r := setupPortalRouter(t, svc)
 
 			body, _ := json.Marshal(tt.body)
 			w := httptest.NewRecorder()
-			req, _ := http.NewRequest(http.MethodPut, "/api/v1/admin/object-views/"+tt.id, bytes.NewReader(body))
+			req, _ := http.NewRequest(http.MethodPut, "/api/v1/admin/portals/"+tt.id, bytes.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
 			r.ServeHTTP(w, req)
 
@@ -517,13 +517,13 @@ func TestObjectViewHandler_Update(t *testing.T) {
 	}
 }
 
-func TestObjectViewHandler_Delete(t *testing.T) {
+func TestPortalAdminHandler_Delete(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name       string
 		id         string
-		setupSvc   func(*mockObjectViewService)
+		setupSvc   func(*mockPortalService)
 		wantStatus int
 	}{
 		{
@@ -539,9 +539,9 @@ func TestObjectViewHandler_Delete(t *testing.T) {
 		{
 			name: "returns 404 for nonexistent",
 			id:   uuid.New().String(),
-			setupSvc: func(m *mockObjectViewService) {
+			setupSvc: func(m *mockPortalService) {
 				m.deleteFn = func(_ context.Context, id uuid.UUID) error {
-					return fmt.Errorf("%w", apperror.NotFound("object_view", id.String()))
+					return fmt.Errorf("%w", apperror.NotFound("portal", id.String()))
 				}
 			},
 			wantStatus: http.StatusNotFound,
@@ -549,7 +549,7 @@ func TestObjectViewHandler_Delete(t *testing.T) {
 		{
 			name: "returns 409 when view is in use",
 			id:   uuid.New().String(),
-			setupSvc: func(m *mockObjectViewService) {
+			setupSvc: func(m *mockPortalService) {
 				m.deleteFn = func(_ context.Context, _ uuid.UUID) error {
 					return fmt.Errorf("%w", apperror.Conflict("object view is referenced by layouts"))
 				}
@@ -559,7 +559,7 @@ func TestObjectViewHandler_Delete(t *testing.T) {
 		{
 			name: "returns 500 on service error",
 			id:   uuid.New().String(),
-			setupSvc: func(m *mockObjectViewService) {
+			setupSvc: func(m *mockPortalService) {
 				m.deleteFn = func(_ context.Context, _ uuid.UUID) error {
 					return fmt.Errorf("unexpected database error")
 				}
@@ -571,14 +571,14 @@ func TestObjectViewHandler_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			svc := &mockObjectViewService{}
+			svc := &mockPortalService{}
 			if tt.setupSvc != nil {
 				tt.setupSvc(svc)
 			}
-			r := setupObjectViewRouter(t, svc)
+			r := setupPortalRouter(t, svc)
 
 			w := httptest.NewRecorder()
-			req, _ := http.NewRequest(http.MethodDelete, "/api/v1/admin/object-views/"+tt.id, nil)
+			req, _ := http.NewRequest(http.MethodDelete, "/api/v1/admin/portals/"+tt.id, nil)
 			r.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.wantStatus, w.Code, "body: %s", w.Body.String())

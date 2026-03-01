@@ -1062,9 +1062,9 @@ export async function setupFunctionRoutes(page: Page) {
   })
 }
 
-// ─── Object Views mock data ─────────────────────────────────
+// ─── Portals mock data ─────────────────────────────────
 
-export const mockObjectViews = [
+export const mockPortals = [
   {
     id: 'ov111111-1111-1111-1111-111111111111',
     profile_id: null,
@@ -1122,21 +1122,21 @@ export const mockObjectViews = [
   },
 ]
 
-export async function setupObjectViewRoutes(page: Page) {
-  await page.route('**/api/v1/admin/object-views', (route) => {
+export async function setupPortalRoutes(page: Page) {
+  await page.route('**/api/v1/admin/portals', (route) => {
     if (route.request().method() === 'GET') {
-      return route.fulfill({ json: singleResponse(mockObjectViews) })
+      return route.fulfill({ json: singleResponse(mockPortals) })
     }
     if (route.request().method() === 'POST') {
       return route.fulfill({
         status: 201,
-        json: singleResponse({ ...mockObjectViews[0], id: 'new-view-id' }),
+        json: singleResponse({ ...mockPortals[0], id: 'new-view-id' }),
       })
     }
     return route.continue()
   })
-  for (const view of mockObjectViews) {
-    await page.route(`**/api/v1/admin/object-views/${view.id}`, (route) => {
+  for (const view of mockPortals) {
+    await page.route(`**/api/v1/admin/portals/${view.id}`, (route) => {
       if (route.request().method() === 'GET') {
         return route.fulfill({ json: singleResponse(view) })
       }
@@ -1151,8 +1151,8 @@ export async function setupObjectViewRoutes(page: Page) {
   }
 
   // View resolution endpoint
-  for (const view of mockObjectViews) {
-    await page.route(`**/api/v1/view/${view.api_name}`, (route) => {
+  for (const view of mockPortals) {
+    await page.route(`**/api/v1/portal/${view.api_name}`, (route) => {
       if (route.request().method() === 'GET') {
         return route.fulfill({ json: singleResponse(view) })
       }
@@ -1743,7 +1743,7 @@ export async function setupNavigationRoutes(page: Page) {
 export const mockLayouts = [
   {
     id: 'ly111111-1111-1111-1111-111111111111',
-    object_view_id: 'ov111111-1111-1111-1111-111111111111',
+    portal_id: 'ov111111-1111-1111-1111-111111111111',
     form_factor: 'desktop',
     mode: 'read',
     config: {
@@ -1769,7 +1769,7 @@ export const mockLayouts = [
   },
   {
     id: 'ly222222-2222-2222-2222-222222222222',
-    object_view_id: 'ov222222-2222-2222-2222-222222222222',
+    portal_id: 'ov222222-2222-2222-2222-222222222222',
     form_factor: 'mobile',
     mode: 'view',
     config: {
@@ -1815,9 +1815,9 @@ export async function setupLayoutRoutes(page: Page) {
   // List with optional query param
   await page.route('**/api/v1/admin/layouts?*', (route) => {
     const url = route.request().url()
-    const ovId = new URL(url).searchParams.get('object_view_id')
+    const ovId = new URL(url).searchParams.get('portal_id')
     const filtered = ovId
-      ? mockLayouts.filter((l) => l.object_view_id === ovId)
+      ? mockLayouts.filter((l) => l.portal_id === ovId)
       : mockLayouts
     route.fulfill({ json: singleResponse(filtered) })
   })
@@ -2002,7 +2002,7 @@ export async function setupAllRoutes(page: Page) {
   await setupTerritoryRoutes(page)
   await setupValidationRuleRoutes(page)
   await setupFunctionRoutes(page)
-  await setupObjectViewRoutes(page)
+  await setupPortalRoutes(page)
   await setupProcedureRoutes(page)
   await setupCredentialRoutes(page)
   await setupAutomationRuleRoutes(page)

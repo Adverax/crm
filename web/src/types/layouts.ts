@@ -2,7 +2,7 @@
 
 export interface Layout {
   id: string
-  objectViewId: string
+  portalId: string
   formFactor: string
   mode: string
   config: LayoutConfig
@@ -91,7 +91,7 @@ export interface ListSearchConfig {
 }
 
 export interface CreateLayoutRequest {
-  objectViewId: string
+  portalId: string
   formFactor: string
   mode: string
   config: LayoutConfig

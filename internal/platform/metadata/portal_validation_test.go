@@ -12,33 +12,33 @@ func TestValidateViewConfig(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		config     OVConfig
+		config     PortalConfig
 		wantErr    bool
 		errContain string
 	}{
 		{
 			name: "valid: empty config",
-			config: OVConfig{
-				Read: OVReadConfig{},
+			config: PortalConfig{
+				Read: PortalReadConfig{},
 			},
 		},
 		{
 			name: "valid: simple fields without queries",
-			config: OVConfig{
-				Read: OVReadConfig{
-					Fields: []OVViewField{{Name: "name"}, {Name: "email"}},
+			config: PortalConfig{
+				Read: PortalReadConfig{
+					Fields: []PortalViewField{{Name: "name"}, {Name: "email"}},
 				},
 			},
 		},
 		{
 			name: "valid: fields with queries",
-			config: OVConfig{
-				Read: OVReadConfig{
-					Queries: []OVQuery{
+			config: PortalConfig{
+				Read: PortalReadConfig{
+					Queries: []PortalQuery{
 						{Name: "main", SOQL: "SELECT ROW Id FROM Account"},
 						{Name: "contacts", SOQL: "SELECT Id FROM Contact"},
 					},
-					Fields: []OVViewField{
+					Fields: []PortalViewField{
 						{Name: "name"},
 						{Name: "contact_count", Type: "int", Expr: "size(contacts)"},
 					},
@@ -47,9 +47,9 @@ func TestValidateViewConfig(t *testing.T) {
 		},
 		{
 			name: "valid: DAG fields A -> B -> C",
-			config: OVConfig{
-				Read: OVReadConfig{
-					Fields: []OVViewField{
+			config: PortalConfig{
+				Read: PortalReadConfig{
+					Fields: []PortalViewField{
 						{Name: "a"},
 						{Name: "b", Expr: "a + 1"},
 						{Name: "c", Expr: "b + 1"},
@@ -59,9 +59,9 @@ func TestValidateViewConfig(t *testing.T) {
 		},
 		{
 			name: "invalid: duplicate query name",
-			config: OVConfig{
-				Read: OVReadConfig{
-					Queries: []OVQuery{
+			config: PortalConfig{
+				Read: PortalReadConfig{
+					Queries: []PortalQuery{
 						{Name: "main", SOQL: "SELECT ROW Id FROM X"},
 						{Name: "main", SOQL: "SELECT Id FROM Y"},
 					},
@@ -72,9 +72,9 @@ func TestValidateViewConfig(t *testing.T) {
 		},
 		{
 			name: "invalid: empty query name",
-			config: OVConfig{
-				Read: OVReadConfig{
-					Queries: []OVQuery{
+			config: PortalConfig{
+				Read: PortalReadConfig{
+					Queries: []PortalQuery{
 						{Name: "", SOQL: "SELECT ROW Id FROM X"},
 					},
 				},
@@ -84,9 +84,9 @@ func TestValidateViewConfig(t *testing.T) {
 		},
 		{
 			name: "valid: multiple scalar queries (first is implicit default)",
-			config: OVConfig{
-				Read: OVReadConfig{
-					Queries: []OVQuery{
+			config: PortalConfig{
+				Read: PortalReadConfig{
+					Queries: []PortalQuery{
 						{Name: "q1", SOQL: "SELECT ROW Id FROM X"},
 						{Name: "q2", SOQL: "SELECT ROW Id FROM Y"},
 					},
@@ -95,9 +95,9 @@ func TestValidateViewConfig(t *testing.T) {
 		},
 		{
 			name: "invalid: duplicate field name",
-			config: OVConfig{
-				Read: OVReadConfig{
-					Fields: []OVViewField{
+			config: PortalConfig{
+				Read: PortalReadConfig{
+					Fields: []PortalViewField{
 						{Name: "name"},
 						{Name: "name"},
 					},
@@ -108,9 +108,9 @@ func TestValidateViewConfig(t *testing.T) {
 		},
 		{
 			name: "invalid: empty field name",
-			config: OVConfig{
-				Read: OVReadConfig{
-					Fields: []OVViewField{
+			config: PortalConfig{
+				Read: PortalReadConfig{
+					Fields: []PortalViewField{
 						{Name: ""},
 					},
 				},
@@ -120,12 +120,12 @@ func TestValidateViewConfig(t *testing.T) {
 		},
 		{
 			name: "invalid: field references non-existent query",
-			config: OVConfig{
-				Read: OVReadConfig{
-					Queries: []OVQuery{
+			config: PortalConfig{
+				Read: PortalReadConfig{
+					Queries: []PortalQuery{
 						{Name: "main", SOQL: "SELECT ROW Id FROM X"},
 					},
-					Fields: []OVViewField{
+					Fields: []PortalViewField{
 						{Name: "total", Expr: "other.Amount * 1.2"},
 					},
 				},
@@ -135,9 +135,9 @@ func TestValidateViewConfig(t *testing.T) {
 		},
 		{
 			name: "invalid: direct cycle A -> B -> A",
-			config: OVConfig{
-				Read: OVReadConfig{
-					Fields: []OVViewField{
+			config: PortalConfig{
+				Read: PortalReadConfig{
+					Fields: []PortalViewField{
 						{Name: "a", Expr: "b + 1"},
 						{Name: "b", Expr: "a + 1"},
 					},
@@ -148,9 +148,9 @@ func TestValidateViewConfig(t *testing.T) {
 		},
 		{
 			name: "invalid: transitive cycle A -> B -> C -> A",
-			config: OVConfig{
-				Read: OVReadConfig{
-					Fields: []OVViewField{
+			config: PortalConfig{
+				Read: PortalReadConfig{
+					Fields: []PortalViewField{
 						{Name: "a", Expr: "c + 1"},
 						{Name: "b", Expr: "a + 1"},
 						{Name: "c", Expr: "b + 1"},
@@ -162,9 +162,9 @@ func TestValidateViewConfig(t *testing.T) {
 		},
 		{
 			name: "invalid: self-reference",
-			config: OVConfig{
-				Read: OVReadConfig{
-					Fields: []OVViewField{
+			config: PortalConfig{
+				Read: PortalReadConfig{
+					Fields: []PortalViewField{
 						{Name: "a", Expr: "a + 1"},
 					},
 				},
@@ -174,20 +174,20 @@ func TestValidateViewConfig(t *testing.T) {
 		},
 		{
 			name: "valid: no default query (zero queries)",
-			config: OVConfig{
-				Read: OVReadConfig{
-					Fields: []OVViewField{{Name: "name"}},
+			config: PortalConfig{
+				Read: PortalReadConfig{
+					Fields: []PortalViewField{{Name: "name"}},
 				},
 			},
 		},
 		{
 			name: "valid: query reference in expr",
-			config: OVConfig{
-				Read: OVReadConfig{
-					Queries: []OVQuery{
+			config: PortalConfig{
+				Read: PortalReadConfig{
+					Queries: []PortalQuery{
 						{Name: "main", SOQL: "SELECT ROW Id, Name FROM Account"},
 					},
-					Fields: []OVViewField{
+					Fields: []PortalViewField{
 						{Name: "display", Type: "string", Expr: "main.Name"},
 					},
 				},
@@ -195,13 +195,13 @@ func TestValidateViewConfig(t *testing.T) {
 		},
 		{
 			name: "valid: scalar query reference in computed field",
-			config: OVConfig{
-				Read: OVReadConfig{
-					Queries: []OVQuery{
+			config: PortalConfig{
+				Read: PortalReadConfig{
+					Queries: []PortalQuery{
 						{Name: "main", SOQL: "SELECT ROW Id FROM Account"},
 						{Name: "stats", SOQL: "SELECT ROW COUNT(Id) AS total FROM Contact WHERE AccountId = :id"},
 					},
-					Fields: []OVViewField{
+					Fields: []PortalViewField{
 						{Name: "name"},
 						{Name: "contact_count", Type: "int", Expr: "stats.total"},
 					},
@@ -210,13 +210,13 @@ func TestValidateViewConfig(t *testing.T) {
 		},
 		{
 			name: "invalid: field expr references list query",
-			config: OVConfig{
-				Read: OVReadConfig{
-					Queries: []OVQuery{
+			config: PortalConfig{
+				Read: PortalReadConfig{
+					Queries: []PortalQuery{
 						{Name: "main", SOQL: "SELECT ROW Id FROM Account"},
 						{Name: "contacts", SOQL: "SELECT Id FROM Contact"},
 					},
-					Fields: []OVViewField{
+					Fields: []PortalViewField{
 						{Name: "first_contact", Expr: "contacts.Name"},
 					},
 				},
@@ -226,13 +226,13 @@ func TestValidateViewConfig(t *testing.T) {
 		},
 		{
 			name: "invalid: field expr references list query with multiple fields",
-			config: OVConfig{
-				Read: OVReadConfig{
-					Queries: []OVQuery{
+			config: PortalConfig{
+				Read: PortalReadConfig{
+					Queries: []PortalQuery{
 						{Name: "main", SOQL: "SELECT ROW Id FROM Account"},
 						{Name: "deals", SOQL: "SELECT Id, Amount FROM Deal"},
 					},
-					Fields: []OVViewField{
+					Fields: []PortalViewField{
 						{Name: "name"},
 						{Name: "deal_amount", Type: "float", Expr: "deals.Amount * 1.1"},
 					},

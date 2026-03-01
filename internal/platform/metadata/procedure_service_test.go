@@ -208,7 +208,7 @@ func mockCacheForProcedures() *MetadataCache {
 		reverseRels:               make(map[uuid.UUID][]RelationshipInfo),
 		validationRulesByObjectID: make(map[uuid.UUID][]ValidationRule),
 		functionsByName:           make(map[string]Function),
-		objectViewsByAPIName:      make(map[string]ObjectView),
+		portalsByAPIName:          make(map[string]Portal),
 		proceduresByCode:          make(map[string]Procedure),
 		automationRulesByObjectID: make(map[uuid.UUID][]AutomationRule),
 		loader:                    &noopCacheLoader{},
@@ -230,7 +230,7 @@ func (l *noopCacheLoader) LoadAllValidationRules(_ context.Context) ([]Validatio
 	return nil, nil
 }
 func (l *noopCacheLoader) LoadAllFunctions(_ context.Context) ([]Function, error) { return nil, nil }
-func (l *noopCacheLoader) LoadAllObjectViews(_ context.Context) ([]ObjectView, error) {
+func (l *noopCacheLoader) LoadAllPortals(_ context.Context) ([]Portal, error) {
 	return nil, nil
 }
 func (l *noopCacheLoader) LoadAllProcedures(_ context.Context) ([]Procedure, error) { return nil, nil }
