@@ -8,6 +8,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/adverax/crm/internal/pkg/apperror"
+	celutil "github.com/adverax/crm/internal/platform/cel"
+	"github.com/adverax/crm/internal/platform/dml"
 	"github.com/adverax/crm/internal/platform/metadata"
 	"github.com/adverax/crm/internal/platform/security"
 	"github.com/adverax/crm/internal/platform/security/fls"
@@ -15,11 +17,17 @@ import (
 	"github.com/adverax/crm/internal/platform/soql/engine"
 )
 
+// DMLTargetExtractor extracts target objects and modified fields from DML statements.
+type DMLTargetExtractor interface {
+	ExtractTargets(statements []string) []dml.DMLTargetInfo
+}
+
 // DescribeHandler exposes public metadata for frontend consumption.
 type DescribeHandler struct {
-	cache       metadata.MetadataReader
-	olsEnforcer ols.Enforcer
-	flsEnforcer fls.Enforcer
+	cache        metadata.MetadataReader
+	olsEnforcer  ols.Enforcer
+	flsEnforcer  fls.Enforcer
+	dmlExtractor DMLTargetExtractor
 }
 
 // NewDescribeHandler creates a new DescribeHandler.
@@ -27,11 +35,13 @@ func NewDescribeHandler(
 	cache metadata.MetadataReader,
 	olsEnforcer ols.Enforcer,
 	flsEnforcer fls.Enforcer,
+	dmlExtractor DMLTargetExtractor,
 ) *DescribeHandler {
 	return &DescribeHandler{
-		cache:       cache,
-		olsEnforcer: olsEnforcer,
-		flsEnforcer: flsEnforcer,
+		cache:        cache,
+		olsEnforcer:  olsEnforcer,
+		flsEnforcer:  flsEnforcer,
+		dmlExtractor: dmlExtractor,
 	}
 }
 
@@ -118,11 +128,19 @@ type formFieldPresentation struct {
 }
 
 type formAction struct {
-	Key            string `json:"key"`
-	Label          string `json:"label"`
-	Type           string `json:"type"`
-	Icon           string `json:"icon"`
-	VisibilityExpr string `json:"visibility_expr"`
+	Key             string               `json:"key"`
+	Label           string               `json:"label"`
+	Type            string               `json:"type"`
+	Icon            string               `json:"icon"`
+	VisibilityExpr  string               `json:"visibility_expr"`
+	ValidationRules []formValidationRule `json:"validation_rules,omitempty"`
+}
+
+type formValidationRule struct {
+	Expression     string `json:"expression"`
+	ErrorMessage   string `json:"error_message"`
+	ErrorCode      string `json:"error_code"`
+	WhenExpression string `json:"when_expression,omitempty"`
 }
 
 type formRelatedList struct {
@@ -387,6 +405,10 @@ func (h *DescribeHandler) mergeOVAndLayout(
 				Icon:           a.Icon,
 				VisibilityExpr: a.VisibilityExpr,
 			}
+			// Extract validation rules for DML actions
+			if a.Apply != nil && a.Apply.Type == "dml" && h.dmlExtractor != nil {
+				actions[i].ValidationRules = h.extractActionValidationRules(a.Apply.DML)
+			}
 		}
 		form.Actions = actions
 	}
@@ -430,6 +452,80 @@ func (h *DescribeHandler) mergeOVAndLayout(
 	}
 
 	return form
+}
+
+// extractActionValidationRules extracts validation rules from metadata for DML target objects,
+// filtered by the fields each DML statement modifies.
+func (h *DescribeHandler) extractActionValidationRules(dmlStatements []string) []formValidationRule {
+	targets := h.dmlExtractor.ExtractTargets(dmlStatements)
+	if len(targets) == 0 {
+		return nil
+	}
+
+	// Collect modified fields per object (merge if same object in multiple DMLs)
+	objectFields := make(map[string]map[string]bool)
+	for _, t := range targets {
+		if t.Operation == "delete" || len(t.Fields) == 0 {
+			continue
+		}
+		if objectFields[t.Object] == nil {
+			objectFields[t.Object] = make(map[string]bool)
+		}
+		for _, f := range t.Fields {
+			objectFields[t.Object][f] = true
+		}
+	}
+
+	if len(objectFields) == 0 {
+		return nil
+	}
+
+	seen := make(map[uuid.UUID]bool)
+	var rules []formValidationRule
+
+	for objName, dmlFields := range objectFields {
+		objDef, ok := h.cache.GetObjectByAPIName(objName)
+		if !ok {
+			continue
+		}
+
+		vrs := h.cache.GetValidationRules(objDef.ID)
+		for _, vr := range vrs {
+			if !vr.IsActive || seen[vr.ID] {
+				continue
+			}
+
+			ruleFields := celutil.ExtractRecordFieldRefs(vr.Expression)
+			if len(ruleFields) == 0 {
+				continue
+			}
+
+			// Include rule if intersection(rule_fields, dml_fields) is non-empty
+			hasOverlap := false
+			for _, rf := range ruleFields {
+				if dmlFields[rf] {
+					hasOverlap = true
+					break
+				}
+			}
+			if !hasOverlap {
+				continue
+			}
+
+			seen[vr.ID] = true
+			rule := formValidationRule{
+				Expression:   vr.Expression,
+				ErrorMessage: vr.ErrorMessage,
+				ErrorCode:    vr.ErrorCode,
+			}
+			if vr.WhenExpression != nil {
+				rule.WhenExpression = *vr.WhenExpression
+			}
+			rules = append(rules, rule)
+		}
+	}
+
+	return rules
 }
 
 // resolveFieldConfig resolves a LayoutFieldConfig, merging shared layout if layout_ref is present.

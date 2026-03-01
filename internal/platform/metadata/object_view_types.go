@@ -53,15 +53,7 @@ type OVAction struct {
 	Icon           string `json:"icon"`
 	VisibilityExpr string `json:"visibility_expr"`
 
-	Validation []OVActionValidation `json:"validation,omitempty"`
-	Apply      *OVActionApply       `json:"apply,omitempty"`
-}
-
-// OVActionValidation describes a validation rule checked before action execution.
-type OVActionValidation struct {
-	Expr    string `json:"expr"`
-	Message string `json:"message"`
-	Code    string `json:"code,omitempty"`
+	Apply *OVActionApply `json:"apply,omitempty"`
 }
 
 // OVActionApply describes the transactional execution model for an action.

@@ -212,7 +212,7 @@ func TestDescribeHandler_ListObjects(t *testing.T) {
 			if tt.setupOLS != nil {
 				tt.setupOLS(olsEnf)
 			}
-			h := NewDescribeHandler(cache, olsEnf, &mockFLSEnforcer{})
+			h := NewDescribeHandler(cache, olsEnf, &mockFLSEnforcer{}, nil)
 
 			var r *gin.Engine
 			if tt.noAuth {
@@ -314,7 +314,7 @@ func TestDescribeHandler_DescribeObject(t *testing.T) {
 			if tt.setupFLS != nil {
 				tt.setupFLS(flsEnf)
 			}
-			h := NewDescribeHandler(cache, olsEnf, flsEnf)
+			h := NewDescribeHandler(cache, olsEnf, flsEnf, nil)
 
 			var r *gin.Engine
 			if tt.noAuth {

@@ -1086,9 +1086,6 @@ export const mockObjectViews = [
             type: 'primary',
             icon: 'mail',
             visibility_expr: 'true',
-            validation: [
-              { expr: 'size(data.subject) > 0', message: 'Subject is required', code: 'subject_required' },
-            ],
             apply: {
               type: 'dml',
               dml: ['INSERT INTO EmailLog (Subject, Body) VALUES (data.subject, data.body)'],

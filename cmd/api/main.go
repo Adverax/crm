@@ -397,7 +397,7 @@ func setupRouter(pool *pgxpool.Pool, metadataCache *metadata.MetadataCache, cfg 
 	viewHandler.RegisterRoutes(apiGroup)
 
 	// --- Public Metadata Describe API ---
-	describeHandler := handler.NewDescribeHandler(metadataCache, olsEnforcer, flsEnforcer)
+	describeHandler := handler.NewDescribeHandler(metadataCache, olsEnforcer, flsEnforcer, dml.NewDescribeAdapter())
 	describeHandler.RegisterRoutes(apiGroup)
 
 	return router

@@ -1196,6 +1196,13 @@ export interface components {
             type?: string;
             icon?: string;
             visibility_expr?: string;
+            validation_rules?: components["schemas"]["FormValidationRule"][];
+        };
+        FormValidationRule: {
+            expression: string;
+            error_message: string;
+            error_code: string;
+            when_expression?: string;
         };
         FormRelatedList: {
             object?: string;
@@ -1279,7 +1286,6 @@ export interface components {
             type: string;
             icon: string;
             visibility_expr: string;
-            validation?: components["schemas"]["OVActionValidation"][];
             apply?: components["schemas"]["OVActionApply"];
         };
         OVQuery: {
@@ -1287,11 +1293,6 @@ export interface components {
             /** @description SOQL query. Use SELECT ROW for scalar queries, SELECT for list queries. */
             soql: string;
             when?: string;
-        };
-        OVActionValidation: {
-            expr: string;
-            message: string;
-            code?: string;
         };
         OVActionApply: {
             /** @enum {string} */

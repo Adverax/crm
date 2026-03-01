@@ -174,16 +174,7 @@ test.describe('Object View detail page', () => {
     await page.getByRole('tab', { name: 'Actions' }).click()
     await page.locator('[data-testid="action-card"]').first().click()
     await expect(page.locator('[data-testid="tab-action-identity"]')).toBeVisible()
-    await expect(page.locator('[data-testid="tab-action-validation"]')).toBeVisible()
     await expect(page.locator('[data-testid="tab-action-apply"]')).toBeVisible()
-  })
-
-  test('Actions tab — Validation tab shows rules', async ({ page }) => {
-    await page.goto(`/admin/metadata/object-views/${view.id}`)
-    await page.getByRole('tab', { name: 'Actions' }).click()
-    await page.locator('[data-testid="action-card"]').first().click()
-    await page.locator('[data-testid="tab-action-validation"]').click()
-    await expect(page.locator('[data-testid="action-validation-rule"]').first()).toBeVisible()
   })
 
   test('Actions tab — Apply tab shows DML config', async ({ page }) => {

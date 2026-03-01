@@ -63,16 +63,6 @@ function onActionTypeChange(value: any) {
   if (selectedAction.value) selectedAction.value.type = String(value)
 }
 
-// --- Validation ---
-function addValidation(action: OVAction) {
-  if (!action.validation) action.validation = []
-  action.validation.push({ expr: '', message: '', code: '' })
-}
-
-function removeValidation(action: OVAction, idx: number) {
-  action.validation?.splice(idx, 1)
-}
-
 // --- Apply ---
 function ensureApply(action: OVAction): OVActionApply {
   if (!action.apply) {
@@ -158,9 +148,6 @@ function typeBadgeVariant(type: string): 'default' | 'secondary' | 'destructive'
         <div class="flex items-center justify-between mb-3">
           <TabsList>
             <TabsTrigger value="identity" data-testid="tab-action-identity">Identity</TabsTrigger>
-            <TabsTrigger value="validation" data-testid="tab-action-validation">
-              Validation ({{ selectedAction.validation?.length ?? 0 }})
-            </TabsTrigger>
             <TabsTrigger value="apply" data-testid="tab-action-apply">
               Apply {{ selectedAction.apply ? `(${selectedAction.apply.type})` : '' }}
             </TabsTrigger>
@@ -218,55 +205,6 @@ function typeBadgeVariant(type: string): 'default' | 'secondary' | 'destructive'
               placeholder="record.status == 'draft'"
             />
           </div>
-        </TabsContent>
-
-        <!-- Validation tab -->
-        <TabsContent value="validation" class="space-y-3" data-testid="action-validation-tab">
-          <div
-            v-for="(rule, vIdx) in (selectedAction.validation ?? [])"
-            :key="vIdx"
-            class="space-y-2 border rounded-md p-3"
-            data-testid="action-validation-rule"
-          >
-            <div class="flex items-center justify-between">
-              <Label class="text-xs">Expression (CEL)</Label>
-              <IconButton
-                :icon="Trash2"
-                tooltip="Remove rule"
-                variant="ghost"
-                size="sm"
-                class="text-destructive hover:text-destructive"
-                @click="removeValidation(selectedAction, vIdx)"
-              />
-            </div>
-            <ExpressionBuilder
-              v-model="rule.expr"
-              context="validation_rule"
-              height="80px"
-              placeholder="size(data.name) > 0"
-            />
-            <div class="grid grid-cols-2 gap-2">
-              <div class="space-y-1">
-                <Label class="text-xs">Message</Label>
-                <Input v-model="rule.message" placeholder="Name is required" class="text-xs" />
-              </div>
-              <div class="space-y-1">
-                <Label class="text-xs">Code</Label>
-                <Input v-model="rule.code" placeholder="name_required" class="font-mono text-xs" />
-              </div>
-            </div>
-          </div>
-          <div v-if="(selectedAction.validation?.length ?? 0) === 0" class="text-sm text-muted-foreground">
-            No validation rules.
-          </div>
-          <IconButton
-            :icon="Plus"
-            tooltip="Add validation rule"
-            variant="outline"
-            size="sm"
-            data-testid="add-validation-rule-btn"
-            @click="addValidation(selectedAction)"
-          />
         </TabsContent>
 
         <!-- Apply tab -->

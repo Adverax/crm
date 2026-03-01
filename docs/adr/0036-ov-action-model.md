@@ -77,7 +77,7 @@ with a list of **available Actions**. CRUD operations are not special — they a
 predefined actions with the same structure as any custom action.
 
 Each action is a complete operation unit:
-1. **Validation** (optional) — rules applied before execution
+1. **Validation** — auto-extracted from `metadata.validation_rules` for DML target fields
 2. **Apply** (required) — transactional execution: DML set OR scenario start
 
 Actions do not define their own input fields. They operate on data from the
@@ -176,8 +176,7 @@ type OVAction struct {
     VisibilityExpr string `json:"visibility_expr"`  // CEL: show/hide button
 
     // Execution model
-    Validation []OVActionValidation `json:"validation,omitempty"` // validation rules
-    Apply      *OVActionApply       `json:"apply,omitempty"`      // transactional action
+    Apply *OVActionApply `json:"apply,omitempty"` // transactional action
 }
 ```
 
@@ -186,16 +185,6 @@ Actions do not have a `Fields` property. They receive data from the page form
 
 When `apply` is nil, the action is UI-only (e.g., a link or a client-side toggle).
 When `apply` is set, the action is executable server-side.
-
-#### Action validation
-
-```go
-type OVActionValidation struct {
-    Expr    string `json:"expr"`              // CEL expression → must be true
-    Message string `json:"message"`           // error message
-    Code    string `json:"code,omitempty"`    // error code
-}
-```
 
 #### Transactional apply
 
@@ -338,21 +327,49 @@ These are all identical in structure — CRUD and custom actions are indistingui
 at the model level. None of them define their own fields — they all use `data.*`
 (page form values) and `record.*` (current record).
 
-### Validation scoping
+### Validation rules auto-extraction
 
-Validation rules within an action apply **only to that action**. However,
-metadata-level validation rules (from `metadata.validation_rules`) still apply
-during DML execution. The cascade is:
+Actions do **not** define their own validation rules. Instead, validation rules
+are automatically extracted from `metadata.validation_rules` at Describe API time,
+filtered by the fields each DML statement modifies.
 
+The extraction algorithm:
+
+1. Parse DML statements → extract target objects and modified fields
+   (INSERT columns, UPDATE SET fields, UPSERT columns; DELETE is skipped)
+2. For each target object: load validation rules from `metadata.validation_rules`
+3. For each active rule: parse the CEL expression AST, extract `record.*` field
+   references via `cel-go` AST walker (`PreOrderVisit` + `SelectKind`/`IdentKind`)
+4. Include the rule only if the intersection of rule fields and DML fields is non-empty
+5. Deduplicate by rule ID (same rule from multiple DMLs targeting the same object)
+
+The extracted rules are included in the Describe API response as
+`FormAction.validation_rules[]`:
+
+```json
+{
+  "key": "create",
+  "label": "Create",
+  "type": "primary",
+  "icon": "plus",
+  "validation_rules": [
+    {
+      "expression": "size(record.Name) > 0",
+      "error_message": "Name is required",
+      "error_code": "name_required"
+    }
+  ]
+}
 ```
-Action validation (OV-level, checked before apply)
-    ↓
-DML pipeline validation (metadata-level, checked during apply)
-```
 
-This means action validation is a **pre-check** (fail fast with user-friendly
-messages), while DML pipeline validation is the **enforcement layer** (cannot
-be bypassed).
+The frontend uses these rules for client-side pre-validation (fail fast with
+user-friendly messages). The DML pipeline validation remains the **enforcement
+layer** (cannot be bypassed).
+
+For **scenario** actions, validation is the scenario's responsibility — no
+automatic extraction is performed.
+
+For **DELETE** operations, no frontend validation is extracted (no fields modified).
 
 ### Impact on Layout model
 
@@ -434,14 +451,28 @@ details — security). The frontend uses this to render action buttons:
         "key": "create",
         "label": "Create",
         "type": "primary",
-        "icon": "plus"
+        "icon": "plus",
+        "validation_rules": [
+          {
+            "expression": "size(record.Name) > 0",
+            "error_message": "Name is required",
+            "error_code": "name_required"
+          }
+        ]
       },
       {
         "key": "edit",
         "label": "Save",
         "type": "secondary",
         "icon": "check",
-        "visibility_expr": "has(record)"
+        "visibility_expr": "has(record)",
+        "validation_rules": [
+          {
+            "expression": "size(record.Name) > 0",
+            "error_message": "Name is required",
+            "error_code": "name_required"
+          }
+        ]
       },
       {
         "key": "delete",
@@ -457,8 +488,9 @@ details — security). The frontend uses this to render action buttons:
 
 Note: `apply` is **not included** in the Describe response — it contains
 server-side logic (DML targets, CEL expressions) that should not be exposed
-to the client. Actions no longer include field definitions either — the page
-form fields serve as the input source.
+to the client. `validation_rules` are auto-extracted from metadata at Describe
+time — they are not stored in OV config. Actions no longer include field
+definitions either — the page form fields serve as the input source.
 
 ### Platform limits
 
@@ -466,7 +498,6 @@ form fields serve as the input source.
 |-----------|-------|-----------|
 | Max actions per OV | 20 | UI usability |
 | Max DML operations per action | 10 | Transaction scope |
-| Max validation rules per action | 20 | Performance |
 | DML transaction timeout | 5s | Prevent long-running transactions |
 
 ## Consequences

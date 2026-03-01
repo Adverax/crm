@@ -201,10 +201,6 @@ func validateActions(actions []OVAction) error {
 		}
 		keys[a.Key] = true
 
-		if len(a.Validation) > 20 {
-			return apperror.BadRequest(fmt.Sprintf("action %q: max 20 validation rules", a.Key))
-		}
-
 		if a.Apply != nil {
 			if err := validateActionApply(a.Key, a.Apply); err != nil {
 				return err

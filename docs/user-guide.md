@@ -134,7 +134,7 @@ The CRM admin panel is designed for system administrators and allows:
 - Applying **app templates** — bootstrapping the system with pre-configured objects and fields.
 - Configuring **validation rules** — CEL expressions that check data on every save.
 - Creating **custom functions** — reusable CEL expressions callable from any context.
-- Configuring **object views** — role-based UI per profile with view config (fields, actions, queries, computed) and optional edit config (validation, defaults, computed, mutations).
+- Configuring **object views** — role-based UI per profile with read config (fields, actions, queries, computed). Actions support DML execution and scenario start; validation rules are auto-extracted from metadata for DML target fields.
 - Configuring **profile navigation** — per-profile sidebar with grouped items (objects, links, pages, dividers), OLS intersection for object items, `ov_api_name` for page views, fallback to alphabetical flat list.
 - Building **procedures** — named JSON-described business logic sequences (record operations, computations, branching, HTTP integrations) with a visual Constructor UI, versioning (draft/published), and dry-run testing.
 - Managing **named credentials** — encrypted secret storage for HTTP integrations (API keys, basic auth, OAuth2 client credentials) with SSRF protection and usage audit logging.
@@ -2392,7 +2392,7 @@ Returns `204 No Content` on success. Returns `409 Conflict` if the function is r
 
 ### 13.1 Overview
 
-Object Views allow administrators to configure **role-based UI** for each object. Different profiles (Sales, Support, Management) can see different field sets and action buttons — all without code changes. Object Views also serve as a **bounded context adapter** (ADR-0022), encapsulating data contract logic (queries, computed fields, mutations, validation, defaults) alongside the presentation config. Related lists are deferred to the Layout layer (ADR-0027).
+Object Views allow administrators to configure **role-based UI** for each object. Different profiles (Sales, Support, Management) can see different field sets and action buttons — all without code changes. Object Views also serve as a **bounded context adapter** (ADR-0022), encapsulating data contract logic (queries, computed fields, actions) alongside the presentation config. Validation rules for actions are auto-extracted from `metadata.validation_rules` based on DML target fields. Related lists are deferred to the Layout layer (ADR-0027).
 
 Every Object View is stored as a JSONB config in the `metadata.object_views` table with a unique `api_name`. Object Views are **not bound to a specific object** — they are standalone entities that can be used as page views (via navigation `page` items) or referenced by api_name. Optionally, an OV can be linked to a specific profile.
 
