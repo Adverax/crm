@@ -13,7 +13,7 @@ test.describe('ExpressionBuilder — Functions tab', () => {
     await page.locator('[data-testid="param-name-0"]').fill('x')
 
     // Focus the editor to reveal toolbar
-    await page.locator('[data-testid="expression-builder"]').first().click()
+    await page.locator('[data-testid="expression-builder"] [data-testid="codemirror-editor"]').first().click()
 
     // Open helper popover
     await page.locator('[data-testid="helper-btn"]').click()
@@ -27,7 +27,7 @@ test.describe('ExpressionBuilder — Functions tab', () => {
     await page.locator('[data-testid="param-name-0"]').fill('x')
 
     // Focus the editor to reveal toolbar
-    await page.locator('[data-testid="expression-builder"]').first().click()
+    await page.locator('[data-testid="expression-builder"] [data-testid="codemirror-editor"]').first().click()
 
     // Open helper popover and switch to Functions tab
     await page.locator('[data-testid="helper-btn"]').click()
@@ -48,7 +48,7 @@ test.describe('ExpressionBuilder — Functions tab', () => {
     await page.locator('[data-testid="param-name-0"]').fill('x')
 
     // Focus the editor to reveal toolbar
-    await page.locator('[data-testid="expression-builder"]').first().click()
+    await page.locator('[data-testid="expression-builder"] [data-testid="codemirror-editor"]').first().click()
 
     // Open helper popover and switch to Functions tab
     await page.locator('[data-testid="helper-btn"]').click()

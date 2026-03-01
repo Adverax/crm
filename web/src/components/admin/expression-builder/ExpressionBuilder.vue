@@ -188,7 +188,7 @@ const hasFunctions = computed(() => functionsStore.functions.length > 0)
 </script>
 
 <template>
-  <div class="space-y-2" tabindex="-1" data-testid="expression-builder" @focusin="onFocusIn" @focusout="onFocusOut">
+  <div class="space-y-2" data-testid="expression-builder" @focusin="onFocusIn" @focusout="onFocusOut">
     <!-- Toolbar -->
     <div v-show="toolbarVisible" class="flex items-center gap-1" @mousedown.prevent>
       <IconButton
