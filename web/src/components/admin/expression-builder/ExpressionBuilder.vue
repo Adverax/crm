@@ -57,6 +57,42 @@ const fields = ref<DescribeField[]>([])
 const editorRef = ref<InstanceType<typeof CodeMirrorEditor> | null>(null)
 const showPreview = ref(false)
 const pickerTab = ref('fields')
+const focused = ref(false)
+const pickerOpen = ref(false)
+const toolbarVisible = computed(() => focused.value || pickerOpen.value)
+
+let blurTimer: ReturnType<typeof setTimeout> | null = null
+
+function cancelBlur() {
+  if (blurTimer) {
+    clearTimeout(blurTimer)
+    blurTimer = null
+  }
+}
+
+function scheduleBlur() {
+  cancelBlur()
+  blurTimer = setTimeout(() => {
+    focused.value = false
+    errors.value = []
+  }, 100)
+}
+
+function onFocusIn() {
+  cancelBlur()
+  focused.value = true
+}
+
+function onEditorBlur() {
+  scheduleBlur()
+}
+
+function onFocusOut(e: FocusEvent) {
+  const container = (e.currentTarget as HTMLElement)
+  const related = e.relatedTarget as Node | null
+  if (related && container.contains(related)) return
+  scheduleBlur()
+}
 
 const functionsStore = useFunctionsStore()
 
@@ -152,9 +188,9 @@ const hasFunctions = computed(() => functionsStore.functions.length > 0)
 </script>
 
 <template>
-  <div class="space-y-2" data-testid="expression-builder">
+  <div class="space-y-2" tabindex="-1" data-testid="expression-builder" @focusin="onFocusIn" @focusout="onFocusOut">
     <!-- Toolbar -->
-    <div class="flex items-center gap-1">
+    <div v-show="toolbarVisible" class="flex items-center gap-1" @mousedown.prevent>
       <IconButton
         type="button"
         :icon="mode === 'editor' ? Type : Code"
@@ -185,7 +221,7 @@ const hasFunctions = computed(() => functionsStore.functions.length > 0)
         data-testid="preview-toggle"
         @click="showPreview = !showPreview"
       />
-      <Popover v-if="showHelper">
+      <Popover v-if="showHelper" @update:open="(open: boolean) => { pickerOpen = open }">
         <PopoverTrigger as-child>
           <IconButton
             type="button"
@@ -253,6 +289,8 @@ const hasFunctions = computed(() => functionsStore.functions.length > 0)
       :height="height"
       :disabled="disabled"
       @update:model-value="onInput"
+      @focus="onFocusIn"
+      @blur="onEditorBlur"
     />
     <Textarea
       v-else

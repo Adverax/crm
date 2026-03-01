@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import SoqlEditor from '@/components/admin/soql-editor/SoqlEditor.vue'
+import ExpressionBuilder from '@/components/admin/expression-builder/ExpressionBuilder.vue'
 import { ref, computed } from 'vue'
 import type { OVQuery } from '@/types/object-views'
 
@@ -110,15 +111,20 @@ function removeQuery(index: number) {
           />
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
-          <div class="space-y-1">
-            <Label class="text-xs">Name</Label>
-            <Input v-model="selectedQuery.name" placeholder="recent_activities" class="font-mono" />
-          </div>
-          <div class="space-y-1">
-            <Label class="text-xs">When (CEL)</Label>
-            <Input v-model="selectedQuery.when" placeholder="record.status == 'active'" class="font-mono" />
-          </div>
+        <div class="space-y-1">
+          <Label class="text-xs">Name</Label>
+          <Input v-model="selectedQuery.name" placeholder="recent_activities" class="font-mono" />
+        </div>
+
+        <div class="space-y-1">
+          <Label class="text-xs">When (CEL)</Label>
+          <ExpressionBuilder
+            :model-value="selectedQuery.when ?? ''"
+            context="when_expression"
+            height="80px"
+            placeholder="record.status == 'active'"
+            @update:model-value="selectedQuery.when = $event"
+          />
         </div>
 
         <div class="space-y-1">

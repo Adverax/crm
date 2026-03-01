@@ -49,10 +49,13 @@ function createExtensions(): Extension[] {
       if (update.docChanged && !isUpdating) {
         emit('update:modelValue', update.state.doc.toString())
       }
-    }),
-    EditorView.domEventHandlers({
-      focus: () => { emit('focus'); return false },
-      blur: () => { emit('blur'); return false },
+      if (update.focusChanged) {
+        if (update.view.hasFocus) {
+          emit('focus')
+        } else {
+          emit('blur')
+        }
+      }
     }),
     EditorView.editable.of(!props.disabled),
     EditorView.theme({

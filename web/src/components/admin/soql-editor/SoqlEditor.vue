@@ -234,7 +234,7 @@ function onJumpToError(line: number, column: number) {
 </script>
 
 <template>
-  <div class="space-y-2" data-testid="soql-editor" @focusin="onFocusIn" @focusout="onFocusOut">
+  <div class="space-y-2" tabindex="-1" data-testid="soql-editor" @focusin="onFocusIn" @focusout="onFocusOut">
     <!-- Toolbar -->
     <div v-show="toolbarVisible" class="flex items-center gap-1" @mousedown.prevent>
       <IconButton
