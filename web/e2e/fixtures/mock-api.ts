@@ -1102,8 +1102,7 @@ export const mockObjectViews = [
         queries: [
           {
             name: 'recent_activities',
-            soql: 'SELECT Id, Subject FROM Activity WHERE WhatId = :recordId',
-            type: 'scalar',
+            soql: 'SELECT ROW Id, Subject FROM Activity WHERE WhatId = :recordId',
             when: '',
           },
         ],

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/adverax/crm/internal/pkg/apperror"
+	"github.com/adverax/crm/internal/platform/soql/engine"
 )
 
 var actionKeyRegexp = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
@@ -42,10 +43,6 @@ func validateQueries(queries []OVQuery) error {
 			return apperror.BadRequest(fmt.Sprintf("duplicate query name: %s", q.Name))
 		}
 		names[q.Name] = true
-
-		if q.Type != "scalar" && q.Type != "list" {
-			return apperror.BadRequest(fmt.Sprintf("query %q: type must be 'scalar' or 'list', got %q", q.Name, q.Type))
-		}
 	}
 
 	return nil
@@ -54,7 +51,11 @@ func validateQueries(queries []OVQuery) error {
 func validateFields(fields []OVViewField, queries []OVQuery) error {
 	queryTypes := make(map[string]string, len(queries))
 	for _, q := range queries {
-		queryTypes[q.Name] = q.Type
+		if engine.IsRowQuery(q.SOQL) {
+			queryTypes[q.Name] = "scalar"
+		} else {
+			queryTypes[q.Name] = "list"
+		}
 	}
 
 	fieldNames := make(map[string]bool, len(fields))

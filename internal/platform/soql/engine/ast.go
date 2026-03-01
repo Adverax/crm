@@ -1,11 +1,16 @@
 package engine
 
-import "github.com/alecthomas/participle/v2/lexer"
+import (
+	"strings"
+
+	"github.com/alecthomas/participle/v2/lexer"
+)
 
 // Grammar is the root AST node representing a SOQL query
 type Grammar struct {
 	Pos                  lexer.Position
-	Select               []*SelectExpression `parser:"'SELECT' @@ (',' @@)*"`
+	IsRow                bool                `parser:"'SELECT' @'ROW'?"`
+	Select               []*SelectExpression `parser:"@@ (',' @@)*"`
 	From                 string              `parser:"'FROM' @Ident"`
 	Where                *Expression         `parser:"('WHERE' @@)?"`
 	WithSecurityEnforced bool                `parser:"@('WITH' 'SECURITY_ENFORCED')?"`
@@ -281,4 +286,17 @@ func (c *Const) GetFieldType() FieldType {
 	}
 
 	return c.FieldType
+}
+
+// IsRowQuery checks whether a SOQL string uses SELECT ROW syntax.
+// Uses simple prefix matching because the SOQL may contain :param placeholders
+// that the parser does not handle.
+func IsRowQuery(soql string) bool {
+	s := strings.TrimSpace(soql)
+	upper := strings.ToUpper(s)
+	if !strings.HasPrefix(upper, "SELECT") {
+		return false
+	}
+	rest := strings.TrimSpace(s[len("SELECT"):])
+	return strings.HasPrefix(strings.ToUpper(rest), "ROW")
 }

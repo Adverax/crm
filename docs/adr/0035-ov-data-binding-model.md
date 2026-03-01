@@ -56,8 +56,8 @@ references resolved against the default query.
 ```json
 {
   "queries": [
-    {"name": "main", "soql": "SELECT Id, Name FROM Account WHERE Id = :id", "type": "scalar"},
-    {"name": "contacts", "soql": "SELECT Id, Name FROM Contact WHERE AccountId = :id", "type": "list"}
+    {"name": "main", "soql": "SELECT ROW Id, Name FROM Account WHERE Id = :id"},
+    {"name": "contacts", "soql": "SELECT Id, Name FROM Contact WHERE AccountId = :id"}
   ],
   "fields": [
     {"name": "Name"},
@@ -114,20 +114,26 @@ type OVViewField struct {
 Fields without `expr` are simple field references. Fields with `expr` are computed.
 This **unifies** the old `Fields` and `Computed` arrays into a single `Fields` array.
 
-#### OVQuery gains type
+#### OVQuery — type inferred from SOQL syntax
 
 ```go
 type OVQuery struct {
     Name string `json:"name"`
     SOQL string `json:"soql"`
-    Type string `json:"type"`           // "scalar" | "list"
     When string `json:"when,omitempty"`
 }
 ```
 
-- `type: "scalar"` — returns a single record (detail view)
-- `type: "list"` — returns multiple records (list view, related list)
-- The first scalar query in the array is the implicit default (context record)
+The query type (scalar vs list) is determined by the SOQL syntax — one source of truth:
+- `SELECT ROW Id, Name FROM Account WHERE Id = :id` → scalar (single record)
+- `SELECT Id, Name FROM Contact WHERE AccountId = :id` → list (multiple records)
+
+The `ROW` keyword is a SOQL extension that:
+- Forces `LIMIT 2` at compile time (to detect >1 row error)
+- Returns error if more than 1 record is found at runtime
+- Returns `null` (not error) if 0 records are found
+
+The first scalar query (`SELECT ROW`) in the array is the implicit default (context record).
 
 #### OVViewComputed is removed
 
@@ -136,10 +142,10 @@ Its functionality is absorbed by `OVViewField` with `expr` set.
 ### Validation rules (at OV save time)
 
 1. Query name uniqueness — no duplicates
-2. Query type must be `"scalar"` or `"list"`
-4. Field name uniqueness — no duplicates
-5. Expression references valid queries (e.g., `main.Name` → query `main` exists)
-6. **DAG validation** — fields form a directed acyclic graph (Kahn's algorithm).
+2. Field name uniqueness — no duplicates
+3. Expression references valid queries (e.g., `main.Name` → query `main` exists)
+4. Field expressions cannot reference list queries (only scalar queries allowed)
+5. **DAG validation** — fields form a directed acyclic graph (Kahn's algorithm).
    Cycle → save rejected with error message listing the cycle
 
 ### Per-query data endpoint
@@ -158,11 +164,11 @@ GET /api/v1/view/:ovApiName/query/:queryName?param1=val1&param2=val2
 `OVConfig.UnmarshalJSON` handles the old format:
 - `fields: ["name", "email"]` → `fields: [{name: "name"}, {name: "email"}]`
 - `computed: [{name, type, expr, when}]` → appended to `fields` as `OVViewField`
-- `queries` without `type` → defaults to `type: "scalar"`
 
 ### Describe API extension
 
-`FormDescribe` gains a `queries` array (query metadata without SOQL — security):
+`FormDescribe` gains a `queries` array (query metadata without SOQL — security).
+Type is inferred from SOQL syntax (`SELECT ROW` = scalar, `SELECT` = list):
 
 ```json
 {

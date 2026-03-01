@@ -224,12 +224,6 @@ test.describe('Object View detail page', () => {
     await expect(page.locator('[data-testid="add-query-btn"]')).toBeVisible()
   })
 
-  test('Queries tab shows query type select', async ({ page }) => {
-    await page.goto(`/admin/metadata/object-views/${view.id}`)
-    await page.getByRole('tab', { name: 'Queries' }).click()
-    await expect(page.locator('[data-testid="query-type-select"]')).toBeVisible()
-  })
-
   test('Fields tab shows computed field with expression', async ({ page }) => {
     await page.goto(`/admin/metadata/object-views/${view.id}`)
     await page.getByRole('tab', { name: 'Fields', exact: true }).click()

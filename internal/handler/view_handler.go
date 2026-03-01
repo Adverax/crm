@@ -95,6 +95,16 @@ func (h *ViewHandler) ExecuteQuery(c *gin.Context) {
 		return
 	}
 
+	// For SELECT ROW queries, return single record instead of array.
+	if result.IsRow {
+		var record map[string]any
+		if len(result.Records) > 0 {
+			record = result.Records[0]
+		}
+		c.JSON(http.StatusOK, gin.H{"data": record})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{"data": result})
 }
 

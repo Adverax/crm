@@ -166,8 +166,8 @@ func TestViewHandler_ExecuteQuery(t *testing.T) {
 			Read: metadata.OVReadConfig{
 				Fields: []metadata.OVViewField{{Name: "name"}},
 				Queries: []metadata.OVQuery{
-					{Name: "main", SOQL: "SELECT Id, Name FROM Account WHERE Id = :id", Type: "scalar"},
-					{Name: "contacts", SOQL: "SELECT Id, Name FROM Contact WHERE AccountId = :id", Type: "list"},
+					{Name: "main", SOQL: "SELECT ROW Id, Name FROM Account WHERE Id = :id"},
+					{Name: "contacts", SOQL: "SELECT Id, Name FROM Contact WHERE AccountId = :id"},
 				},
 			},
 		},

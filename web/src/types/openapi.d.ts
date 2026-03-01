@@ -1218,9 +1218,8 @@ export interface components {
         };
         OVQuery: {
             name: string;
+            /** @description SOQL query. Use SELECT ROW for scalar queries, SELECT for list queries. */
             soql: string;
-            /** @enum {string} */
-            type: "scalar" | "list";
             when?: string;
         };
         OVActionField: {

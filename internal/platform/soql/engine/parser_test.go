@@ -46,6 +46,97 @@ func TestParseSimpleSelect(t *testing.T) {
 	}
 }
 
+func TestParseSelectRow(t *testing.T) {
+	tests := []struct {
+		name      string
+		query     string
+		wantIsRow bool
+		wantErr   bool
+	}{
+		{
+			name:      "SELECT ROW with single field",
+			query:     "SELECT ROW Id FROM Account WHERE Id = '123'",
+			wantIsRow: true,
+		},
+		{
+			name:      "SELECT ROW with multiple fields",
+			query:     "SELECT ROW Id, Name, Email FROM Contact WHERE Id = '123'",
+			wantIsRow: true,
+		},
+		{
+			name:      "SELECT ROW case insensitive",
+			query:     "select row Id, Name from Account where Id = '123'",
+			wantIsRow: true,
+		},
+		{
+			name:      "regular SELECT is not row",
+			query:     "SELECT Id, Name FROM Account",
+			wantIsRow: false,
+		},
+		{
+			name:      "SELECT ROW with WHERE and LIMIT",
+			query:     "SELECT ROW Id, Name FROM Account WHERE Id = '123' LIMIT 1",
+			wantIsRow: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g, err := Parse(tt.query)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parse() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				if g == nil {
+					t.Fatal("Parse() returned nil grammar")
+				}
+				if g.IsRow != tt.wantIsRow {
+					t.Errorf("IsRow = %v, want %v", g.IsRow, tt.wantIsRow)
+				}
+			}
+		})
+	}
+}
+
+func TestIsRowQuery(t *testing.T) {
+	tests := []struct {
+		name string
+		soql string
+		want bool
+	}{
+		{
+			name: "SELECT ROW query",
+			soql: "SELECT ROW Id, Name FROM Account WHERE Id = :id",
+			want: true,
+		},
+		{
+			name: "regular SELECT query",
+			soql: "SELECT Id, Name FROM Contact WHERE AccountId = :id",
+			want: false,
+		},
+		{
+			name: "invalid SOQL returns false",
+			soql: "NOT VALID SQL",
+			want: false,
+		},
+		{
+			name: "empty string returns false",
+			soql: "",
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := IsRowQuery(tt.soql)
+			if got != tt.want {
+				t.Errorf("IsRowQuery(%q) = %v, want %v", tt.soql, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestParseWhere(t *testing.T) {
 	tests := []struct {
 		name    string

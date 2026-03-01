@@ -91,10 +91,16 @@ func (e *Executor) Execute(ctx context.Context, compiled *engine.CompiledQuery) 
 	// Map SQL columns back to SOQL field names using shape.
 	mappedRecords := mapRecordsToSOQL(records, compiled.Shape)
 
+	// Enforce single-row constraint for SELECT ROW queries.
+	if compiled.IsRow && len(mappedRecords) > 1 {
+		return nil, fmt.Errorf("soqlExecutor.Execute: SELECT ROW returned %d records, expected at most 1", len(mappedRecords))
+	}
+
 	return &QueryResult{
 		TotalSize: len(mappedRecords),
 		Done:      true,
 		Records:   mappedRecords,
+		IsRow:     compiled.IsRow,
 	}, nil
 }
 

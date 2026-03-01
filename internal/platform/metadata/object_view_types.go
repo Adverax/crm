@@ -88,11 +88,12 @@ type OVScenarioRef struct {
 }
 
 // OVQuery describes a named SOQL query scoped to this Object View (ADR-0035).
+// The query type (scalar vs list) is determined by the SOQL syntax:
+// SELECT ROW ... = scalar (single record), SELECT ... = list (multiple records).
 // The first scalar query in the array is the implicit default (context record).
 type OVQuery struct {
 	Name string `json:"name"`
 	SOQL string `json:"soql"`
-	Type string `json:"type"`
 	When string `json:"when,omitempty"`
 }
 

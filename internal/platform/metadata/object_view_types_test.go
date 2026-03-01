@@ -43,8 +43,8 @@ func TestOVConfig_MarshalUnmarshal(t *testing.T) {
 					Fields:  []OVViewField{{Name: "name"}},
 					Actions: []OVAction{},
 					Queries: []OVQuery{
-						{Name: "main", SOQL: "SELECT Id FROM Account WHERE Id = :id", Type: "scalar"},
-						{Name: "contacts", SOQL: "SELECT Id FROM Contact WHERE AccountId = :id", Type: "list"},
+						{Name: "main", SOQL: "SELECT ROW Id FROM Account WHERE Id = :id"},
+						{Name: "contacts", SOQL: "SELECT Id FROM Contact WHERE AccountId = :id"},
 					},
 				},
 			},

@@ -2749,15 +2749,12 @@ components:
       required:
         - name
         - soql
-        - type
       properties:
         name:
           type: string
         soql:
           type: string
-        type:
-          type: string
-          enum: [scalar, list]
+          description: "SOQL query. Use SELECT ROW for scalar queries, SELECT for list queries."
         when:
           type: string
 

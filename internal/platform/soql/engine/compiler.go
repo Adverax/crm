@@ -40,6 +40,10 @@ type CompiledQuery struct {
 	// When true, the query should fail if the user lacks access to any field or object,
 	// rather than silently filtering data.
 	WithSecurityEnforced bool
+
+	// IsRow indicates that this is a SELECT ROW query expecting at most one record.
+	// When true, the executor should return a single record (or nil) instead of a list.
+	IsRow bool
 }
 
 // DateParam represents a date literal parameter that needs runtime resolution.
@@ -199,6 +203,13 @@ func (c *Compiler) Compile(validated *ValidatedQuery) (*CompiledQuery, error) {
 
 	// Build LIMIT (OFFSET is not used with keyset pagination)
 	limit := c.limits.EffectiveLimit(validated.AST.Limit)
+
+	// For SELECT ROW queries without explicit LIMIT, force LIMIT 2
+	// to detect >1 row error at runtime.
+	if validated.AST.IsRow && validated.AST.Limit == nil {
+		limit = 2
+	}
+
 	var limitSQL string
 	if limit > 0 {
 		limitSQL = fmt.Sprintf("LIMIT %d", limit)
@@ -258,6 +269,7 @@ func (c *Compiler) Compile(validated *ValidatedQuery) (*CompiledQuery, error) {
 		Dependencies:         c.collectDependencies(validated),
 		ForUpdate:            validated.AST.ForUpdate,
 		WithSecurityEnforced: validated.AST.WithSecurityEnforced,
+		IsRow:                validated.AST.IsRow,
 	}, nil
 }
 

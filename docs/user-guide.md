@@ -2408,7 +2408,7 @@ Key capabilities:
 **Read (`view`):**
 - **Fields** — array of field objects (`{name, type?, expr?, when?}`). Simple fields reference data by name; fields with `expr` are computed from CEL expressions (ADR-0035). Order matters — first 3 are used as highlights.
 - **Actions** — custom buttons with CEL visibility expressions (e.g., show "Send Proposal" only when `record.Status == 'draft'`)
-- **Queries** — named SOQL queries as first-class data sources. Each query has a `type` (`scalar` or `list`) and an optional `default` flag. Fields reference query results via CEL expressions (e.g., `main.Name`). Per-query data endpoint: `GET /view/:ovApiName/query/:queryName`.
+- **Queries** — named SOQL queries as first-class data sources. Query type is inferred from SOQL syntax: `SELECT ROW` for scalar (single record), `SELECT` for list (multiple records). Fields reference query results via CEL expressions (e.g., `main.Name`). Per-query data endpoint: `GET /view/:ovApiName/query/:queryName`.
 
 **Write (`edit`, optional):**
 - **Validation** — view-scoped validation rules (additive with metadata-level rules)
@@ -2559,7 +2559,7 @@ The Object View detail page provides a tab-based visual constructor for editing 
 1. **General** — edit label, description, is_default flag. Read-only: api_name, profile.
 2. **Fields** — unified field list (ADR-0035). Each field has: name, optional type, optional CEL expression (`expr`), optional `when` condition. Simple fields (no `expr`) reference object data by name. Fields with `expr` are computed (display-only). Order matters — first 3 become highlights.
 3. **Actions** — add action buttons with key, label, type, icon, and a CEL visibility expression (uses the Expression Builder from Phase 8).
-4. **Queries** — define named SOQL queries as first-class data sources. Each query has: name, SOQL statement, type (`scalar`/`list`), optional `default` flag, optional `when` condition. At most one query can be marked as default. SOQL is edited via the **SOQL Editor** — a rich CodeMirror-based editor with syntax highlighting, context-aware autocomplete, server-side validation (`POST /admin/soql/validate`), and test query execution (preview first 5 records).
+4. **Queries** — define named SOQL queries as first-class data sources. Each query has: name, SOQL statement, optional `when` condition. Query type is determined by SOQL syntax: `SELECT ROW` for scalar (single record), `SELECT` for list (multiple records). The first scalar query is the implicit default. SOQL is edited via the **SOQL Editor** — a rich CodeMirror-based editor with syntax highlighting, context-aware autocomplete, server-side validation (`POST /admin/soql/validate`), and test query execution (preview first 5 records).
 
 **Edit tabs:**
 

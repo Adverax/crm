@@ -14,6 +14,10 @@ type QueryResult struct {
 	// NextCursor is the cursor for fetching the next page.
 	// Empty if Done is true.
 	NextCursor string `json:"nextRecordsUrl,omitempty"`
+
+	// IsRow indicates that this was a SELECT ROW query.
+	// When true, Records contains at most one record.
+	IsRow bool `json:"isRow,omitempty"`
 }
 
 // QueryParams contains parameters for query execution.

@@ -12,6 +12,7 @@ import (
 	"github.com/adverax/crm/internal/platform/security"
 	"github.com/adverax/crm/internal/platform/security/fls"
 	"github.com/adverax/crm/internal/platform/security/ols"
+	"github.com/adverax/crm/internal/platform/soql/engine"
 )
 
 // DescribeHandler exposes public metadata for frontend consumption.
@@ -367,13 +368,18 @@ func (h *DescribeHandler) mergeOVAndLayout(
 		}
 	}
 
-	// Map queries to form (without SOQL for security)
+	// Map queries to form (without SOQL for security).
+	// Infer type from SOQL syntax: SELECT ROW = scalar, SELECT = list.
 	if len(ov.Config.Read.Queries) > 0 {
 		queries := make([]formQuery, len(ov.Config.Read.Queries))
 		for i, q := range ov.Config.Read.Queries {
+			qType := "list"
+			if engine.IsRowQuery(q.SOQL) {
+				qType = "scalar"
+			}
 			queries[i] = formQuery{
 				Name: q.Name,
-				Type: q.Type,
+				Type: qType,
 			}
 		}
 		form.Queries = queries

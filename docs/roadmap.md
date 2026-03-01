@@ -492,13 +492,14 @@ Declarative automation: from atomic commands to composite procedures.
 
 - [x] **ADR-0035**: Queries as first-class data sources, unified field model
 - [x] **Go types**: `OVViewField` (name, type?, expr?, when?) replaces `[]string` fields + `OVViewComputed`
-- [x] **OVQuery**: added `type` (scalar/list) and `default` flag
-- [x] **Validation**: query name uniqueness, max one default, field DAG cycle detection (Kahn's algorithm)
-- [x] **Describe handler**: `formQuery` struct, queries passed to form (without SOQL)
+- [x] **OVQuery**: type inferred from SOQL syntax (`SELECT ROW` = scalar, `SELECT` = list)
+- [x] **SOQL parser**: `SELECT ROW` keyword for single-record queries (LIMIT 2, >1 row error)
+- [x] **Validation**: query name uniqueness, field DAG cycle detection (Kahn's algorithm)
+- [x] **Describe handler**: `formQuery` struct, queries passed to form (type inferred, without SOQL)
 - [x] **Per-query endpoint**: `GET /view/:ovApiName/query/:queryName` — SOQL execution with URL param substitution
 - [x] **OpenAPI spec**: updated schemas, new endpoint
-- [x] **Frontend**: unified OVFieldsTab (fields + computed merged), Queries tab (type dropdown, default checkbox)
-- [x] **E2E tests**: updated mock data, new tests for query type/default, field expressions
+- [x] **Frontend**: unified OVFieldsTab (fields + computed merged), Queries tab (name + SOQL, no type selector)
+- [x] **E2E tests**: updated mock data, tests for field expressions
 
 #### SOQL Editor (cross-cutting enhancement) ✅
 

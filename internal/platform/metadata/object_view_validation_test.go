@@ -35,8 +35,8 @@ func TestValidateViewConfig(t *testing.T) {
 			config: OVConfig{
 				Read: OVReadConfig{
 					Queries: []OVQuery{
-						{Name: "main", SOQL: "SELECT Id FROM Account", Type: "scalar"},
-						{Name: "contacts", SOQL: "SELECT Id FROM Contact", Type: "list"},
+						{Name: "main", SOQL: "SELECT ROW Id FROM Account"},
+						{Name: "contacts", SOQL: "SELECT Id FROM Contact"},
 					},
 					Fields: []OVViewField{
 						{Name: "name"},
@@ -62,8 +62,8 @@ func TestValidateViewConfig(t *testing.T) {
 			config: OVConfig{
 				Read: OVReadConfig{
 					Queries: []OVQuery{
-						{Name: "main", SOQL: "SELECT Id FROM X", Type: "scalar"},
-						{Name: "main", SOQL: "SELECT Id FROM Y", Type: "list"},
+						{Name: "main", SOQL: "SELECT ROW Id FROM X"},
+						{Name: "main", SOQL: "SELECT Id FROM Y"},
 					},
 				},
 			},
@@ -75,7 +75,7 @@ func TestValidateViewConfig(t *testing.T) {
 			config: OVConfig{
 				Read: OVReadConfig{
 					Queries: []OVQuery{
-						{Name: "", SOQL: "SELECT Id FROM X", Type: "scalar"},
+						{Name: "", SOQL: "SELECT ROW Id FROM X"},
 					},
 				},
 			},
@@ -87,23 +87,11 @@ func TestValidateViewConfig(t *testing.T) {
 			config: OVConfig{
 				Read: OVReadConfig{
 					Queries: []OVQuery{
-						{Name: "q1", SOQL: "SELECT Id FROM X", Type: "scalar"},
-						{Name: "q2", SOQL: "SELECT Id FROM Y", Type: "scalar"},
+						{Name: "q1", SOQL: "SELECT ROW Id FROM X"},
+						{Name: "q2", SOQL: "SELECT ROW Id FROM Y"},
 					},
 				},
 			},
-		},
-		{
-			name: "invalid: bad query type",
-			config: OVConfig{
-				Read: OVReadConfig{
-					Queries: []OVQuery{
-						{Name: "q1", SOQL: "SELECT Id FROM X", Type: "batch"},
-					},
-				},
-			},
-			wantErr:    true,
-			errContain: "type must be 'scalar' or 'list'",
 		},
 		{
 			name: "invalid: duplicate field name",
@@ -135,7 +123,7 @@ func TestValidateViewConfig(t *testing.T) {
 			config: OVConfig{
 				Read: OVReadConfig{
 					Queries: []OVQuery{
-						{Name: "main", SOQL: "SELECT Id FROM X", Type: "scalar"},
+						{Name: "main", SOQL: "SELECT ROW Id FROM X"},
 					},
 					Fields: []OVViewField{
 						{Name: "total", Expr: "other.Amount * 1.2"},
@@ -197,7 +185,7 @@ func TestValidateViewConfig(t *testing.T) {
 			config: OVConfig{
 				Read: OVReadConfig{
 					Queries: []OVQuery{
-						{Name: "main", SOQL: "SELECT Id, Name FROM Account", Type: "scalar"},
+						{Name: "main", SOQL: "SELECT ROW Id, Name FROM Account"},
 					},
 					Fields: []OVViewField{
 						{Name: "display", Type: "string", Expr: "main.Name"},
@@ -210,8 +198,8 @@ func TestValidateViewConfig(t *testing.T) {
 			config: OVConfig{
 				Read: OVReadConfig{
 					Queries: []OVQuery{
-						{Name: "main", SOQL: "SELECT Id FROM Account", Type: "scalar"},
-						{Name: "stats", SOQL: "SELECT COUNT(Id) AS total FROM Contact WHERE AccountId = :id", Type: "scalar"},
+						{Name: "main", SOQL: "SELECT ROW Id FROM Account"},
+						{Name: "stats", SOQL: "SELECT ROW COUNT(Id) AS total FROM Contact WHERE AccountId = :id"},
 					},
 					Fields: []OVViewField{
 						{Name: "name"},
@@ -225,8 +213,8 @@ func TestValidateViewConfig(t *testing.T) {
 			config: OVConfig{
 				Read: OVReadConfig{
 					Queries: []OVQuery{
-						{Name: "main", SOQL: "SELECT Id FROM Account", Type: "scalar"},
-						{Name: "contacts", SOQL: "SELECT Id FROM Contact", Type: "list"},
+						{Name: "main", SOQL: "SELECT ROW Id FROM Account"},
+						{Name: "contacts", SOQL: "SELECT Id FROM Contact"},
 					},
 					Fields: []OVViewField{
 						{Name: "first_contact", Expr: "contacts.Name"},
@@ -241,8 +229,8 @@ func TestValidateViewConfig(t *testing.T) {
 			config: OVConfig{
 				Read: OVReadConfig{
 					Queries: []OVQuery{
-						{Name: "main", SOQL: "SELECT Id FROM Account", Type: "scalar"},
-						{Name: "deals", SOQL: "SELECT Id, Amount FROM Deal", Type: "list"},
+						{Name: "main", SOQL: "SELECT ROW Id FROM Account"},
+						{Name: "deals", SOQL: "SELECT Id, Amount FROM Deal"},
 					},
 					Fields: []OVViewField{
 						{Name: "name"},

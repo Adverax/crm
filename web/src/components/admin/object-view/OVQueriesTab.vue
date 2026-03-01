@@ -4,13 +4,6 @@ import { Trash2, Plus } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import SoqlEditor from '@/components/admin/soql-editor/SoqlEditor.vue'
 import type { OVQuery } from '@/types/object-views'
 
@@ -23,21 +16,13 @@ const emit = defineEmits<{
 }>()
 
 function addQuery() {
-  const updated: OVQuery[] = [...props.queries, { name: '', soql: '', type: 'scalar', when: '' }]
+  const updated: OVQuery[] = [...props.queries, { name: '', soql: '', when: '' }]
   emit('update:queries', updated)
 }
 
 function removeQuery(index: number) {
   const updated = [...props.queries]
   updated.splice(index, 1)
-  emit('update:queries', updated)
-}
-
-function onTypeChange(index: number, value: string) {
-  const updated = [...props.queries]
-  const q = props.queries[index]
-  if (!q) return
-  updated[index] = { name: q.name, soql: q.soql, type: value as OVQuery['type'], when: q.when }
   emit('update:queries', updated)
 }
 </script>
@@ -56,6 +41,8 @@ function onTypeChange(index: number, value: string) {
     </div>
     <p class="text-sm text-muted-foreground">
       Named SOQL queries scoped to this Object View context.
+      Use <code>SELECT ROW</code> for scalar queries (single record),
+      <code>SELECT</code> for list queries (multiple records).
     </p>
 
     <Card
@@ -64,25 +51,10 @@ function onTypeChange(index: number, value: string) {
       data-testid="query-card"
     >
       <CardContent class="pt-6 space-y-3">
-        <div class="grid grid-cols-4 gap-3">
+        <div class="grid grid-cols-3 gap-3">
           <div class="space-y-1">
             <Label class="text-xs">Name</Label>
             <Input v-model="query.name" placeholder="recent_activities" class="font-mono" />
-          </div>
-          <div class="space-y-1">
-            <Label class="text-xs">Type</Label>
-            <Select
-              :model-value="query.type"
-              @update:model-value="(v) => onTypeChange(idx, String(v))"
-            >
-              <SelectTrigger data-testid="query-type-select">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="scalar">scalar</SelectItem>
-                <SelectItem value="list">list</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
           <div class="space-y-1">
             <Label class="text-xs">When (CEL)</Label>
