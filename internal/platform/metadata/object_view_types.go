@@ -21,12 +21,13 @@ type ObjectView struct {
 
 // OVConfig holds the full Object View configuration stored as JSONB.
 type OVConfig struct {
-	View OVViewConfig `json:"view"`
+	Read OVReadConfig `json:"read"`
 }
 
-// OVViewConfig holds view-time (presentation) configuration.
+// OVReadConfig holds the read-time (presentation + actions) configuration (ADR-0036).
 // Fields is a unified list of regular and computed fields (ADR-0035).
-type OVViewConfig struct {
+// Actions include CRUD and custom operations as first-class units.
+type OVReadConfig struct {
 	Fields  []OVViewField `json:"fields"`
 	Actions []OVAction    `json:"actions"`
 	Queries []OVQuery     `json:"queries,omitempty"`
@@ -42,22 +43,57 @@ type OVViewField struct {
 	When string `json:"when,omitempty"`
 }
 
-// OVAction describes a button action on the record detail page.
+// OVAction describes an operation available on the page (ADR-0036).
+// When Apply is nil, the action is UI-only (e.g. a link or client-side toggle).
+// When Apply is set, the action is executable server-side via POST /view/:ov/action/:key.
 type OVAction struct {
 	Key            string `json:"key"`
 	Label          string `json:"label"`
 	Type           string `json:"type"`
 	Icon           string `json:"icon"`
 	VisibilityExpr string `json:"visibility_expr"`
+
+	Form       []OVActionField      `json:"form,omitempty"`
+	Validation []OVActionValidation `json:"validation,omitempty"`
+	Apply      *OVActionApply       `json:"apply,omitempty"`
+}
+
+// OVActionField describes an input field for an action form.
+type OVActionField struct {
+	Name     string `json:"name"`
+	Type     string `json:"type,omitempty"`
+	Label    string `json:"label,omitempty"`
+	Required bool   `json:"required,omitempty"`
+	Default  string `json:"default,omitempty"`
+}
+
+// OVActionValidation describes a validation rule checked before action execution.
+type OVActionValidation struct {
+	Expr    string `json:"expr"`
+	Message string `json:"message"`
+	Code    string `json:"code,omitempty"`
+}
+
+// OVActionApply describes the transactional execution model for an action.
+type OVActionApply struct {
+	Type     string         `json:"type"`               // "dml" | "scenario"
+	DML      []string       `json:"dml,omitempty"`      // DML statements for type="dml"
+	Scenario *OVScenarioRef `json:"scenario,omitempty"` // scenario reference for type="scenario"
+}
+
+// OVScenarioRef references a scenario to start when an action is executed.
+type OVScenarioRef struct {
+	APIName string            `json:"api_name"`
+	Params  map[string]string `json:"params,omitempty"`
 }
 
 // OVQuery describes a named SOQL query scoped to this Object View (ADR-0035).
+// The first scalar query in the array is the implicit default (context record).
 type OVQuery struct {
-	Name    string `json:"name"`
-	SOQL    string `json:"soql"`
-	Type    string `json:"type"`
-	Default bool   `json:"default,omitempty"`
-	When    string `json:"when,omitempty"`
+	Name string `json:"name"`
+	SOQL string `json:"soql"`
+	Type string `json:"type"`
+	When string `json:"when,omitempty"`
 }
 
 // CreateObjectViewInput is the input for creating a new Object View.

@@ -38,6 +38,10 @@ func (m *mockDMLService) Prepare(_ context.Context, _ string) (*engine.CompiledD
 	return nil, nil
 }
 
+func (m *mockDMLService) ExecuteBatch(_ context.Context, _ []string) ([]*engine.Result, error) {
+	return nil, nil
+}
+
 func (m *mockDMLService) SetPostExecuteHook(_ dml.PostExecuteHook) {}
 
 func TestRecordService_List(t *testing.T) {

@@ -53,8 +53,8 @@ watch(() => props.ovApiName, loadView)
         {{ view.description }}
       </div>
 
-      <div v-if="view.config?.view?.queries?.length" class="space-y-4" data-testid="page-queries">
-        <Card v-for="(query, idx) in view.config.view.queries" :key="idx">
+      <div v-if="view.config?.read?.queries?.length" class="space-y-4" data-testid="page-queries">
+        <Card v-for="(query, idx) in view.config.read.queries" :key="idx">
           <CardHeader>
             <CardTitle class="text-base">{{ query.name || `Query ${idx + 1}` }}</CardTitle>
           </CardHeader>

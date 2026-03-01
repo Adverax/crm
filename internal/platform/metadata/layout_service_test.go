@@ -14,8 +14,8 @@ import (
 // --- Mock LayoutRepository ---
 
 type mockLayoutRepository struct {
-	layouts     map[uuid.UUID]*Layout
-	byOVAndKey  map[string]*Layout // key: ovID|ff|mode
+	layouts    map[uuid.UUID]*Layout
+	byOVAndKey map[string]*Layout // key: ovID|ff|mode
 }
 
 func newMockLayoutRepo() *mockLayoutRepository {
@@ -162,7 +162,7 @@ func validCreateLayoutInput() CreateLayoutInput {
 	return CreateLayoutInput{
 		ObjectViewID: uuid.New(),
 		FormFactor:   "desktop",
-		Mode:         "edit",
+		Mode:         "read",
 		Config: LayoutConfig{
 			Root: &LayoutComponent{
 				Type:    "grid",
@@ -200,7 +200,7 @@ func TestLayoutService_Create(t *testing.T) {
 			input: CreateLayoutInput{
 				ObjectViewID: uuid.New(),
 				FormFactor:   "mobile",
-				Mode:         "edit",
+				Mode:         "read",
 			},
 		},
 		{
@@ -208,7 +208,7 @@ func TestLayoutService_Create(t *testing.T) {
 			input: CreateLayoutInput{
 				ObjectViewID: uuid.New(),
 				FormFactor:   "laptop",
-				Mode:         "edit",
+				Mode:         "read",
 			},
 			wantErr: true,
 			errMsg:  "form_factor must be one of",
@@ -319,7 +319,7 @@ func TestLayoutService_ListByObjectViewID(t *testing.T) {
 	otherOVID := uuid.New()
 
 	_, err := svc.Create(ctx, CreateLayoutInput{
-		ObjectViewID: ovID, FormFactor: "desktop", Mode: "edit",
+		ObjectViewID: ovID, FormFactor: "desktop", Mode: "read",
 	})
 	require.NoError(t, err)
 
@@ -329,7 +329,7 @@ func TestLayoutService_ListByObjectViewID(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = svc.Create(ctx, CreateLayoutInput{
-		ObjectViewID: otherOVID, FormFactor: "desktop", Mode: "edit",
+		ObjectViewID: otherOVID, FormFactor: "desktop", Mode: "read",
 	})
 	require.NoError(t, err)
 
@@ -361,7 +361,7 @@ func TestLayoutService_ListAll(t *testing.T) {
 				ctx := context.Background()
 				ovID := uuid.New()
 				_, _ = svc.Create(ctx, CreateLayoutInput{
-					ObjectViewID: ovID, FormFactor: "desktop", Mode: "edit",
+					ObjectViewID: ovID, FormFactor: "desktop", Mode: "read",
 				})
 				_, _ = svc.Create(ctx, CreateLayoutInput{
 					ObjectViewID: ovID, FormFactor: "desktop", Mode: "view",
@@ -452,7 +452,7 @@ func TestLayoutService_ErrorWrapping(t *testing.T) {
 			operation: func(svc LayoutService) error {
 				_, err := svc.Create(context.Background(), CreateLayoutInput{
 					FormFactor: "invalid",
-					Mode:       "edit",
+					Mode:       "read",
 				})
 				return err
 			},

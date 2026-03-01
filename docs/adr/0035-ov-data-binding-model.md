@@ -56,7 +56,7 @@ references resolved against the default query.
 ```json
 {
   "queries": [
-    {"name": "main", "soql": "SELECT Id, Name FROM Account WHERE Id = :id", "type": "scalar", "default": true},
+    {"name": "main", "soql": "SELECT Id, Name FROM Account WHERE Id = :id", "type": "scalar"},
     {"name": "contacts", "soql": "SELECT Id, Name FROM Contact WHERE AccountId = :id", "type": "list"}
   ],
   "fields": [
@@ -114,21 +114,20 @@ type OVViewField struct {
 Fields without `expr` are simple field references. Fields with `expr` are computed.
 This **unifies** the old `Fields` and `Computed` arrays into a single `Fields` array.
 
-#### OVQuery gains type and default
+#### OVQuery gains type
 
 ```go
 type OVQuery struct {
-    Name    string `json:"name"`
-    SOQL    string `json:"soql"`
-    Type    string `json:"type"`              // "scalar" | "list"
-    Default bool   `json:"default,omitempty"` // at most one default query
-    When    string `json:"when,omitempty"`
+    Name string `json:"name"`
+    SOQL string `json:"soql"`
+    Type string `json:"type"`           // "scalar" | "list"
+    When string `json:"when,omitempty"`
 }
 ```
 
 - `type: "scalar"` — returns a single record (detail view)
 - `type: "list"` — returns multiple records (list view, related list)
-- `default: true` — this query provides the implicit context record
+- The first scalar query in the array is the implicit default (context record)
 
 #### OVViewComputed is removed
 
@@ -137,8 +136,7 @@ Its functionality is absorbed by `OVViewField` with `expr` set.
 ### Validation rules (at OV save time)
 
 1. Query name uniqueness — no duplicates
-2. At most one `default` query
-3. Query type must be `"scalar"` or `"list"`
+2. Query type must be `"scalar"` or `"list"`
 4. Field name uniqueness — no duplicates
 5. Expression references valid queries (e.g., `main.Name` → query `main` exists)
 6. **DAG validation** — fields form a directed acyclic graph (Kahn's algorithm).
@@ -169,7 +167,7 @@ GET /api/v1/view/:ovApiName/query/:queryName?param1=val1&param2=val2
 ```json
 {
   "queries": [
-    {"name": "main", "type": "scalar", "default": true},
+    {"name": "main", "type": "scalar"},
     {"name": "contacts", "type": "list"}
   ]
 }

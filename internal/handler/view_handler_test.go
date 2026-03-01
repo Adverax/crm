@@ -69,7 +69,7 @@ func setupViewRouter(t *testing.T, cache *metadata.MetadataCache, soqlSvc soql.Q
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	api := r.Group("/api/v1")
-	h := NewViewHandler(cache, soqlSvc)
+	h := NewViewHandler(cache, soqlSvc, nil)
 	h.RegisterRoutes(api)
 	return r
 }
@@ -82,7 +82,7 @@ func TestViewHandler_GetByAPIName(t *testing.T) {
 		APIName: "sales_dashboard",
 		Label:   "Sales Dashboard",
 		Config: metadata.OVConfig{
-			View: metadata.OVViewConfig{
+			Read: metadata.OVReadConfig{
 				Fields: []metadata.OVViewField{{Name: "name"}, {Name: "amount"}},
 			},
 		},
@@ -163,10 +163,10 @@ func TestViewHandler_ExecuteQuery(t *testing.T) {
 		APIName: "account_view",
 		Label:   "Account View",
 		Config: metadata.OVConfig{
-			View: metadata.OVViewConfig{
+			Read: metadata.OVReadConfig{
 				Fields: []metadata.OVViewField{{Name: "name"}},
 				Queries: []metadata.OVQuery{
-					{Name: "main", SOQL: "SELECT Id, Name FROM Account WHERE Id = :id", Type: "scalar", Default: true},
+					{Name: "main", SOQL: "SELECT Id, Name FROM Account WHERE Id = :id", Type: "scalar"},
 					{Name: "contacts", SOQL: "SELECT Id, Name FROM Contact WHERE AccountId = :id", Type: "list"},
 				},
 			},

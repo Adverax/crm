@@ -25,7 +25,7 @@ interface OvOption {
 }
 
 const FORM_FACTORS = ['desktop', 'tablet', 'mobile'] as const
-const MODES = ['edit', 'view'] as const
+const MODES = ['read', 'view'] as const
 
 const router = useRouter()
 const toast = useToast()
@@ -36,7 +36,7 @@ const objectViews = ref<OvOption[]>([])
 const form = ref({
   objectViewId: '',
   formFactor: 'desktop',
-  mode: 'edit',
+  mode: 'read',
 })
 
 async function loadObjectViews() {

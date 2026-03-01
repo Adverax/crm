@@ -5,16 +5,14 @@ import type { CamelCaseKeys } from './camelcase'
 
 export type ObjectView = CamelCaseKeys<components['schemas']['ObjectView']>
 export type ObjectViewConfig = CamelCaseKeys<components['schemas']['ObjectViewConfig']>
-export type OVViewConfig = CamelCaseKeys<components['schemas']['OVViewConfig']>
-export type OVEditConfig = CamelCaseKeys<components['schemas']['OVEditConfig']>
+export type OVReadConfig = CamelCaseKeys<components['schemas']['OVReadConfig']>
 export type OVAction = CamelCaseKeys<components['schemas']['OVAction']>
 export type OVQuery = CamelCaseKeys<components['schemas']['OVQuery']>
 export type OVViewField = CamelCaseKeys<components['schemas']['OVViewField']>
-export type OVMutation = CamelCaseKeys<components['schemas']['OVMutation']>
-export type OVMutSync = CamelCaseKeys<components['schemas']['OVMutSync']>
-export type OVValidation = CamelCaseKeys<components['schemas']['OVValidation']>
-export type OVDefault = CamelCaseKeys<components['schemas']['OVDefault']>
-export type OVComputed = CamelCaseKeys<components['schemas']['OVComputed']>
+export type OVActionField = CamelCaseKeys<components['schemas']['OVActionField']>
+export type OVActionValidation = CamelCaseKeys<components['schemas']['OVActionValidation']>
+export type OVActionApply = CamelCaseKeys<components['schemas']['OVActionApply']>
+export type OVScenarioRef = CamelCaseKeys<components['schemas']['OVScenarioRef']>
 export type CreateObjectViewRequest = CamelCaseKeys<components['schemas']['CreateObjectViewRequest']>
 export type UpdateObjectViewRequest = CamelCaseKeys<components['schemas']['UpdateObjectViewRequest']>
 

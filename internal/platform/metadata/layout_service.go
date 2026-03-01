@@ -17,7 +17,7 @@ var validFormFactors = map[string]bool{
 }
 
 var validModes = map[string]bool{
-	"edit": true,
+	"read": true,
 	"view": true,
 }
 
@@ -147,7 +147,7 @@ func (s *layoutService) validateCreate(_ context.Context, input CreateLayoutInpu
 		return apperror.BadRequest("form_factor must be one of: desktop, tablet, mobile")
 	}
 	if !validModes[input.Mode] {
-		return apperror.BadRequest("mode must be one of: edit, view")
+		return apperror.BadRequest("mode must be one of: read, view")
 	}
 
 	if input.ObjectViewID == (uuid.UUID{}) {

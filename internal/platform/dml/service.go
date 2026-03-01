@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/adverax/crm/internal/pkg/apperror"
 	"github.com/adverax/crm/internal/platform/dml/engine"
 )
@@ -14,22 +17,31 @@ type PostExecuteHook interface {
 	AfterDMLExecute(ctx context.Context, compiled *engine.CompiledDML, result *engine.Result) error
 }
 
+// TxExecutor is an executor that supports transaction-scoped variants.
+type TxExecutor interface {
+	engine.Executor
+	WithTx(tx engine.DB) engine.Executor
+}
+
 // DMLService executes DML statements with full security enforcement.
 type DMLService interface {
 	Execute(ctx context.Context, statement string) (*Result, error)
+	ExecuteBatch(ctx context.Context, statements []string) ([]*Result, error)
 	Prepare(ctx context.Context, statement string) (*engine.CompiledDML, error)
 	SetPostExecuteHook(hook PostExecuteHook)
 }
 
 type dmlService struct {
+	pool         *pgxpool.Pool
 	engine       *engine.Engine
-	executor     engine.Executor
+	executor     TxExecutor
 	postExecHook PostExecuteHook
 }
 
 // NewDMLService creates a new DMLService.
-func NewDMLService(eng *engine.Engine, executor engine.Executor) DMLService {
+func NewDMLService(pool *pgxpool.Pool, eng *engine.Engine, executor TxExecutor) DMLService {
 	return &dmlService{
+		pool:     pool,
 		engine:   eng,
 		executor: executor,
 	}
@@ -70,6 +82,53 @@ func (s *dmlService) Execute(ctx context.Context, statement string) (*Result, er
 	}
 
 	return result, nil
+}
+
+// ExecuteBatch prepares, validates, and executes multiple DML statements in a single transaction.
+// Post-execute hooks fire for each result after the transaction commits.
+func (s *dmlService) ExecuteBatch(ctx context.Context, statements []string) ([]*Result, error) {
+	// Phase 1: Prepare all statements (validate before execute)
+	compiled := make([]*engine.CompiledDML, len(statements))
+	for i, stmt := range statements {
+		c, err := s.engine.Prepare(ctx, stmt)
+		if err != nil {
+			return nil, fmt.Errorf("dmlService.ExecuteBatch: statement[%d]: %w", i, mapDMLError(err))
+		}
+		compiled[i] = c
+	}
+
+	// Phase 2: Execute all in a single transaction
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("dmlService.ExecuteBatch: begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	txExec := s.executor.WithTx(tx)
+
+	results := make([]*Result, len(compiled))
+	for i, c := range compiled {
+		r, execErr := txExec.Execute(ctx, c)
+		if execErr != nil {
+			return nil, fmt.Errorf("dmlService.ExecuteBatch: statement[%d]: %w", i, execErr)
+		}
+		results[i] = r
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("dmlService.ExecuteBatch: commit: %w", err)
+	}
+
+	// Phase 3: Fire post-execute hooks after successful commit
+	if s.postExecHook != nil {
+		for i, c := range compiled {
+			if hookErr := s.postExecHook.AfterDMLExecute(ctx, c, results[i]); hookErr != nil {
+				return nil, fmt.Errorf("dmlService.ExecuteBatch: post-execute[%d]: %w", i, hookErr)
+			}
+		}
+	}
+
+	return results, nil
 }
 
 // mapDMLError maps engine errors to application errors.

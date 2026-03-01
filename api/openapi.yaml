@@ -1465,6 +1465,49 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /api/v1/view/{ovApiName}/action/{actionKey}:
+    parameters:
+      - name: ovApiName
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: actionKey
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      summary: Execute an action from an Object View
+      description: >
+        Executes the named action from the Object View config.
+        For type=dml, runs all DML statements in a single transaction.
+        For type=scenario, starts the referenced scenario.
+      operationId: executeViewAction
+      tags:
+        - views
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExecuteActionRequest"
+      responses:
+        "200":
+          description: Action executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecuteActionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   # NOTE: Security endpoints (roles, permission-sets, profiles, users, groups,
   # sharing-rules) are registered manually via SecurityHandler.RegisterRoutes.
   # They are not included in OpenAPI codegen to avoid ServerInterface bloat.
@@ -2451,8 +2494,6 @@ components:
         type:
           type: string
           enum: [scalar, list]
-        default:
-          type: boolean
 
     FormSection:
       type: object
@@ -2483,6 +2524,10 @@ components:
           type: string
         visibility_expr:
           type: string
+        form:
+          type: array
+          items:
+            $ref: "#/components/schemas/OVActionField"
 
     FormRelatedList:
       type: object
@@ -2648,14 +2693,12 @@ components:
     ObjectViewConfig:
       type: object
       required:
-        - view
+        - read
       properties:
-        view:
-          $ref: "#/components/schemas/OVViewConfig"
-        edit:
-          $ref: "#/components/schemas/OVEditConfig"
+        read:
+          $ref: "#/components/schemas/OVReadConfig"
 
-    OVViewConfig:
+    OVReadConfig:
       type: object
       properties:
         fields:
@@ -2670,30 +2713,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/OVQuery"
-
-    OVEditConfig:
-      type: object
-      properties:
-        fields:
-          type: array
-          items:
-            type: string
-        validation:
-          type: array
-          items:
-            $ref: "#/components/schemas/OVValidation"
-        defaults:
-          type: array
-          items:
-            $ref: "#/components/schemas/OVDefault"
-        computed:
-          type: array
-          items:
-            $ref: "#/components/schemas/OVComputed"
-        mutations:
-          type: array
-          items:
-            $ref: "#/components/schemas/OVMutation"
 
     OVAction:
       type: object
@@ -2714,6 +2733,16 @@ components:
           type: string
         visibility_expr:
           type: string
+        form:
+          type: array
+          items:
+            $ref: "#/components/schemas/OVActionField"
+        validation:
+          type: array
+          items:
+            $ref: "#/components/schemas/OVActionValidation"
+        apply:
+          $ref: "#/components/schemas/OVActionApply"
 
     OVQuery:
       type: object
@@ -2729,35 +2758,64 @@ components:
         type:
           type: string
           enum: [scalar, list]
-        default:
+        when:
+          type: string
+
+    OVActionField:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        label:
+          type: string
+        required:
           type: boolean
-        when:
+        default:
           type: string
 
-    OVMutation:
+    OVActionValidation:
       type: object
       required:
-        - dml
+        - expr
+        - message
       properties:
+        expr:
+          type: string
+        message:
+          type: string
+        code:
+          type: string
+
+    OVActionApply:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: [dml, scenario]
         dml:
-          type: string
-        foreach:
-          type: string
-        sync:
-          $ref: "#/components/schemas/OVMutSync"
-        when:
-          type: string
+          type: array
+          items:
+            type: string
+        scenario:
+          $ref: "#/components/schemas/OVScenarioRef"
 
-    OVMutSync:
+    OVScenarioRef:
       type: object
       required:
-        - key
-        - value
+        - api_name
       properties:
-        key:
+        api_name:
           type: string
-        value:
-          type: string
+        params:
+          type: object
+          additionalProperties:
+            type: string
 
     OVViewField:
       type: object
@@ -2774,53 +2832,6 @@ components:
         when:
           type: string
 
-    OVValidation:
-      type: object
-      required:
-        - expr
-        - message
-        - severity
-      properties:
-        expr:
-          type: string
-        message:
-          type: string
-        code:
-          type: string
-        severity:
-          type: string
-          enum: [error, warning]
-        when:
-          type: string
-
-    OVDefault:
-      type: object
-      required:
-        - field
-        - expr
-        - "on"
-      properties:
-        field:
-          type: string
-        expr:
-          type: string
-        "on":
-          type: string
-          enum: [create, update, "create,update"]
-        when:
-          type: string
-
-    OVComputed:
-      type: object
-      required:
-        - field
-        - expr
-      properties:
-        field:
-          type: string
-        expr:
-          type: string
-
     UpdateObjectViewRequest:
       type: object
       required:
@@ -2833,6 +2844,38 @@ components:
           type: string
         config:
           $ref: "#/components/schemas/ObjectViewConfig"
+
+    ExecuteActionRequest:
+      type: object
+      properties:
+        data:
+          type: object
+          additionalProperties: true
+        record_id:
+          type: string
+          format: uuid
+
+    ExecuteActionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActionResultItem"
+
+    ActionResultItem:
+      type: object
+      properties:
+        operation:
+          type: string
+        object:
+          type: string
+        ids:
+          type: array
+          items:
+            type: string
 
     CelValidateRequest:
       type: object

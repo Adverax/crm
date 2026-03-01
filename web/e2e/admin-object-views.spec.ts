@@ -132,14 +132,13 @@ test.describe('Object View detail page', () => {
     await expect(page.locator('[data-testid="field-description"]')).toBeVisible()
   })
 
-  test('has save, cancel, and delete buttons', async ({ page }) => {
+  test('has save and delete buttons', async ({ page }) => {
     await page.goto(`/admin/metadata/object-views/${view.id}`)
     await expect(page.locator('[data-testid="save-btn"]')).toBeVisible()
-    await expect(page.locator('[data-testid="cancel-btn"]')).toBeVisible()
     await expect(page.locator('[data-testid="delete-view-btn"]')).toBeVisible()
   })
 
-  test('read tabs render', async ({ page }) => {
+  test('tabs render (General, Queries, Fields, Actions)', async ({ page }) => {
     await page.goto(`/admin/metadata/object-views/${view.id}`)
     await expect(page.locator('[data-testid="view-tabs"]')).toBeVisible()
     await expect(page.getByRole('tab', { name: 'General' })).toBeVisible()
@@ -148,13 +147,11 @@ test.describe('Object View detail page', () => {
     await expect(page.getByRole('tab', { name: 'Queries' })).toBeVisible()
   })
 
-  test('data contract tabs render', async ({ page }) => {
+  test('no Validation/Defaults/Mutations tabs', async ({ page }) => {
     await page.goto(`/admin/metadata/object-views/${view.id}`)
-    await expect(page.locator('[data-testid="data-tabs"]')).toBeVisible()
-    await expect(page.getByRole('tab', { name: 'Validation' })).toBeVisible()
-    await expect(page.getByRole('tab', { name: 'Defaults' })).toBeVisible()
-    await expect(page.locator('[data-testid="data-tabs"]').getByRole('tab', { name: 'Computed' })).toBeVisible()
-    await expect(page.getByRole('tab', { name: 'Mutations' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Validation' })).not.toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Defaults' })).not.toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Mutations' })).not.toBeVisible()
   })
 
   test('Fields tab shows field entries', async ({ page }) => {
@@ -164,11 +161,46 @@ test.describe('Object View detail page', () => {
     await expect(page.locator('[data-testid="add-field-btn"]')).toBeVisible()
   })
 
-  test('Actions tab shows action cards', async ({ page }) => {
+  test('Actions tab shows master-detail layout with action list', async ({ page }) => {
     await page.goto(`/admin/metadata/object-views/${view.id}`)
     await page.getByRole('tab', { name: 'Actions' }).click()
+    await expect(page.locator('[data-testid="actions-master-detail"]')).toBeVisible()
     await expect(page.locator('[data-testid="action-card"]')).toBeVisible()
     await expect(page.locator('[data-testid="add-action-btn"]')).toBeVisible()
+  })
+
+  test('Actions tab — clicking action shows detail tabs', async ({ page }) => {
+    await page.goto(`/admin/metadata/object-views/${view.id}`)
+    await page.getByRole('tab', { name: 'Actions' }).click()
+    await page.locator('[data-testid="action-card"]').first().click()
+    await expect(page.locator('[data-testid="tab-action-identity"]')).toBeVisible()
+    await expect(page.locator('[data-testid="tab-action-form"]')).toBeVisible()
+    await expect(page.locator('[data-testid="tab-action-validation"]')).toBeVisible()
+    await expect(page.locator('[data-testid="tab-action-apply"]')).toBeVisible()
+  })
+
+  test('Actions tab — Form tab shows form fields', async ({ page }) => {
+    await page.goto(`/admin/metadata/object-views/${view.id}`)
+    await page.getByRole('tab', { name: 'Actions' }).click()
+    await page.locator('[data-testid="action-card"]').first().click()
+    await page.locator('[data-testid="tab-action-form"]').click()
+    await expect(page.locator('[data-testid="action-form-field"]').first()).toBeVisible()
+  })
+
+  test('Actions tab — Validation tab shows rules', async ({ page }) => {
+    await page.goto(`/admin/metadata/object-views/${view.id}`)
+    await page.getByRole('tab', { name: 'Actions' }).click()
+    await page.locator('[data-testid="action-card"]').first().click()
+    await page.locator('[data-testid="tab-action-validation"]').click()
+    await expect(page.locator('[data-testid="action-validation-rule"]').first()).toBeVisible()
+  })
+
+  test('Actions tab — Apply tab shows DML config', async ({ page }) => {
+    await page.goto(`/admin/metadata/object-views/${view.id}`)
+    await page.getByRole('tab', { name: 'Actions' }).click()
+    await page.locator('[data-testid="action-card"]').first().click()
+    await page.locator('[data-testid="tab-action-apply"]').click()
+    await expect(page.locator('[data-testid="dml-statement"]').first()).toBeVisible()
   })
 
   test('submit calls PUT', async ({ page }) => {
@@ -192,11 +224,10 @@ test.describe('Object View detail page', () => {
     await expect(page.locator('[data-testid="add-query-btn"]')).toBeVisible()
   })
 
-  test('Queries tab shows query type select and default checkbox', async ({ page }) => {
+  test('Queries tab shows query type select', async ({ page }) => {
     await page.goto(`/admin/metadata/object-views/${view.id}`)
     await page.getByRole('tab', { name: 'Queries' }).click()
     await expect(page.locator('[data-testid="query-type-select"]')).toBeVisible()
-    await expect(page.locator('[data-testid="query-default-checkbox"]')).toBeVisible()
   })
 
   test('Fields tab shows computed field with expression', async ({ page }) => {
@@ -205,34 +236,6 @@ test.describe('Object View detail page', () => {
     // The 4th field (display_name) has an expr, so Expression textarea should be visible
     const fields = page.locator('[data-testid="field-entry"]')
     await expect(fields).toHaveCount(4)
-  })
-
-  test('Validation tab shows validation cards', async ({ page }) => {
-    await page.goto(`/admin/metadata/object-views/${view.id}`)
-    await page.getByRole('tab', { name: 'Validation' }).click()
-    await expect(page.locator('[data-testid="validation-card"]')).toBeVisible()
-    await expect(page.locator('[data-testid="add-validation-btn"]')).toBeVisible()
-  })
-
-  test('Mutations tab shows empty state and add button', async ({ page }) => {
-    await page.goto(`/admin/metadata/object-views/${view.id}`)
-    await page.getByRole('tab', { name: 'Mutations' }).click()
-    await expect(page.locator('[data-testid="add-mutation-btn"]')).toBeVisible()
-    await expect(page.getByText('No mutations configured')).toBeVisible()
-  })
-
-  test('Defaults tab shows empty state and add button', async ({ page }) => {
-    await page.goto(`/admin/metadata/object-views/${view.id}`)
-    await page.getByRole('tab', { name: 'Defaults' }).click()
-    await expect(page.locator('[data-testid="add-default-btn"]')).toBeVisible()
-    await expect(page.getByText('No view-scoped defaults configured')).toBeVisible()
-  })
-
-  test('Computed (Write) tab shows empty state and add button', async ({ page }) => {
-    await page.goto(`/admin/metadata/object-views/${view.id}`)
-    await page.locator('[data-testid="data-tabs"]').getByRole('tab', { name: 'Computed' }).click()
-    await expect(page.locator('[data-testid="add-computed-btn"]')).toBeVisible()
-    await expect(page.getByText('No computed fields configured')).toBeVisible()
   })
 
   test('delete button shows confirmation dialog', async ({ page }) => {

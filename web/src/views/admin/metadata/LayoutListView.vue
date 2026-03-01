@@ -107,7 +107,7 @@ function formFactorVariant(ff: string): 'default' | 'secondary' | 'outline' {
 }
 
 function modeVariant(mode: string): 'default' | 'secondary' | 'outline' {
-  if (mode === 'edit') return 'default'
+  if (mode === 'read') return 'default'
   return 'outline'
 }
 

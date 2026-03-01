@@ -258,7 +258,7 @@ func setupRouter(pool *pgxpool.Pool, metadataCache *metadata.MetadataCache, cfg 
 		dmlengine.WithRuleValidator(celRuleValidator),
 	)
 	dmlExecutor := dml.NewRLSExecutor(pool, metadataCache, rlsEnforcer)
-	dmlService := dml.NewDMLService(dmlEngine, dmlExecutor)
+	dmlService := dml.NewDMLService(pool, dmlEngine, dmlExecutor)
 
 	// CEL validation handler
 	celHandler := handler.NewCELHandler(metadataCache, fnRegistry)
@@ -388,7 +388,7 @@ func setupRouter(pool *pgxpool.Pool, metadataCache *metadata.MetadataCache, cfg 
 	recordHandler.RegisterRoutes(apiGroup)
 
 	// --- View API ---
-	viewHandler := handler.NewViewHandler(metadataCache, soqlService)
+	viewHandler := handler.NewViewHandler(metadataCache, soqlService, dmlService)
 	viewHandler.RegisterRoutes(apiGroup)
 
 	// --- Public Metadata Describe API ---

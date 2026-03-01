@@ -1072,7 +1072,7 @@ export const mockObjectViews = [
     label: 'Account Default View',
     description: 'Default view for accounts',
     config: {
-      view: {
+      read: {
         fields: [
           { name: 'Name' },
           { name: 'Industry' },
@@ -1086,6 +1086,17 @@ export const mockObjectViews = [
             type: 'primary',
             icon: 'mail',
             visibility_expr: 'true',
+            form: [
+              { name: 'subject', type: 'string', label: 'Subject', required: true },
+              { name: 'body', type: 'string', label: 'Body' },
+            ],
+            validation: [
+              { expr: 'size(data.subject) > 0', message: 'Subject is required', code: 'subject_required' },
+            ],
+            apply: {
+              type: 'dml',
+              dml: ['INSERT INTO EmailLog (Subject, Body) VALUES (data.subject, data.body)'],
+            },
           },
         ],
         queries: [
@@ -1096,20 +1107,6 @@ export const mockObjectViews = [
             when: '',
           },
         ],
-      },
-      edit: {
-        validation: [
-          {
-            expr: 'size(record.Name) > 0',
-            message: 'Name is required',
-            code: 'name_required',
-            severity: 'error',
-            when: '',
-          },
-        ],
-        defaults: [],
-        computed: [],
-        mutations: [],
       },
     },
     created_at: '2026-02-16T10:00:00Z',
@@ -1122,12 +1119,11 @@ export const mockObjectViews = [
     label: 'Account Sales View',
     description: 'Sales-specific view for accounts',
     config: {
-      view: {
+      read: {
         fields: [],
         actions: [],
         queries: [],
       },
-      edit: null,
     },
     created_at: '2026-02-16T11:00:00Z',
     updated_at: '2026-02-16T11:00:00Z',
@@ -1757,7 +1753,7 @@ export const mockLayouts = [
     id: 'ly111111-1111-1111-1111-111111111111',
     object_view_id: 'ov111111-1111-1111-1111-111111111111',
     form_factor: 'desktop',
-    mode: 'edit',
+    mode: 'read',
     config: {
       root: {
         type: 'grid',

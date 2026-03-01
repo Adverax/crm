@@ -65,7 +65,7 @@ async function onSubmit() {
       label: form.value.label,
       description: form.value.description || undefined,
       config: {
-        view: {
+        read: {
           fields: [],
           actions: [],
           queries: [],

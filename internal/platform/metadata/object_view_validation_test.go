@@ -19,23 +19,23 @@ func TestValidateViewConfig(t *testing.T) {
 		{
 			name: "valid: empty config",
 			config: OVConfig{
-				View: OVViewConfig{},
+				Read: OVReadConfig{},
 			},
 		},
 		{
 			name: "valid: simple fields without queries",
 			config: OVConfig{
-				View: OVViewConfig{
+				Read: OVReadConfig{
 					Fields: []OVViewField{{Name: "name"}, {Name: "email"}},
 				},
 			},
 		},
 		{
-			name: "valid: fields with queries and default",
+			name: "valid: fields with queries",
 			config: OVConfig{
-				View: OVViewConfig{
+				Read: OVReadConfig{
 					Queries: []OVQuery{
-						{Name: "main", SOQL: "SELECT Id FROM Account", Type: "scalar", Default: true},
+						{Name: "main", SOQL: "SELECT Id FROM Account", Type: "scalar"},
 						{Name: "contacts", SOQL: "SELECT Id FROM Contact", Type: "list"},
 					},
 					Fields: []OVViewField{
@@ -48,7 +48,7 @@ func TestValidateViewConfig(t *testing.T) {
 		{
 			name: "valid: DAG fields A -> B -> C",
 			config: OVConfig{
-				View: OVViewConfig{
+				Read: OVReadConfig{
 					Fields: []OVViewField{
 						{Name: "a"},
 						{Name: "b", Expr: "a + 1"},
@@ -60,7 +60,7 @@ func TestValidateViewConfig(t *testing.T) {
 		{
 			name: "invalid: duplicate query name",
 			config: OVConfig{
-				View: OVViewConfig{
+				Read: OVReadConfig{
 					Queries: []OVQuery{
 						{Name: "main", SOQL: "SELECT Id FROM X", Type: "scalar"},
 						{Name: "main", SOQL: "SELECT Id FROM Y", Type: "list"},
@@ -73,7 +73,7 @@ func TestValidateViewConfig(t *testing.T) {
 		{
 			name: "invalid: empty query name",
 			config: OVConfig{
-				View: OVViewConfig{
+				Read: OVReadConfig{
 					Queries: []OVQuery{
 						{Name: "", SOQL: "SELECT Id FROM X", Type: "scalar"},
 					},
@@ -83,22 +83,20 @@ func TestValidateViewConfig(t *testing.T) {
 			errContain: "query name is required",
 		},
 		{
-			name: "invalid: more than one default query",
+			name: "valid: multiple scalar queries (first is implicit default)",
 			config: OVConfig{
-				View: OVViewConfig{
+				Read: OVReadConfig{
 					Queries: []OVQuery{
-						{Name: "q1", SOQL: "SELECT Id FROM X", Type: "scalar", Default: true},
-						{Name: "q2", SOQL: "SELECT Id FROM Y", Type: "scalar", Default: true},
+						{Name: "q1", SOQL: "SELECT Id FROM X", Type: "scalar"},
+						{Name: "q2", SOQL: "SELECT Id FROM Y", Type: "scalar"},
 					},
 				},
 			},
-			wantErr:    true,
-			errContain: "at most one query can be marked as default",
 		},
 		{
 			name: "invalid: bad query type",
 			config: OVConfig{
-				View: OVViewConfig{
+				Read: OVReadConfig{
 					Queries: []OVQuery{
 						{Name: "q1", SOQL: "SELECT Id FROM X", Type: "batch"},
 					},
@@ -110,7 +108,7 @@ func TestValidateViewConfig(t *testing.T) {
 		{
 			name: "invalid: duplicate field name",
 			config: OVConfig{
-				View: OVViewConfig{
+				Read: OVReadConfig{
 					Fields: []OVViewField{
 						{Name: "name"},
 						{Name: "name"},
@@ -123,7 +121,7 @@ func TestValidateViewConfig(t *testing.T) {
 		{
 			name: "invalid: empty field name",
 			config: OVConfig{
-				View: OVViewConfig{
+				Read: OVReadConfig{
 					Fields: []OVViewField{
 						{Name: ""},
 					},
@@ -135,7 +133,7 @@ func TestValidateViewConfig(t *testing.T) {
 		{
 			name: "invalid: field references non-existent query",
 			config: OVConfig{
-				View: OVViewConfig{
+				Read: OVReadConfig{
 					Queries: []OVQuery{
 						{Name: "main", SOQL: "SELECT Id FROM X", Type: "scalar"},
 					},
@@ -150,7 +148,7 @@ func TestValidateViewConfig(t *testing.T) {
 		{
 			name: "invalid: direct cycle A -> B -> A",
 			config: OVConfig{
-				View: OVViewConfig{
+				Read: OVReadConfig{
 					Fields: []OVViewField{
 						{Name: "a", Expr: "b + 1"},
 						{Name: "b", Expr: "a + 1"},
@@ -163,7 +161,7 @@ func TestValidateViewConfig(t *testing.T) {
 		{
 			name: "invalid: transitive cycle A -> B -> C -> A",
 			config: OVConfig{
-				View: OVViewConfig{
+				Read: OVReadConfig{
 					Fields: []OVViewField{
 						{Name: "a", Expr: "c + 1"},
 						{Name: "b", Expr: "a + 1"},
@@ -177,7 +175,7 @@ func TestValidateViewConfig(t *testing.T) {
 		{
 			name: "invalid: self-reference",
 			config: OVConfig{
-				View: OVViewConfig{
+				Read: OVReadConfig{
 					Fields: []OVViewField{
 						{Name: "a", Expr: "a + 1"},
 					},
@@ -189,7 +187,7 @@ func TestValidateViewConfig(t *testing.T) {
 		{
 			name: "valid: no default query (zero queries)",
 			config: OVConfig{
-				View: OVViewConfig{
+				Read: OVReadConfig{
 					Fields: []OVViewField{{Name: "name"}},
 				},
 			},
@@ -197,9 +195,9 @@ func TestValidateViewConfig(t *testing.T) {
 		{
 			name: "valid: query reference in expr",
 			config: OVConfig{
-				View: OVViewConfig{
+				Read: OVReadConfig{
 					Queries: []OVQuery{
-						{Name: "main", SOQL: "SELECT Id, Name FROM Account", Type: "scalar", Default: true},
+						{Name: "main", SOQL: "SELECT Id, Name FROM Account", Type: "scalar"},
 					},
 					Fields: []OVViewField{
 						{Name: "display", Type: "string", Expr: "main.Name"},
@@ -210,9 +208,9 @@ func TestValidateViewConfig(t *testing.T) {
 		{
 			name: "valid: scalar query reference in computed field",
 			config: OVConfig{
-				View: OVViewConfig{
+				Read: OVReadConfig{
 					Queries: []OVQuery{
-						{Name: "main", SOQL: "SELECT Id FROM Account", Type: "scalar", Default: true},
+						{Name: "main", SOQL: "SELECT Id FROM Account", Type: "scalar"},
 						{Name: "stats", SOQL: "SELECT COUNT(Id) AS total FROM Contact WHERE AccountId = :id", Type: "scalar"},
 					},
 					Fields: []OVViewField{
@@ -225,9 +223,9 @@ func TestValidateViewConfig(t *testing.T) {
 		{
 			name: "invalid: field expr references list query",
 			config: OVConfig{
-				View: OVViewConfig{
+				Read: OVReadConfig{
 					Queries: []OVQuery{
-						{Name: "main", SOQL: "SELECT Id FROM Account", Type: "scalar", Default: true},
+						{Name: "main", SOQL: "SELECT Id FROM Account", Type: "scalar"},
 						{Name: "contacts", SOQL: "SELECT Id FROM Contact", Type: "list"},
 					},
 					Fields: []OVViewField{
@@ -241,9 +239,9 @@ func TestValidateViewConfig(t *testing.T) {
 		{
 			name: "invalid: field expr references list query with multiple fields",
 			config: OVConfig{
-				View: OVViewConfig{
+				Read: OVReadConfig{
 					Queries: []OVQuery{
-						{Name: "main", SOQL: "SELECT Id FROM Account", Type: "scalar", Default: true},
+						{Name: "main", SOQL: "SELECT Id FROM Account", Type: "scalar"},
 						{Name: "deals", SOQL: "SELECT Id, Amount FROM Deal", Type: "list"},
 					},
 					Fields: []OVViewField{

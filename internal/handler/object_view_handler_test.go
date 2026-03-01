@@ -333,7 +333,7 @@ func TestObjectViewHandler_Get(t *testing.T) {
 						APIName: "default_view",
 						Label:   "Default View",
 						Config: metadata.OVConfig{
-							View: metadata.OVViewConfig{
+							Read: metadata.OVReadConfig{
 								Fields: []metadata.OVViewField{{Name: "name"}},
 							},
 						},

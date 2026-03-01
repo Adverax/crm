@@ -93,9 +93,8 @@ type formDescribe struct {
 }
 
 type formQuery struct {
-	Name    string `json:"name"`
-	Type    string `json:"type"`
-	Default bool   `json:"default,omitempty"`
+	Name string `json:"name"`
+	Type string `json:"type"`
 }
 
 type formSection struct {
@@ -117,12 +116,21 @@ type formFieldPresentation struct {
 	Reference      *metadata.RefConfig `json:"reference,omitempty"`
 }
 
+type formActionField struct {
+	Name     string `json:"name"`
+	Type     string `json:"type,omitempty"`
+	Label    string `json:"label,omitempty"`
+	Required bool   `json:"required,omitempty"`
+	Default  string `json:"default,omitempty"`
+}
+
 type formAction struct {
-	Key            string `json:"key"`
-	Label          string `json:"label"`
-	Type           string `json:"type"`
-	Icon           string `json:"icon"`
-	VisibilityExpr string `json:"visibility_expr"`
+	Key            string            `json:"key"`
+	Label          string            `json:"label"`
+	Type           string            `json:"type"`
+	Icon           string            `json:"icon"`
+	VisibilityExpr string            `json:"visibility_expr"`
+	Form           []formActionField `json:"form,omitempty"`
 }
 
 type formRelatedList struct {
@@ -203,7 +211,7 @@ func (h *DescribeHandler) DescribeObject(c *gin.Context) {
 	}
 	formMode := c.GetHeader("X-Form-Mode")
 	if formMode == "" {
-		formMode = "edit"
+		formMode = "read"
 	}
 
 	// Try to resolve form via OV + Layout, fallback to auto-generated
@@ -301,7 +309,7 @@ func (h *DescribeHandler) resolveForm(
 // 1. Exact match (form_factor + mode)
 // 2. Same form_factor, any mode
 // 3. desktop + same mode
-// 4. desktop + edit
+// 4. desktop + read
 // 5. nil (auto-generate)
 func (h *DescribeHandler) resolveLayout(ovID uuid.UUID, formFactor string, mode string) *metadata.Layout {
 	layouts := h.cache.GetLayoutsForOV(ovID)
@@ -309,7 +317,7 @@ func (h *DescribeHandler) resolveLayout(ovID uuid.UUID, formFactor string, mode 
 		return nil
 	}
 
-	var sameFFAnyMode, desktopSameMode, desktopEdit *metadata.Layout
+	var sameFFAnyMode, desktopSameMode, desktopRead *metadata.Layout
 	for i := range layouts {
 		l := &layouts[i]
 		if l.FormFactor == formFactor && l.Mode == mode {
@@ -321,8 +329,8 @@ func (h *DescribeHandler) resolveLayout(ovID uuid.UUID, formFactor string, mode 
 		if l.FormFactor == "desktop" && l.Mode == mode && desktopSameMode == nil {
 			desktopSameMode = l
 		}
-		if l.FormFactor == "desktop" && l.Mode == "edit" && desktopEdit == nil {
-			desktopEdit = l
+		if l.FormFactor == "desktop" && l.Mode == "read" && desktopRead == nil {
+			desktopRead = l
 		}
 	}
 
@@ -332,7 +340,7 @@ func (h *DescribeHandler) resolveLayout(ovID uuid.UUID, formFactor string, mode 
 	if desktopSameMode != nil {
 		return desktopSameMode
 	}
-	return desktopEdit // may be nil → auto-generate
+	return desktopRead // may be nil → auto-generate
 }
 
 // mergeOVAndLayout merges OV config + Layout config into formDescribe.
@@ -344,7 +352,7 @@ func (h *DescribeHandler) mergeOVAndLayout(
 	form := buildFallbackForm(fields)
 
 	// Apply OV sections if OV has view config with fields
-	fieldNames := metadata.FieldNames(ov.Config.View.Fields)
+	fieldNames := metadata.FieldNames(ov.Config.Read.Fields)
 	if len(fieldNames) > 0 {
 		form.Sections = []formSection{{
 			Key:     "details",
@@ -360,29 +368,41 @@ func (h *DescribeHandler) mergeOVAndLayout(
 	}
 
 	// Map queries to form (without SOQL for security)
-	if len(ov.Config.View.Queries) > 0 {
-		queries := make([]formQuery, len(ov.Config.View.Queries))
-		for i, q := range ov.Config.View.Queries {
+	if len(ov.Config.Read.Queries) > 0 {
+		queries := make([]formQuery, len(ov.Config.Read.Queries))
+		for i, q := range ov.Config.Read.Queries {
 			queries[i] = formQuery{
-				Name:    q.Name,
-				Type:    q.Type,
-				Default: q.Default,
+				Name: q.Name,
+				Type: q.Type,
 			}
 		}
 		form.Queries = queries
 	}
 
-	// Apply OV actions
-	if len(ov.Config.View.Actions) > 0 {
-		actions := make([]formAction, len(ov.Config.View.Actions))
-		for i, a := range ov.Config.View.Actions {
-			actions[i] = formAction{
+	// Apply OV actions (include form fields, but NOT apply — server-side only)
+	if len(ov.Config.Read.Actions) > 0 {
+		actions := make([]formAction, len(ov.Config.Read.Actions))
+		for i, a := range ov.Config.Read.Actions {
+			fa := formAction{
 				Key:            a.Key,
 				Label:          a.Label,
 				Type:           a.Type,
 				Icon:           a.Icon,
 				VisibilityExpr: a.VisibilityExpr,
 			}
+			if len(a.Form) > 0 {
+				fa.Form = make([]formActionField, len(a.Form))
+				for j, f := range a.Form {
+					fa.Form[j] = formActionField{
+						Name:     f.Name,
+						Type:     f.Type,
+						Label:    f.Label,
+						Required: f.Required,
+						Default:  f.Default,
+					}
+				}
+			}
+			actions[i] = fa
 		}
 		form.Actions = actions
 	}

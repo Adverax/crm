@@ -4,7 +4,6 @@ import { Trash2, Plus } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -38,15 +37,7 @@ function onTypeChange(index: number, value: string) {
   const updated = [...props.queries]
   const q = props.queries[index]
   if (!q) return
-  updated[index] = { name: q.name, soql: q.soql, type: value as OVQuery['type'], default: q.default, when: q.when }
-  emit('update:queries', updated)
-}
-
-function onDefaultChange(index: number, checked: boolean) {
-  const updated = props.queries.map((q, i) => ({
-    ...q,
-    default: i === index ? checked : false,
-  }))
+  updated[index] = { name: q.name, soql: q.soql, type: value as OVQuery['type'], when: q.when }
   emit('update:queries', updated)
 }
 </script>
@@ -98,14 +89,6 @@ function onDefaultChange(index: number, checked: boolean) {
             <Input v-model="query.when" placeholder="record.status == 'active'" class="font-mono" />
           </div>
           <div class="flex items-end gap-2">
-            <div class="flex items-center gap-2 pb-2">
-              <Checkbox
-                :checked="query.default ?? false"
-                data-testid="query-default-checkbox"
-                @update:checked="(v: boolean) => onDefaultChange(idx, v)"
-              />
-              <Label class="text-xs">Default</Label>
-            </div>
             <IconButton
               :icon="Trash2"
               tooltip="Delete query"

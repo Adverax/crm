@@ -20,7 +20,7 @@ test.describe('Layout list page', () => {
 
   test('shows mode badges', async ({ page }) => {
     await page.goto('/admin/metadata/layouts')
-    await expect(page.getByText('edit').first()).toBeVisible()
+    await expect(page.getByText('read').first()).toBeVisible()
     await expect(page.getByText('view').first()).toBeVisible()
   })
 

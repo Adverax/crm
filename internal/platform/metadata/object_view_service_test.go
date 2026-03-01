@@ -166,7 +166,7 @@ func validCreateInput() CreateObjectViewInput {
 		APIName: "default_view",
 		Label:   "Default View",
 		Config: OVConfig{
-			View: OVViewConfig{
+			Read: OVReadConfig{
 				Fields: []OVViewField{{Name: "first_name"}, {Name: "last_name"}},
 			},
 		},
@@ -473,7 +473,7 @@ func TestObjectViewService_Update(t *testing.T) {
 			input: UpdateObjectViewInput{
 				Label: "With Config",
 				Config: OVConfig{
-					View: OVViewConfig{
+					Read: OVReadConfig{
 						Fields: []OVViewField{{Name: "email"}},
 					},
 				},

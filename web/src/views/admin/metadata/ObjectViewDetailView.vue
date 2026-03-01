@@ -8,8 +8,7 @@ import ErrorAlert from '@/components/admin/ErrorAlert.vue'
 import ConfirmDialog from '@/components/admin/ConfirmDialog.vue'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
-import { Trash2, X, Eye, Pencil } from 'lucide-vue-next'
-import { Separator } from '@/components/ui/separator'
+import { Trash2 } from 'lucide-vue-next'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Tabs,
@@ -22,32 +21,17 @@ import type {
   OVAction,
   OVQuery,
   OVViewField,
-  OVMutation,
-  OVValidation,
-  OVDefault,
-  OVComputed,
 } from '@/types/object-views'
 import OVGeneralTab from '@/components/admin/object-view/OVGeneralTab.vue'
 import OVFieldsTab from '@/components/admin/object-view/OVFieldsTab.vue'
 import OVActionsTab from '@/components/admin/object-view/OVActionsTab.vue'
 import OVQueriesTab from '@/components/admin/object-view/OVQueriesTab.vue'
-import OVMutationsTab from '@/components/admin/object-view/OVMutationsTab.vue'
-import OVValidationTab from '@/components/admin/object-view/OVValidationTab.vue'
-import OVDefaultsTab from '@/components/admin/object-view/OVDefaultsTab.vue'
-import OVComputedTab from '@/components/admin/object-view/OVComputedTab.vue'
 
 interface FormConfig {
-  view: {
+  read: {
     fields: OVViewField[]
     actions: OVAction[]
     queries: OVQuery[]
-  }
-  edit?: {
-    fields?: string[]
-    validation: OVValidation[]
-    defaults: OVDefault[]
-    computed: OVComputed[]
-    mutations: OVMutation[]
   }
 }
 
@@ -64,33 +48,17 @@ const submitting = ref(false)
 const showDeleteDialog = ref(false)
 const error = ref<string | null>(null)
 
-function emptyEditConfig(): Required<FormConfig>['edit'] {
-  return {
-    validation: [],
-    defaults: [],
-    computed: [],
-    mutations: [],
-  }
-}
-
 const form = ref<{ label: string; description: string; config: FormConfig }>({
   label: '',
   description: '',
   config: {
-    view: {
+    read: {
       fields: [],
       actions: [],
       queries: [],
     },
   },
 })
-
-function ensureEdit(): Required<FormConfig>['edit'] {
-  if (!form.value.config.edit) {
-    form.value.config.edit = emptyEditConfig()
-  }
-  return form.value.config.edit
-}
 
 async function loadView() {
   loading.value = true
@@ -103,18 +71,11 @@ async function loadView() {
       label: response.data.label ?? '',
       description: response.data.description ?? '',
       config: {
-        view: {
-          fields: cfg?.view?.fields ?? [],
-          actions: cfg?.view?.actions ?? [],
-          queries: cfg?.view?.queries ?? [],
+        read: {
+          fields: cfg?.read?.fields ?? [],
+          actions: cfg?.read?.actions ?? [],
+          queries: cfg?.read?.queries ?? [],
         },
-        edit: cfg?.edit ? {
-          fields: cfg.edit.fields,
-          validation: cfg.edit.validation ?? [],
-          defaults: cfg.edit.defaults ?? [],
-          computed: cfg.edit.computed ?? [],
-          mutations: cfg.edit.mutations ?? [],
-        } : undefined,
       },
     }
   } catch (err) {
@@ -158,10 +119,6 @@ async function onDelete() {
   }
 }
 
-function onCancel() {
-  router.push({ name: 'admin-object-views' })
-}
-
 const breadcrumbs = computed(() => [
   { label: 'Admin', to: '/admin' },
   { label: 'Object Views', to: '/admin/metadata/object-views' },
@@ -181,6 +138,9 @@ const breadcrumbs = computed(() => [
     <template v-else-if="view">
       <PageHeader :title="view.label" :breadcrumbs="breadcrumbs">
         <template #actions>
+          <Button type="button" :disabled="submitting" data-testid="save-btn" @click="onSave">
+            Save
+          </Button>
           <IconButton
             :icon="Trash2"
             tooltip="Delete object view"
@@ -192,26 +152,11 @@ const breadcrumbs = computed(() => [
       </PageHeader>
 
       <Tabs default-value="general" class="mt-4">
-        <div class="flex items-center gap-2 mb-1">
-          <Eye class="h-4 w-4 text-muted-foreground" />
-          <span class="text-xs font-medium text-muted-foreground uppercase tracking-wide">View</span>
-        </div>
         <TabsList data-testid="view-tabs">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="queries">Queries</TabsTrigger>
           <TabsTrigger value="fields">Fields</TabsTrigger>
           <TabsTrigger value="actions">Actions</TabsTrigger>
-        </TabsList>
-
-        <div class="flex items-center gap-2 mb-1 mt-3">
-          <Pencil class="h-4 w-4 text-muted-foreground" />
-          <span class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Edit</span>
-        </div>
-        <TabsList data-testid="data-tabs">
-          <TabsTrigger value="validation">Validation</TabsTrigger>
-          <TabsTrigger value="defaults">Defaults</TabsTrigger>
-          <TabsTrigger value="edit-computed">Computed</TabsTrigger>
-          <TabsTrigger value="mutations">Mutations</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general">
@@ -225,68 +170,26 @@ const breadcrumbs = computed(() => [
 
         <TabsContent value="fields">
           <OVFieldsTab
-            :fields="form.config.view.fields"
-            @update:fields="form.config.view.fields = $event"
+            :fields="form.config.read.fields"
+            @update:fields="form.config.read.fields = $event"
           />
         </TabsContent>
 
         <TabsContent value="actions">
           <OVActionsTab
-            :actions="form.config.view.actions"
-            @update:actions="form.config.view.actions = $event"
+            :actions="form.config.read.actions"
+            @update:actions="form.config.read.actions = $event"
           />
         </TabsContent>
 
         <TabsContent value="queries">
           <OVQueriesTab
-            :queries="form.config.view.queries"
-            @update:queries="form.config.view.queries = $event"
+            :queries="form.config.read.queries"
+            @update:queries="form.config.read.queries = $event"
           />
         </TabsContent>
 
-        <TabsContent value="mutations">
-          <OVMutationsTab
-            :mutations="ensureEdit().mutations"
-            @update:mutations="ensureEdit().mutations = $event"
-          />
-        </TabsContent>
-
-        <TabsContent value="validation">
-          <OVValidationTab
-            :validation="ensureEdit().validation"
-            @update:validation="ensureEdit().validation = $event"
-          />
-        </TabsContent>
-
-        <TabsContent value="defaults">
-          <OVDefaultsTab
-            :defaults="ensureEdit().defaults"
-            @update:defaults="ensureEdit().defaults = $event"
-          />
-        </TabsContent>
-
-        <TabsContent value="edit-computed">
-          <OVComputedTab
-            :computed="ensureEdit().computed"
-            @update:computed="ensureEdit().computed = $event"
-          />
-        </TabsContent>
       </Tabs>
-
-      <Separator class="my-6" />
-
-      <div class="flex gap-2 items-center">
-        <Button type="button" :disabled="submitting" data-testid="save-btn" @click="onSave">
-          Save
-        </Button>
-        <IconButton
-          :icon="X"
-          tooltip="Cancel"
-          variant="outline"
-          data-testid="cancel-btn"
-          @click="onCancel"
-        />
-      </div>
 
       <ConfirmDialog
         :open="showDeleteDialog"

@@ -18,7 +18,7 @@ func TestOVConfig_MarshalUnmarshal(t *testing.T) {
 		{
 			name: "view only with simple fields",
 			input: OVConfig{
-				View: OVViewConfig{
+				Read: OVReadConfig{
 					Fields:  []OVViewField{{Name: "name"}, {Name: "email"}},
 					Actions: []OVAction{{Key: "edit", Label: "Edit", Type: "primary", Icon: "pencil"}},
 				},
@@ -27,7 +27,7 @@ func TestOVConfig_MarshalUnmarshal(t *testing.T) {
 		{
 			name: "view with computed fields",
 			input: OVConfig{
-				View: OVViewConfig{
+				Read: OVReadConfig{
 					Fields: []OVViewField{
 						{Name: "name"},
 						{Name: "total", Type: "float", Expr: "record.amount * 1.2", When: "has(record.amount)"},
@@ -39,23 +39,13 @@ func TestOVConfig_MarshalUnmarshal(t *testing.T) {
 		{
 			name: "view with queries",
 			input: OVConfig{
-				View: OVViewConfig{
+				Read: OVReadConfig{
 					Fields:  []OVViewField{{Name: "name"}},
 					Actions: []OVAction{},
 					Queries: []OVQuery{
-						{Name: "main", SOQL: "SELECT Id FROM Account WHERE Id = :id", Type: "scalar", Default: true},
+						{Name: "main", SOQL: "SELECT Id FROM Account WHERE Id = :id", Type: "scalar"},
 						{Name: "contacts", SOQL: "SELECT Id FROM Contact WHERE AccountId = :id", Type: "list"},
 					},
-				},
-			},
-		},
-		{
-			name: "view with single default query",
-			input: OVConfig{
-				View: OVViewConfig{
-					Fields:  []OVViewField{{Name: "name"}},
-					Actions: []OVAction{},
-					Queries: []OVQuery{{Name: "q1", SOQL: "SELECT Id FROM X", Type: "list", Default: true}},
 				},
 			},
 		},

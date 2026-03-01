@@ -2,16 +2,19 @@ package metadata
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/adverax/crm/internal/pkg/apperror"
 )
 
+var actionKeyRegexp = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+
 // validateViewConfig validates the OV view config at save time.
-// Checks: query uniqueness, at most one default, valid query types,
+// Checks: query uniqueness, valid query types,
 // field uniqueness, valid query references, DAG (no cycles).
 func validateViewConfig(config OVConfig) error {
-	view := config.View
+	view := config.Read
 
 	if err := validateQueries(view.Queries); err != nil {
 		return err
@@ -21,12 +24,15 @@ func validateViewConfig(config OVConfig) error {
 		return err
 	}
 
+	if err := validateActions(view.Actions); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func validateQueries(queries []OVQuery) error {
 	names := make(map[string]bool, len(queries))
-	defaultCount := 0
 
 	for _, q := range queries {
 		if q.Name == "" {
@@ -40,14 +46,6 @@ func validateQueries(queries []OVQuery) error {
 		if q.Type != "scalar" && q.Type != "list" {
 			return apperror.BadRequest(fmt.Sprintf("query %q: type must be 'scalar' or 'list', got %q", q.Name, q.Type))
 		}
-
-		if q.Default {
-			defaultCount++
-		}
-	}
-
-	if defaultCount > 1 {
-		return apperror.BadRequest("at most one query can be marked as default")
 	}
 
 	return nil
@@ -178,6 +176,80 @@ func validateFieldDAG(fields []OVViewField) error {
 			}
 		}
 		return apperror.BadRequest(fmt.Sprintf("circular dependency detected among fields: %s", strings.Join(cycleFields, ", ")))
+	}
+
+	return nil
+}
+
+// validateActions validates the actions list at save time (ADR-0036).
+func validateActions(actions []OVAction) error {
+	if len(actions) > 20 {
+		return apperror.BadRequest("max 20 actions per object view")
+	}
+
+	keys := make(map[string]bool, len(actions))
+	for _, a := range actions {
+		if a.Key == "" {
+			return apperror.BadRequest("action key is required")
+		}
+		if !actionKeyRegexp.MatchString(a.Key) {
+			return apperror.BadRequest(fmt.Sprintf("action key %q: must match ^[a-z][a-z0-9_]*$", a.Key))
+		}
+		if keys[a.Key] {
+			return apperror.BadRequest(fmt.Sprintf("duplicate action key: %s", a.Key))
+		}
+		keys[a.Key] = true
+
+		if len(a.Form) > 50 {
+			return apperror.BadRequest(fmt.Sprintf("action %q: max 50 form fields", a.Key))
+		}
+		if len(a.Validation) > 20 {
+			return apperror.BadRequest(fmt.Sprintf("action %q: max 20 validation rules", a.Key))
+		}
+
+		// Validate form field name uniqueness
+		fieldNames := make(map[string]bool, len(a.Form))
+		for _, f := range a.Form {
+			if f.Name == "" {
+				return apperror.BadRequest(fmt.Sprintf("action %q: form field name is required", a.Key))
+			}
+			if fieldNames[f.Name] {
+				return apperror.BadRequest(fmt.Sprintf("action %q: duplicate form field name: %s", a.Key, f.Name))
+			}
+			fieldNames[f.Name] = true
+		}
+
+		if a.Apply != nil {
+			if err := validateActionApply(a.Key, a.Apply); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func validateActionApply(key string, apply *OVActionApply) error {
+	if apply.Type != "dml" && apply.Type != "scenario" {
+		return apperror.BadRequest(fmt.Sprintf("action %q: apply.type must be 'dml' or 'scenario'", key))
+	}
+
+	if apply.Type == "dml" {
+		if len(apply.DML) == 0 {
+			return apperror.BadRequest(fmt.Sprintf("action %q: apply.dml must not be empty for type 'dml'", key))
+		}
+		if len(apply.DML) > 10 {
+			return apperror.BadRequest(fmt.Sprintf("action %q: max 10 DML queries per action", key))
+		}
+	}
+
+	if apply.Type == "scenario" {
+		if apply.Scenario == nil {
+			return apperror.BadRequest(fmt.Sprintf("action %q: apply.scenario is required for type 'scenario'", key))
+		}
+		if apply.Scenario.APIName == "" {
+			return apperror.BadRequest(fmt.Sprintf("action %q: apply.scenario.api_name is required", key))
+		}
 	}
 
 	return nil

@@ -681,6 +681,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/view/{ovApiName}/action/{actionKey}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ovApiName: string;
+                actionKey: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Execute an action from an Object View
+         * @description Executes the named action from the Object View config. For type=dml, runs all DML statements in a single transaction. For type=scenario, starts the referenced scenario.
+         */
+        post: operations["executeViewAction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1091,7 +1114,6 @@ export interface components {
             name: string;
             /** @enum {string} */
             type: "scalar" | "list";
-            default?: boolean;
         };
         FormSection: {
             key?: string;
@@ -1106,6 +1128,7 @@ export interface components {
             type?: string;
             icon?: string;
             visibility_expr?: string;
+            form?: components["schemas"]["OVActionField"][];
         };
         FormRelatedList: {
             object?: string;
@@ -1176,20 +1199,12 @@ export interface components {
             updated_at: string;
         };
         ObjectViewConfig: {
-            view: components["schemas"]["OVViewConfig"];
-            edit?: components["schemas"]["OVEditConfig"];
+            read: components["schemas"]["OVReadConfig"];
         };
-        OVViewConfig: {
+        OVReadConfig: {
             fields?: components["schemas"]["OVViewField"][];
             actions?: components["schemas"]["OVAction"][];
             queries?: components["schemas"]["OVQuery"][];
-        };
-        OVEditConfig: {
-            fields?: string[];
-            validation?: components["schemas"]["OVValidation"][];
-            defaults?: components["schemas"]["OVDefault"][];
-            computed?: components["schemas"]["OVComputed"][];
-            mutations?: components["schemas"]["OVMutation"][];
         };
         OVAction: {
             key: string;
@@ -1197,24 +1212,40 @@ export interface components {
             type: string;
             icon: string;
             visibility_expr: string;
+            form?: components["schemas"]["OVActionField"][];
+            validation?: components["schemas"]["OVActionValidation"][];
+            apply?: components["schemas"]["OVActionApply"];
         };
         OVQuery: {
             name: string;
             soql: string;
             /** @enum {string} */
             type: "scalar" | "list";
-            default?: boolean;
             when?: string;
         };
-        OVMutation: {
-            dml: string;
-            foreach?: string;
-            sync?: components["schemas"]["OVMutSync"];
-            when?: string;
+        OVActionField: {
+            name: string;
+            type?: string;
+            label?: string;
+            required?: boolean;
+            default?: string;
         };
-        OVMutSync: {
-            key: string;
-            value: string;
+        OVActionValidation: {
+            expr: string;
+            message: string;
+            code?: string;
+        };
+        OVActionApply: {
+            /** @enum {string} */
+            type: "dml" | "scenario";
+            dml?: string[];
+            scenario?: components["schemas"]["OVScenarioRef"];
+        };
+        OVScenarioRef: {
+            api_name: string;
+            params?: {
+                [key: string]: string;
+            };
         };
         OVViewField: {
             name: string;
@@ -1223,29 +1254,26 @@ export interface components {
             expr?: string;
             when?: string;
         };
-        OVValidation: {
-            expr: string;
-            message: string;
-            code?: string;
-            /** @enum {string} */
-            severity: "error" | "warning";
-            when?: string;
-        };
-        OVDefault: {
-            field: string;
-            expr: string;
-            /** @enum {string} */
-            on: "create" | "update" | "create,update";
-            when?: string;
-        };
-        OVComputed: {
-            field: string;
-            expr: string;
-        };
         UpdateObjectViewRequest: {
             label: string;
             description?: string;
             config?: components["schemas"]["ObjectViewConfig"];
+        };
+        ExecuteActionRequest: {
+            data?: {
+                [key: string]: unknown;
+            };
+            /** Format: uuid */
+            record_id?: string;
+        };
+        ExecuteActionResponse: {
+            success?: boolean;
+            results?: components["schemas"]["ActionResultItem"][];
+        };
+        ActionResultItem: {
+            operation?: string;
+            object?: string;
+            ids?: string[];
         };
         CelValidateRequest: {
             expression: string;
@@ -2922,6 +2950,36 @@ export interface operations {
                     };
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    executeViewAction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ovApiName: string;
+                actionKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExecuteActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Action executed successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecuteActionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
