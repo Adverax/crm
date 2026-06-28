@@ -19,23 +19,19 @@ import {
 import type {
   Portal,
   PortalArg,
-  PortalAction,
-  PortalQuery,
-  PortalViewField,
+  PortalArgRule,
+  PortalGate,
 } from '@/types/portals'
 import PortalGeneralTab from '@/components/admin/portal/PortalGeneralTab.vue'
 import PortalArgsTab from '@/components/admin/portal/PortalArgsTab.vue'
-import PortalFieldsTab from '@/components/admin/portal/PortalFieldsTab.vue'
-import PortalActionsTab from '@/components/admin/portal/PortalActionsTab.vue'
-import PortalQueriesTab from '@/components/admin/portal/PortalQueriesTab.vue'
+import PortalArgRulesEditor from '@/components/admin/portal/PortalArgRulesEditor.vue'
+import PortalGatesTab from '@/components/admin/portal/PortalGatesTab.vue'
 
 interface FormConfig {
   args: PortalArg[]
-  read: {
-    fields: PortalViewField[]
-    actions: PortalAction[]
-    queries: PortalQuery[]
-  }
+  argRules: PortalArgRule[]
+  entryGate: string
+  gates: Record<string, PortalGate>
 }
 
 const props = defineProps<{
@@ -56,11 +52,9 @@ const form = ref<{ label: string; description: string; config: FormConfig }>({
   description: '',
   config: {
     args: [],
-    read: {
-      fields: [],
-      actions: [],
-      queries: [],
-    },
+    argRules: [],
+    entryGate: 'main',
+    gates: {},
   },
 })
 
@@ -76,11 +70,9 @@ async function loadView() {
       description: response.data.description ?? '',
       config: {
         args: cfg?.args ?? [],
-        read: {
-          fields: cfg?.read?.fields ?? [],
-          actions: cfg?.read?.actions ?? [],
-          queries: cfg?.read?.queries ?? [],
-        },
+        argRules: cfg?.argRules ?? [],
+        entryGate: cfg?.entryGate ?? 'main',
+        gates: cfg?.gates ?? {},
       },
     }
   } catch (err) {
@@ -160,9 +152,7 @@ const breadcrumbs = computed(() => [
         <TabsList data-testid="view-tabs">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="args">Args</TabsTrigger>
-          <TabsTrigger value="queries">Queries</TabsTrigger>
-          <TabsTrigger value="fields">Fields</TabsTrigger>
-          <TabsTrigger value="actions">Actions</TabsTrigger>
+          <TabsTrigger value="gates">Gates</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general">
@@ -179,27 +169,21 @@ const breadcrumbs = computed(() => [
             :args="form.config.args"
             @update:args="form.config.args = $event"
           />
+          <div class="mt-6">
+            <h3 class="text-sm font-medium mb-3">Arg Validation Rules</h3>
+            <PortalArgRulesEditor
+              :rules="form.config.argRules"
+              @update:rules="form.config.argRules = $event"
+            />
+          </div>
         </TabsContent>
 
-        <TabsContent value="fields">
-          <PortalFieldsTab
-            :fields="form.config.read.fields"
-            :queries="form.config.read.queries"
-            @update:fields="form.config.read.fields = $event"
-          />
-        </TabsContent>
-
-        <TabsContent value="actions">
-          <PortalActionsTab
-            :actions="form.config.read.actions"
-            @update:actions="form.config.read.actions = $event"
-          />
-        </TabsContent>
-
-        <TabsContent value="queries">
-          <PortalQueriesTab
-            :queries="form.config.read.queries"
-            @update:queries="form.config.read.queries = $event"
+        <TabsContent value="gates">
+          <PortalGatesTab
+            :gates="form.config.gates"
+            :entry-gate="form.config.entryGate"
+            @update:gates="form.config.gates = $event"
+            @update:entry-gate="form.config.entryGate = $event"
           />
         </TabsContent>
 

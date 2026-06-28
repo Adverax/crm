@@ -129,6 +129,42 @@ function celCompletionSource(config: AutocompleteConfig) {
       return { from, options: completions }
     }
 
+    // After "args." — show dynamic hint (for portal_when/gate_when)
+    const argsMatch = textBefore.match(/args\.(\w*)$/)
+    if (argsMatch && (config.context === 'portal_when' || config.context === 'gate_when')) {
+      const from = ctx.pos - (argsMatch[1]?.length ?? 0)
+      return {
+        from,
+        options: [
+          { label: '…', detail: 'dynamic', info: 'Portal/gate argument (dynamic)', type: 'property' },
+        ],
+      }
+    }
+
+    // After "datasets." — show dynamic hint (for gate_when)
+    const datasetsMatch = textBefore.match(/datasets\.(\w*)$/)
+    if (datasetsMatch && config.context === 'gate_when') {
+      const from = ctx.pos - (datasetsMatch[1]?.length ?? 0)
+      return {
+        from,
+        options: [
+          { label: '…', detail: 'dynamic', info: 'Result of prior body step (dynamic)', type: 'property' },
+        ],
+      }
+    }
+
+    // After "data." — show dynamic hint (for gate_when)
+    const dataMatch = textBefore.match(/data\.(\w*)$/)
+    if (dataMatch && config.context === 'gate_when') {
+      const from = ctx.pos - (dataMatch[1]?.length ?? 0)
+      return {
+        from,
+        options: [
+          { label: '…', detail: 'dynamic', info: 'POST form field (dynamic)', type: 'property' },
+        ],
+      }
+    }
+
     // After "user." — show user fields
     const userMatch = textBefore.match(/user\.(\w*)$/)
     if (userMatch && !isFunctionBody) {
@@ -173,14 +209,23 @@ function celCompletionSource(config: AutocompleteConfig) {
 
     // Context variables
     if (!isFunctionBody) {
-      if (fields.length > 0) {
-        options.push({ label: 'record', type: 'variable', detail: 'record fields', boost: 2 })
+      if (config.context === 'portal_when') {
+        options.push({ label: 'args', type: 'variable', detail: 'portal arguments', boost: 2 })
+      } else if (config.context === 'gate_when') {
+        options.push({ label: 'args', type: 'variable', detail: 'gate arguments', boost: 2 })
+        options.push({ label: 'datasets', type: 'variable', detail: 'body step results', boost: 2 })
+        options.push({ label: 'data', type: 'variable', detail: 'POST form data', boost: 2 })
+        options.push({ label: 'user', type: 'variable', detail: 'current user', boost: 1 })
+      } else {
+        if (fields.length > 0) {
+          options.push({ label: 'record', type: 'variable', detail: 'record fields', boost: 2 })
+        }
+        if (config.context === 'validation_rule' || config.context === 'when_expression') {
+          options.push({ label: 'old', type: 'variable', detail: 'previous values', boost: 2 })
+        }
+        options.push({ label: 'user', type: 'variable', detail: 'current user', boost: 1 })
+        options.push({ label: 'now', type: 'variable', detail: 'current time' })
       }
-      if (config.context === 'validation_rule' || config.context === 'when_expression') {
-        options.push({ label: 'old', type: 'variable', detail: 'previous values', boost: 2 })
-      }
-      options.push({ label: 'user', type: 'variable', detail: 'current user', boost: 1 })
-      options.push({ label: 'now', type: 'variable', detail: 'current time' })
     }
 
     // Function params

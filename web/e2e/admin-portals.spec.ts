@@ -138,53 +138,19 @@ test.describe('Portal detail page', () => {
     await expect(page.locator('[data-testid="delete-view-btn"]')).toBeVisible()
   })
 
-  test('tabs render (General, Args, Queries, Fields, Actions)', async ({ page }) => {
+  test('tabs render (General, Args, Gates)', async ({ page }) => {
     await page.goto(`/admin/metadata/portals/${view.id}`)
     await expect(page.locator('[data-testid="view-tabs"]')).toBeVisible()
     await expect(page.getByRole('tab', { name: 'General' })).toBeVisible()
     await expect(page.getByRole('tab', { name: 'Args' })).toBeVisible()
-    await expect(page.getByRole('tab', { name: 'Fields', exact: true })).toBeVisible()
-    await expect(page.getByRole('tab', { name: 'Actions' })).toBeVisible()
-    await expect(page.getByRole('tab', { name: 'Queries' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Gates' })).toBeVisible()
   })
 
-  test('no Validation/Defaults/Mutations tabs', async ({ page }) => {
+  test('no legacy tabs (Queries, Fields, Actions)', async ({ page }) => {
     await page.goto(`/admin/metadata/portals/${view.id}`)
-    await expect(page.getByRole('tab', { name: 'Validation' })).not.toBeVisible()
-    await expect(page.getByRole('tab', { name: 'Defaults' })).not.toBeVisible()
-    await expect(page.getByRole('tab', { name: 'Mutations' })).not.toBeVisible()
-  })
-
-  test('Fields tab shows master-detail layout with field list', async ({ page }) => {
-    await page.goto(`/admin/metadata/portals/${view.id}`)
-    await page.getByRole('tab', { name: 'Fields', exact: true }).click()
-    await expect(page.locator('[data-testid="fields-master-detail"]')).toBeVisible()
-    await expect(page.locator('[data-testid="field-card"]').first()).toBeVisible()
-    await expect(page.locator('[data-testid="add-field-btn"]')).toBeVisible()
-  })
-
-  test('Actions tab shows master-detail layout with action list', async ({ page }) => {
-    await page.goto(`/admin/metadata/portals/${view.id}`)
-    await page.getByRole('tab', { name: 'Actions' }).click()
-    await expect(page.locator('[data-testid="actions-master-detail"]')).toBeVisible()
-    await expect(page.locator('[data-testid="action-card"]')).toBeVisible()
-    await expect(page.locator('[data-testid="add-action-btn"]')).toBeVisible()
-  })
-
-  test('Actions tab — clicking action shows detail tabs', async ({ page }) => {
-    await page.goto(`/admin/metadata/portals/${view.id}`)
-    await page.getByRole('tab', { name: 'Actions' }).click()
-    await page.locator('[data-testid="action-card"]').first().click()
-    await expect(page.locator('[data-testid="tab-action-identity"]')).toBeVisible()
-    await expect(page.locator('[data-testid="tab-action-apply"]')).toBeVisible()
-  })
-
-  test('Actions tab — Apply tab shows DML config', async ({ page }) => {
-    await page.goto(`/admin/metadata/portals/${view.id}`)
-    await page.getByRole('tab', { name: 'Actions' }).click()
-    await page.locator('[data-testid="action-card"]').first().click()
-    await page.locator('[data-testid="tab-action-apply"]').click()
-    await expect(page.locator('[data-testid="dml-statement"]').first()).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Queries' })).not.toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Fields', exact: true })).not.toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Actions' })).not.toBeVisible()
   })
 
   test('submit calls PUT', async ({ page }) => {
@@ -201,42 +167,234 @@ test.describe('Portal detail page', () => {
     expect(request.method()).toBe('PUT')
   })
 
-  test('Queries tab shows query cards from config', async ({ page }) => {
-    await page.goto(`/admin/metadata/portals/${view.id}`)
-    await page.getByRole('tab', { name: 'Queries' }).click()
-    await expect(page.locator('[data-testid="query-card"]')).toBeVisible()
-    await expect(page.locator('[data-testid="add-query-btn"]')).toBeVisible()
-  })
-
-  test('Fields tab shows computed badge for fields with expr', async ({ page }) => {
-    await page.goto(`/admin/metadata/portals/${view.id}`)
-    await page.getByRole('tab', { name: 'Fields', exact: true }).click()
-    const fields = page.locator('[data-testid="field-card"]')
-    await expect(fields).toHaveCount(4)
-    // display_name has expr → "computed" badge
-    await expect(fields.nth(3)).toContainText('computed')
-  })
-
-  test('Fields tab — clicking field shows detail with ExpressionBuilder', async ({ page }) => {
-    await page.goto(`/admin/metadata/portals/${view.id}`)
-    await page.getByRole('tab', { name: 'Fields', exact: true }).click()
-    await page.locator('[data-testid="field-card"]').nth(3).click()
-    await expect(page.getByText('Field Details')).toBeVisible()
-    await expect(page.getByText('Expression (CEL)')).toBeVisible()
-    await expect(page.getByText('When (CEL)')).toBeVisible()
-  })
-
-  test('Fields tab — shows available query names in description', async ({ page }) => {
-    await page.goto(`/admin/metadata/portals/${view.id}`)
-    await page.getByRole('tab', { name: 'Fields', exact: true }).click()
-    await page.locator('[data-testid="field-card"]').first().click()
-    await expect(page.getByText('recent_activities')).toBeVisible()
-  })
-
   test('delete button shows confirmation dialog', async ({ page }) => {
     await page.goto(`/admin/metadata/portals/${view.id}`)
     await page.locator('[data-testid="delete-view-btn"]').click()
     await expect(page.getByText('Delete object view?')).toBeVisible()
+  })
+})
+
+test.describe('Portal Gates tab', () => {
+  const view = mockPortals[0]
+
+  test.beforeEach(async ({ page }) => {
+    await setupAllRoutes(page)
+  })
+
+  test('Gates tab shows master-detail layout', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Gates' }).click()
+    await expect(page.locator('[data-testid="gates-master-detail"]')).toBeVisible()
+  })
+
+  test('gate cards show gate names from config', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Gates' }).click()
+    const cards = page.locator('[data-testid="gate-card"]')
+    await expect(cards).toHaveCount(3)
+    await expect(cards.first()).toContainText('list')
+    await expect(cards.nth(1)).toContainText('detail')
+    await expect(cards.nth(2)).toContainText('action')
+  })
+
+  test('entry gate is marked with badge', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Gates' }).click()
+    // 'list' is entry gate
+    await expect(page.locator('[data-testid="gate-card"]').first()).toContainText('entry')
+  })
+
+  test('clicking gate shows detail with sub-tabs', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Gates' }).click()
+    await page.locator('[data-testid="gate-card"]').first().click()
+    await expect(page.locator('[data-testid="gate-sub-tabs"]')).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Instructions' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Layout' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Outcomes' })).toBeVisible()
+  })
+
+  test('gate detail shows label input', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Gates' }).click()
+    await page.locator('[data-testid="gate-card"]').first().click()
+    await expect(page.locator('[data-testid="gate-label-input"]')).toBeVisible()
+  })
+
+  test('add gate button works', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Gates' }).click()
+    const cardsBefore = page.locator('[data-testid="gate-card"]')
+    await expect(cardsBefore).toHaveCount(3)
+    await page.locator('[data-testid="add-gate-btn"]').click()
+    await expect(page.locator('[data-testid="gate-card"]')).toHaveCount(4)
+  })
+
+  test('delete gate button works', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Gates' }).click()
+    await page.locator('[data-testid="gate-card"]').nth(2).click()
+    await page.locator('[data-testid="delete-gate-btn"]').click()
+    await expect(page.locator('[data-testid="gate-card"]')).toHaveCount(2)
+  })
+
+  test('Instructions sub-tab shows steps', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Gates' }).click()
+    await page.locator('[data-testid="gate-card"]').first().click()
+    await expect(page.locator('[data-testid="body-steps-editor"]')).toBeVisible()
+    await expect(page.locator('[data-testid="step-card"]')).toHaveCount(1)
+    await expect(page.locator('[data-testid="step-card"]').first()).toContainText('accounts')
+    await expect(page.locator('[data-testid="step-card"]').first()).toContainText('soql')
+  })
+
+  test('Instructions — clicking step shows detail', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Gates' }).click()
+    await page.locator('[data-testid="gate-card"]').first().click()
+    await page.locator('[data-testid="step-card"]').first().click()
+    await expect(page.locator('[data-testid="step-name-input"]')).toBeVisible()
+    await expect(page.getByText('Instruction').first()).toBeVisible()
+    await expect(page.locator('[data-testid="step-instruction-editor"]')).toBeVisible()
+  })
+
+  test('Instructions — add step works', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Gates' }).click()
+    await page.locator('[data-testid="gate-card"]').first().click()
+    await page.locator('[data-testid="add-step-btn"]').click()
+    await expect(page.locator('[data-testid="step-card"]')).toHaveCount(2)
+  })
+
+  test('Layout sub-tab shows field editor', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Gates' }).click()
+    await page.locator('[data-testid="gate-card"]').first().click()
+    await page.getByRole('tab', { name: 'Layout' }).click()
+    await expect(page.locator('[data-testid="layout-fields-editor"]')).toBeVisible()
+    const fields = page.locator('[data-testid="field-card"]')
+    await expect(fields).toHaveCount(4)
+    await expect(fields.first()).toContainText('Name')
+  })
+
+  test('Layout — computed badge on fields with expr', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Gates' }).click()
+    await page.locator('[data-testid="gate-card"]').first().click()
+    await page.getByRole('tab', { name: 'Layout' }).click()
+    // display_name has expr → "computed" badge
+    await expect(page.locator('[data-testid="field-card"]').nth(3)).toContainText('computed')
+  })
+
+  test('Layout — clicking field shows detail', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Gates' }).click()
+    await page.locator('[data-testid="gate-card"]').first().click()
+    await page.getByRole('tab', { name: 'Layout' }).click()
+    await page.locator('[data-testid="field-card"]').first().click()
+    await expect(page.getByText('Field Details')).toBeVisible()
+    await expect(page.locator('[data-testid="field-name-input"]')).toBeVisible()
+  })
+
+  test('Outcomes sub-tab shows outcomes', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Gates' }).click()
+    await page.locator('[data-testid="gate-card"]').first().click()
+    await page.getByRole('tab', { name: 'Outcomes' }).click()
+    await expect(page.locator('[data-testid="outcomes-editor"]')).toBeVisible()
+    const outcomes = page.locator('[data-testid="outcome-card"]')
+    await expect(outcomes).toHaveCount(2)
+    await expect(outcomes.first()).toContainText('detail')
+  })
+
+  test('Outcomes — clicking outcome shows detail with target gate selector', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Gates' }).click()
+    await page.locator('[data-testid="gate-card"]').first().click()
+    await page.getByRole('tab', { name: 'Outcomes' }).click()
+    await page.locator('[data-testid="outcome-card"]').first().click()
+    await expect(page.locator('[data-testid="outcome-name-input"]')).toBeVisible()
+    await expect(page.getByText('Target Gate')).toBeVisible()
+  })
+
+  test('Outcomes — add outcome works', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Gates' }).click()
+    await page.locator('[data-testid="gate-card"]').first().click()
+    await page.getByRole('tab', { name: 'Outcomes' }).click()
+    await page.locator('[data-testid="add-outcome-btn"]').click()
+    await expect(page.locator('[data-testid="outcome-card"]')).toHaveCount(3)
+  })
+
+  test('set as entry button changes entry gate', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Gates' }).click()
+    // Click the second gate (detail) which is not entry
+    await page.locator('[data-testid="gate-card"]').nth(1).click()
+    await page.locator('[data-testid="set-entry-btn"]').click()
+    // Now detail gate should have entry badge
+    await expect(page.locator('[data-testid="gate-card"]').nth(1)).toContainText('entry')
+  })
+
+  test('Instructions — type badge shows soql for SELECT step', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Gates' }).click()
+    await page.locator('[data-testid="gate-card"]').first().click()
+    await page.locator('[data-testid="step-card"]').first().click()
+    await expect(page.locator('[data-testid="step-type-badge"]')).toHaveText('soql')
+  })
+
+  test('Instructions — type badge shows dml for DML step', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Gates' }).click()
+    // action gate has a DML step
+    await page.locator('[data-testid="gate-card"]').nth(2).click()
+    await page.locator('[data-testid="step-card"]').first().click()
+    await expect(page.locator('[data-testid="step-type-badge"]')).toHaveText('dml')
+  })
+
+  test('Instructions — new step shows auto badge when empty', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Gates' }).click()
+    await page.locator('[data-testid="gate-card"]').first().click()
+    await page.locator('[data-testid="add-step-btn"]').click()
+    // New step is auto-selected; click it to be sure
+    await page.locator('[data-testid="step-card"]').last().click()
+    await expect(page.locator('[data-testid="step-type-badge"]')).toHaveText('auto')
+  })
+
+  test('Instructions — page size visible only for soql', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Gates' }).click()
+    // soql step
+    await page.locator('[data-testid="gate-card"]').first().click()
+    await page.locator('[data-testid="step-card"]').first().click()
+    await expect(page.locator('[data-testid="step-page-size-input"]')).toBeVisible()
+    // dml step
+    await page.locator('[data-testid="gate-card"]').nth(2).click()
+    await page.locator('[data-testid="step-card"]').first().click()
+    await expect(page.locator('[data-testid="step-page-size-input"]')).not.toBeVisible()
+  })
+
+  test('Instructions — restrict filters visible only for soql', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Gates' }).click()
+    // soql step
+    await page.locator('[data-testid="gate-card"]').first().click()
+    await page.locator('[data-testid="step-card"]').first().click()
+    await expect(page.locator('[data-testid="step-restrict-filters-input"]')).toBeVisible()
+    // dml step
+    await page.locator('[data-testid="gate-card"]').nth(2).click()
+    await page.locator('[data-testid="step-card"]').first().click()
+    await expect(page.locator('[data-testid="step-restrict-filters-input"]')).not.toBeVisible()
+  })
+
+  test('Instructions — no type dropdown present', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Gates' }).click()
+    await page.locator('[data-testid="gate-card"]').first().click()
+    await page.locator('[data-testid="step-card"]').first().click()
+    await expect(page.locator('[data-testid="step-type-select"]')).not.toBeVisible()
   })
 })
 
@@ -337,30 +495,34 @@ test.describe('Portal Args tab', () => {
     await expect(lastCard).toHaveClass(/border-l-destructive/)
   })
 
-  test('validation and error_message fields are visible in arg detail', async ({ page }) => {
+  test('arg rules section is visible under args', async ({ page }) => {
     await page.goto(`/admin/metadata/portals/${view.id}`)
     await page.getByRole('tab', { name: 'Args' }).click()
-    // Click the 'limit' arg which has validation set
-    await page.locator('[data-testid="arg-card"]').nth(1).click()
-    await expect(page.locator('[data-testid="arg-validation-input"]')).toBeVisible()
-    await expect(page.locator('[data-testid="arg-error-message-input"]')).toBeVisible()
+    await expect(page.getByText('Arg Validation Rules')).toBeVisible()
+    await expect(page.locator('[data-testid="arg-rules-editor"]')).toBeVisible()
   })
 
-  test('error_message shows error when validation is set but error_message is empty', async ({
-    page,
-  }) => {
+  test('arg rule cards show rule names', async ({ page }) => {
     await page.goto(`/admin/metadata/portals/${view.id}`)
     await page.getByRole('tab', { name: 'Args' }).click()
-    // Click account_id arg (no validation)
-    await page.locator('[data-testid="arg-card"]').first().click()
-    // Type a validation expression
-    const editor = page.locator('[data-testid="arg-validation-input"]')
-    await editor.locator('[data-testid="codemirror-editor"]').click()
-    await page.keyboard.type('args.account_id != ""')
-    // Error message should show validation error
-    await expect(page.locator('[data-testid="arg-validation-error"]')).toContainText(
-      'Error message is required',
-    )
+    const ruleCards = page.locator('[data-testid="arg-rule-card"]')
+    await expect(ruleCards).toHaveCount(1)
+    await expect(ruleCards.first()).toContainText('limit_range')
+  })
+
+  test('add arg rule button works', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Args' }).click()
+    await page.locator('[data-testid="add-arg-rule-btn"]').click()
+    await expect(page.locator('[data-testid="arg-rule-card"]')).toHaveCount(2)
+  })
+
+  test('delete arg rule button works', async ({ page }) => {
+    await page.goto(`/admin/metadata/portals/${view.id}`)
+    await page.getByRole('tab', { name: 'Args' }).click()
+    await page.locator('[data-testid="arg-rule-card"]').first().click()
+    await page.locator('[data-testid="delete-arg-rule-btn"]').click()
+    await expect(page.locator('[data-testid="arg-rule-card"]')).toHaveCount(0)
   })
 })
 
@@ -379,153 +541,5 @@ test.describe('Sidebar navigation', () => {
     await page.locator('aside').getByText('Presentation').click()
     await page.getByRole('link', { name: 'Portals' }).click()
     await expect(page).toHaveURL(/\/admin\/metadata\/portals/)
-  })
-})
-
-test.describe('Portal queries tab — SOQL editor', () => {
-  const view = mockPortals[0]
-
-  test.beforeEach(async ({ page }) => {
-    await setupAllRoutes(page)
-  })
-
-  test('query list shows items with name and type badge', async ({ page }) => {
-    await page.goto(`/admin/metadata/portals/${view.id}`)
-    await page.getByRole('tab', { name: 'Queries' }).click()
-    await expect(page.locator('[data-testid="query-card"]')).toHaveCount(1)
-    await expect(page.locator('[data-testid="query-card"]').first()).toContainText('recent_activities')
-    await expect(page.locator('[data-testid="query-card"]').first()).toContainText('scalar')
-  })
-
-  test('selecting query shows detail panel with SOQL editor', async ({ page }) => {
-    await page.goto(`/admin/metadata/portals/${view.id}`)
-    await page.getByRole('tab', { name: 'Queries' }).click()
-    await page.locator('[data-testid="query-card"]').first().click()
-    await expect(page.locator('[data-testid="soql-editor"]')).toBeVisible()
-  })
-
-  test('Validate button sends POST to /soql/validate', async ({ page }) => {
-    await page.goto(`/admin/metadata/portals/${view.id}`)
-    await page.getByRole('tab', { name: 'Queries' }).click()
-    await page.locator('[data-testid="query-card"]').first().click()
-    await page.locator('[data-testid="soql-editor"] [data-testid="codemirror-editor"]').first().click()
-    const requestPromise = page.waitForRequest('**/api/v1/admin/soql/validate')
-    await page.locator('[data-testid="soql-validate-btn"]').first().click()
-    const request = await requestPromise
-    expect(request.method()).toBe('POST')
-  })
-
-  test('Validation errors are displayed', async ({ page }) => {
-    // Override validate route to return errors
-    await page.route('**/api/v1/admin/soql/validate', (route) => {
-      if (route.request().method() === 'POST') {
-        return route.fulfill({
-          json: {
-            valid: false,
-            errors: [{ message: 'Unknown object: Foo', line: 1, column: 20 }],
-          },
-        })
-      }
-      return route.continue()
-    })
-    await page.goto(`/admin/metadata/portals/${view.id}`)
-    await page.getByRole('tab', { name: 'Queries' }).click()
-    await page.locator('[data-testid="query-card"]').first().click()
-    await page.locator('[data-testid="soql-editor"] [data-testid="codemirror-editor"]').first().click()
-    await page.locator('[data-testid="soql-validate-btn"]').first().click()
-    await expect(page.getByText('Unknown object: Foo')).toBeVisible()
-  })
-
-  test('Test Query executes and shows results', async ({ page }) => {
-    await page.goto(`/admin/metadata/portals/${view.id}`)
-    await page.getByRole('tab', { name: 'Queries' }).click()
-    await page.locator('[data-testid="query-card"]').first().click()
-    await page.locator('[data-testid="soql-editor"] [data-testid="codemirror-editor"]').first().click()
-    await page.locator('[data-testid="soql-test-btn"]').first().click()
-    await expect(page.locator('[data-testid="soql-test-result"]')).toBeVisible()
-    await expect(page.getByText('2 record(s) found')).toBeVisible()
-    await expect(page.getByText('Acme Corp')).toBeVisible()
-  })
-})
-
-test.describe('Portal actions tab — DML editor', () => {
-  const view = mockPortals[0]
-
-  test.beforeEach(async ({ page }) => {
-    await setupAllRoutes(page)
-  })
-
-  test('Apply tab shows DML editor instead of plain textarea', async ({ page }) => {
-    await page.goto(`/admin/metadata/portals/${view.id}`)
-    await page.getByRole('tab', { name: 'Actions' }).click()
-    await page.locator('[data-testid="action-card"]').first().click()
-    await page.locator('[data-testid="tab-action-apply"]').click()
-    await expect(page.locator('[data-testid="dml-editor"]').first()).toBeVisible()
-  })
-
-  test('DML editor shows validate button on focus', async ({ page }) => {
-    await page.goto(`/admin/metadata/portals/${view.id}`)
-    await page.getByRole('tab', { name: 'Actions' }).click()
-    await page.locator('[data-testid="action-card"]').first().click()
-    await page.locator('[data-testid="tab-action-apply"]').click()
-    await page.locator('[data-testid="dml-editor"] [data-testid="codemirror-editor"]').first().click()
-    await expect(page.locator('[data-testid="dml-validate-btn"]').first()).toBeVisible()
-  })
-
-  test('DML validate sends POST to /dml/validate', async ({ page }) => {
-    await page.goto(`/admin/metadata/portals/${view.id}`)
-    await page.getByRole('tab', { name: 'Actions' }).click()
-    await page.locator('[data-testid="action-card"]').first().click()
-    await page.locator('[data-testid="tab-action-apply"]').click()
-    await page.locator('[data-testid="dml-editor"] [data-testid="codemirror-editor"]').first().click()
-    const requestPromise = page.waitForRequest('**/api/v1/admin/dml/validate')
-    await page.locator('[data-testid="dml-validate-btn"]').first().click()
-    const request = await requestPromise
-    expect(request.method()).toBe('POST')
-  })
-
-  test('DML test execute sends POST to /dml/test', async ({ page }) => {
-    await page.goto(`/admin/metadata/portals/${view.id}`)
-    await page.getByRole('tab', { name: 'Actions' }).click()
-    await page.locator('[data-testid="action-card"]').first().click()
-    await page.locator('[data-testid="tab-action-apply"]').click()
-    await page.locator('[data-testid="dml-editor"] [data-testid="codemirror-editor"]').first().click()
-    const requestPromise = page.waitForRequest('**/api/v1/admin/dml/test')
-    await page.locator('[data-testid="dml-test-btn"]').first().click()
-    const request = await requestPromise
-    expect(request.method()).toBe('POST')
-  })
-
-  test('DML test result shows rolled back badge', async ({ page }) => {
-    await page.goto(`/admin/metadata/portals/${view.id}`)
-    await page.getByRole('tab', { name: 'Actions' }).click()
-    await page.locator('[data-testid="action-card"]').first().click()
-    await page.locator('[data-testid="tab-action-apply"]').click()
-    await page.locator('[data-testid="dml-editor"] [data-testid="codemirror-editor"]').first().click()
-    await page.locator('[data-testid="dml-test-btn"]').first().click()
-    await expect(page.locator('[data-testid="dml-test-result"]')).toBeVisible()
-    await expect(page.getByText('Rolled back')).toBeVisible()
-    await expect(page.getByText('1 row(s) affected')).toBeVisible()
-  })
-
-  test('DML validation errors are displayed', async ({ page }) => {
-    await page.route('**/api/v1/admin/dml/validate', (route) => {
-      if (route.request().method() === 'POST') {
-        return route.fulfill({
-          json: {
-            valid: false,
-            errors: [{ message: 'Unknown object: Foo', line: 1, column: 13, code: 'UnknownObject' }],
-          },
-        })
-      }
-      return route.continue()
-    })
-    await page.goto(`/admin/metadata/portals/${view.id}`)
-    await page.getByRole('tab', { name: 'Actions' }).click()
-    await page.locator('[data-testid="action-card"]').first().click()
-    await page.locator('[data-testid="tab-action-apply"]').click()
-    await page.locator('[data-testid="dml-editor"] [data-testid="codemirror-editor"]').first().click()
-    await page.locator('[data-testid="dml-validate-btn"]').first().click()
-    await expect(page.getByText('Unknown object: Foo')).toBeVisible()
   })
 })

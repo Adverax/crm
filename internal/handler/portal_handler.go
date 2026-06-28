@@ -18,7 +18,7 @@ import (
 
 var portalParamRegexp = regexp.MustCompile(`:(\w+)`)
 
-// PortalHandler serves resolved Object View configs, per-query data, and action execution.
+// PortalHandler serves resolved Portal configs and gate execution (ADR-0037).
 type PortalHandler struct {
 	cache       metadata.MetadataReader
 	soqlService soql.QueryService
@@ -41,14 +41,14 @@ func NewPortalHandler(
 	}
 }
 
-// RegisterRoutes registers the view routes on the given API group.
+// RegisterRoutes registers the portal routes on the given API group.
 func (h *PortalHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.GET("/portal/:portalApiName", h.GetByAPIName)
-	rg.GET("/portal/:portalApiName/query/:queryName", h.ExecuteQuery)
-	rg.POST("/portal/:portalApiName/action/:actionKey", h.ExecuteAction)
+	rg.GET("/portal/:portalApiName/gate/:gateName", h.ExecuteGate)
+	rg.POST("/portal/:portalApiName/gate/:gateName", h.ExecuteGate)
 }
 
-// GetByAPIName returns the OV config by api_name.
+// GetByAPIName returns the portal config by api_name.
 func (h *PortalHandler) GetByAPIName(c *gin.Context) {
 	apiName := c.Param("portalApiName")
 
@@ -61,192 +61,324 @@ func (h *PortalHandler) GetByAPIName(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": ov})
 }
 
-// ExecuteQuery executes a named query from an Object View.
-func (h *PortalHandler) ExecuteQuery(c *gin.Context) {
-	portalAPIName := c.Param("portalApiName")
-	queryName := c.Param("queryName")
+type gatePostBody struct {
+	Args map[string]any `json:"args"`
+	Data map[string]any `json:"data"`
+}
 
-	ov, ok := h.cache.GetPortalByAPIName(portalAPIName)
+// ExecuteGate executes a named gate from a Portal (ADR-0037).
+// GET: executes SOQL body steps only, returns layout + datasets + outcomes.
+// POST: executes all body steps in order, returns datasets + outcomes.
+func (h *PortalHandler) ExecuteGate(c *gin.Context) {
+	portalAPIName := c.Param("portalApiName")
+	gateName := c.Param("gateName")
+	isPost := c.Request.Method == http.MethodPost
+
+	portal, ok := h.cache.GetPortalByAPIName(portalAPIName)
 	if !ok {
 		apperror.Respond(c, apperror.NotFound("portal", portalAPIName))
 		return
 	}
 
-	// Find the query
-	var query *metadata.PortalQuery
-	for i := range ov.Config.Read.Queries {
-		if ov.Config.Read.Queries[i].Name == queryName {
-			query = &ov.Config.Read.Queries[i]
-			break
-		}
-	}
-	if query == nil {
-		apperror.Respond(c, apperror.NotFound("query", queryName))
+	gate, ok := portal.Config.Gates[gateName]
+	if !ok {
+		apperror.Respond(c, apperror.NotFound("gate", gateName))
 		return
 	}
 
-	var soqlText string
-	if len(ov.Config.Args) > 0 {
-		// Typed args path
-		argsMap, err := resolveArgs(ov.Config.Args, c)
+	// Check HTTP method compatibility
+	hasDML := gateHasDML(gate)
+	hasSOQL := gateHasSOQL(gate)
+	hasLayout := gate.Layout != nil
+
+	if !isPost && !hasSOQL && hasDML {
+		c.JSON(http.StatusMethodNotAllowed, gin.H{"error": "this gate only supports POST"})
+		return
+	}
+	if isPost && !hasDML {
+		c.JSON(http.StatusMethodNotAllowed, gin.H{"error": "this gate has no DML steps, use GET"})
+		return
+	}
+
+	// Merge args (portal-level + gate-level)
+	mergedArgDefs := mergeArgDefs(portal.Config.Args, gate.Args)
+
+	// Resolve args
+	var argsMap map[string]any
+	var postData map[string]any
+
+	if isPost {
+		var body gatePostBody
+		if err := c.ShouldBindJSON(&body); err != nil {
+			apperror.Respond(c, apperror.BadRequest("invalid request body"))
+			return
+		}
+		var err error
+		argsMap, err = resolveArgsFromMap(mergedArgDefs, body.Args)
 		if err != nil {
 			apperror.Respond(c, err)
 			return
 		}
-
-		// Validate args
-		if h.celCache != nil {
-			if err := validateArgsRuntime(ov.Config.Args, argsMap, h.celCache); err != nil {
-				apperror.Respond(c, err)
-				return
-			}
+		postData = body.Data
+	} else {
+		var err error
+		argsMap, err = resolveArgs(mergedArgDefs, c)
+		if err != nil {
+			apperror.Respond(c, err)
+			return
 		}
+	}
 
+	// Validate arg rules runtime (portal-level, then gate-level)
+	if h.celCache != nil {
+		if err := validateArgRulesRuntime(portal.Config.ArgRules, argsMap, h.celCache); err != nil {
+			apperror.Respond(c, err)
+			return
+		}
+		if err := validateArgRulesRuntime(gate.ArgRules, argsMap, h.celCache); err != nil {
+			apperror.Respond(c, err)
+			return
+		}
+	}
+
+	// Execute body steps
+	datasets := make(map[string]any)
+
+	// Merge args + data for substitution
+	subMap := make(map[string]any, len(argsMap)+len(postData))
+	for k, v := range argsMap {
+		subMap[k] = v
+	}
+	for k, v := range postData {
+		subMap[k] = v
+	}
+
+	for _, step := range gate.Body {
 		// Evaluate when condition
-		if query.When != "" && h.celCache != nil {
-			result, evalErr := h.celCache.EvaluateBool(query.When, map[string]any{"args": argsMap})
+		if step.When != "" && h.celCache != nil {
+			evalVars := map[string]any{"args": argsMap, "datasets": datasets, "data": postData}
+			result, evalErr := h.celCache.EvaluateBool(step.When, evalVars)
 			if evalErr != nil {
-				apperror.Respond(c, fmt.Errorf("portalHandler.ExecuteQuery: when eval: %w", evalErr))
+				apperror.Respond(c, fmt.Errorf("portalHandler.ExecuteGate: step %q when eval: %w", step.Name, evalErr))
 				return
 			}
 			if !result {
-				c.JSON(http.StatusOK, gin.H{"data": nil})
+				datasets[step.Name] = nil
+				continue
+			}
+		}
+
+		switch step.Type {
+		case "soql":
+			soqlText := substituteTypedArgs(step.SOQL, subMap)
+
+			perPage := step.PageSize
+			if perPage == 0 {
+				perPage = 200
+			}
+			if pp := c.Query("per_page"); pp != "" {
+				if v, err := strconv.Atoi(pp); err == nil && v > 0 && v <= 200 {
+					perPage = v
+				}
+			}
+
+			result, err := h.soqlService.Execute(c.Request.Context(), soqlText, &soql.QueryParams{
+				PageSize: perPage,
+			})
+			if err != nil {
+				apperror.Respond(c, fmt.Errorf("portalHandler.ExecuteGate: step %q: %w", step.Name, err))
 				return
 			}
+
+			if result.IsRow {
+				var record map[string]any
+				if len(result.Records) > 0 {
+					record = result.Records[0]
+				}
+				datasets[step.Name] = record
+			} else {
+				datasets[step.Name] = result
+			}
+
+		case "dml":
+			if !isPost {
+				// Skip DML steps on GET
+				continue
+			}
+
+			dmlText := substituteTypedArgs(step.DML, subMap)
+			results, err := h.dmlService.ExecuteBatch(c.Request.Context(), []string{dmlText})
+			if err != nil {
+				// Return error with layout for form re-render
+				resp := gin.H{
+					"gate":     gateName,
+					"datasets": datasets,
+					"outcomes": buildOutcomeResponse(gate.Outcomes),
+					"errors":   []gin.H{{"message": err.Error()}},
+				}
+				if hasLayout {
+					resp["layout"] = gate.Layout
+				}
+				c.JSON(http.StatusUnprocessableEntity, gin.H{"data": resp})
+				return
+			}
+
+			if len(results) > 0 {
+				item := make(map[string]any)
+				r := results[0]
+				if len(r.InsertedIds) > 0 {
+					item["operation"] = "insert"
+					item["ids"] = r.InsertedIds
+					if len(r.InsertedIds) == 1 {
+						item["Id"] = r.InsertedIds[0]
+					}
+				} else if len(r.UpdatedIds) > 0 {
+					item["operation"] = "update"
+					item["ids"] = r.UpdatedIds
+				} else if len(r.DeletedIds) > 0 {
+					item["operation"] = "delete"
+					item["ids"] = r.DeletedIds
+				}
+				datasets[step.Name] = item
+			}
 		}
-
-		soqlText = substituteTypedArgs(query.SOQL, argsMap)
-	} else {
-		// Backward compat: untyped substitution
-		soqlText = substituteParams(query.SOQL, c)
 	}
 
-	// Parse pagination
-	perPage := 20
-	if pp := c.Query("per_page"); pp != "" {
-		if v, err := strconv.Atoi(pp); err == nil && v > 0 && v <= 200 {
-			perPage = v
-		}
+	// Build response
+	resp := gin.H{
+		"gate":     gateName,
+		"datasets": datasets,
+		"outcomes": buildOutcomeResponse(gate.Outcomes),
+		"errors":   nil,
 	}
 
-	result, err := h.soqlService.Execute(c.Request.Context(), soqlText, &soql.QueryParams{
-		PageSize: perPage,
-	})
-	if err != nil {
-		apperror.Respond(c, fmt.Errorf("portalHandler.ExecuteQuery: %w", err))
-		return
+	if hasLayout {
+		resp["layout"] = gate.Layout
 	}
 
-	// For SELECT ROW queries, return single record instead of array.
-	if result.IsRow {
-		var record map[string]any
-		if len(result.Records) > 0 {
-			record = result.Records[0]
-		}
-		c.JSON(http.StatusOK, gin.H{"data": record})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"data": result})
+	c.JSON(http.StatusOK, gin.H{"data": resp})
 }
 
-type executeActionRequest struct {
-	Data     map[string]any `json:"data"`
-	RecordID string         `json:"record_id"`
-}
-
-type actionResultItem struct {
-	Operation string   `json:"operation"`
-	Object    string   `json:"object"`
-	IDs       []string `json:"ids,omitempty"`
-}
-
-// ExecuteAction executes a named action from an Object View (ADR-0036).
-func (h *PortalHandler) ExecuteAction(c *gin.Context) {
-	portalAPIName := c.Param("portalApiName")
-	actionKey := c.Param("actionKey")
-
-	ov, ok := h.cache.GetPortalByAPIName(portalAPIName)
-	if !ok {
-		apperror.Respond(c, apperror.NotFound("portal", portalAPIName))
-		return
+// buildOutcomeResponse converts GateOutcome slice to response format.
+func buildOutcomeResponse(outcomes []metadata.GateOutcome) []gin.H {
+	if len(outcomes) == 0 {
+		return []gin.H{}
 	}
+	result := make([]gin.H, len(outcomes))
+	for i, o := range outcomes {
+		item := gin.H{
+			"name": o.Name,
+			"gate": o.Gate,
+		}
+		if o.Label != "" {
+			item["label"] = o.Label
+		}
+		if o.Icon != "" {
+			item["icon"] = o.Icon
+		}
+		if o.Type != "" {
+			item["type"] = o.Type
+		}
+		if len(o.ArgsTemplate) > 0 {
+			item["args_template"] = o.ArgsTemplate
+		}
+		result[i] = item
+	}
+	return result
+}
 
-	// Find the action
-	var action *metadata.PortalAction
-	for i := range ov.Config.Read.Actions {
-		if ov.Config.Read.Actions[i].Key == actionKey {
-			action = &ov.Config.Read.Actions[i]
-			break
+// gateHasDML returns true if the gate has any DML body steps.
+func gateHasDML(gate metadata.PortalGate) bool {
+	for _, step := range gate.Body {
+		if step.Type == "dml" {
+			return true
 		}
 	}
-	if action == nil {
-		apperror.Respond(c, apperror.NotFound("action", actionKey))
-		return
-	}
-
-	if action.Apply == nil {
-		apperror.Respond(c, apperror.BadRequest("action is not executable"))
-		return
-	}
-
-	var req executeActionRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		apperror.Respond(c, apperror.BadRequest("invalid request body"))
-		return
-	}
-
-	if action.Apply.Type == "scenario" {
-		apperror.Respond(c, apperror.BadRequest("scenario actions are not yet implemented"))
-		return
-	}
-
-	// Execute DML batch
-	results, err := h.dmlService.ExecuteBatch(c.Request.Context(), action.Apply.DML)
-	if err != nil {
-		apperror.Respond(c, fmt.Errorf("portalHandler.ExecuteAction: %w", err))
-		return
-	}
-
-	items := make([]actionResultItem, len(results))
-	for i, r := range results {
-		item := actionResultItem{}
-		if len(r.InsertedIds) > 0 {
-			item.Operation = "insert"
-			item.IDs = r.InsertedIds
-		} else if len(r.UpdatedIds) > 0 {
-			item.Operation = "update"
-			item.IDs = r.UpdatedIds
-		} else if len(r.DeletedIds) > 0 {
-			item.Operation = "delete"
-			item.IDs = r.DeletedIds
-		}
-		items[i] = item
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"results": items,
-	})
+	return false
 }
 
-// validateArgsRuntime evaluates CEL validation expressions for each arg that has one.
-func validateArgsRuntime(argDefs []metadata.PortalArg, argsMap map[string]any, celCache *celutil.ProgramCache) error {
-	vars := map[string]any{"args": argsMap}
+// gateHasSOQL returns true if the gate has any SOQL body steps.
+func gateHasSOQL(gate metadata.PortalGate) bool {
+	for _, step := range gate.Body {
+		if step.Type == "soql" {
+			return true
+		}
+	}
+	return false
+}
+
+// mergeArgDefs merges portal-level and gate-level arg definitions.
+// Gate args shadow portal args on name collision.
+func mergeArgDefs(portalArgs, gateArgs []metadata.PortalArg) []metadata.PortalArg {
+	if len(gateArgs) == 0 {
+		return portalArgs
+	}
+	if len(portalArgs) == 0 {
+		return gateArgs
+	}
+
+	gateNames := make(map[string]bool, len(gateArgs))
+	for _, a := range gateArgs {
+		gateNames[a.Name] = true
+	}
+
+	merged := make([]metadata.PortalArg, 0, len(portalArgs)+len(gateArgs))
+	for _, a := range portalArgs {
+		if !gateNames[a.Name] {
+			merged = append(merged, a)
+		}
+	}
+	merged = append(merged, gateArgs...)
+	return merged
+}
+
+// resolveArgsFromMap resolves args from a map (POST body).
+func resolveArgsFromMap(argDefs []metadata.PortalArg, argsMap map[string]any) (map[string]any, error) {
+	if len(argDefs) == 0 {
+		return map[string]any{}, nil
+	}
+
+	result := make(map[string]any, len(argDefs))
 	for _, arg := range argDefs {
-		if arg.Validation == "" {
-			continue
+		val, exists := argsMap[arg.Name]
+
+		if !exists || val == nil {
+			if arg.Default != nil {
+				converted, err := convertArg(arg.Name, arg.Type, *arg.Default)
+				if err != nil {
+					return nil, err
+				}
+				result[arg.Name] = converted
+				continue
+			}
+			return nil, apperror.BadRequest(fmt.Sprintf("required arg %q is missing", arg.Name))
 		}
-		result, err := celCache.EvaluateBool(arg.Validation, vars)
+
+		// Convert to expected type
+		raw := fmt.Sprintf("%v", val)
+		converted, err := convertArg(arg.Name, arg.Type, raw)
 		if err != nil {
-			return apperror.BadRequest(fmt.Sprintf("arg %q: validation error: %v", arg.Name, err))
+			return nil, err
+		}
+		result[arg.Name] = converted
+	}
+
+	return result, nil
+}
+
+// validateArgRulesRuntime evaluates CEL arg rules at request time.
+func validateArgRulesRuntime(rules []metadata.PortalArgRule, argsMap map[string]any, celCache *celutil.ProgramCache) error {
+	if len(rules) == 0 {
+		return nil
+	}
+	vars := map[string]any{"args": argsMap}
+	for _, rule := range rules {
+		result, err := celCache.EvaluateBool(rule.Condition, vars)
+		if err != nil {
+			return apperror.BadRequest(fmt.Sprintf("arg_rule %q: evaluation error: %v", rule.Name, err))
 		}
 		if !result {
-			msg := arg.ErrorMessage
-			if msg == "" {
-				msg = fmt.Sprintf("arg %q failed validation", arg.Name)
-			}
-			return apperror.BadRequest(msg)
+			return apperror.BadRequest(rule.ErrorMessage)
 		}
 	}
 	return nil
@@ -255,6 +387,10 @@ func validateArgsRuntime(argDefs []metadata.PortalArg, argsMap map[string]any, c
 // resolveArgs parses URL query params against declared arg definitions.
 // Returns a typed map for CEL and SOQL substitution.
 func resolveArgs(argDefs []metadata.PortalArg, c *gin.Context) (map[string]any, error) {
+	if len(argDefs) == 0 {
+		return map[string]any{}, nil
+	}
+
 	result := make(map[string]any, len(argDefs))
 
 	for _, arg := range argDefs {
@@ -309,10 +445,10 @@ func convertArg(name, argType, raw string) (any, error) {
 	}
 }
 
-// substituteTypedArgs replaces :paramName in SOQL with typed values.
+// substituteTypedArgs replaces :paramName in SOQL/DML with typed values.
 // Strings are single-quoted (with escaping), numbers and bools are unquoted.
-func substituteTypedArgs(soqlText string, args map[string]any) string {
-	return portalParamRegexp.ReplaceAllStringFunc(soqlText, func(match string) string {
+func substituteTypedArgs(text string, args map[string]any) string {
+	return portalParamRegexp.ReplaceAllStringFunc(text, func(match string) string {
 		paramName := match[1:]
 		val, ok := args[paramName]
 		if !ok {
@@ -332,17 +468,5 @@ func substituteTypedArgs(soqlText string, args map[string]any) string {
 		default:
 			return match
 		}
-	})
-}
-
-// substituteParams replaces :paramName in SOQL with URL query parameter values.
-// Legacy path for portals without declared args.
-func substituteParams(soqlText string, c *gin.Context) string {
-	return portalParamRegexp.ReplaceAllStringFunc(soqlText, func(match string) string {
-		paramName := match[1:] // strip leading ':'
-		if val := c.Query(paramName); val != "" {
-			return "'" + val + "'"
-		}
-		return match
 	})
 }

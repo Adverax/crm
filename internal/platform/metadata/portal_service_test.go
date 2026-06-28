@@ -161,13 +161,30 @@ func setupOVServiceTest(t *testing.T) (PortalService, *mockPortalRepository, *mo
 	return svc, repo, loader
 }
 
+// minimalValidConfig returns the simplest valid gate graph config.
+func minimalValidConfig() PortalConfig {
+	return PortalConfig{
+		EntryGate: "main",
+		Gates: map[string]PortalGate{
+			"main": {Label: "Main", Body: []GateBodyStep{}},
+		},
+	}
+}
+
 func validCreateInput() CreatePortalInput {
 	return CreatePortalInput{
 		APIName: "default_view",
 		Label:   "Default View",
 		Config: PortalConfig{
-			Read: PortalReadConfig{
-				Fields: []PortalViewField{{Name: "first_name"}, {Name: "last_name"}},
+			EntryGate: "main",
+			Gates: map[string]PortalGate{
+				"main": {
+					Label: "Main",
+					Body:  []GateBodyStep{{Name: "data", Type: "soql", SOQL: "SELECT Id FROM Account"}},
+					Layout: &GateLayout{
+						Fields: []PortalViewField{{Name: "first_name"}, {Name: "last_name"}},
+					},
+				},
 			},
 		},
 	}
@@ -196,6 +213,7 @@ func TestPortalService_Create(t *testing.T) {
 				ProfileID: &profileID,
 				APIName:   "sales_view",
 				Label:     "Sales View",
+				Config:    minimalValidConfig(),
 			},
 		},
 		{
@@ -298,6 +316,7 @@ func TestPortalService_Create_DuplicateAPIName(t *testing.T) {
 	_, err = svc.Create(ctx, CreatePortalInput{
 		APIName: "default_view",
 		Label:   "Another Label",
+		Config:  minimalValidConfig(),
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "duplicate")
@@ -426,13 +445,13 @@ func TestPortalService_ListAll(t *testing.T) {
 			setup: func(svc PortalService) {
 				ctx := context.Background()
 				_, _ = svc.Create(ctx, CreatePortalInput{
-					APIName: "view_a", Label: "View A",
+					APIName: "view_a", Label: "View A", Config: minimalValidConfig(),
 				})
 				_, _ = svc.Create(ctx, CreatePortalInput{
-					APIName: "view_b", Label: "View B",
+					APIName: "view_b", Label: "View B", Config: minimalValidConfig(),
 				})
 				_, _ = svc.Create(ctx, CreatePortalInput{
-					APIName: "view_c", Label: "View C",
+					APIName: "view_c", Label: "View C", Config: minimalValidConfig(),
 				})
 			},
 			wantCount: 3,
@@ -466,6 +485,7 @@ func TestPortalService_Update(t *testing.T) {
 			input: UpdatePortalInput{
 				Label:       "Updated Label",
 				Description: "Updated desc",
+				Config:      minimalValidConfig(),
 			},
 		},
 		{
@@ -473,8 +493,15 @@ func TestPortalService_Update(t *testing.T) {
 			input: UpdatePortalInput{
 				Label: "With Config",
 				Config: PortalConfig{
-					Read: PortalReadConfig{
-						Fields: []PortalViewField{{Name: "email"}},
+					EntryGate: "main",
+					Gates: map[string]PortalGate{
+						"main": {
+							Label: "Main",
+							Body:  []GateBodyStep{},
+							Layout: &GateLayout{
+								Fields: []PortalViewField{{Name: "email"}},
+							},
+						},
 					},
 				},
 			},
@@ -527,7 +554,8 @@ func TestPortalService_Update_NotFound(t *testing.T) {
 	svc, _, _ := setupOVServiceTest(t)
 
 	_, err := svc.Update(context.Background(), uuid.New(), UpdatePortalInput{
-		Label: "Updated",
+		Label:  "Updated",
+		Config: minimalValidConfig(),
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
@@ -587,6 +615,7 @@ func TestPortalService_Create_ValidAPINamePatterns(t *testing.T) {
 			_, err := svc.Create(context.Background(), CreatePortalInput{
 				APIName: tt.apiName,
 				Label:   "Test Label",
+				Config:  minimalValidConfig(),
 			})
 
 			if tt.wantErr {
@@ -636,7 +665,7 @@ func TestPortalService_ErrorWrapping(t *testing.T) {
 		{
 			name: "Update wraps with method name",
 			operation: func(svc PortalService) error {
-				_, err := svc.Update(context.Background(), uuid.New(), UpdatePortalInput{Label: "Test"})
+				_, err := svc.Update(context.Background(), uuid.New(), UpdatePortalInput{Label: "Test", Config: minimalValidConfig()})
 				return err
 			},
 			wantPrefix: "portalService.Update:",
@@ -679,6 +708,7 @@ func TestPortalService_Update_PreservesAPIName(t *testing.T) {
 	updated, err := svc.Update(ctx, created.ID, UpdatePortalInput{
 		Label:       "New Label",
 		Description: "New Desc",
+		Config:      minimalValidConfig(),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, updated)
@@ -712,12 +742,12 @@ func TestPortalService_ListAll_AfterCreateAndDelete(t *testing.T) {
 	ctx := context.Background()
 
 	ov1, err := svc.Create(ctx, CreatePortalInput{
-		APIName: "view_one", Label: "View One",
+		APIName: "view_one", Label: "View One", Config: minimalValidConfig(),
 	})
 	require.NoError(t, err)
 
 	_, err = svc.Create(ctx, CreatePortalInput{
-		APIName: "view_two", Label: "View Two",
+		APIName: "view_two", Label: "View Two", Config: minimalValidConfig(),
 	})
 	require.NoError(t, err)
 

@@ -155,7 +155,12 @@ function setCursorAtLineCol(line: number, col: number) {
   view.value.focus()
 }
 
-defineExpose({ insertAtCursor, setCursorAt, setCursorAtLineCol })
+function getCursorOffset(): number {
+  if (!view.value) return 0
+  return view.value.state.selection.main.head
+}
+
+defineExpose({ insertAtCursor, setCursorAt, setCursorAtLineCol, getCursorOffset })
 </script>
 
 <template>

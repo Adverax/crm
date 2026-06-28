@@ -28,6 +28,8 @@ const (
 const (
 	CelValidateRequestContextDefaultExpr    CelValidateRequestContext = "default_expr"
 	CelValidateRequestContextFunctionBody   CelValidateRequestContext = "function_body"
+	CelValidateRequestContextGateWhen       CelValidateRequestContext = "gate_when"
+	CelValidateRequestContextPortalWhen     CelValidateRequestContext = "portal_when"
 	CelValidateRequestContextValidationRule CelValidateRequestContext = "validation_rule"
 	CelValidateRequestContextVisibilityExpr CelValidateRequestContext = "visibility_expr"
 	CelValidateRequestContextWhenExpression CelValidateRequestContext = "when_expression"
@@ -136,6 +138,14 @@ const (
 	FieldDefinitionSchemaFieldTypeText      FieldDefinitionSchemaFieldType = "text"
 )
 
+// Defines values for FormArgType.
+const (
+	FormArgTypeBool   FormArgType = "bool"
+	FormArgTypeFloat  FormArgType = "float"
+	FormArgTypeInt    FormArgType = "int"
+	FormArgTypeString FormArgType = "string"
+)
+
 // Defines values for FormQueryType.
 const (
 	FormQueryTypeList   FormQueryType = "list"
@@ -162,27 +172,18 @@ const (
 	FunctionParamTypeString  FunctionParamType = "string"
 )
 
+// Defines values for GateBodyStepType.
+const (
+	Dml  GateBodyStepType = "dml"
+	Soql GateBodyStepType = "soql"
+)
+
 // Defines values for NavItemType.
 const (
 	NavItemTypeDivider NavItemType = "divider"
 	NavItemTypeLink    NavItemType = "link"
 	NavItemTypeObject  NavItemType = "object"
 	NavItemTypePage    NavItemType = "page"
-)
-
-// Defines values for OVActionApplyType.
-const (
-	Dml      OVActionApplyType = "dml"
-	Scenario OVActionApplyType = "scenario"
-)
-
-// Defines values for OVViewFieldType.
-const (
-	OVViewFieldTypeBool      OVViewFieldType = "bool"
-	OVViewFieldTypeFloat     OVViewFieldType = "float"
-	OVViewFieldTypeInt       OVViewFieldType = "int"
-	OVViewFieldTypeString    OVViewFieldType = "string"
-	OVViewFieldTypeTimestamp OVViewFieldType = "timestamp"
 )
 
 // Defines values for ObjectDefinitionObjectType.
@@ -197,6 +198,14 @@ const (
 	ObjectDefinitionVisibilityPrivate            ObjectDefinitionVisibility = "private"
 	ObjectDefinitionVisibilityPublicRead         ObjectDefinitionVisibility = "public_read"
 	ObjectDefinitionVisibilityPublicReadWrite    ObjectDefinitionVisibility = "public_read_write"
+)
+
+// Defines values for PortalArgType.
+const (
+	PortalArgTypeBool   PortalArgType = "bool"
+	PortalArgTypeFloat  PortalArgType = "float"
+	PortalArgTypeInt    PortalArgType = "int"
+	PortalArgTypeString PortalArgType = "string"
 )
 
 // Defines values for ResolvedNavItemType.
@@ -216,12 +225,12 @@ const (
 
 // Defines values for UpdateFunctionRequestReturnType.
 const (
-	Any     UpdateFunctionRequestReturnType = "any"
-	Boolean UpdateFunctionRequestReturnType = "boolean"
-	List    UpdateFunctionRequestReturnType = "list"
-	Map     UpdateFunctionRequestReturnType = "map"
-	Number  UpdateFunctionRequestReturnType = "number"
-	String  UpdateFunctionRequestReturnType = "string"
+	UpdateFunctionRequestReturnTypeAny     UpdateFunctionRequestReturnType = "any"
+	UpdateFunctionRequestReturnTypeBoolean UpdateFunctionRequestReturnType = "boolean"
+	UpdateFunctionRequestReturnTypeList    UpdateFunctionRequestReturnType = "list"
+	UpdateFunctionRequestReturnTypeMap     UpdateFunctionRequestReturnType = "map"
+	UpdateFunctionRequestReturnTypeNumber  UpdateFunctionRequestReturnType = "number"
+	UpdateFunctionRequestReturnTypeString  UpdateFunctionRequestReturnType = "string"
 )
 
 // Defines values for UpdateObjectRequestVisibility.
@@ -249,13 +258,6 @@ const (
 	Custom   ListObjectsParamsObjectType = "custom"
 	Standard ListObjectsParamsObjectType = "standard"
 )
-
-// ActionResultItem defines model for ActionResultItem.
-type ActionResultItem struct {
-	Ids       *[]string `json:"ids,omitempty"`
-	Object    *string   `json:"object,omitempty"`
-	Operation *string   `json:"operation,omitempty"`
-}
 
 // CelParamDef defines model for CelParamDef.
 type CelParamDef struct {
@@ -456,18 +458,6 @@ type ErrorResponse struct {
 	Error ErrorBody `json:"error"`
 }
 
-// ExecuteActionRequest defines model for ExecuteActionRequest.
-type ExecuteActionRequest struct {
-	Data     *map[string]interface{} `json:"data,omitempty"`
-	RecordId *openapi_types.UUID     `json:"record_id,omitempty"`
-}
-
-// ExecuteActionResponse defines model for ExecuteActionResponse.
-type ExecuteActionResponse struct {
-	Results *[]ActionResultItem `json:"results,omitempty"`
-	Success *bool               `json:"success,omitempty"`
-}
-
 // FieldConfig defines model for FieldConfig.
 type FieldConfig struct {
 	// DefaultExpr CEL expression for dynamic default value
@@ -568,9 +558,21 @@ type FormAction struct {
 	VisibilityExpr  *string               `json:"visibility_expr,omitempty"`
 }
 
+// FormArg defines model for FormArg.
+type FormArg struct {
+	Default  *string     `json:"default,omitempty"`
+	Name     string      `json:"name"`
+	Required bool        `json:"required"`
+	Type     FormArgType `json:"type"`
+}
+
+// FormArgType defines model for FormArg.Type.
+type FormArgType string
+
 // FormDescribe defines model for FormDescribe.
 type FormDescribe struct {
 	Actions         *[]FormAction      `json:"actions,omitempty"`
+	Args            *[]FormArg         `json:"args,omitempty"`
 	HighlightFields *[]string          `json:"highlight_fields,omitempty"`
 	ListDefaultSort *string            `json:"list_default_sort,omitempty"`
 	ListFields      *[]string          `json:"list_fields,omitempty"`
@@ -639,6 +641,78 @@ type FunctionParam struct {
 // FunctionParamType defines model for FunctionParam.Type.
 type FunctionParamType string
 
+// GateBodyStep defines model for GateBodyStep.
+type GateBodyStep struct {
+	// Dml DML statement.
+	Dml      *string `json:"dml,omitempty"`
+	Name     string  `json:"name"`
+	PageSize *int    `json:"page_size,omitempty"`
+
+	// RestrictFilters Fields to exclude from dynamic filtering.
+	RestrictFilters *[]string `json:"restrict_filters,omitempty"`
+
+	// Soql SOQL query. Use SELECT ROW for scalar queries.
+	Soql *string          `json:"soql,omitempty"`
+	Type GateBodyStepType `json:"type"`
+
+	// When CEL expression. Step is skipped when false.
+	When *string `json:"when,omitempty"`
+}
+
+// GateBodyStepType defines model for GateBodyStep.Type.
+type GateBodyStepType string
+
+// GateLayout defines model for GateLayout.
+type GateLayout struct {
+	// FieldConfig Per-field layout config (span, read_only, component, reference_config).
+	FieldConfig *map[string]interface{} `json:"field_config,omitempty"`
+	Fields      *[]OVViewField          `json:"fields,omitempty"`
+
+	// ListConfig List configuration (columns, sort_by, search, row_actions).
+	ListConfig *map[string]interface{} `json:"list_config,omitempty"`
+
+	// Root LayoutComponent tree (type, children, props).
+	Root *map[string]interface{} `json:"root,omitempty"`
+
+	// SectionConfig Per-section configuration (columns, heading, collapsible, fields).
+	SectionConfig *map[string]interface{} `json:"section_config,omitempty"`
+}
+
+// GateOutcome defines model for GateOutcome.
+type GateOutcome struct {
+	// ArgsTemplate CEL expressions evaluated to produce args for the target gate.
+	ArgsTemplate *map[string]string `json:"args_template,omitempty"`
+
+	// Gate Target gate key.
+	Gate  string  `json:"gate"`
+	Icon  *string `json:"icon,omitempty"`
+	Label *string `json:"label,omitempty"`
+	Name  string  `json:"name"`
+
+	// Type Semantic type (e.g. primary, danger, navigate).
+	Type *string `json:"type,omitempty"`
+}
+
+// GatePostRequest defines model for GatePostRequest.
+type GatePostRequest struct {
+	// Args Gate args as key-value pairs.
+	Args *map[string]interface{} `json:"args,omitempty"`
+
+	// Data Form data for DML steps.
+	Data *map[string]interface{} `json:"data,omitempty"`
+}
+
+// GateResponse defines model for GateResponse.
+type GateResponse struct {
+	Datasets *map[string]interface{} `json:"datasets,omitempty"`
+	Errors   *[]struct {
+		Message *string `json:"message,omitempty"`
+	} `json:"errors"`
+	Gate     *string        `json:"gate,omitempty"`
+	Layout   *GateLayout    `json:"layout,omitempty"`
+	Outcomes *[]GateOutcome `json:"outcomes,omitempty"`
+}
+
 // LoginRequest defines model for LoginRequest.
 type LoginRequest struct {
 	Password string `json:"password"`
@@ -671,58 +745,12 @@ type NavItem struct {
 // NavItemType defines model for NavItem.Type.
 type NavItemType string
 
-// OVAction defines model for OVAction.
-type OVAction struct {
-	Apply          *OVActionApply `json:"apply,omitempty"`
-	Icon           string         `json:"icon"`
-	Key            string         `json:"key"`
-	Label          string         `json:"label"`
-	Type           string         `json:"type"`
-	VisibilityExpr string         `json:"visibility_expr"`
-}
-
-// OVActionApply defines model for OVActionApply.
-type OVActionApply struct {
-	Dml      *[]string         `json:"dml,omitempty"`
-	Scenario *OVScenarioRef    `json:"scenario,omitempty"`
-	Type     OVActionApplyType `json:"type"`
-}
-
-// OVActionApplyType defines model for OVActionApply.Type.
-type OVActionApplyType string
-
-// OVQuery defines model for OVQuery.
-type OVQuery struct {
-	Name string `json:"name"`
-
-	// Soql SOQL query. Use SELECT ROW for scalar queries, SELECT for list queries.
-	Soql string  `json:"soql"`
-	When *string `json:"when,omitempty"`
-}
-
-// OVReadConfig defines model for OVReadConfig.
-type OVReadConfig struct {
-	Actions *[]OVAction    `json:"actions,omitempty"`
-	Fields  *[]OVViewField `json:"fields,omitempty"`
-	Queries *[]OVQuery     `json:"queries,omitempty"`
-}
-
-// OVScenarioRef defines model for OVScenarioRef.
-type OVScenarioRef struct {
-	ApiName string             `json:"api_name"`
-	Params  *map[string]string `json:"params,omitempty"`
-}
-
 // OVViewField defines model for OVViewField.
 type OVViewField struct {
-	Expr *string          `json:"expr,omitempty"`
-	Name string           `json:"name"`
-	Type *OVViewFieldType `json:"type,omitempty"`
-	When *string          `json:"when,omitempty"`
+	Expr *string `json:"expr,omitempty"`
+	Name string  `json:"name"`
+	When *string `json:"when,omitempty"`
 }
-
-// OVViewFieldType defines model for OVViewField.Type.
-type OVViewFieldType string
 
 // ObjectDefinition defines model for ObjectDefinition.
 type ObjectDefinition struct {
@@ -802,7 +830,12 @@ type ObjectView struct {
 
 // ObjectViewConfig defines model for ObjectViewConfig.
 type ObjectViewConfig struct {
-	Read OVReadConfig `json:"read"`
+	ArgRules *[]PortalArgRule `json:"arg_rules,omitempty"`
+	Args     *[]PortalArg     `json:"args,omitempty"`
+
+	// EntryGate Key of the entry gate in the gates map.
+	EntryGate string                `json:"entry_gate"`
+	Gates     map[string]PortalGate `json:"gates"`
 }
 
 // PaginationMeta defines model for PaginationMeta.
@@ -811,6 +844,38 @@ type PaginationMeta struct {
 	PerPage    int   `json:"per_page"`
 	Total      int64 `json:"total"`
 	TotalPages int64 `json:"total_pages"`
+}
+
+// PortalArg defines model for PortalArg.
+type PortalArg struct {
+	Default *string       `json:"default,omitempty"`
+	Name    string        `json:"name"`
+	Type    PortalArgType `json:"type"`
+}
+
+// PortalArgType defines model for PortalArg.Type.
+type PortalArgType string
+
+// PortalArgRule defines model for PortalArgRule.
+type PortalArgRule struct {
+	// Condition CEL expression evaluated at runtime. Must return bool.
+	Condition string `json:"condition"`
+
+	// ErrorMessage Error message returned when condition evaluates to false.
+	ErrorMessage string `json:"error_message"`
+
+	// Name Unique rule name within scope.
+	Name string `json:"name"`
+}
+
+// PortalGate defines model for PortalGate.
+type PortalGate struct {
+	ArgRules *[]PortalArgRule `json:"arg_rules,omitempty"`
+	Args     *[]PortalArg     `json:"args,omitempty"`
+	Body     []GateBodyStep   `json:"body"`
+	Label    string           `json:"label"`
+	Layout   *GateLayout      `json:"layout,omitempty"`
+	Outcomes *[]GateOutcome   `json:"outcomes,omitempty"`
 }
 
 // ProfileNavigation defines model for ProfileNavigation.
@@ -1139,6 +1204,14 @@ type LogoutJSONBody struct {
 	RefreshToken *string `json:"refresh_token,omitempty"`
 }
 
+// ExecuteGateGetParams defines parameters for ExecuteGateGet.
+type ExecuteGateGetParams struct {
+	PerPage *int    `form:"per_page,omitempty" json:"per_page,omitempty"`
+	Page    *int    `form:"page,omitempty" json:"page,omitempty"`
+	Search  *string `form:"search,omitempty" json:"search,omitempty"`
+	Sort    *string `form:"sort,omitempty" json:"sort,omitempty"`
+}
+
 // ExecuteQueryGetParams defines parameters for ExecuteQueryGet.
 type ExecuteQueryGetParams struct {
 	// Q SOQL query string
@@ -1156,11 +1229,6 @@ type CreateRecordJSONBody map[string]interface{}
 
 // UpdateRecordJSONBody defines parameters for UpdateRecord.
 type UpdateRecordJSONBody map[string]interface{}
-
-// ExecuteViewQueryParams defines parameters for ExecuteViewQuery.
-type ExecuteViewQueryParams struct {
-	PerPage *int `form:"per_page,omitempty" json:"per_page,omitempty"`
-}
 
 // ValidateCelExpressionJSONRequestBody defines body for ValidateCelExpression for application/json ContentType.
 type ValidateCelExpressionJSONRequestBody = CelValidateRequest
@@ -1234,6 +1302,9 @@ type ResetPasswordJSONRequestBody = ResetPasswordRequest
 // ExecuteDMLJSONRequestBody defines body for ExecuteDML for application/json ContentType.
 type ExecuteDMLJSONRequestBody = DMLRequest
 
+// ExecuteGatePostJSONRequestBody defines body for ExecuteGatePost for application/json ContentType.
+type ExecuteGatePostJSONRequestBody = GatePostRequest
+
 // ExecuteQueryPostJSONRequestBody defines body for ExecuteQueryPost for application/json ContentType.
 type ExecuteQueryPostJSONRequestBody = SOQLRequest
 
@@ -1242,9 +1313,6 @@ type CreateRecordJSONRequestBody CreateRecordJSONBody
 
 // UpdateRecordJSONRequestBody defines body for UpdateRecord for application/json ContentType.
 type UpdateRecordJSONRequestBody UpdateRecordJSONBody
-
-// ExecuteViewActionJSONRequestBody defines body for ExecuteViewAction for application/json ContentType.
-type ExecuteViewActionJSONRequestBody = ExecuteActionRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -1404,6 +1472,12 @@ type ServerInterface interface {
 	// Resolve navigation for current user's profile
 	// (GET /api/v1/navigation)
 	ResolveNavigation(c *gin.Context)
+	// Execute a gate (SOQL-only)
+	// (GET /api/v1/portal/{portalApiName}/gate/{gateName})
+	ExecuteGateGet(c *gin.Context, portalApiName string, gateName string, params ExecuteGateGetParams)
+	// Execute a gate (with DML steps)
+	// (POST /api/v1/portal/{portalApiName}/gate/{gateName})
+	ExecuteGatePost(c *gin.Context, portalApiName string, gateName string)
 	// Execute SOQL query (GET)
 	// (GET /api/v1/query)
 	ExecuteQueryGet(c *gin.Context, params ExecuteQueryGetParams)
@@ -1428,12 +1502,6 @@ type ServerInterface interface {
 	// Get an object view config by API name
 	// (GET /api/v1/view/{ovApiName})
 	GetViewByAPIName(c *gin.Context, ovApiName string)
-	// Execute an action from an Object View
-	// (POST /api/v1/view/{ovApiName}/action/{actionKey})
-	ExecuteViewAction(c *gin.Context, ovApiName string, actionKey string)
-	// Execute a named query from an Object View
-	// (GET /api/v1/view/{ovApiName}/query/{queryName})
-	ExecuteViewQuery(c *gin.Context, ovApiName string, queryName string, params ExecuteViewQueryParams)
 	// Health check
 	// (GET /healthz)
 	HealthCheck(c *gin.Context)
@@ -2591,6 +2659,111 @@ func (siw *ServerInterfaceWrapper) ResolveNavigation(c *gin.Context) {
 	siw.Handler.ResolveNavigation(c)
 }
 
+// ExecuteGateGet operation middleware
+func (siw *ServerInterfaceWrapper) ExecuteGateGet(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "portalApiName" -------------
+	var portalApiName string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "portalApiName", c.Param("portalApiName"), &portalApiName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter portalApiName: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "gateName" -------------
+	var gateName string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "gateName", c.Param("gateName"), &gateName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter gateName: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ExecuteGateGetParams
+
+	// ------------- Optional query parameter "per_page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "per_page", c.Request.URL.Query(), &params.PerPage)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter per_page: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page", c.Request.URL.Query(), &params.Page)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "search" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "search", c.Request.URL.Query(), &params.Search)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter search: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "sort" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "sort", c.Request.URL.Query(), &params.Sort)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter sort: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ExecuteGateGet(c, portalApiName, gateName, params)
+}
+
+// ExecuteGatePost operation middleware
+func (siw *ServerInterfaceWrapper) ExecuteGatePost(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "portalApiName" -------------
+	var portalApiName string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "portalApiName", c.Param("portalApiName"), &portalApiName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter portalApiName: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "gateName" -------------
+	var gateName string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "gateName", c.Param("gateName"), &gateName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter gateName: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ExecuteGatePost(c, portalApiName, gateName)
+}
+
 // ExecuteQueryGet operation middleware
 func (siw *ServerInterfaceWrapper) ExecuteQueryGet(c *gin.Context) {
 
@@ -2839,87 +3012,6 @@ func (siw *ServerInterfaceWrapper) GetViewByAPIName(c *gin.Context) {
 	siw.Handler.GetViewByAPIName(c, ovApiName)
 }
 
-// ExecuteViewAction operation middleware
-func (siw *ServerInterfaceWrapper) ExecuteViewAction(c *gin.Context) {
-
-	var err error
-
-	// ------------- Path parameter "ovApiName" -------------
-	var ovApiName string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "ovApiName", c.Param("ovApiName"), &ovApiName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter ovApiName: %w", err), http.StatusBadRequest)
-		return
-	}
-
-	// ------------- Path parameter "actionKey" -------------
-	var actionKey string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "actionKey", c.Param("actionKey"), &actionKey, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter actionKey: %w", err), http.StatusBadRequest)
-		return
-	}
-
-	c.Set(BearerAuthScopes, []string{})
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		middleware(c)
-		if c.IsAborted() {
-			return
-		}
-	}
-
-	siw.Handler.ExecuteViewAction(c, ovApiName, actionKey)
-}
-
-// ExecuteViewQuery operation middleware
-func (siw *ServerInterfaceWrapper) ExecuteViewQuery(c *gin.Context) {
-
-	var err error
-
-	// ------------- Path parameter "ovApiName" -------------
-	var ovApiName string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "ovApiName", c.Param("ovApiName"), &ovApiName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter ovApiName: %w", err), http.StatusBadRequest)
-		return
-	}
-
-	// ------------- Path parameter "queryName" -------------
-	var queryName string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "queryName", c.Param("queryName"), &queryName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter queryName: %w", err), http.StatusBadRequest)
-		return
-	}
-
-	c.Set(BearerAuthScopes, []string{})
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params ExecuteViewQueryParams
-
-	// ------------- Optional query parameter "per_page" -------------
-
-	err = runtime.BindQueryParameter("form", true, false, "per_page", c.Request.URL.Query(), &params.PerPage)
-	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter per_page: %w", err), http.StatusBadRequest)
-		return
-	}
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		middleware(c)
-		if c.IsAborted() {
-			return
-		}
-	}
-
-	siw.Handler.ExecuteViewQuery(c, ovApiName, queryName, params)
-}
-
 // HealthCheck operation middleware
 func (siw *ServerInterfaceWrapper) HealthCheck(c *gin.Context) {
 
@@ -3012,6 +3104,8 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/api/v1/describe", wrapper.ListDescribeObjects)
 	router.GET(options.BaseURL+"/api/v1/describe/:objectName", wrapper.DescribeObject)
 	router.GET(options.BaseURL+"/api/v1/navigation", wrapper.ResolveNavigation)
+	router.GET(options.BaseURL+"/api/v1/portal/:portalApiName/gate/:gateName", wrapper.ExecuteGateGet)
+	router.POST(options.BaseURL+"/api/v1/portal/:portalApiName/gate/:gateName", wrapper.ExecuteGatePost)
 	router.GET(options.BaseURL+"/api/v1/query", wrapper.ExecuteQueryGet)
 	router.POST(options.BaseURL+"/api/v1/query", wrapper.ExecuteQueryPost)
 	router.GET(options.BaseURL+"/api/v1/records/:objectName", wrapper.ListRecords)
@@ -3020,135 +3114,145 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/api/v1/records/:objectName/:recordId", wrapper.GetRecord)
 	router.PUT(options.BaseURL+"/api/v1/records/:objectName/:recordId", wrapper.UpdateRecord)
 	router.GET(options.BaseURL+"/api/v1/view/:ovApiName", wrapper.GetViewByAPIName)
-	router.POST(options.BaseURL+"/api/v1/view/:ovApiName/action/:actionKey", wrapper.ExecuteViewAction)
-	router.GET(options.BaseURL+"/api/v1/view/:ovApiName/query/:queryName", wrapper.ExecuteViewQuery)
 	router.GET(options.BaseURL+"/healthz", wrapper.HealthCheck)
 }
 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
+	"Tw//FwAA//9zmPsW0vIAAA==",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

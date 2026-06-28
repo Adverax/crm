@@ -42,6 +42,36 @@ const groups = computed<PickerGroup[]>(() => {
   const result: PickerGroup[] = []
   const q = search.value.toLowerCase()
 
+  const isPortalWhen = props.context === 'portal_when'
+  const isGateWhen = props.context === 'gate_when'
+
+  // Portal args (portal_when context)
+  if (isPortalWhen) {
+    const items: PickerItem[] = [
+      { label: 'args', value: 'args', detail: 'Portal arguments (dynamic map)' },
+    ].filter((i) => !q || i.label.toLowerCase().includes(q))
+    if (items.length > 0) {
+      result.push({ label: 'Portal Args', items })
+    }
+    return result
+  }
+
+  // Gate variables (gate_when context)
+  if (isGateWhen) {
+    const items: PickerItem[] = [
+      { label: 'args', value: 'args', detail: 'Gate arguments (dynamic map)' },
+      { label: 'datasets', value: 'datasets', detail: 'Results of prior body steps (dynamic map)' },
+      { label: 'data', value: 'data', detail: 'POST form data (dynamic map)' },
+      { label: 'user.id', value: 'user.id', detail: 'User ID' },
+      { label: 'user.profile_id', value: 'user.profile_id', detail: 'Profile ID' },
+      { label: 'user.role_id', value: 'user.role_id', detail: 'Role ID' },
+    ].filter((i) => !q || i.label.toLowerCase().includes(q))
+    if (items.length > 0) {
+      result.push({ label: 'Gate Variables', items })
+    }
+    return result
+  }
+
   // Record fields
   if (props.fields.length > 0 && props.context !== 'function_body') {
     const items = props.fields

@@ -333,8 +333,13 @@ func TestPortalAdminHandler_Get(t *testing.T) {
 						APIName: "default_view",
 						Label:   "Default View",
 						Config: metadata.PortalConfig{
-							Read: metadata.PortalReadConfig{
-								Fields: []metadata.PortalViewField{{Name: "name"}},
+							EntryGate: "main",
+							Gates: map[string]metadata.PortalGate{
+								"main": {
+									Label:  "Main",
+									Body:   []metadata.GateBodyStep{},
+									Layout: &metadata.GateLayout{Fields: []metadata.PortalViewField{{Name: "name"}}},
+								},
 							},
 						},
 						CreatedAt: now,

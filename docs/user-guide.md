@@ -77,12 +77,13 @@
     - [Overview](#131-overview)
     - [Creating a Portal](#132-creating-a-portal)
     - [Config Structure](#133-config-structure)
-    - [Visual Constructor](#134-visual-constructor)
-    - [Resolution Logic](#135-resolution-logic)
-    - [FLS Intersection](#136-fls-intersection)
-    - [Describe API Extension](#137-describe-api-extension)
-    - [CRM UI Rendering](#138-crm-ui-rendering)
-    - [API](#139-api)
+    - [CEL Expressions in Portals](#134-cel-expressions-in-portals)
+    - [Visual Constructor](#135-visual-constructor)
+    - [Resolution Logic](#136-resolution-logic)
+    - [FLS Intersection](#138-fls-intersection)
+    - [Describe API Extension](#139-describe-api-extension)
+    - [CRM UI Rendering](#1310-crm-ui-rendering)
+    - [API](#1311-api)
 14. [Procedures](#14-procedures)
     - [Overview](#141-overview)
     - [Creating a Procedure](#142-creating-a-procedure)
@@ -2193,6 +2194,8 @@ Context values:
 | `when_expression` | record, old, user, now | Conditional gate expressions |
 | `default_expr` | record, user, now | Dynamic default expressions |
 | `function_body` | function parameters only | Custom function body expressions |
+| `portal_when` | args | Portal-level arg rule conditions (ADR-0037) |
+| `gate_when` | args, datasets, data, user | Gate body step / layout field `when` conditions (ADR-0037) |
 
 ---
 
@@ -2550,7 +2553,47 @@ The Portal config is a JSON object with two top-level sections: `view` (presenta
 | `edit.mutations[].sync` | object | Optional sync mapping (`key`, `value` fields) |
 | `edit.mutations[].when` | string | Optional CEL condition for when mutation executes |
 
-### 13.4 Visual Constructor
+### 13.4 CEL Expressions in Portals
+
+Portal gates use two CEL contexts with different available variables:
+
+**`portal_when` context** — used in portal-level arg rules (`PortalConfig.arg_rules[].condition`):
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `args` | map(string, dyn) | Portal arguments passed in the request |
+
+**`gate_when` context** — used in gate body step `when` conditions and gate layout field `when` conditions:
+
+| Variable | Type | Description | Available in |
+|----------|------|-------------|--------------|
+| `args` | map(string, dyn) | Gate arguments (merged from portal args + outcome args_template) | Body steps, layout fields |
+| `datasets` | map(string, dyn) | Results of previously executed body steps, keyed by step name | Body steps (after prior steps), layout fields |
+| `data` | map(string, dyn) | POST form data submitted by the client | Body steps, layout fields |
+| `user` | map(string, dyn) | Current user info (`id`, `profile_id`, `role_id`) | Body steps, layout fields |
+
+**Examples:**
+
+```cel
+# Skip a body step if no account ID is provided
+has(args.account_id)
+
+# Conditionally show a field based on a dataset result
+size(datasets.accounts) > 0
+
+# Check user role before executing a step
+user.role_id != ""
+
+# Combine conditions
+has(args.mode) && args.mode == "edit" && size(datasets.record) > 0
+
+# Conditional field visibility based on form data
+has(data.status) && data.status == "approved"
+```
+
+**Validation:** Use `POST /api/v1/admin/cel/validate` with `"context": "gate_when"` or `"context": "portal_when"` to validate expressions before saving. The Expression Builder UI provides context-aware autocomplete for these variables.
+
+### 13.5 Visual Constructor
 
 The Portal detail page provides a tab-based visual constructor for editing the config without writing JSON. Tabs are organized as follows:
 
@@ -2570,7 +2613,7 @@ The Portal detail page provides a tab-based visual constructor for editing the c
 
 Click **"Save"** to persist changes. All changes take effect immediately.
 
-### 13.5 View Resolution
+### 13.6 View Resolution
 
 Portals are accessed directly by `api_name` via the Portal endpoint:
 
@@ -2584,7 +2627,7 @@ The Describe API (`GET /api/v1/describe/:objectName`) **always returns a fallbac
 
 This allows gradual adoption — the system works without any Portals configured, and administrators can add portals incrementally via navigation page items.
 
-### 13.6 Per-Query Data Endpoint (ADR-0035)
+### 13.7 Per-Query Data Endpoint (ADR-0035)
 
 Each query defined in a Portal can be executed independently:
 
@@ -2600,7 +2643,7 @@ GET /api/v1/portal/account_default/query/recent_activities?recordId=123
 
 This executes the `recent_activities` query from the `account_default` Portal with `:recordId` replaced by `123`. The response includes paginated query results. SOQL source is never exposed to the client.
 
-### 13.7 FLS Intersection
+### 13.8 FLS Intersection
 
 The resolved Portal config is intersected with the current user's Field-Level Security (FLS) permissions:
 
@@ -2610,7 +2653,7 @@ The resolved Portal config is intersected with the current user's Field-Level Se
 
 This ensures that even if an administrator includes a field in the Portal, users without FLS access will never see it.
 
-### 13.8 Describe API (Fallback Form)
+### 13.9 Describe API (Fallback Form)
 
 The Describe API always returns a **fallback form** — auto-generated from all FLS-accessible fields. It no longer resolves Portals.
 
@@ -2651,7 +2694,7 @@ The `fields` array remains for backward compatibility. The `form` property is al
 
 To get a customized view configuration, use the Portal endpoint: `GET /api/v1/portal/:portalApiName`.
 
-### 13.9 CRM UI Rendering
+### 13.10 CRM UI Rendering
 
 When the CRM frontend (`/app/*`) receives a `form` in the Describe response, it renders:
 
@@ -2667,7 +2710,7 @@ When the CRM frontend (`/app/*`) receives a `form` in the Describe response, it 
 
 If no `form` is present (backward compatibility), the UI falls back to the original single-card layout with all fields.
 
-### 13.10 API
+### 13.11 API
 
 #### List Portals
 

@@ -10,7 +10,6 @@ import (
 	"github.com/google/cel-go/ext"
 
 	"github.com/adverax/crm/internal/pkg/apperror"
-	"github.com/adverax/crm/internal/platform/soql/engine"
 )
 
 // newPortalCELEnv creates a minimal CEL env for validating portal arg expressions.
@@ -21,38 +20,270 @@ func newPortalCELEnv() (*cel.Env, error) {
 	)
 }
 
+// newGateCELEnv creates a CEL env for validating gate body/outcome expressions.
+func newGateCELEnv() (*cel.Env, error) {
+	return cel.NewEnv(
+		cel.Variable("args", cel.DynType),
+		cel.Variable("datasets", cel.DynType),
+		cel.Variable("data", cel.DynType),
+		cel.Variable("user", cel.DynType),
+		ext.Strings(),
+	)
+}
+
 var (
-	actionKeyRegexp = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
-	argNameRegexp   = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
-	validArgTypes   = map[string]bool{"string": true, "int": true, "float": true, "bool": true}
+	gateNameRegexp = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+	stepNameRegexp = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+	argNameRegexp  = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+	validArgTypes  = map[string]bool{"string": true, "int": true, "float": true, "bool": true}
+	paramRegexp    = regexp.MustCompile(`:(\w+)`)
 )
 
-// validateViewConfig validates the OV view config at save time.
-// Checks: args, query uniqueness, valid query types,
-// field uniqueness, valid query references, DAG (no cycles).
-func validateViewConfig(config PortalConfig) error {
+// validateGateGraphConfig validates the portal gate graph config at save time (ADR-0037).
+func validateGateGraphConfig(config PortalConfig) error {
 	if err := validateArgs(config.Args); err != nil {
 		return err
 	}
 
-	view := config.Read
-
-	if err := validateQueries(view.Queries); err != nil {
+	if err := validateArgRules("portal", config.ArgRules); err != nil {
 		return err
 	}
 
-	if len(config.Args) > 0 {
-		if err := validateQueryParamRefs(view.Queries, config.Args); err != nil {
+	if config.EntryGate == "" {
+		return apperror.BadRequest("entry_gate is required")
+	}
+
+	if len(config.Gates) == 0 {
+		return apperror.BadRequest("at least one gate is required")
+	}
+
+	if len(config.Gates) > 50 {
+		return apperror.BadRequest("max 50 gates per portal")
+	}
+
+	if _, ok := config.Gates[config.EntryGate]; !ok {
+		return apperror.BadRequest(fmt.Sprintf("entry_gate %q is not a key in gates", config.EntryGate))
+	}
+
+	// Validate gate names
+	for name := range config.Gates {
+		if !gateNameRegexp.MatchString(name) {
+			return apperror.BadRequest(fmt.Sprintf("gate name %q: must match ^[a-z][a-z0-9_]*$", name))
+		}
+	}
+
+	// Collect portal-level arg names
+	portalArgNames := make(map[string]bool, len(config.Args))
+	for _, a := range config.Args {
+		portalArgNames[a.Name] = true
+	}
+
+	// Validate each gate
+	for gateName, gate := range config.Gates {
+		if err := validateGate(gateName, gate, portalArgNames, config.Gates); err != nil {
 			return err
 		}
 	}
 
-	if err := validateFields(view.Fields, view.Queries); err != nil {
+	// Reachability: BFS from entry_gate
+	if err := validateReachability(config.EntryGate, config.Gates); err != nil {
 		return err
 	}
 
-	if err := validateActions(view.Actions); err != nil {
+	return nil
+}
+
+// validateGate validates a single gate within the graph.
+func validateGate(gateName string, gate PortalGate, portalArgNames map[string]bool, allGates map[string]PortalGate) error {
+	// Validate gate-level args
+	if err := validateArgs(gate.Args); err != nil {
+		return fmt.Errorf("gate %q: %w", gateName, err)
+	}
+
+	if err := validateArgRules(fmt.Sprintf("gate %q", gateName), gate.ArgRules); err != nil {
 		return err
+	}
+
+	if len(gate.Args) > 20 {
+		return apperror.BadRequest(fmt.Sprintf("gate %q: max 20 args per gate", gateName))
+	}
+
+	// Check arg name collisions with portal-level args
+	for _, a := range gate.Args {
+		if portalArgNames[a.Name] {
+			return apperror.BadRequest(fmt.Sprintf("gate %q: arg %q shadows portal-level arg", gateName, a.Name))
+		}
+	}
+
+	// Collect all available arg names (portal + gate)
+	allArgNames := make(map[string]bool, len(portalArgNames)+len(gate.Args))
+	for n := range portalArgNames {
+		allArgNames[n] = true
+	}
+	for _, a := range gate.Args {
+		allArgNames[a.Name] = true
+	}
+
+	// Validate body steps
+	if len(gate.Body) > 10 {
+		return apperror.BadRequest(fmt.Sprintf("gate %q: max 10 body steps per gate", gateName))
+	}
+
+	stepNames := make(map[string]bool, len(gate.Body))
+	for _, step := range gate.Body {
+		if err := validateBodyStep(gateName, step, stepNames, allArgNames); err != nil {
+			return err
+		}
+		stepNames[step.Name] = true
+	}
+
+	// Validate layout fields
+	if gate.Layout != nil && len(gate.Layout.Fields) > 0 {
+		if err := validateGateLayoutFields(gateName, gate.Layout.Fields); err != nil {
+			return err
+		}
+	}
+
+	// Validate outcomes
+	if len(gate.Outcomes) > 10 {
+		return apperror.BadRequest(fmt.Sprintf("gate %q: max 10 outcomes per gate", gateName))
+	}
+
+	outcomeNames := make(map[string]bool, len(gate.Outcomes))
+	for _, outcome := range gate.Outcomes {
+		if err := validateOutcome(gateName, outcome, outcomeNames, allGates); err != nil {
+			return err
+		}
+		outcomeNames[outcome.Name] = true
+	}
+
+	return nil
+}
+
+// validateBodyStep validates a single body step.
+func validateBodyStep(gateName string, step GateBodyStep, existing map[string]bool, argNames map[string]bool) error {
+	if step.Name == "" {
+		return apperror.BadRequest(fmt.Sprintf("gate %q: body step name is required", gateName))
+	}
+	if !stepNameRegexp.MatchString(step.Name) {
+		return apperror.BadRequest(fmt.Sprintf("gate %q: step name %q must match ^[a-z][a-z0-9_]*$", gateName, step.Name))
+	}
+	if existing[step.Name] {
+		return apperror.BadRequest(fmt.Sprintf("gate %q: duplicate step name: %s", gateName, step.Name))
+	}
+
+	if step.Type != "soql" && step.Type != "dml" {
+		return apperror.BadRequest(fmt.Sprintf("gate %q: step %q type must be 'soql' or 'dml'", gateName, step.Name))
+	}
+
+	if step.Type == "soql" && step.SOQL == "" {
+		return apperror.BadRequest(fmt.Sprintf("gate %q: step %q requires soql field for type 'soql'", gateName, step.Name))
+	}
+
+	if step.Type == "dml" && step.DML == "" {
+		return apperror.BadRequest(fmt.Sprintf("gate %q: step %q requires dml field for type 'dml'", gateName, step.Name))
+	}
+
+	if step.PageSize < 0 {
+		return apperror.BadRequest(fmt.Sprintf("gate %q: step %q page_size must be non-negative", gateName, step.Name))
+	}
+
+	// Validate when condition compiles
+	if step.When != "" {
+		env, err := newGateCELEnv()
+		if err != nil {
+			return apperror.BadRequest(fmt.Sprintf("gate %q: step %q: failed to create CEL env: %v", gateName, step.Name, err))
+		}
+		_, issues := env.Compile(step.When)
+		if issues != nil && issues.Err() != nil {
+			return apperror.BadRequest(fmt.Sprintf("gate %q: step %q: invalid when expression: %s", gateName, step.Name, issues.Err()))
+		}
+	}
+
+	// Validate param refs
+	var text string
+	if step.Type == "soql" {
+		text = step.SOQL
+	} else {
+		text = step.DML
+	}
+	matches := paramRegexp.FindAllStringSubmatch(text, -1)
+	for _, m := range matches {
+		paramName := m[1]
+		if !argNames[paramName] {
+			return apperror.BadRequest(fmt.Sprintf("gate %q: step %q: param :%s is not declared in args", gateName, step.Name, paramName))
+		}
+	}
+
+	return nil
+}
+
+// validateGateLayoutFields validates field uniqueness and DAG within a gate layout.
+func validateGateLayoutFields(gateName string, fields []PortalViewField) error {
+	fieldNames := make(map[string]bool, len(fields))
+	for _, f := range fields {
+		if f.Name == "" {
+			return apperror.BadRequest(fmt.Sprintf("gate %q: field name is required", gateName))
+		}
+		if fieldNames[f.Name] {
+			return apperror.BadRequest(fmt.Sprintf("gate %q: duplicate field name: %s", gateName, f.Name))
+		}
+		fieldNames[f.Name] = true
+	}
+
+	if err := validateFieldDAG(fields); err != nil {
+		return fmt.Errorf("gate %q: %w", gateName, err)
+	}
+
+	return nil
+}
+
+// validateOutcome validates a single outcome declaration.
+func validateOutcome(gateName string, outcome GateOutcome, existing map[string]bool, allGates map[string]PortalGate) error {
+	if outcome.Name == "" {
+		return apperror.BadRequest(fmt.Sprintf("gate %q: outcome name is required", gateName))
+	}
+	if existing[outcome.Name] {
+		return apperror.BadRequest(fmt.Sprintf("gate %q: duplicate outcome name: %s", gateName, outcome.Name))
+	}
+
+	if outcome.Gate == "" {
+		return apperror.BadRequest(fmt.Sprintf("gate %q: outcome %q must reference a gate", gateName, outcome.Name))
+	}
+	if _, ok := allGates[outcome.Gate]; !ok {
+		return apperror.BadRequest(fmt.Sprintf("gate %q: outcome %q references non-existent gate %q", gateName, outcome.Name, outcome.Gate))
+	}
+
+	return nil
+}
+
+// validateReachability checks that all gates are reachable from the entry gate via BFS.
+func validateReachability(entryGate string, gates map[string]PortalGate) error {
+	visited := make(map[string]bool)
+	queue := []string{entryGate}
+	visited[entryGate] = true
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+
+		gate := gates[current]
+		for _, outcome := range gate.Outcomes {
+			if !visited[outcome.Gate] {
+				visited[outcome.Gate] = true
+				queue = append(queue, outcome.Gate)
+			}
+		}
+	}
+
+	if len(visited) < len(gates) {
+		var orphans []string
+		for name := range gates {
+			if !visited[name] {
+				orphans = append(orphans, name)
+			}
+		}
+		return apperror.BadRequest(fmt.Sprintf("unreachable gates: %s", strings.Join(orphans, ", ")))
 	}
 
 	return nil
@@ -86,29 +317,54 @@ func validateArgs(args []PortalArg) error {
 				return err
 			}
 		}
+	}
 
-		if a.Validation != "" {
-			if err := checkArgValidationExpr(a.Name, a.Validation); err != nil {
-				return err
-			}
-			if a.ErrorMessage == "" {
-				return apperror.BadRequest(fmt.Sprintf("arg %q: error_message is required when validation is set", a.Name))
-			}
+	return nil
+}
+
+// validateArgRules validates a list of arg validation rules within a scope.
+func validateArgRules(scope string, rules []PortalArgRule) error {
+	if len(rules) > 10 {
+		return apperror.BadRequest(fmt.Sprintf("%s: max 10 arg_rules per scope", scope))
+	}
+
+	names := make(map[string]bool, len(rules))
+	for _, r := range rules {
+		if r.Name == "" {
+			return apperror.BadRequest(fmt.Sprintf("%s: arg_rule name is required", scope))
+		}
+		if !argNameRegexp.MatchString(r.Name) {
+			return apperror.BadRequest(fmt.Sprintf("%s: arg_rule name %q must match ^[a-z][a-z0-9_]*$", scope, r.Name))
+		}
+		if names[r.Name] {
+			return apperror.BadRequest(fmt.Sprintf("%s: duplicate arg_rule name: %s", scope, r.Name))
+		}
+		names[r.Name] = true
+
+		if r.Condition == "" {
+			return apperror.BadRequest(fmt.Sprintf("%s: arg_rule %q condition is required", scope, r.Name))
+		}
+		if err := checkCELCondition(scope, r.Name, r.Condition); err != nil {
+			return err
+		}
+
+		if r.ErrorMessage == "" {
+			return apperror.BadRequest(fmt.Sprintf("%s: arg_rule %q error_message is required", scope, r.Name))
 		}
 	}
 
 	return nil
 }
 
-// checkArgValidationExpr checks that a validation expression compiles in PortalEnv.
-func checkArgValidationExpr(name, expr string) error {
+// checkCELCondition checks that a CEL condition compiles in PortalEnv.
+func checkCELCondition(scope, name, expr string) error {
 	env, err := newPortalCELEnv()
 	if err != nil {
-		return apperror.BadRequest(fmt.Sprintf("arg %q: failed to create CEL env: %v", name, err))
+		return apperror.BadRequest(fmt.Sprintf("%s: arg_rule %q: failed to create CEL env: %v", scope, name, err))
 	}
 	_, issues := env.Compile(expr)
 	if issues != nil && issues.Err() != nil {
-		return apperror.BadRequest(fmt.Sprintf("arg %q: invalid validation expression: %s", name, issues.Err()))
+		return apperror.BadRequest(fmt.Sprintf("%s: arg_rule %q: invalid condition: %s", scope, name, issues.Err()))
 	}
 	return nil
 }
@@ -132,129 +388,15 @@ func checkArgDefault(name, argType, value string) error {
 	return nil
 }
 
-// validateQueryParamRefs checks that every :paramName in SOQL matches a declared arg.
-func validateQueryParamRefs(queries []PortalQuery, args []PortalArg) error {
-	argNames := make(map[string]bool, len(args))
-	for _, a := range args {
-		argNames[a.Name] = true
-	}
-
-	for _, q := range queries {
-		matches := paramRegexp.FindAllStringSubmatch(q.SOQL, -1)
-		for _, m := range matches {
-			paramName := m[1]
-			if !argNames[paramName] {
-				return apperror.BadRequest(fmt.Sprintf("query %q: param :%s is not declared in args", q.Name, paramName))
-			}
-		}
-	}
-
-	return nil
-}
-
-var paramRegexp = regexp.MustCompile(`:(\w+)`)
-
-func validateQueries(queries []PortalQuery) error {
-	names := make(map[string]bool, len(queries))
-
-	for _, q := range queries {
-		if q.Name == "" {
-			return apperror.BadRequest("query name is required")
-		}
-		if names[q.Name] {
-			return apperror.BadRequest(fmt.Sprintf("duplicate query name: %s", q.Name))
-		}
-		names[q.Name] = true
-	}
-
-	return nil
-}
-
-func validateFields(fields []PortalViewField, queries []PortalQuery) error {
-	queryTypes := make(map[string]string, len(queries))
-	for _, q := range queries {
-		if engine.IsRowQuery(q.SOQL) {
-			queryTypes[q.Name] = "scalar"
-		} else {
-			queryTypes[q.Name] = "list"
-		}
-	}
-
-	fieldNames := make(map[string]bool, len(fields))
-	for _, f := range fields {
-		if f.Name == "" {
-			return apperror.BadRequest("field name is required")
-		}
-		if fieldNames[f.Name] {
-			return apperror.BadRequest(fmt.Sprintf("duplicate field name: %s", f.Name))
-		}
-		fieldNames[f.Name] = true
-
-		// Validate query references in expr
-		if f.Expr != "" {
-			if err := validateExprQueryRefs(f.Name, f.Expr, queryTypes, fieldNames); err != nil {
-				return err
-			}
-		}
-	}
-
-	// DAG validation: detect cycles among fields with expressions
-	if err := validateFieldDAG(fields); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// validateExprQueryRefs checks that any query.field references in an expression
-// refer to existing scalar queries. List queries cannot be referenced from field
-// expressions — they are only used as data sources for related lists and tables.
-// Uses simple prefix matching: "queryName.something".
-func validateExprQueryRefs(fieldName string, expr string, queryTypes map[string]string, fieldNames map[string]bool) error {
-	// Simple heuristic: find identifiers that look like "word.word"
-	// This is not a full expression parser, just basic validation.
-	for _, token := range strings.Fields(expr) {
-		// Clean common operators
-		token = strings.Trim(token, "()+-*/!<>=&|,")
-		if token == "" {
-			continue
-		}
-		parts := strings.SplitN(token, ".", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		prefix := parts[0]
-		// Skip well-known CEL prefixes
-		if prefix == "record" || prefix == "size" || prefix == "has" || prefix == "int" || prefix == "double" || prefix == "string" || prefix == "bool" {
-			continue
-		}
-		// If it looks like a query reference, validate it exists and is scalar
-		qType, isQuery := queryTypes[prefix]
-		if isQuery {
-			if qType == "list" {
-				return apperror.BadRequest(fmt.Sprintf("field %q: expr references list query %q, only scalar queries are allowed in field expressions", fieldName, prefix))
-			}
-			continue
-		}
-		if !fieldNames[prefix] {
-			return apperror.BadRequest(fmt.Sprintf("field %q: expr references unknown query %q", fieldName, prefix))
-		}
-	}
-	return nil
-}
-
 // validateFieldDAG ensures computed fields form a DAG (no cycles).
 // Uses Kahn's algorithm (topological sort).
 func validateFieldDAG(fields []PortalViewField) error {
-	// Build adjacency: field → set of fields it depends on
 	fieldIndex := make(map[string]int, len(fields))
 	for i, f := range fields {
 		fieldIndex[f.Name] = i
 	}
 
-	// inDegree[i] = number of fields that field i depends on (among computed fields)
 	inDegree := make([]int, len(fields))
-	// dependents[i] = list of field indices that depend on field i
 	dependents := make([][]int, len(fields))
 
 	for i, f := range fields {
@@ -268,7 +410,6 @@ func validateFieldDAG(fields []PortalViewField) error {
 		}
 	}
 
-	// Kahn's algorithm
 	queue := make([]int, 0)
 	for i := range fields {
 		if inDegree[i] == 0 {
@@ -291,7 +432,6 @@ func validateFieldDAG(fields []PortalViewField) error {
 	}
 
 	if processed < len(fields) {
-		// Find cycle participants for error message
 		var cycleFields []string
 		for i, deg := range inDegree {
 			if deg > 0 {
@@ -299,61 +439,6 @@ func validateFieldDAG(fields []PortalViewField) error {
 			}
 		}
 		return apperror.BadRequest(fmt.Sprintf("circular dependency detected among fields: %s", strings.Join(cycleFields, ", ")))
-	}
-
-	return nil
-}
-
-// validateActions validates the actions list at save time (ADR-0036).
-func validateActions(actions []PortalAction) error {
-	if len(actions) > 20 {
-		return apperror.BadRequest("max 20 actions per object view")
-	}
-
-	keys := make(map[string]bool, len(actions))
-	for _, a := range actions {
-		if a.Key == "" {
-			return apperror.BadRequest("action key is required")
-		}
-		if !actionKeyRegexp.MatchString(a.Key) {
-			return apperror.BadRequest(fmt.Sprintf("action key %q: must match ^[a-z][a-z0-9_]*$", a.Key))
-		}
-		if keys[a.Key] {
-			return apperror.BadRequest(fmt.Sprintf("duplicate action key: %s", a.Key))
-		}
-		keys[a.Key] = true
-
-		if a.Apply != nil {
-			if err := validateActionApply(a.Key, a.Apply); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func validateActionApply(key string, apply *PortalActionApply) error {
-	if apply.Type != "dml" && apply.Type != "scenario" {
-		return apperror.BadRequest(fmt.Sprintf("action %q: apply.type must be 'dml' or 'scenario'", key))
-	}
-
-	if apply.Type == "dml" {
-		if len(apply.DML) == 0 {
-			return apperror.BadRequest(fmt.Sprintf("action %q: apply.dml must not be empty for type 'dml'", key))
-		}
-		if len(apply.DML) > 10 {
-			return apperror.BadRequest(fmt.Sprintf("action %q: max 10 DML queries per action", key))
-		}
-	}
-
-	if apply.Type == "scenario" {
-		if apply.Scenario == nil {
-			return apperror.BadRequest(fmt.Sprintf("action %q: apply.scenario is required for type 'scenario'", key))
-		}
-		if apply.Scenario.APIName == "" {
-			return apperror.BadRequest(fmt.Sprintf("action %q: apply.scenario.api_name is required", key))
-		}
 	}
 
 	return nil
@@ -370,7 +455,6 @@ func extractFieldRefs(expr string, fieldIndex map[string]int) []int {
 		if token == "" {
 			continue
 		}
-		// Direct field reference (no dot)
 		if idx, ok := fieldIndex[token]; ok {
 			if !seen[idx] {
 				refs = append(refs, idx)

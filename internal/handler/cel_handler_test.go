@@ -156,6 +156,33 @@ func TestCELHandler_Validate(t *testing.T) {
 			},
 			wantStatus: http.StatusBadRequest,
 		},
+		{
+			name: "validates gate_when context with args",
+			body: map[string]interface{}{
+				"expression": "has(args.id)",
+				"context":    "gate_when",
+			},
+			wantStatus: http.StatusOK,
+			wantValid:  boolPtr(true),
+		},
+		{
+			name: "validates gate_when context with datasets",
+			body: map[string]interface{}{
+				"expression": "size(datasets.accounts) > 0",
+				"context":    "gate_when",
+			},
+			wantStatus: http.StatusOK,
+			wantValid:  boolPtr(true),
+		},
+		{
+			name: "validates portal_when context with args",
+			body: map[string]interface{}{
+				"expression": "args.limit > 0",
+				"context":    "portal_when",
+			},
+			wantStatus: http.StatusOK,
+			wantValid:  boolPtr(true),
+		},
 	}
 
 	for _, tt := range tests {

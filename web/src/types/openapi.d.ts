@@ -453,7 +453,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/portals": {
+    "/api/v1/admin/object-views": {
         parameters: {
             query?: never;
             header?: never;
@@ -461,32 +461,32 @@ export interface paths {
             cookie?: never;
         };
         /** List object views */
-        get: operations["listPortals"];
+        get: operations["listObjectViews"];
         put?: never;
         /** Create an object view */
-        post: operations["createPortal"];
+        post: operations["createObjectView"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/portals/{portalId}": {
+    "/api/v1/admin/object-views/{viewId}": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                portalId: components["parameters"]["ViewId"];
+                viewId: components["parameters"]["ViewId"];
             };
             cookie?: never;
         };
         /** Get an object view by ID */
-        get: operations["getPortal"];
+        get: operations["getObjectView"];
         /** Update an object view */
-        put: operations["updatePortal"];
+        put: operations["updateObjectView"];
         post?: never;
         /** Delete an object view */
-        delete: operations["deletePortal"];
+        delete: operations["deleteObjectView"];
         options?: never;
         head?: never;
         patch?: never;
@@ -704,12 +704,12 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/portal/{portalApiName}": {
+    "/api/v1/view/{ovApiName}": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                portalApiName: string;
+                ovApiName: string;
             };
             cookie?: never;
         };
@@ -726,46 +726,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/portal/{portalApiName}/query/{queryName}": {
+    "/api/v1/portal/{portalApiName}/gate/{gateName}": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 portalApiName: string;
-                queryName: string;
+                gateName: string;
             };
             cookie?: never;
         };
         /**
-         * Execute a named query from an Portal
-         * @description Finds the named query in the Portal config, substitutes URL query parameters into SOQL :paramName placeholders, and executes via the SOQL service with full security enforcement.
+         * Execute a gate (SOQL-only)
+         * @description Executes a gate that contains only SOQL body steps. Portal and gate args are resolved from query parameters. Supports pagination (page, per_page), filtering (filter.Field=val), sorting (sort=Field:asc), and search (search=text).
          */
-        get: operations["executeViewQuery"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/portal/{portalApiName}/action/{actionKey}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                portalApiName: string;
-                actionKey: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
+        get: operations["executeGateGet"];
         put?: never;
         /**
-         * Execute an action from an Portal
-         * @description Executes the named action from the Portal config. For type=dml, runs all DML statements in a single transaction. For type=scenario, starts the referenced scenario.
+         * Execute a gate (with DML steps)
+         * @description Executes a gate that contains DML body steps (and optionally SOQL). Args and form data are provided in the JSON request body.
          */
-        post: operations["executeViewAction"];
+        post: operations["executeGatePost"];
         delete?: never;
         options?: never;
         head?: never;
@@ -858,13 +839,13 @@ export interface components {
              */
             visibility: "private" | "public_read" | "public_read_write" | "controlled_by_parent";
         };
-        CreatePortalRequest: {
+        CreateObjectViewRequest: {
             /** Format: uuid */
             profile_id?: string | null;
             api_name: string;
             label: string;
             description?: string;
-            config?: components["schemas"]["PortalConfig"];
+            config?: components["schemas"]["ObjectViewConfig"];
         };
         UpdateObjectRequest: {
             label: string;
@@ -1266,7 +1247,7 @@ export interface components {
             return_type?: "string" | "number" | "boolean" | "list" | "map" | "any";
             body: string;
         };
-        Portal: {
+        ObjectView: {
             /** Format: uuid */
             id: string;
             /** Format: uuid */
@@ -1274,85 +1255,124 @@ export interface components {
             api_name: string;
             label: string;
             description: string;
-            config: components["schemas"]["PortalConfig"];
+            config: components["schemas"]["ObjectViewConfig"];
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
             updated_at: string;
         };
-        PortalConfig: {
+        ObjectViewConfig: {
             args?: components["schemas"]["PortalArg"][];
-            read: components["schemas"]["PortalReadConfig"];
+            arg_rules?: components["schemas"]["PortalArgRule"][];
+            /** @description Key of the entry gate in the gates map. */
+            entry_gate: string;
+            gates: {
+                [key: string]: components["schemas"]["PortalGate"];
+            };
         };
         PortalArg: {
             name: string;
             /** @enum {string} */
             type: "string" | "int" | "float" | "bool";
             default?: string;
-            validation?: string;
-            error_message?: string;
         };
-        PortalReadConfig: {
-            fields?: components["schemas"]["PortalViewField"][];
-            actions?: components["schemas"]["PortalAction"][];
-            queries?: components["schemas"]["PortalQuery"][];
-        };
-        PortalAction: {
-            key: string;
-            label: string;
-            type: string;
-            icon: string;
-            visibility_expr: string;
-            apply?: components["schemas"]["PortalActionApply"];
-        };
-        PortalQuery: {
+        PortalArgRule: {
+            /** @description Unique rule name within scope. */
             name: string;
-            /** @description SOQL query. Use SELECT ROW for scalar queries, SELECT for list queries. */
-            soql: string;
-            when?: string;
+            /** @description CEL expression evaluated at runtime. Must return bool. */
+            condition: string;
+            /** @description Error message returned when condition evaluates to false. */
+            error_message: string;
         };
-        PortalActionApply: {
+        PortalGate: {
+            label: string;
+            args?: components["schemas"]["PortalArg"][];
+            arg_rules?: components["schemas"]["PortalArgRule"][];
+            body: components["schemas"]["GateBodyStep"][];
+            layout?: components["schemas"]["GateLayout"];
+            outcomes?: components["schemas"]["GateOutcome"][];
+        };
+        GateBodyStep: {
+            name: string;
             /** @enum {string} */
-            type: "dml" | "scenario";
-            dml?: string[];
-            scenario?: components["schemas"]["PortalScenarioRef"];
+            type: "soql" | "dml";
+            /** @description SOQL query. Use SELECT ROW for scalar queries. */
+            soql?: string;
+            /** @description DML statement. */
+            dml?: string;
+            /** @description CEL expression. Step is skipped when false. */
+            when?: string;
+            page_size?: number;
+            /** @description Fields to exclude from dynamic filtering. */
+            restrict_filters?: string[];
         };
-        PortalScenarioRef: {
-            api_name: string;
-            params?: {
+        GateLayout: {
+            fields?: components["schemas"]["OVViewField"][];
+            /** @description LayoutComponent tree (type, children, props). */
+            root?: {
+                [key: string]: unknown;
+            };
+            /** @description Per-section configuration (columns, heading, collapsible, fields). */
+            section_config?: {
+                [key: string]: unknown;
+            };
+            /** @description Per-field layout config (span, read_only, component, reference_config). */
+            field_config?: {
+                [key: string]: unknown;
+            };
+            /** @description List configuration (columns, sort_by, search, row_actions). */
+            list_config?: {
+                [key: string]: unknown;
+            };
+        };
+        GateOutcome: {
+            name: string;
+            /** @description Target gate key. */
+            gate: string;
+            label?: string;
+            icon?: string;
+            /** @description Semantic type (e.g. primary, danger, navigate). */
+            type?: string;
+            /** @description CEL expressions evaluated to produce args for the target gate. */
+            args_template?: {
                 [key: string]: string;
             };
         };
-        PortalViewField: {
+        OVViewField: {
             name: string;
             expr?: string;
             when?: string;
         };
-        UpdatePortalRequest: {
-            label: string;
-            description?: string;
-            config?: components["schemas"]["PortalConfig"];
-        };
-        ExecuteActionRequest: {
+        GatePostRequest: {
+            /** @description Gate args as key-value pairs. */
+            args?: {
+                [key: string]: unknown;
+            };
+            /** @description Form data for DML steps. */
             data?: {
                 [key: string]: unknown;
             };
-            /** Format: uuid */
-            record_id?: string;
         };
-        ExecuteActionResponse: {
-            success?: boolean;
-            results?: components["schemas"]["ActionResultItem"][];
+        GateResponse: {
+            gate?: string;
+            layout?: components["schemas"]["GateLayout"];
+            datasets?: {
+                [key: string]: unknown;
+            };
+            outcomes?: components["schemas"]["GateOutcome"][];
+            errors?: {
+                message?: string;
+            }[] | null;
         };
-        ActionResultItem: {
-            operation?: string;
-            object?: string;
-            ids?: string[];
+        UpdateObjectViewRequest: {
+            label: string;
+            description?: string;
+            config?: components["schemas"]["ObjectViewConfig"];
         };
         CelValidateRequest: {
             expression: string;
             /** @enum {string} */
-            context: "validation_rule" | "when_expression" | "default_expr" | "function_body" | "visibility_expr" | "portal_when";
+            context: "validation_rule" | "when_expression" | "default_expr" | "function_body" | "visibility_expr" | "portal_when" | "gate_when";
             object_api_name?: string;
             params?: components["schemas"]["CelParamDef"][];
         };
@@ -1416,7 +1436,7 @@ export interface components {
             /** @enum {string} */
             type: "object" | "link" | "divider" | "page";
             object_api_name?: string;
-            portal_api_name?: string;
+            ov_api_name?: string;
             label?: string;
             url?: string;
             icon?: string;
@@ -1453,7 +1473,7 @@ export interface components {
             /** @enum {string} */
             type: "object" | "link" | "divider" | "page";
             object_api_name?: string;
-            portal_api_name?: string;
+            ov_api_name?: string;
             label?: string;
             plural_label?: string;
             url?: string;
@@ -2576,7 +2596,7 @@ export interface operations {
             409: components["responses"]["Conflict"];
         };
     };
-    listPortals: {
+    listObjectViews: {
         parameters: {
             query?: {
                 /** @description Filter by object ID */
@@ -2595,14 +2615,14 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data?: components["schemas"]["Portal"][];
+                        data?: components["schemas"]["ObjectView"][];
                     };
                 };
             };
             400: components["responses"]["BadRequest"];
         };
     };
-    createPortal: {
+    createObjectView: {
         parameters: {
             query?: never;
             header?: never;
@@ -2611,7 +2631,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreatePortalRequest"];
+                "application/json": components["schemas"]["CreateObjectViewRequest"];
             };
         };
         responses: {
@@ -2622,7 +2642,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data?: components["schemas"]["Portal"];
+                        data?: components["schemas"]["ObjectView"];
                     };
                 };
             };
@@ -2630,12 +2650,12 @@ export interface operations {
             409: components["responses"]["Conflict"];
         };
     };
-    getPortal: {
+    getObjectView: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                portalId: components["parameters"]["ViewId"];
+                viewId: components["parameters"]["ViewId"];
             };
             cookie?: never;
         };
@@ -2648,25 +2668,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data?: components["schemas"]["Portal"];
+                        data?: components["schemas"]["ObjectView"];
                     };
                 };
             };
             404: components["responses"]["NotFound"];
         };
     };
-    updatePortal: {
+    updateObjectView: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                portalId: components["parameters"]["ViewId"];
+                viewId: components["parameters"]["ViewId"];
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UpdatePortalRequest"];
+                "application/json": components["schemas"]["UpdateObjectViewRequest"];
             };
         };
         responses: {
@@ -2677,7 +2697,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data?: components["schemas"]["Portal"];
+                        data?: components["schemas"]["ObjectView"];
                     };
                 };
             };
@@ -2685,12 +2705,12 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
-    deletePortal: {
+    deleteObjectView: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                portalId: components["parameters"]["ViewId"];
+                viewId: components["parameters"]["ViewId"];
             };
             cookie?: never;
         };
@@ -3115,7 +3135,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                portalApiName: string;
+                ovApiName: string;
             };
             cookie?: never;
         };
@@ -3128,7 +3148,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data?: components["schemas"]["Portal"];
+                        data?: components["schemas"]["ObjectView"];
                     };
                 };
             };
@@ -3136,63 +3156,93 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
-    executeViewQuery: {
+    executeGateGet: {
         parameters: {
             query?: {
                 per_page?: number;
+                page?: number;
+                search?: string;
+                sort?: string;
             };
             header?: never;
             path: {
                 portalApiName: string;
-                queryName: string;
+                gateName: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Query execution result */
+            /** @description Gate execution result */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        data?: components["schemas"]["SOQLResult"];
+                        data?: components["schemas"]["GateResponse"];
                     };
                 };
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description Method not allowed (gate has DML steps, use POST) */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
-    executeViewAction: {
+    executeGatePost: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 portalApiName: string;
-                actionKey: string;
+                gateName: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ExecuteActionRequest"];
+                "application/json": components["schemas"]["GatePostRequest"];
             };
         };
         responses: {
-            /** @description Action executed successfully */
+            /** @description Gate executed successfully */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ExecuteActionResponse"];
+                    "application/json": {
+                        data?: components["schemas"]["GateResponse"];
+                    };
                 };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description Method not allowed (gate has no DML steps, use GET) */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description DML execution error (response includes layout for re-render) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["GateResponse"];
+                    };
+                };
+            };
         };
     };
 }

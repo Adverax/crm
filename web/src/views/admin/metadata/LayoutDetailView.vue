@@ -96,7 +96,9 @@ const fullConfig = computed<LayoutConfig>(() => ({
 
 // Derive OV sections for the canvas
 const ovSections = computed<OVSection[]>(() => {
-  const ovFields = ov.value?.config?.read?.fields ?? []
+  const entryGateName = ov.value?.config?.entryGate
+  const entryGate = entryGateName ? ov.value?.config?.gates?.[entryGateName] : undefined
+  const ovFields = entryGate?.layout?.fields ?? []
   if (!ovFields.length) return []
 
   // Extract section keys from root component tree
@@ -121,7 +123,9 @@ const ovSections = computed<OVSection[]>(() => {
 
 // All OV fields as flat list (for ListConfigTab)
 const allFields = computed<SectionField[]>(() => {
-  const ovFields = ov.value?.config?.read?.fields ?? []
+  const entryGateName = ov.value?.config?.entryGate
+  const entryGate = entryGateName ? ov.value?.config?.gates?.[entryGateName] : undefined
+  const ovFields = entryGate?.layout?.fields ?? []
   return ovFields.map(fieldToSectionField)
 })
 

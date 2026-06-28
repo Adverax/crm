@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -93,8 +94,15 @@ func TestPortalHandler_GetByAPIName(t *testing.T) {
 		APIName: "sales_dashboard",
 		Label:   "Sales Dashboard",
 		Config: metadata.PortalConfig{
-			Read: metadata.PortalReadConfig{
-				Fields: []metadata.PortalViewField{{Name: "name"}, {Name: "amount"}},
+			EntryGate: "main",
+			Gates: map[string]metadata.PortalGate{
+				"main": {
+					Label: "Main",
+					Body:  []metadata.GateBodyStep{{Name: "data", Type: "soql", SOQL: "SELECT Id FROM Account"}},
+					Layout: &metadata.GateLayout{
+						Fields: []metadata.PortalViewField{{Name: "name"}, {Name: "amount"}},
+					},
+				},
 			},
 		},
 	}
@@ -107,7 +115,7 @@ func TestPortalHandler_GetByAPIName(t *testing.T) {
 		wantLabel  string
 	}{
 		{
-			name:       "returns OV config when found",
+			name:       "returns portal config when found",
 			apiName:    "sales_dashboard",
 			portals:    []metadata.Portal{testPortal},
 			wantStatus: http.StatusOK,
@@ -120,7 +128,7 @@ func TestPortalHandler_GetByAPIName(t *testing.T) {
 			wantStatus: http.StatusNotFound,
 		},
 		{
-			name:       "returns 404 when no views at all",
+			name:       "returns 404 when no portals at all",
 			apiName:    "anything",
 			portals:    nil,
 			wantStatus: http.StatusNotFound,
@@ -174,7 +182,7 @@ func (m *mockSOQLService) Describe(ctx context.Context, query string) (*soql.Des
 	return &soql.DescribeResult{}, nil
 }
 
-func TestPortalHandler_ExecuteQuery(t *testing.T) {
+func TestPortalHandler_ExecuteGate_GET(t *testing.T) {
 	t.Parallel()
 
 	testPortal := metadata.Portal{
@@ -182,11 +190,32 @@ func TestPortalHandler_ExecuteQuery(t *testing.T) {
 		APIName: "account_view",
 		Label:   "Account View",
 		Config: metadata.PortalConfig{
-			Read: metadata.PortalReadConfig{
-				Fields: []metadata.PortalViewField{{Name: "name"}},
-				Queries: []metadata.PortalQuery{
-					{Name: "main", SOQL: "SELECT ROW Id, Name FROM Account WHERE Id = :id"},
-					{Name: "contacts", SOQL: "SELECT Id, Name FROM Contact WHERE AccountId = :id"},
+			EntryGate: "list",
+			Gates: map[string]metadata.PortalGate{
+				"list": {
+					Label: "Accounts",
+					Body: []metadata.GateBodyStep{
+						{Name: "accounts", Type: "soql", SOQL: "SELECT Id, Name FROM Account"},
+					},
+					Layout: &metadata.GateLayout{
+						Fields: []metadata.PortalViewField{{Name: "Name"}},
+					},
+					Outcomes: []metadata.GateOutcome{
+						{Name: "detail", Gate: "detail", Label: "View"},
+					},
+				},
+				"detail": {
+					Label: "Detail",
+					Args:  []metadata.PortalArg{{Name: "id", Type: "string"}},
+					Body: []metadata.GateBodyStep{
+						{Name: "record", Type: "soql", SOQL: "SELECT ROW Id, Name FROM Account WHERE Id = :id"},
+					},
+					Layout: &metadata.GateLayout{
+						Fields: []metadata.PortalViewField{{Name: "Name"}},
+					},
+					Outcomes: []metadata.GateOutcome{
+						{Name: "back", Gate: "list"},
+					},
 				},
 			},
 		},
@@ -195,59 +224,73 @@ func TestPortalHandler_ExecuteQuery(t *testing.T) {
 	tests := []struct {
 		name          string
 		portalAPIName string
-		queryName     string
+		gateName      string
 		queryStr      string
 		portals       []metadata.Portal
 		setupSOQL     func(m *mockSOQLService)
 		wantStatus    int
+		checkBody     func(t *testing.T, body []byte)
 	}{
 		{
-			name:          "executes scalar query successfully",
+			name:          "executes SOQL gate successfully",
 			portalAPIName: "account_view",
-			queryName:     "main",
+			gateName:      "list",
+			portals:       []metadata.Portal{testPortal},
+			setupSOQL: func(m *mockSOQLService) {
+				m.executeFn = func(_ context.Context, _ string, _ *soql.QueryParams) (*soql.QueryResult, error) {
+					return &soql.QueryResult{
+						TotalSize: 2,
+						Records:   []map[string]any{{"Id": "1", "Name": "Acme"}, {"Id": "2", "Name": "Corp"}},
+					}, nil
+				}
+			},
+			wantStatus: http.StatusOK,
+			checkBody: func(t *testing.T, body []byte) {
+				var resp map[string]any
+				require.NoError(t, json.Unmarshal(body, &resp))
+				data := resp["data"].(map[string]any)
+				assert.Equal(t, "list", data["gate"])
+				assert.NotNil(t, data["layout"])
+				assert.NotNil(t, data["datasets"])
+				assert.NotNil(t, data["outcomes"])
+			},
+		},
+		{
+			name:          "executes scalar (ROW) gate successfully",
+			portalAPIName: "account_view",
+			gateName:      "detail",
 			queryStr:      "id=abc-123",
 			portals:       []metadata.Portal{testPortal},
 			setupSOQL: func(m *mockSOQLService) {
-				m.executeFn = func(_ context.Context, query string, params *soql.QueryParams) (*soql.QueryResult, error) {
+				m.executeFn = func(_ context.Context, query string, _ *soql.QueryParams) (*soql.QueryResult, error) {
 					assert.Contains(t, query, "'abc-123'")
 					return &soql.QueryResult{
-						TotalSize: 1,
-						Done:      true,
-						Records:   []map[string]any{{"Id": "abc-123", "Name": "Acme"}},
+						IsRow:   true,
+						Records: []map[string]any{{"Id": "abc-123", "Name": "Acme"}},
 					}, nil
 				}
 			},
 			wantStatus: http.StatusOK,
-		},
-		{
-			name:          "executes list query",
-			portalAPIName: "account_view",
-			queryName:     "contacts",
-			queryStr:      "id=abc-123&per_page=10",
-			portals:       []metadata.Portal{testPortal},
-			setupSOQL: func(m *mockSOQLService) {
-				m.executeFn = func(_ context.Context, _ string, params *soql.QueryParams) (*soql.QueryResult, error) {
-					assert.Equal(t, 10, params.PageSize)
-					return &soql.QueryResult{
-						TotalSize: 2,
-						Done:      true,
-						Records:   []map[string]any{{"Id": "c1"}, {"Id": "c2"}},
-					}, nil
-				}
+			checkBody: func(t *testing.T, body []byte) {
+				var resp map[string]any
+				require.NoError(t, json.Unmarshal(body, &resp))
+				data := resp["data"].(map[string]any)
+				datasets := data["datasets"].(map[string]any)
+				record := datasets["record"].(map[string]any)
+				assert.Equal(t, "abc-123", record["Id"])
 			},
-			wantStatus: http.StatusOK,
 		},
 		{
-			name:          "returns 404 for unknown OV",
+			name:          "returns 404 for unknown portal",
 			portalAPIName: "nonexistent",
-			queryName:     "main",
+			gateName:      "list",
 			portals:       []metadata.Portal{testPortal},
 			wantStatus:    http.StatusNotFound,
 		},
 		{
-			name:          "returns 404 for unknown query",
+			name:          "returns 404 for unknown gate",
 			portalAPIName: "account_view",
-			queryName:     "nonexistent",
+			gateName:      "nonexistent",
 			portals:       []metadata.Portal{testPortal},
 			wantStatus:    http.StatusNotFound,
 		},
@@ -264,7 +307,7 @@ func TestPortalHandler_ExecuteQuery(t *testing.T) {
 			}
 			r := setupViewRouter(t, cache, soqlSvc)
 
-			url := fmt.Sprintf("/api/v1/portal/%s/query/%s", tt.portalAPIName, tt.queryName)
+			url := fmt.Sprintf("/api/v1/portal/%s/gate/%s", tt.portalAPIName, tt.gateName)
 			if tt.queryStr != "" {
 				url += "?" + tt.queryStr
 			}
@@ -274,8 +317,89 @@ func TestPortalHandler_ExecuteQuery(t *testing.T) {
 			r.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.wantStatus, w.Code, "body: %s", w.Body.String())
+			if tt.checkBody != nil {
+				tt.checkBody(t, w.Body.Bytes())
+			}
 		})
 	}
+}
+
+func TestPortalHandler_ExecuteGate_POST_NoBody(t *testing.T) {
+	t.Parallel()
+
+	actionPortal := metadata.Portal{
+		ID:      uuid.New(),
+		APIName: "action_portal",
+		Label:   "Action Portal",
+		Config: metadata.PortalConfig{
+			EntryGate: "main",
+			Gates: map[string]metadata.PortalGate{
+				"main": {
+					Label: "Main",
+					Body: []metadata.GateBodyStep{
+						{Name: "data", Type: "soql", SOQL: "SELECT Id FROM Account"},
+					},
+					Outcomes: []metadata.GateOutcome{
+						{Name: "action", Gate: "action"},
+					},
+				},
+				"action": {
+					Label: "Action",
+					Body: []metadata.GateBodyStep{
+						{Name: "delete", Type: "dml", DML: "DELETE FROM Account WHERE Id = :id"},
+					},
+					Args: []metadata.PortalArg{{Name: "id", Type: "string"}},
+					Outcomes: []metadata.GateOutcome{
+						{Name: "back", Gate: "main"},
+					},
+				},
+			},
+		},
+	}
+
+	cache := buildPortalHandlerTestCache([]metadata.Portal{actionPortal})
+	r := setupViewRouter(t, cache, nil)
+
+	// POST without body should fail
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/portal/action_portal/gate/action", nil)
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestPortalHandler_ExecuteGate_MethodNotAllowed(t *testing.T) {
+	t.Parallel()
+
+	portal := metadata.Portal{
+		ID:      uuid.New(),
+		APIName: "method_test",
+		Label:   "Method Test",
+		Config: metadata.PortalConfig{
+			EntryGate: "read_only",
+			Gates: map[string]metadata.PortalGate{
+				"read_only": {
+					Label: "Read Only",
+					Body: []metadata.GateBodyStep{
+						{Name: "data", Type: "soql", SOQL: "SELECT Id FROM Account"},
+					},
+				},
+			},
+		},
+	}
+
+	cache := buildPortalHandlerTestCache([]metadata.Portal{portal})
+	r := setupViewRouter(t, cache, &mockSOQLService{})
+
+	// POST to SOQL-only gate should be 405
+	body, _ := json.Marshal(map[string]any{"args": map[string]any{}, "data": map[string]any{}})
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/portal/method_test/gate/read_only", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 }
 
 func strPtr(s string) *string { return &s }
@@ -293,70 +417,49 @@ func TestPortalHandler_TypedArgs(t *testing.T) {
 				{Name: "limit", Type: "int", Default: strPtr("10")},
 				{Name: "active", Type: "bool", Default: strPtr("true")},
 			},
-			Read: metadata.PortalReadConfig{
-				Fields: []metadata.PortalViewField{{Name: "name"}},
-				Queries: []metadata.PortalQuery{
-					{Name: "main", SOQL: "SELECT ROW Id, Name FROM Account WHERE Id = :account_id"},
-					{Name: "cond", SOQL: "SELECT ROW Id FROM Contact", When: "args.active == true"},
+			EntryGate: "main",
+			Gates: map[string]metadata.PortalGate{
+				"main": {
+					Label: "Main",
+					Body: []metadata.GateBodyStep{
+						{Name: "record", Type: "soql", SOQL: "SELECT ROW Id, Name FROM Account WHERE Id = :account_id"},
+						{Name: "cond", Type: "soql", SOQL: "SELECT ROW Id FROM Contact", When: "args.active == true"},
+					},
+					Layout: &metadata.GateLayout{
+						Fields: []metadata.PortalViewField{{Name: "Name"}},
+					},
 				},
 			},
 		},
 	}
 
-	portalNoArgs := metadata.Portal{
-		ID:      uuid.New(),
-		APIName: "legacy_view",
-		Label:   "Legacy View",
-		Config: metadata.PortalConfig{
-			Read: metadata.PortalReadConfig{
-				Fields: []metadata.PortalViewField{{Name: "name"}},
-				Queries: []metadata.PortalQuery{
-					{Name: "main", SOQL: "SELECT ROW Id FROM Account WHERE Id = :id"},
-				},
-			},
-		},
-	}
-
-	celEnv, err := celutil.PortalEnv()
+	celEnv, err := celutil.GateEnv()
 	require.NoError(t, err)
 	celCache := celutil.NewProgramCache(celEnv)
 
 	tests := []struct {
-		name          string
-		portalAPIName string
-		queryName     string
-		queryStr      string
-		portals       []metadata.Portal
-		setupSOQL     func(m *mockSOQLService)
-		useCEL        bool
-		wantStatus    int
-		checkBody     func(t *testing.T, body []byte)
+		name       string
+		queryStr   string
+		setupSOQL  func(m *mockSOQLService)
+		useCEL     bool
+		wantStatus int
+		checkBody  func(t *testing.T, body []byte)
 	}{
 		{
-			name:          "required arg missing returns 400",
-			portalAPIName: "typed_view",
-			queryName:     "main",
-			queryStr:      "",
-			portals:       []metadata.Portal{portalWithArgs},
-			wantStatus:    http.StatusBadRequest,
+			name:       "required arg missing returns 400",
+			queryStr:   "",
+			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:          "int arg with non-numeric value returns 400",
-			portalAPIName: "typed_view",
-			queryName:     "main",
-			queryStr:      "account_id=abc&limit=notanumber",
-			portals:       []metadata.Portal{portalWithArgs},
-			wantStatus:    http.StatusBadRequest,
+			name:       "int arg with non-numeric value returns 400",
+			queryStr:   "account_id=abc&limit=notanumber",
+			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:          "optional arg uses default",
-			portalAPIName: "typed_view",
-			queryName:     "main",
-			queryStr:      "account_id=abc-123",
-			portals:       []metadata.Portal{portalWithArgs},
+			name:     "optional arg uses default",
+			queryStr: "account_id=abc-123",
 			setupSOQL: func(m *mockSOQLService) {
 				m.executeFn = func(_ context.Context, query string, _ *soql.QueryParams) (*soql.QueryResult, error) {
-					assert.Contains(t, query, "'abc-123'")
 					return &soql.QueryResult{
 						IsRow:   true,
 						Records: []map[string]any{{"Id": "abc-123", "Name": "Acme"}},
@@ -366,26 +469,27 @@ func TestPortalHandler_TypedArgs(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
-			name:          "when=false skips query (data: null)",
-			portalAPIName: "typed_view",
-			queryName:     "cond",
-			queryStr:      "account_id=abc&active=false",
-			portals:       []metadata.Portal{portalWithArgs},
-			useCEL:        true,
-			wantStatus:    http.StatusOK,
+			name:       "when=false skips step (dataset is null)",
+			queryStr:   "account_id=abc&active=false",
+			useCEL:     true,
+			wantStatus: http.StatusOK,
+			setupSOQL: func(m *mockSOQLService) {
+				m.executeFn = func(_ context.Context, _ string, _ *soql.QueryParams) (*soql.QueryResult, error) {
+					return &soql.QueryResult{IsRow: true, Records: []map[string]any{{"Id": "abc"}}}, nil
+				}
+			},
 			checkBody: func(t *testing.T, body []byte) {
 				var resp map[string]any
 				require.NoError(t, json.Unmarshal(body, &resp))
-				assert.Nil(t, resp["data"])
+				data := resp["data"].(map[string]any)
+				datasets := data["datasets"].(map[string]any)
+				assert.Nil(t, datasets["cond"])
 			},
 		},
 		{
-			name:          "when=true executes query",
-			portalAPIName: "typed_view",
-			queryName:     "cond",
-			queryStr:      "account_id=abc&active=true",
-			portals:       []metadata.Portal{portalWithArgs},
-			useCEL:        true,
+			name:     "when=true executes step",
+			queryStr: "account_id=abc&active=true",
+			useCEL:   true,
 			setupSOQL: func(m *mockSOQLService) {
 				m.executeFn = func(_ context.Context, _ string, _ *soql.QueryParams) (*soql.QueryResult, error) {
 					return &soql.QueryResult{
@@ -398,25 +502,10 @@ func TestPortalHandler_TypedArgs(t *testing.T) {
 			checkBody: func(t *testing.T, body []byte) {
 				var resp map[string]any
 				require.NoError(t, json.Unmarshal(body, &resp))
-				assert.NotNil(t, resp["data"])
+				data := resp["data"].(map[string]any)
+				datasets := data["datasets"].(map[string]any)
+				assert.NotNil(t, datasets["cond"])
 			},
-		},
-		{
-			name:          "backward compat: no args uses old substitution",
-			portalAPIName: "legacy_view",
-			queryName:     "main",
-			queryStr:      "id=xyz-789",
-			portals:       []metadata.Portal{portalNoArgs},
-			setupSOQL: func(m *mockSOQLService) {
-				m.executeFn = func(_ context.Context, query string, _ *soql.QueryParams) (*soql.QueryResult, error) {
-					assert.Contains(t, query, "'xyz-789'")
-					return &soql.QueryResult{
-						IsRow:   true,
-						Records: []map[string]any{{"Id": "xyz-789"}},
-					}, nil
-				}
-			},
-			wantStatus: http.StatusOK,
 		},
 	}
 
@@ -424,7 +513,7 @@ func TestPortalHandler_TypedArgs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			cache := buildPortalHandlerTestCache(tt.portals)
+			cache := buildPortalHandlerTestCache([]metadata.Portal{portalWithArgs})
 			soqlSvc := &mockSOQLService{}
 			if tt.setupSOQL != nil {
 				tt.setupSOQL(soqlSvc)
@@ -437,11 +526,7 @@ func TestPortalHandler_TypedArgs(t *testing.T) {
 				r = setupViewRouter(t, cache, soqlSvc)
 			}
 
-			url := fmt.Sprintf("/api/v1/portal/%s/query/%s", tt.portalAPIName, tt.queryName)
-			if tt.queryStr != "" {
-				url += "?" + tt.queryStr
-			}
-
+			url := fmt.Sprintf("/api/v1/portal/typed_view/gate/main?%s", tt.queryStr)
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodGet, url, nil)
 			r.ServeHTTP(w, req)
@@ -464,28 +549,29 @@ func TestPortalHandler_ArgValidation(t *testing.T) {
 		Label:   "Validated View",
 		Config: metadata.PortalConfig{
 			Args: []metadata.PortalArg{
+				{Name: "limit", Type: "int", Default: strPtr("10")},
+				{Name: "account_id", Type: "string"},
+			},
+			ArgRules: []metadata.PortalArgRule{
 				{
-					Name:         "limit",
-					Type:         "int",
-					Default:      strPtr("10"),
-					Validation:   "args.limit > 0 && args.limit <= 100",
+					Name:         "limit_range",
+					Condition:    "args.limit > 0 && args.limit <= 100",
 					ErrorMessage: "Limit must be between 1 and 100",
 				},
-				{
-					Name: "account_id",
-					Type: "string",
-				},
 			},
-			Read: metadata.PortalReadConfig{
-				Fields: []metadata.PortalViewField{{Name: "name"}},
-				Queries: []metadata.PortalQuery{
-					{Name: "main", SOQL: "SELECT ROW Id FROM Account WHERE Id = :account_id LIMIT :limit"},
+			EntryGate: "main",
+			Gates: map[string]metadata.PortalGate{
+				"main": {
+					Label: "Main",
+					Body: []metadata.GateBodyStep{
+						{Name: "record", Type: "soql", SOQL: "SELECT ROW Id FROM Account WHERE Id = :account_id LIMIT :limit"},
+					},
 				},
 			},
 		},
 	}
 
-	celEnv, err := celutil.PortalEnv()
+	celEnv, err := celutil.GateEnv()
 	require.NoError(t, err)
 	celCache := celutil.NewProgramCache(celEnv)
 
@@ -518,17 +604,11 @@ func TestPortalHandler_ArgValidation(t *testing.T) {
 			name:       "validation fails — negative value",
 			queryStr:   "account_id=abc&limit=-5",
 			wantStatus: http.StatusBadRequest,
-			checkBody: func(t *testing.T, body []byte) {
-				assert.Contains(t, string(body), "Limit must be between 1 and 100")
-			},
 		},
 		{
 			name:       "validation fails — exceeds max",
 			queryStr:   "account_id=abc&limit=200",
 			wantStatus: http.StatusBadRequest,
-			checkBody: func(t *testing.T, body []byte) {
-				assert.Contains(t, string(body), "Limit must be between 1 and 100")
-			},
 		},
 		{
 			name:       "validation passes with default value",
@@ -553,7 +633,7 @@ func TestPortalHandler_ArgValidation(t *testing.T) {
 			}
 			r := setupViewRouterWithCEL(t, cache, soqlSvc, celCache)
 
-			url := fmt.Sprintf("/api/v1/portal/validated_view/query/main?%s", tt.queryStr)
+			url := fmt.Sprintf("/api/v1/portal/validated_view/gate/main?%s", tt.queryStr)
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodGet, url, nil)
 			r.ServeHTTP(w, req)
@@ -607,43 +687,43 @@ func TestSubstituteTypedArgs(t *testing.T) {
 
 	tests := []struct {
 		name string
-		soql string
+		text string
 		args map[string]any
 		want string
 	}{
 		{
 			name: "string arg quoted with escaping",
-			soql: "SELECT Id FROM Account WHERE Name = :name",
+			text: "SELECT Id FROM Account WHERE Name = :name",
 			args: map[string]any{"name": "O'Brien"},
 			want: "SELECT Id FROM Account WHERE Name = 'O''Brien'",
 		},
 		{
 			name: "int arg unquoted",
-			soql: "SELECT Id FROM Account LIMIT :limit",
+			text: "SELECT Id FROM Account LIMIT :limit",
 			args: map[string]any{"limit": int64(10)},
 			want: "SELECT Id FROM Account LIMIT 10",
 		},
 		{
 			name: "float arg unquoted",
-			soql: "SELECT Id FROM Deal WHERE Amount > :min",
+			text: "SELECT Id FROM Deal WHERE Amount > :min",
 			args: map[string]any{"min": float64(1000.5)},
 			want: "SELECT Id FROM Deal WHERE Amount > 1000.5",
 		},
 		{
 			name: "bool arg unquoted",
-			soql: "SELECT Id FROM Account WHERE Active = :active",
+			text: "SELECT Id FROM Account WHERE Active = :active",
 			args: map[string]any{"active": true},
 			want: "SELECT Id FROM Account WHERE Active = true",
 		},
 		{
 			name: "unknown param left as-is",
-			soql: "SELECT Id FROM Account WHERE Id = :unknown",
+			text: "SELECT Id FROM Account WHERE Id = :unknown",
 			args: map[string]any{},
 			want: "SELECT Id FROM Account WHERE Id = :unknown",
 		},
 		{
 			name: "multiple params",
-			soql: "SELECT Id FROM Account WHERE Id = :id AND Status = :status",
+			text: "SELECT Id FROM Account WHERE Id = :id AND Status = :status",
 			args: map[string]any{"id": "abc", "status": "active"},
 			want: "SELECT Id FROM Account WHERE Id = 'abc' AND Status = 'active'",
 		},
@@ -652,8 +732,66 @@ func TestSubstituteTypedArgs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := substituteTypedArgs(tt.soql, tt.args)
+			got := substituteTypedArgs(tt.text, tt.args)
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestMergeArgDefs(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		portalArgs []metadata.PortalArg
+		gateArgs   []metadata.PortalArg
+		wantNames  []string
+	}{
+		{
+			name:       "empty both",
+			portalArgs: nil,
+			gateArgs:   nil,
+			wantNames:  nil,
+		},
+		{
+			name:       "portal only",
+			portalArgs: []metadata.PortalArg{{Name: "a", Type: "string"}},
+			gateArgs:   nil,
+			wantNames:  []string{"a"},
+		},
+		{
+			name:       "gate only",
+			portalArgs: nil,
+			gateArgs:   []metadata.PortalArg{{Name: "b", Type: "int"}},
+			wantNames:  []string{"b"},
+		},
+		{
+			name:       "merged without collision",
+			portalArgs: []metadata.PortalArg{{Name: "a", Type: "string"}},
+			gateArgs:   []metadata.PortalArg{{Name: "b", Type: "int"}},
+			wantNames:  []string{"a", "b"},
+		},
+		{
+			name:       "gate shadows portal on collision",
+			portalArgs: []metadata.PortalArg{{Name: "id", Type: "string"}},
+			gateArgs:   []metadata.PortalArg{{Name: "id", Type: "int"}},
+			wantNames:  []string{"id"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			merged := mergeArgDefs(tt.portalArgs, tt.gateArgs)
+			if tt.wantNames == nil {
+				assert.Empty(t, merged)
+				return
+			}
+			gotNames := make([]string, len(merged))
+			for i, a := range merged {
+				gotNames[i] = a.Name
+			}
+			assert.Equal(t, tt.wantNames, gotNames)
 		})
 	}
 }

@@ -225,6 +225,21 @@ function onJumpToError(line: number, column: number) {
     editorRef.value.setCursorAtLineCol(line, column)
   }
 }
+
+function setCursorAt(offset: number) {
+  if (mode.value === 'editor' && editorRef.value) {
+    editorRef.value.setCursorAt(offset)
+  }
+}
+
+function getCursorOffset(): number {
+  if (mode.value === 'editor' && editorRef.value) {
+    return editorRef.value.getCursorOffset()
+  }
+  return 0
+}
+
+defineExpose({ setCursorAt, getCursorOffset })
 </script>
 
 <template>

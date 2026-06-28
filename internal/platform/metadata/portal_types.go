@@ -21,73 +21,77 @@ type Portal struct {
 
 // PortalArg declares a typed parameter for the portal.
 // Args are resolved from URL query parameters at runtime and available in SOQL (:paramName) and CEL (args.*).
-// Validation is a CEL expression evaluated after type conversion; if it returns false, the request is rejected.
 type PortalArg struct {
-	Name         string  `json:"name"`
-	Type         string  `json:"type"`
-	Default      *string `json:"default,omitempty"`
-	Validation   string  `json:"validation,omitempty"`
-	ErrorMessage string  `json:"error_message,omitempty"`
+	Name    string  `json:"name"`
+	Type    string  `json:"type"`
+	Default *string `json:"default,omitempty"`
 }
 
-// PortalConfig holds the full Object View configuration stored as JSONB.
+// PortalArgRule is a validation rule for portal args.
+// Condition is a CEL expression (env: args only) that must return true for the request to proceed.
+type PortalArgRule struct {
+	Name         string `json:"name"`
+	Condition    string `json:"condition"`
+	ErrorMessage string `json:"error_message"`
+}
+
+// PortalConfig holds the full Portal configuration stored as JSONB (ADR-0037).
+// Portal is a graph of gates. EntryGate names the starting vertex.
 type PortalConfig struct {
-	Args []PortalArg      `json:"args,omitempty"`
-	Read PortalReadConfig `json:"read"`
+	Args      []PortalArg           `json:"args,omitempty"`
+	ArgRules  []PortalArgRule       `json:"arg_rules,omitempty"`
+	EntryGate string                `json:"entry_gate"`
+	Gates     map[string]PortalGate `json:"gates"`
 }
 
-// PortalReadConfig holds the read-time (presentation + actions) configuration (ADR-0036).
-// Fields is a unified list of regular and computed fields (ADR-0035).
-// Actions include CRUD and custom operations as first-class units.
-type PortalReadConfig struct {
-	Fields  []PortalViewField `json:"fields"`
-	Actions []PortalAction    `json:"actions"`
-	Queries []PortalQuery     `json:"queries,omitempty"`
+// PortalGate is a vertex in the portal graph (ADR-0037).
+// Each gate is a stateless function: receives args, executes body, returns layout + datasets + outcomes.
+type PortalGate struct {
+	Label    string          `json:"label"`
+	Args     []PortalArg     `json:"args,omitempty"`
+	ArgRules []PortalArgRule `json:"arg_rules,omitempty"`
+	Body     []GateBodyStep  `json:"body"`
+	Layout   *GateLayout     `json:"layout,omitempty"`
+	Outcomes []GateOutcome   `json:"outcomes,omitempty"`
+}
+
+// GateBodyStep is a single SOQL or DML operation in the gate body chain.
+type GateBodyStep struct {
+	Name            string   `json:"name"`
+	Type            string   `json:"type"`                       // "soql" | "dml"
+	SOQL            string   `json:"soql,omitempty"`             // for type="soql"
+	DML             string   `json:"dml,omitempty"`              // for type="dml"
+	When            string   `json:"when,omitempty"`             // CEL condition (skip if false)
+	PageSize        int      `json:"page_size,omitempty"`        // enables pagination + dynamic filtering
+	RestrictFilters []string `json:"restrict_filters,omitempty"` // opt-out: exclude fields from filtering
+}
+
+// GateLayout holds presentation config for a gate (ADR-0037).
+// Merges what was previously split between Portal fields (ADR-0022) and Layout config (ADR-0027).
+type GateLayout struct {
+	Fields        []PortalViewField            `json:"fields,omitempty"`
+	Root          *LayoutComponent             `json:"root,omitempty"`
+	SectionConfig map[string]SectionConfig     `json:"section_config,omitempty"`
+	FieldConfig   map[string]LayoutFieldConfig `json:"field_config,omitempty"`
+	ListConfig    *ListConfig                  `json:"list_config,omitempty"`
+}
+
+// GateOutcome is an edge in the portal graph — a declared transition to another gate.
+type GateOutcome struct {
+	Name         string            `json:"name"`
+	Gate         string            `json:"gate"`
+	Label        string            `json:"label,omitempty"`
+	Icon         string            `json:"icon,omitempty"`
+	Type         string            `json:"type,omitempty"` // "primary"|"secondary"|"danger"
+	ArgsTemplate map[string]string `json:"args_template,omitempty"`
 }
 
 // PortalViewField describes a field in the view configuration (ADR-0035).
 // Fields without Expr are simple field references (resolved from the default query).
 // Fields with Expr are computed from a CEL expression that can reference queries and other fields.
-// The result type is inferred from the CEL expression at runtime — no explicit Type field needed.
 type PortalViewField struct {
 	Name string `json:"name"`
 	Expr string `json:"expr,omitempty"`
-	When string `json:"when,omitempty"`
-}
-
-// PortalAction describes an operation available on the page (ADR-0036).
-// When Apply is nil, the action is UI-only (e.g. a link or client-side toggle).
-// When Apply is set, the action is executable server-side via POST /view/:ov/action/:key.
-type PortalAction struct {
-	Key            string `json:"key"`
-	Label          string `json:"label"`
-	Type           string `json:"type"`
-	Icon           string `json:"icon"`
-	VisibilityExpr string `json:"visibility_expr"`
-
-	Apply *PortalActionApply `json:"apply,omitempty"`
-}
-
-// PortalActionApply describes the transactional execution model for an action.
-type PortalActionApply struct {
-	Type     string             `json:"type"`               // "dml" | "scenario"
-	DML      []string           `json:"dml,omitempty"`      // DML statements for type="dml"
-	Scenario *PortalScenarioRef `json:"scenario,omitempty"` // scenario reference for type="scenario"
-}
-
-// PortalScenarioRef references a scenario to start when an action is executed.
-type PortalScenarioRef struct {
-	APIName string            `json:"api_name"`
-	Params  map[string]string `json:"params,omitempty"`
-}
-
-// PortalQuery describes a named SOQL query scoped to this Object View (ADR-0035).
-// The query type (scalar vs list) is determined by the SOQL syntax:
-// SELECT ROW ... = scalar (single record), SELECT ... = list (multiple records).
-// The first scalar query in the array is the implicit default (context record).
-type PortalQuery struct {
-	Name string `json:"name"`
-	SOQL string `json:"soql"`
 	When string `json:"when,omitempty"`
 }
 

@@ -65,10 +65,13 @@ async function onSubmit() {
       label: form.value.label,
       description: form.value.description || undefined,
       config: {
-        read: {
-          fields: [],
-          actions: [],
-          queries: [],
+        entryGate: 'main',
+        gates: {
+          main: {
+            label: 'Main',
+            body: [],
+            outcomes: [],
+          },
         },
       },
     })

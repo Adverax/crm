@@ -1530,27 +1530,28 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
-  /api/v1/view/{ovApiName}/query/{queryName}:
+  /api/v1/portal/{portalApiName}/gate/{gateName}:
     parameters:
-      - name: ovApiName
+      - name: portalApiName
         in: path
         required: true
         schema:
           type: string
-      - name: queryName
+      - name: gateName
         in: path
         required: true
         schema:
           type: string
     get:
-      summary: Execute a named query from an Object View
+      summary: Execute a gate (SOQL-only)
       description: >
-        Finds the named query in the Object View config, substitutes
-        URL query parameters into SOQL :paramName placeholders, and
-        executes via the SOQL service with full security enforcement.
-      operationId: executeViewQuery
+        Executes a gate that contains only SOQL body steps.
+        Portal and gate args are resolved from query parameters.
+        Supports pagination (page, per_page), filtering (filter.Field=val),
+        sorting (sort=Field:asc), and search (search=text).
+      operationId: executeGateGet
       tags:
-        - views
+        - portals
       security:
         - BearerAuth: []
       parameters:
@@ -1562,42 +1563,48 @@ paths:
             default: 20
             minimum: 1
             maximum: 200
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            description: "Format: Field:asc or Field:desc"
       responses:
         "200":
-          description: Query execution result
+          description: Gate execution result
           content:
             application/json:
               schema:
                 type: object
                 properties:
                   data:
-                    $ref: "#/components/schemas/SOQLResult"
+                    $ref: "#/components/schemas/GateResponse"
         "404":
           $ref: "#/components/responses/NotFound"
+        "405":
+          description: Method not allowed (gate has DML steps, use POST)
         "401":
           $ref: "#/components/responses/Unauthorized"
-
-  /api/v1/view/{ovApiName}/action/{actionKey}:
-    parameters:
-      - name: ovApiName
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: actionKey
-        in: path
-        required: true
-        schema:
-          type: string
     post:
-      summary: Execute an action from an Object View
+      summary: Execute a gate (with DML steps)
       description: >
-        Executes the named action from the Object View config.
-        For type=dml, runs all DML statements in a single transaction.
-        For type=scenario, starts the referenced scenario.
-      operationId: executeViewAction
+        Executes a gate that contains DML body steps (and optionally SOQL).
+        Args and form data are provided in the JSON request body.
+      operationId: executeGatePost
       tags:
-        - views
+        - portals
       security:
         - BearerAuth: []
       requestBody:
@@ -1605,18 +1612,32 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ExecuteActionRequest"
+              $ref: "#/components/schemas/GatePostRequest"
       responses:
         "200":
-          description: Action executed successfully
+          description: Gate executed successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ExecuteActionResponse"
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/GateResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
+        "405":
+          description: Method not allowed (gate has no DML steps, use GET)
+        "422":
+          description: DML execution error (response includes layout for re-render)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/GateResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -2842,14 +2863,24 @@ components:
     ObjectViewConfig:
       type: object
       required:
-        - read
+        - entry_gate
+        - gates
       properties:
         args:
           type: array
           items:
             $ref: "#/components/schemas/PortalArg"
-        read:
-          $ref: "#/components/schemas/OVReadConfig"
+        arg_rules:
+          type: array
+          items:
+            $ref: "#/components/schemas/PortalArgRule"
+        entry_gate:
+          type: string
+          description: "Key of the entry gate in the gates map."
+        gates:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/PortalGate"
 
     PortalArg:
       type: object
@@ -2864,91 +2895,128 @@ components:
           enum: [string, int, float, bool]
         default:
           type: string
-        validation:
+
+    PortalArgRule:
+      type: object
+      required:
+        - name
+        - condition
+        - error_message
+      properties:
+        name:
           type: string
-          description: "CEL expression evaluated after type conversion. Must return bool."
+          description: "Unique rule name within scope."
+        condition:
+          type: string
+          description: "CEL expression evaluated at runtime. Must return bool."
         error_message:
           type: string
-          description: "Error message returned when validation fails."
+          description: "Error message returned when condition evaluates to false."
 
-    OVReadConfig:
+    PortalGate:
+      type: object
+      required:
+        - label
+        - body
+      properties:
+        label:
+          type: string
+        args:
+          type: array
+          items:
+            $ref: "#/components/schemas/PortalArg"
+        arg_rules:
+          type: array
+          items:
+            $ref: "#/components/schemas/PortalArgRule"
+        body:
+          type: array
+          items:
+            $ref: "#/components/schemas/GateBodyStep"
+        layout:
+          $ref: "#/components/schemas/GateLayout"
+        outcomes:
+          type: array
+          items:
+            $ref: "#/components/schemas/GateOutcome"
+
+    GateBodyStep:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [soql, dml]
+        soql:
+          type: string
+          description: "SOQL query. Use SELECT ROW for scalar queries."
+        dml:
+          type: string
+          description: "DML statement."
+        when:
+          type: string
+          description: "CEL expression. Step is skipped when false."
+        page_size:
+          type: integer
+          minimum: 1
+          maximum: 200
+        restrict_filters:
+          type: array
+          items:
+            type: string
+          description: "Fields to exclude from dynamic filtering."
+
+    GateLayout:
       type: object
       properties:
         fields:
           type: array
           items:
             $ref: "#/components/schemas/OVViewField"
-        actions:
-          type: array
-          items:
-            $ref: "#/components/schemas/OVAction"
-        queries:
-          type: array
-          items:
-            $ref: "#/components/schemas/OVQuery"
+        root:
+          type: object
+          additionalProperties: true
+          description: "LayoutComponent tree (type, children, props)."
+        section_config:
+          type: object
+          additionalProperties: true
+          description: "Per-section configuration (columns, heading, collapsible, fields)."
+        field_config:
+          type: object
+          additionalProperties: true
+          description: "Per-field layout config (span, read_only, component, reference_config)."
+        list_config:
+          type: object
+          additionalProperties: true
+          description: "List configuration (columns, sort_by, search, row_actions)."
 
-    OVAction:
-      type: object
-      required:
-        - key
-        - label
-        - type
-        - icon
-        - visibility_expr
-      properties:
-        key:
-          type: string
-        label:
-          type: string
-        type:
-          type: string
-        icon:
-          type: string
-        visibility_expr:
-          type: string
-        apply:
-          $ref: "#/components/schemas/OVActionApply"
-
-    OVQuery:
+    GateOutcome:
       type: object
       required:
         - name
-        - soql
+        - gate
       properties:
         name:
           type: string
-        soql:
+        gate:
           type: string
-          description: "SOQL query. Use SELECT ROW for scalar queries, SELECT for list queries."
-        when:
+          description: "Target gate key."
+        label:
           type: string
-
-    OVActionApply:
-      type: object
-      required:
-        - type
-      properties:
+        icon:
+          type: string
         type:
           type: string
-          enum: [dml, scenario]
-        dml:
-          type: array
-          items:
-            type: string
-        scenario:
-          $ref: "#/components/schemas/OVScenarioRef"
-
-    OVScenarioRef:
-      type: object
-      required:
-        - api_name
-      properties:
-        api_name:
-          type: string
-        params:
+          description: "Semantic type (e.g. primary, danger, navigate)."
+        args_template:
           type: object
           additionalProperties:
             type: string
+          description: "CEL expressions evaluated to produce args for the target gate."
 
     OVViewField:
       type: object
@@ -2961,6 +3029,41 @@ components:
           type: string
         when:
           type: string
+
+    GatePostRequest:
+      type: object
+      properties:
+        args:
+          type: object
+          additionalProperties: true
+          description: "Gate args as key-value pairs."
+        data:
+          type: object
+          additionalProperties: true
+          description: "Form data for DML steps."
+
+    GateResponse:
+      type: object
+      properties:
+        gate:
+          type: string
+        layout:
+          $ref: "#/components/schemas/GateLayout"
+        datasets:
+          type: object
+          additionalProperties: true
+        outcomes:
+          type: array
+          items:
+            $ref: "#/components/schemas/GateOutcome"
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              message:
+                type: string
+          nullable: true
 
     UpdateObjectViewRequest:
       type: object
@@ -2975,38 +3078,6 @@ components:
         config:
           $ref: "#/components/schemas/ObjectViewConfig"
 
-    ExecuteActionRequest:
-      type: object
-      properties:
-        data:
-          type: object
-          additionalProperties: true
-        record_id:
-          type: string
-          format: uuid
-
-    ExecuteActionResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-        results:
-          type: array
-          items:
-            $ref: "#/components/schemas/ActionResultItem"
-
-    ActionResultItem:
-      type: object
-      properties:
-        operation:
-          type: string
-        object:
-          type: string
-        ids:
-          type: array
-          items:
-            type: string
-
     CelValidateRequest:
       type: object
       required:
@@ -3017,7 +3088,7 @@ components:
           type: string
         context:
           type: string
-          enum: [validation_rule, when_expression, default_expr, function_body, visibility_expr, portal_when]
+          enum: [validation_rule, when_expression, default_expr, function_body, visibility_expr, portal_when, gate_when]
         object_api_name:
           type: string
         params:

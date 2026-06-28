@@ -111,6 +111,8 @@ func (h *CELHandler) buildEnv(context string, params []celengine.ParamDef) (*cel
 		return celengine.FunctionBodyEnv(params, h.registry)
 	case "portal_when":
 		return celengine.PortalEnv()
+	case "gate_when":
+		return celengine.GateEnv()
 	default:
 		// Default to standard env
 		if h.registry != nil {

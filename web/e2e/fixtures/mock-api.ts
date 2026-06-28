@@ -1074,41 +1074,61 @@ export const mockPortals = [
     config: {
       args: [
         { name: 'account_id', type: 'string' },
+        { name: 'limit', type: 'int', default: '10' },
+      ],
+      arg_rules: [
         {
-          name: 'limit',
-          type: 'int',
-          default: '10',
-          validation: 'args.limit > 0 && args.limit <= 100',
+          name: 'limit_range',
+          condition: 'args.limit > 0 && args.limit <= 100',
           error_message: 'Limit must be between 1 and 100',
         },
       ],
-      read: {
-        fields: [
-          { name: 'Name' },
-          { name: 'Industry' },
-          { name: 'Phone' },
-          { name: 'display_name', expr: 'record.Name + " (" + record.Industry + ")"', when: '' },
-        ],
-        actions: [
-          {
-            key: 'send_email',
-            label: 'Send Email',
-            type: 'primary',
-            icon: 'mail',
-            visibility_expr: 'true',
-            apply: {
-              type: 'dml',
-              dml: ['INSERT INTO EmailLog (Subject, Body) VALUES (data.subject, data.body)'],
-            },
+      entry_gate: 'list',
+      gates: {
+        list: {
+          label: 'Account List',
+          body: [
+            { name: 'accounts', type: 'soql', soql: 'SELECT Id, Name, Industry, Phone FROM Account' },
+          ],
+          layout: {
+            fields: [
+              { name: 'Name' },
+              { name: 'Industry' },
+              { name: 'Phone' },
+              { name: 'display_name', expr: 'accounts.Name + " (" + accounts.Industry + ")"' },
+            ],
           },
-        ],
-        queries: [
-          {
-            name: 'recent_activities',
-            soql: 'SELECT ROW Id, Subject FROM Activity WHERE WhatId = :account_id',
-            when: '',
+          outcomes: [
+            { name: 'detail', gate: 'detail', label: 'View' },
+            { name: 'action', gate: 'action', label: 'Send Email', type: 'primary', icon: 'mail' },
+          ],
+        },
+        detail: {
+          label: 'Account Detail',
+          args: [{ name: 'id', type: 'string' }],
+          body: [
+            { name: 'record', type: 'soql', soql: 'SELECT ROW Id, Name, Industry, Phone FROM Account WHERE Id = :id' },
+          ],
+          layout: {
+            fields: [
+              { name: 'Name' },
+              { name: 'Industry' },
+              { name: 'Phone' },
+            ],
           },
-        ],
+          outcomes: [
+            { name: 'back', gate: 'list', label: 'Back to List' },
+          ],
+        },
+        action: {
+          label: 'Send Email',
+          body: [
+            { name: 'send', type: 'dml', dml: 'INSERT INTO EmailLog (Subject, Body) VALUES (:subject, :body)' },
+          ],
+          outcomes: [
+            { name: 'done', gate: 'list', label: 'Back to List' },
+          ],
+        },
       },
     },
     created_at: '2026-02-16T10:00:00Z',
@@ -1121,10 +1141,13 @@ export const mockPortals = [
     label: 'Account Sales View',
     description: 'Sales-specific view for accounts',
     config: {
-      read: {
-        fields: [],
-        actions: [],
-        queries: [],
+      entry_gate: 'main',
+      gates: {
+        main: {
+          label: 'Main',
+          body: [],
+          outcomes: [],
+        },
       },
     },
     created_at: '2026-02-16T11:00:00Z',
@@ -1168,6 +1191,21 @@ export async function setupPortalRoutes(page: Page) {
       }
       return route.continue()
     })
+
+    // Gate execution endpoints
+    const gates = view.config?.gates ?? {}
+    for (const [gateName, gate] of Object.entries(gates)) {
+      await page.route(`**/api/v1/portal/${view.api_name}/gate/${gateName}**`, (route) => {
+        const mockResponse = {
+          gate: gateName,
+          layout: (gate as Record<string, unknown>).layout ?? null,
+          datasets: {},
+          outcomes: (gate as Record<string, unknown>).outcomes ?? [],
+          errors: null,
+        }
+        return route.fulfill({ json: singleResponse(mockResponse) })
+      })
+    }
   }
 }
 

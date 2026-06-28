@@ -392,10 +392,10 @@ func setupRouter(pool *pgxpool.Pool, metadataCache *metadata.MetadataCache, cfg 
 	recordHandler := handler.NewRecordHandler(recordService)
 	recordHandler.RegisterRoutes(apiGroup)
 
-	// --- Portal API ---
-	portalCELEnv, err := celengine.PortalEnv()
+	// --- Portal API (ADR-0037: Gate Graph) ---
+	portalCELEnv, err := celengine.GateEnv()
 	if err != nil {
-		slog.Error("failed to create portal CEL env", "error", err)
+		slog.Error("failed to create gate CEL env", "error", err)
 		os.Exit(1)
 	}
 	portalCELCache := celengine.NewProgramCache(portalCELEnv)

@@ -362,6 +362,7 @@ func (h *DescribeHandler) resolveLayout(portalID uuid.UUID, formFactor string, m
 }
 
 // mergePortalAndLayout merges Portal config + Layout config into formDescribe.
+// ADR-0037: reads from the entry gate (or a gate named after the object) instead of portal.Config.Read.
 func (h *DescribeHandler) mergePortalAndLayout(
 	portal metadata.Portal,
 	layout *metadata.Layout,
@@ -369,19 +370,57 @@ func (h *DescribeHandler) mergePortalAndLayout(
 ) *formDescribe {
 	form := buildFallbackForm(fields)
 
-	// Apply Portal sections if Portal has view config with fields
-	fieldNames := metadata.FieldNames(portal.Config.Read.Fields)
-	if len(fieldNames) > 0 {
-		form.Sections = []formSection{{
-			Key:     "details",
-			Label:   "Details",
-			Columns: 2,
-			Fields:  fieldNames,
-		}}
+	// Resolve gate: try entry gate
+	entryGate, hasGate := portal.Config.Gates[portal.Config.EntryGate]
+	if !hasGate {
+		return form
+	}
 
-		form.ListFields = fieldNames
-		if len(form.ListFields) > 5 {
-			form.ListFields = form.ListFields[:5]
+	// Apply gate layout fields
+	if entryGate.Layout != nil {
+		fieldNames := metadata.FieldNames(entryGate.Layout.Fields)
+		if len(fieldNames) > 0 {
+			form.Sections = []formSection{{
+				Key:     "details",
+				Label:   "Details",
+				Columns: 2,
+				Fields:  fieldNames,
+			}}
+
+			form.ListFields = fieldNames
+			if len(form.ListFields) > 5 {
+				form.ListFields = form.ListFields[:5]
+			}
+		}
+
+		// Apply gate layout presentation config
+		if entryGate.Layout.Root != nil {
+			form.Root = entryGate.Layout.Root
+		}
+		if entryGate.Layout.SectionConfig != nil {
+			for i := range form.Sections {
+				sc, ok := entryGate.Layout.SectionConfig[form.Sections[i].Key]
+				if !ok {
+					continue
+				}
+				if sc.Columns > 0 {
+					form.Sections[i].Columns = sc.Columns
+				}
+				form.Sections[i].Collapsed = sc.Collapsed
+				form.Sections[i].Collapsible = sc.Collapsible
+				form.Sections[i].VisibilityExpr = sc.VisibilityExpr
+			}
+		}
+		if entryGate.Layout.FieldConfig != nil {
+			presentation := make(map[string]formFieldPresentation)
+			for fieldName, fc := range entryGate.Layout.FieldConfig {
+				resolved := h.resolveFieldConfig(fc)
+				presentation[fieldName] = resolved
+			}
+			form.FieldPresentation = presentation
+		}
+		if entryGate.Layout.ListConfig != nil {
+			form.ListConfig = entryGate.Layout.ListConfig
 		}
 	}
 
@@ -399,78 +438,70 @@ func (h *DescribeHandler) mergePortalAndLayout(
 		form.Args = args
 	}
 
-	// Map queries to form (without SOQL for security).
-	// Infer type from SOQL syntax: SELECT ROW = scalar, SELECT = list.
-	if len(portal.Config.Read.Queries) > 0 {
-		queries := make([]formQuery, len(portal.Config.Read.Queries))
-		for i, q := range portal.Config.Read.Queries {
-			qType := "list"
-			if engine.IsRowQuery(q.SOQL) {
-				qType = "scalar"
-			}
-			queries[i] = formQuery{
-				Name: q.Name,
-				Type: qType,
-			}
+	// Map SOQL body steps to queries (without SOQL for security)
+	var queries []formQuery
+	for _, step := range entryGate.Body {
+		if step.Type != "soql" {
+			continue
 		}
+		qType := "list"
+		if engine.IsRowQuery(step.SOQL) {
+			qType = "scalar"
+		}
+		queries = append(queries, formQuery{
+			Name: step.Name,
+			Type: qType,
+		})
+	}
+	if len(queries) > 0 {
 		form.Queries = queries
 	}
 
-	// Apply Portal actions (NOT apply — server-side only)
-	if len(portal.Config.Read.Actions) > 0 {
-		actions := make([]formAction, len(portal.Config.Read.Actions))
-		for i, a := range portal.Config.Read.Actions {
+	// Map outcomes to actions
+	if len(entryGate.Outcomes) > 0 {
+		actions := make([]formAction, len(entryGate.Outcomes))
+		for i, o := range entryGate.Outcomes {
 			actions[i] = formAction{
-				Key:            a.Key,
-				Label:          a.Label,
-				Type:           a.Type,
-				Icon:           a.Icon,
-				VisibilityExpr: a.VisibilityExpr,
-			}
-			// Extract validation rules for DML actions
-			if a.Apply != nil && a.Apply.Type == "dml" && h.dmlExtractor != nil {
-				actions[i].ValidationRules = h.extractActionValidationRules(a.Apply.DML)
+				Key:   o.Name,
+				Label: o.Label,
+				Type:  o.Type,
+				Icon:  o.Icon,
 			}
 		}
 		form.Actions = actions
 	}
 
-	if layout == nil {
-		return form
-	}
-
-	// Apply Layout root component tree
-	form.Root = layout.Config.Root
-
-	// Apply Layout section config
-	if layout.Config.SectionConfig != nil {
-		for i := range form.Sections {
-			sc, ok := layout.Config.SectionConfig[form.Sections[i].Key]
-			if !ok {
-				continue
-			}
-			if sc.Columns > 0 {
-				form.Sections[i].Columns = sc.Columns
-			}
-			form.Sections[i].Collapsed = sc.Collapsed
-			form.Sections[i].Collapsible = sc.Collapsible
-			form.Sections[i].VisibilityExpr = sc.VisibilityExpr
+	// Apply Layout overrides (metadata.layouts table, if present)
+	if layout != nil {
+		if layout.Config.Root != nil {
+			form.Root = layout.Config.Root
 		}
-	}
-
-	// Apply Layout field config (with layout_ref resolution)
-	if layout.Config.FieldConfig != nil {
-		presentation := make(map[string]formFieldPresentation)
-		for fieldName, fc := range layout.Config.FieldConfig {
-			resolved := h.resolveFieldConfig(fc)
-			presentation[fieldName] = resolved
+		if layout.Config.SectionConfig != nil {
+			for i := range form.Sections {
+				sc, ok := layout.Config.SectionConfig[form.Sections[i].Key]
+				if !ok {
+					continue
+				}
+				if sc.Columns > 0 {
+					form.Sections[i].Columns = sc.Columns
+				}
+				form.Sections[i].Collapsed = sc.Collapsed
+				form.Sections[i].Collapsible = sc.Collapsible
+				form.Sections[i].VisibilityExpr = sc.VisibilityExpr
+			}
 		}
-		form.FieldPresentation = presentation
-	}
-
-	// Apply Layout list config
-	if layout.Config.ListConfig != nil {
-		form.ListConfig = layout.Config.ListConfig
+		if layout.Config.FieldConfig != nil {
+			if form.FieldPresentation == nil {
+				form.FieldPresentation = make(map[string]formFieldPresentation)
+			}
+			for fieldName, fc := range layout.Config.FieldConfig {
+				resolved := h.resolveFieldConfig(fc)
+				form.FieldPresentation[fieldName] = resolved
+			}
+		}
+		if layout.Config.ListConfig != nil {
+			form.ListConfig = layout.Config.ListConfig
+		}
 	}
 
 	return form

@@ -4,7 +4,8 @@ import { viewsApi } from '@/api/views'
 import { useToast } from '@/composables/useToast'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import type { Portal } from '@/types/portals'
+import { Button } from '@/components/ui/button'
+import type { Portal, GateResponse } from '@/types/portals'
 
 const props = defineProps<{
   portalApiName: string
@@ -13,6 +14,8 @@ const props = defineProps<{
 const toast = useToast()
 
 const view = ref<Portal | null>(null)
+const gateResult = ref<GateResponse | null>(null)
+const currentGate = ref<string>('')
 const loading = ref(true)
 const error = ref<string | null>(null)
 
@@ -22,11 +25,32 @@ async function loadView() {
   try {
     const res = await viewsApi.getByAPIName(props.portalApiName)
     view.value = res.data
+    // Execute entry gate
+    const entryGate = res.data.config?.entryGate
+    if (entryGate) {
+      await executeGate(entryGate)
+    }
   } catch (err) {
     error.value = 'Failed to load page'
     toast.errorFromApi(err)
   } finally {
     loading.value = false
+  }
+}
+
+async function executeGate(gateName: string, params?: Record<string, string>) {
+  try {
+    const res = await viewsApi.executeGate(props.portalApiName, gateName, params)
+    gateResult.value = res.data
+    currentGate.value = gateName
+  } catch (err) {
+    toast.errorFromApi(err)
+  }
+}
+
+function onOutcomeClick(outcome: { gate?: string; name?: string }) {
+  if (outcome.gate) {
+    executeGate(outcome.gate)
   }
 }
 
@@ -53,16 +77,32 @@ watch(() => props.portalApiName, loadView)
         {{ view.description }}
       </div>
 
-      <div v-if="view.config?.read?.queries?.length" class="space-y-4" data-testid="page-queries">
-        <Card v-for="(query, idx) in view.config.read.queries" :key="idx">
-          <CardHeader>
-            <CardTitle class="text-base">{{ query.name || `Query ${idx + 1}` }}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p class="text-sm text-muted-foreground font-mono">{{ query.soql }}</p>
-          </CardContent>
-        </Card>
-      </div>
+      <template v-if="gateResult">
+        <!-- Datasets -->
+        <div v-if="gateResult.datasets" class="space-y-4 mb-6" data-testid="page-datasets">
+          <Card v-for="(dataset, name) in gateResult.datasets" :key="String(name)">
+            <CardHeader>
+              <CardTitle class="text-base">{{ name }}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <pre class="text-sm text-muted-foreground font-mono whitespace-pre-wrap">{{ JSON.stringify(dataset, null, 2) }}</pre>
+            </CardContent>
+          </Card>
+        </div>
+
+        <!-- Outcomes -->
+        <div v-if="gateResult.outcomes?.length" class="flex gap-2" data-testid="page-outcomes">
+          <Button
+            v-for="outcome in gateResult.outcomes"
+            :key="outcome.name"
+            variant="outline"
+            size="sm"
+            @click="onOutcomeClick(outcome)"
+          >
+            {{ outcome.label || outcome.name }}
+          </Button>
+        </div>
+      </template>
 
       <div v-else class="text-center py-12 text-muted-foreground">
         <p>This page has no content configured yet.</p>

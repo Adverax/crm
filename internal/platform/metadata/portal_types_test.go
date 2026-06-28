@@ -18,48 +18,169 @@ func TestPortalConfig_MarshalUnmarshal(t *testing.T) {
 		input PortalConfig
 	}{
 		{
-			name: "view only with simple fields",
+			name: "single gate with simple fields",
 			input: PortalConfig{
-				Read: PortalReadConfig{
-					Fields:  []PortalViewField{{Name: "name"}, {Name: "email"}},
-					Actions: []PortalAction{{Key: "edit", Label: "Edit", Type: "primary", Icon: "pencil"}},
-				},
-			},
-		},
-		{
-			name: "view with computed fields",
-			input: PortalConfig{
-				Read: PortalReadConfig{
-					Fields: []PortalViewField{
-						{Name: "name"},
-						{Name: "total", Expr: "record.amount * 1.2", When: "has(record.amount)"},
-					},
-					Actions: []PortalAction{},
-				},
-			},
-		},
-		{
-			name: "view with queries",
-			input: PortalConfig{
-				Read: PortalReadConfig{
-					Fields:  []PortalViewField{{Name: "name"}},
-					Actions: []PortalAction{},
-					Queries: []PortalQuery{
-						{Name: "main", SOQL: "SELECT ROW Id FROM Account WHERE Id = :id"},
-						{Name: "contacts", SOQL: "SELECT Id FROM Contact WHERE AccountId = :id"},
+				EntryGate: "main",
+				Gates: map[string]PortalGate{
+					"main": {
+						Label: "Main",
+						Body: []GateBodyStep{
+							{Name: "accounts", Type: "soql", SOQL: "SELECT Id, Name FROM Account"},
+						},
+						Layout: &GateLayout{
+							Fields: []PortalViewField{{Name: "Name"}, {Name: "Industry"}},
+						},
+						Outcomes: []GateOutcome{
+							{Name: "detail", Gate: "detail", Label: "View"},
+						},
 					},
 				},
 			},
 		},
 		{
-			name: "view with args",
+			name: "gate with computed fields",
+			input: PortalConfig{
+				EntryGate: "main",
+				Gates: map[string]PortalGate{
+					"main": {
+						Label: "Main",
+						Body:  []GateBodyStep{},
+						Layout: &GateLayout{
+							Fields: []PortalViewField{
+								{Name: "name"},
+								{Name: "total", Expr: "record.amount * 1.2", When: "has(record.amount)"},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "multi-gate CRUD graph",
+			input: PortalConfig{
+				EntryGate: "list",
+				Gates: map[string]PortalGate{
+					"list": {
+						Label: "Accounts",
+						Body: []GateBodyStep{
+							{Name: "accounts", Type: "soql", SOQL: "SELECT Id, Name FROM Account", PageSize: 20},
+						},
+						Layout: &GateLayout{
+							Fields: []PortalViewField{{Name: "Name"}},
+						},
+						Outcomes: []GateOutcome{
+							{Name: "create", Gate: "create", Label: "New", Type: "primary"},
+							{Name: "detail", Gate: "detail"},
+						},
+					},
+					"detail": {
+						Label: "Account Detail",
+						Args:  []PortalArg{{Name: "id", Type: "string"}},
+						Body: []GateBodyStep{
+							{Name: "account", Type: "soql", SOQL: "SELECT ROW Id, Name FROM Account WHERE Id = :id"},
+						},
+						Layout: &GateLayout{
+							Fields: []PortalViewField{{Name: "Name"}},
+						},
+						Outcomes: []GateOutcome{
+							{Name: "edit", Gate: "edit", ArgsTemplate: map[string]string{"id": "args.id"}},
+							{Name: "delete", Gate: "delete", Type: "danger"},
+						},
+					},
+					"create": {
+						Label: "New Account",
+						Body: []GateBodyStep{
+							{Name: "insert", Type: "dml", DML: "INSERT INTO Account (Name) VALUES (:name)"},
+						},
+						Layout: &GateLayout{
+							Fields: []PortalViewField{{Name: "Name"}},
+						},
+						Outcomes: []GateOutcome{
+							{Name: "list", Gate: "list", Label: "Cancel"},
+						},
+					},
+					"edit": {
+						Label: "Edit Account",
+						Args:  []PortalArg{{Name: "id", Type: "string"}},
+						Body: []GateBodyStep{
+							{Name: "account", Type: "soql", SOQL: "SELECT ROW Id, Name FROM Account WHERE Id = :id"},
+							{Name: "save", Type: "dml", DML: "UPDATE Account SET Name = :name WHERE Id = :id"},
+						},
+						Layout: &GateLayout{
+							Fields: []PortalViewField{{Name: "Name"}},
+						},
+						Outcomes: []GateOutcome{
+							{Name: "detail", Gate: "detail", ArgsTemplate: map[string]string{"id": "args.id"}},
+						},
+					},
+					"delete": {
+						Label: "Delete",
+						Args:  []PortalArg{{Name: "id", Type: "string"}},
+						Body: []GateBodyStep{
+							{Name: "delete", Type: "dml", DML: "DELETE FROM Account WHERE Id = :id"},
+						},
+						Outcomes: []GateOutcome{
+							{Name: "list", Gate: "list"},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "portal with args",
 			input: PortalConfig{
 				Args: []PortalArg{
 					{Name: "account_id", Type: "string"},
 					{Name: "limit", Type: "int", Default: ptrStr("10")},
 				},
-				Read: PortalReadConfig{
-					Fields: []PortalViewField{{Name: "name"}},
+				EntryGate: "main",
+				Gates: map[string]PortalGate{
+					"main": {
+						Label: "Main",
+						Body:  []GateBodyStep{},
+					},
+				},
+			},
+		},
+		{
+			name: "portal with arg_rules",
+			input: PortalConfig{
+				Args: []PortalArg{
+					{Name: "limit", Type: "int", Default: ptrStr("10")},
+				},
+				ArgRules: []PortalArgRule{
+					{Name: "limit_range", Condition: "args.limit > 0 && args.limit <= 100", ErrorMessage: "Limit must be 1-100"},
+				},
+				EntryGate: "main",
+				Gates: map[string]PortalGate{
+					"main": {
+						Label: "Main",
+						Body:  []GateBodyStep{},
+						ArgRules: []PortalArgRule{
+							{Name: "gate_check", Condition: "args.limit > 5", ErrorMessage: "Gate requires limit > 5"},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "gate with body step when condition and page_size",
+			input: PortalConfig{
+				EntryGate: "main",
+				Gates: map[string]PortalGate{
+					"main": {
+						Label: "Main",
+						Body: []GateBodyStep{
+							{
+								Name:            "accounts",
+								Type:            "soql",
+								SOQL:            "SELECT Id FROM Account",
+								When:            "args.show_all == true",
+								PageSize:        25,
+								RestrictFilters: []string{"Id"},
+							},
+						},
+					},
 				},
 			},
 		},

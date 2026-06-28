@@ -28,11 +28,23 @@ func DefaultEnv() (*cel.Env, error) {
 	)
 }
 
-// PortalEnv creates a CEL environment for portal when-conditions.
+// PortalEnv creates a CEL environment for portal arg validation expressions.
 // Only args map is available — no record/old/user/now.
 func PortalEnv() (*cel.Env, error) {
 	return cel.NewEnv(
 		cel.Variable("args", cel.DynType),
+		ext.Strings(),
+	)
+}
+
+// GateEnv creates a CEL environment for gate-level expressions (ADR-0037).
+// Available variables: args, datasets, data, user.
+func GateEnv() (*cel.Env, error) {
+	return cel.NewEnv(
+		cel.Variable("args", cel.DynType),
+		cel.Variable("datasets", cel.DynType),
+		cel.Variable("data", cel.DynType),
+		cel.Variable("user", cel.DynType),
 		ext.Strings(),
 	)
 }
