@@ -1,0 +1,33 @@
+# generated_by: forge:reverse
+# generated_at: 2026-06-28
+# tier: large
+actors:
+  - id: ACT-001
+    name: End User
+    type: human
+    description: >
+      Authenticated CRM user working in the /app zone: reads and writes records
+      subject to OLS/FLS/RLS, navigates portals. Identity carried in JWT
+      (sub/pid/rid → UserContext).
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/middleware/jwt_auth.go", "internal/pkg/identity/context.go"] }
+  - id: ACT-002
+    name: Administrator
+    type: human
+    description: >
+      Configures the platform via the /admin zone and /admin/* APIs: objects,
+      fields, permissions, users, portals, layouts, procedures, automation rules.
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/handler/metadata_handler.go", "internal/handler/security_handler.go"] }
+  - id: ACT-003
+    name: Outbox Worker
+    type: scheduler
+    description: >
+      Background worker listening on security_outbox (LISTEN/NOTIFY + 30s sweep)
+      that recomputes effective OLS/FLS/RLS caches after permission changes.
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/security/outbox_worker.go"] }
+  - id: ACT-004
+    name: Automation Engine
+    type: system
+    description: >
+      Reacts to DML events as a post-execute hook, evaluating Automation Rules
+      and invoking published Procedures.
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/automation/dml_hook.go"] }

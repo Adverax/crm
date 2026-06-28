@@ -1,0 +1,112 @@
+# generated_by: forge:reverse
+# generated_at: 2026-06-28
+# tier: large
+# NOTE: events here are domain facts realized as state transitions / hooks, not a
+# published message bus (none exists yet — see reverse-report.md). EVT-015 is the
+# security recompute reaction performed by the outbox worker.
+events:
+  - id: EVT-001
+    name: UserAuthenticated
+    triggered_by: CMD-001
+    aggregate: AGG-001
+    source: [US-001]
+    payload_summary: user_id, profile_id, role_id, access_token, refresh_token
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/modules/auth/"] }
+  - id: EVT-002
+    name: ObjectDefined
+    triggered_by: CMD-002
+    aggregate: AGG-005
+    source: [US-002]
+    payload_summary: object_id, api_name, table_name (obj_* table created via DDL, cache reloaded)
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/metadata/"] }
+  - id: EVT-003
+    name: FieldDefined
+    triggered_by: CMD-003
+    aggregate: AGG-006
+    source: [US-002]
+    payload_summary: field_id, object_id, field_type, field_subtype (column added; relationship registry rebuilt)
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/metadata/"] }
+  - id: EVT-004
+    name: RecordCreated
+    triggered_by: CMD-004
+    aggregate: AGG-009
+    source: [US-003]
+    payload_summary: object, record_id, owner_id
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/dml/", "internal/platform/automation/dml_hook.go"] }
+  - id: EVT-005
+    name: RecordUpdated
+    triggered_by: CMD-005
+    aggregate: AGG-009
+    source: [US-003]
+    payload_summary: object, record_id, changed_fields
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/dml/executor.go"] }
+  - id: EVT-006
+    name: RecordDeleted
+    triggered_by: CMD-006
+    aggregate: AGG-009
+    source: [US-003]
+    payload_summary: object, record_id
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/dml/executor.go"] }
+  - id: EVT-007
+    name: PermissionsChanged
+    triggered_by: CMD-007
+    aggregate: AGG-007
+    source: [US-004]
+    payload_summary: entity_type, entity_id (written to security_outbox)
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/security/", "migrations/*_create_effective_caches.up.sql"] }
+  - id: EVT-008
+    name: SharingChanged
+    triggered_by: CMD-008
+    aggregate: AGG-008
+    source: [US-004]
+    payload_summary: object_id, rule or share entry (share tables regenerated)
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/security/rls/"] }
+  - id: EVT-009
+    name: PortalConfigured
+    triggered_by: CMD-010
+    aggregate: AGG-012
+    source: [US-005]
+    payload_summary: portal_id, api_name (cache reloaded)
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/metadata/"] }
+  - id: EVT-010
+    name: ProcedurePublished
+    triggered_by: CMD-011
+    aggregate: AGG-015
+    source: [US-006]
+    payload_summary: procedure_id, published_version_id
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/procedure/"] }
+  - id: EVT-011
+    name: ProcedureExecuted
+    triggered_by: CMD-012
+    aggregate: AGG-015
+    source: [US-006]
+    payload_summary: procedure_code, result, warnings
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/procedure/engine.go"] }
+  - id: EVT-012
+    name: AutomationRuleDefined
+    triggered_by: CMD-013
+    aggregate: AGG-016
+    source: [US-006]
+    payload_summary: object_id, event_type, procedure_code
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/automation/"] }
+  - id: EVT-013
+    name: TemplateApplied
+    triggered_by: CMD-014
+    aggregate: AGG-018
+    source: [US-002]
+    payload_summary: template_id, created objects and fields
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/templates/"] }
+  - id: EVT-014
+    name: TerritoryModelActivated
+    triggered_by: CMD-015
+    aggregate: AGG-019
+    source: [US-007]
+    payload_summary: model_id (groups created, closures rebuilt, share entries generated)
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["ee/migrations/000004_create_territory_functions.up.sql"] }
+  - id: EVT-015
+    name: SecurityCachesRecomputed
+    triggered_by: CMD-016
+    aggregate: AGG-007
+    source: [US-004]
+    payload_summary: affected user/role/group caches refreshed by the outbox worker
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/security/outbox_worker.go"] }

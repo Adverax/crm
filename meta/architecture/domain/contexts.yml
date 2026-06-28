@@ -1,0 +1,173 @@
+# generated_by: forge:reverse
+# generated_at: 2026-06-28
+# tier: large
+# All entries reverse-engineered from source; see _meta on each.
+contexts:
+  - id: CTX-001
+    name: Identity & Access
+    description: >
+      User accounts, authentication (JWT access/refresh, password reset),
+      profiles, roles, and groups. Owns the iam schema.
+    capabilities: [CAP-001, CAP-002]
+    aggregates: [AGG-001, AGG-002, AGG-003, AGG-004]
+    ubiquitous_language: [TERM-001, TERM-002, TERM-003, TERM-004]
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["internal/modules/auth/", "internal/platform/security/user_service.go", "migrations/*_create_users.up.sql", "migrations/*_create_user_roles.up.sql", "migrations/*_create_groups.up.sql"]
+  - id: CTX-002
+    name: Metadata Engine
+    description: >
+      Object and field definitions, reference relationships, picklists,
+      translations. Generates real obj_* tables via runtime DDL. Owns the
+      metadata schema (structural part) and an in-memory MetadataCache.
+    capabilities: [CAP-003, CAP-004]
+    aggregates: [AGG-005, AGG-006]
+    ubiquitous_language: [TERM-005, TERM-006, TERM-007, TERM-008]
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["internal/platform/metadata/", "migrations/*_create_object_definitions.up.sql", "migrations/*_create_field_definitions.up.sql", "migrations/*_create_relationship_registry_mv.up.sql"]
+  - id: CTX-003
+    name: Security Engine
+    description: >
+      Three-layer access control (OLS/FLS/RLS): permission sets, object/field
+      permissions, sharing rules, manual sharing, role hierarchy, effective
+      caches, and the outbox-driven recompute worker. Owns the security schema.
+    capabilities: [CAP-005, CAP-006, CAP-007]
+    aggregates: [AGG-007, AGG-008]
+    ubiquitous_language: [TERM-009, TERM-010, TERM-011, TERM-012, TERM-013]
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["internal/platform/security/ols/", "internal/platform/security/fls/", "internal/platform/security/rls/", "internal/platform/security/outbox_worker.go", "migrations/*_create_permission_tables.up.sql", "migrations/*_create_sharing_rules.up.sql"]
+  - id: CTX-004
+    name: Data Engine
+    description: >
+      Unified read (SOQL) and write (DML) paths over obj_* tables, including
+      CEL-based validation rules, dynamic defaults, and custom functions.
+      Every read goes through SOQL, every write through DML; both inject
+      OLS/FLS/RLS at the SQL level.
+    capabilities: [CAP-008, CAP-009, CAP-010]
+    aggregates: [AGG-009, AGG-010, AGG-011]
+    ubiquitous_language: [TERM-014, TERM-015, TERM-016, TERM-017]
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["internal/platform/soql/", "internal/platform/dml/", "internal/platform/cel/", "internal/service/record_service.go", "migrations/*_create_validation_rules.up.sql", "migrations/*_create_functions.up.sql"]
+  - id: CTX-005
+    name: Presentation Metadata
+    description: >
+      Metadata-driven UI: Portals (gate graph per profile), Layouts and shared
+      layouts, profile navigation, and the Describe API that merges them into a
+      computed Form with OLS/FLS filtering.
+    capabilities: [CAP-011, CAP-012, CAP-013]
+    aggregates: [AGG-012, AGG-013, AGG-014]
+    ubiquitous_language: [TERM-018, TERM-019, TERM-020, TERM-021]
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["internal/handler/describe_handler.go", "internal/handler/portal_handler.go", "internal/handler/layout_handler.go", "internal/handler/navigation_handler.go", "migrations/*_create_portals.up.sql", "migrations/*_create_layouts.up.sql", "migrations/*_portal_gate_graph.up.sql"]
+  - id: CTX-006
+    name: Automation
+    description: >
+      Procedure Engine (JSON DSL, 6 command types, Saga rollback, draft/publish
+      versioning), Automation Rules (DML triggers with CEL conditions), and
+      Named Credentials (AES-256-GCM encrypted secrets for HTTP integrations).
+    capabilities: [CAP-014, CAP-015, CAP-016]
+    aggregates: [AGG-015, AGG-016, AGG-017]
+    ubiquitous_language: [TERM-022, TERM-023, TERM-024, TERM-025]
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["internal/platform/procedure/", "internal/platform/automation/", "internal/platform/credential/", "migrations/*_create_procedures.up.sql", "migrations/*_create_automation_rules.up.sql", "migrations/*_create_credentials.up.sql"]
+  - id: CTX-007
+    name: App Templates
+    description: >
+      One-click provisioning of pre-built object/field sets (Sales CRM,
+      Recruiting) via a Registry + Applier pattern, guarded to an empty database.
+    capabilities: [CAP-017]
+    aggregates: [AGG-018]
+    ubiquitous_language: [TERM-026]
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["internal/platform/templates/", "internal/handler/template_handler.go"]
+  - id: CTX-008
+    name: Territory Management
+    description: >
+      Enterprise-only (ee/, build tag enterprise). Territory models with a
+      planning/active/archived lifecycle, hierarchy, user/record assignments,
+      assignment rules, and territory-based sharing integrated into RLS share
+      tables via an ancestor walk.
+    capabilities: [CAP-018]
+    aggregates: [AGG-019, AGG-020]
+    ubiquitous_language: [TERM-027, TERM-028]
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["ee/internal/platform/territory/", "ee/migrations/", "internal/platform/security/rls/territory.go"]
+
+context_map:
+  - from: CTX-005
+    to: CTX-002
+    relationship: customer_supplier
+    integration: sync_api
+    notes: Presentation reads object/field metadata via the MetadataReader interface.
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/metadata/cache.go"] }
+  - from: CTX-005
+    to: CTX-004
+    relationship: customer_supplier
+    integration: sync_api
+    notes: Portal gates execute SOQL/DML through the Data Engine.
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/handler/portal_handler.go"] }
+  - from: CTX-004
+    to: CTX-003
+    relationship: conformist
+    integration: sync_api
+    notes: SOQL/DML executors call OLS/FLS/RLS enforcers; security cannot be bypassed.
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/soql/executor.go", "internal/platform/dml/executor.go"] }
+  - from: CTX-004
+    to: CTX-002
+    relationship: customer_supplier
+    integration: sync_api
+    notes: SOQL/DML resolve objects/fields/relationships from the MetadataReader.
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/soql/adapter.go"] }
+  - from: CTX-003
+    to: CTX-001
+    relationship: shared_kernel
+    integration: shared_db
+    notes: Security references iam users/roles/groups; UserContext lives in the identity shared kernel (ADR-0030).
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/pkg/identity/context.go"] }
+  - from: CTX-003
+    to: CTX-002
+    relationship: customer_supplier
+    integration: sync_api
+    notes: Permissions reference object/field IDs; reads object metadata via cache-backed lister (ADR-0030), not cross-schema SQL.
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/metadata/cache.go"] }
+  - from: CTX-006
+    to: CTX-004
+    relationship: customer_supplier
+    integration: sync_api
+    notes: Procedure record.* commands and Automation Rule actions run through DML; automation hooks into the DML post-execute stage.
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/automation/dml_hook.go", "internal/platform/procedure/"] }
+  - from: CTX-008
+    to: CTX-003
+    relationship: open_host_service
+    integration: sync_api
+    notes: Territory plugs into RLS via the TerritoryResolver interface (noop in community, full in ee/); writes share entries with reason='territory'.
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/security/rls/territory.go", "ee/internal/platform/territory/resolver.go"] }
+  - from: CTX-007
+    to: CTX-002
+    relationship: customer_supplier
+    integration: sync_api
+    notes: Template applier creates objects/fields through the metadata services.
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/templates/"] }

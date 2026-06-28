@@ -1,0 +1,23 @@
+@startuml components-security
+' generated_by: forge:architect (synthesis, brownfield)
+' generated_at: 2026-06-28
+' C4 Level 3 — Components of CTX-003 Security Engine
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title Components — Security Engine (CTX-003)
+
+Container_Boundary(api, "API Server") {
+  Component(ols, "OLS Enforcer", "Go / security/ols", "Object CRUD checks from effective_ols (grants & ~denies) (COMP-003)")
+  Component(fls, "FLS Enforcer", "Go / security/fls", "Field read/edit checks; readable/writable field lists (COMP-004)")
+  Component(rls, "RLS Enforcer", "Go / security/rls", "Builds RLS WHERE clause from owner + visible owners + share grants (COMP-005)")
+  Component(perm, "Permission & Sharing Services", "Go / security", "Permission sets, sharing rules, manual share (COMP-002)")
+  Component(worker, "Outbox Worker & Computers", "Go / security", "Recomputes effective caches on outbox events (COMP-006)")
+}
+ContainerDb(db, "PostgreSQL", "security schema + obj_*__share")
+
+Rel(perm, db, "Writes permissions, emits security_outbox")
+Rel(worker, db, "Reads outbox, writes effective_* caches")
+Rel(ols, db, "Reads effective_ols")
+Rel(fls, db, "Reads effective_field_lists")
+Rel(rls, db, "Reads effective_visible_owner, effective_group_members, share tables")
+@enduml

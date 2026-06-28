@@ -1,0 +1,17 @@
+@startuml components-templates
+' generated_by: forge:architect (synthesis, brownfield)
+' generated_at: 2026-06-28
+' C4 Level 3 — Components of CTX-007 App Templates
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title Components — App Templates (CTX-007)
+
+Container_Boundary(api, "API Server") {
+  Component(tpl, "App Templates", "Go / internal/platform/templates", "Registry + Applier; two-pass object/field creation; empty-DB guard; Sales CRM & Recruiting (COMP-016)")
+}
+Component(meta, "Metadata Services", "CTX-002")
+Component(perm, "Permission Service", "CTX-003")
+
+Rel(tpl, meta, "Creates objects then fields")
+Rel(tpl, perm, "Grants full OLS/FLS to admin profile")
+@enduml

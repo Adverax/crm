@@ -1,0 +1,21 @@
+@startuml components-presentation
+' generated_by: forge:architect (synthesis, brownfield)
+' generated_at: 2026-06-28
+' C4 Level 3 — Components of CTX-005 Presentation Metadata
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title Components — Presentation Metadata (CTX-005)
+
+Container_Boundary(api, "API Server") {
+  Component(describe, "Describe Handler", "Go / handler/describe_handler.go", "Merges Portal + Layout into a computed Form; OLS/FLS filtering; form-factor/mode fallback (part of COMP-012)")
+  Component(portal, "Portal Runtime", "Go / handler/portal_handler.go", "Executes gate-graph steps (SOQL on GET, DML on POST), returns datasets + outcomes (part of COMP-012)")
+  Component(layout, "Layout & Shared Layout", "Go / handler/layout_handler.go", "Per (portal, form_factor, mode) layouts; reusable shared layouts via layout_ref (part of COMP-012)")
+  Component(nav, "Navigation", "Go / handler/navigation_handler.go", "Per-profile grouped sidebar resolved with OLS intersection (part of COMP-012)")
+}
+Component(meta, "Metadata Cache", "CTX-002")
+Component(data, "SOQL/DML", "CTX-004")
+
+Rel(describe, meta, "Reads object/field/portal/layout metadata")
+Rel(portal, data, "Runs gate SOQL/DML")
+Rel(nav, meta, "Reads navigation config")
+@enduml

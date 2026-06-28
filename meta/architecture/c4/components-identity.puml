@@ -1,0 +1,19 @@
+@startuml components-identity
+' generated_by: forge:architect (synthesis, brownfield)
+' generated_at: 2026-06-28
+' C4 Level 3 — Components of CTX-001 Identity & Access
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title Components — Identity & Access (CTX-001)
+
+Container_Boundary(api, "API Server") {
+  Component(auth, "Auth Module", "Go / internal/modules/auth", "Login, refresh, logout, password reset; JWT (HMAC-SHA256), bcrypt cost=12, rate limit 5/15min (COMP-001)")
+  Component(idsvc, "Identity & Permission Services", "Go / internal/platform/security", "CRUD for users, profiles, roles, permission sets, groups; auto-generates personal/role groups (COMP-002)")
+  Component(jwtmw, "JWT Middleware", "Go / internal/middleware", "Validates Bearer token → UserContext (sub/pid/rid) (part of COMP-018)")
+}
+ContainerDb(db, "PostgreSQL", "iam schema")
+
+Rel(jwtmw, auth, "Verifies tokens issued by")
+Rel(auth, db, "Reads users, writes refresh/reset tokens")
+Rel(idsvc, db, "CRUD iam.users/profiles/roles/groups")
+@enduml

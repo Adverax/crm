@@ -1,0 +1,29 @@
+@startuml components-data-engine
+' generated_by: forge:architect (synthesis, brownfield)
+' generated_at: 2026-06-28
+' C4 Level 3 — Components of CTX-004 Data Engine
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title Components — Data Engine (CTX-004)
+
+Container_Boundary(api, "API Server") {
+  Component(rec, "Record Service", "Go / internal/service", "Generic CRUD over any object; sets system fields (COMP-011)")
+  Component(soql, "SOQL Engine", "Go / internal/platform/soql", "Parse → validate → compile → execute; injects RLS WHERE (COMP-008)")
+  Component(dml, "DML Engine", "Go / internal/platform/dml", "8-stage pipeline: defaults → validate → compile → execute → RLS → post-hook (COMP-009)")
+  Component(cel, "CEL Engine", "Go / internal/platform/cel", "Validation rules, dynamic defaults, fn.* custom functions; ProgramCache (COMP-010)")
+  Component(httpapi, "HTTP API & Middleware", "Go / internal/handler,middleware,api", "Routes, contract-tested handlers, query/data endpoints (COMP-018)")
+}
+Component(ols, "OLS/FLS/RLS Enforcers", "CTX-003", "Security checks")
+ContainerDb(db, "PostgreSQL", "obj_* tables")
+
+Rel(httpapi, rec, "Delegates record CRUD")
+Rel(httpapi, soql, "Executes /query")
+Rel(httpapi, dml, "Executes /data")
+Rel(rec, soql, "Reads via")
+Rel(rec, dml, "Writes via")
+Rel(dml, cel, "Evaluates defaults & validation rules")
+Rel(soql, ols, "Checks object/field access; injects RLS")
+Rel(dml, ols, "Checks write access; injects RLS for UPDATE/DELETE")
+Rel(soql, db, "Parameterized SELECT")
+Rel(dml, db, "INSERT/UPDATE/DELETE/UPSERT")
+@enduml

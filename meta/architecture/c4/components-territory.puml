@@ -1,0 +1,19 @@
+@startuml components-territory
+' generated_by: forge:architect (synthesis, brownfield)
+' generated_at: 2026-06-28
+' C4 Level 3 — Components of CTX-008 Territory Management (ee)
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title Components — Territory Management (CTX-008, Enterprise)
+
+Container_Boundary(api, "API Server (build tag: enterprise)") {
+  Component(terr, "Territory Services", "Go / ee/internal/platform/territory", "Models lifecycle, hierarchy, user/record assignments, assignment rules, resolver (COMP-017)")
+  Component(resolver, "TerritoryResolver", "Go / ee resolver impl", "Implements the core RLS TerritoryResolver interface (noop in community)")
+}
+Component(rls, "RLS Enforcer", "CTX-003")
+ContainerDb(db, "PostgreSQL", "ee schema + PL/pgSQL territory functions")
+
+Rel(resolver, rls, "Plugs territory groups into RLS")
+Rel(terr, db, "CRUD ee.* ; calls activate_territory_model / rebuild_territory_hierarchy")
+Rel(terr, db, "Writes obj_*__share rows with reason='territory'")
+@enduml

@@ -1,0 +1,264 @@
+# generated_by: forge:reverse
+# generated_at: 2026-06-28
+# tier: large
+# Invariants record only what the code/DB actually enforces (as_built).
+# Suspected-but-unenforced assumptions are listed in _meta.gaps, not as invariants.
+aggregates:
+  - id: AGG-001
+    name: User
+    description: An account in the iam schema with a profile and optional role.
+    invariants:
+      - id: INV-001
+        statement: username and email are unique across users.
+      - id: INV-002
+        statement: profile_id is required (FK RESTRICT); role_id is optional (FK SET NULL).
+      - id: INV-003
+        statement: password_hash stores a bcrypt hash (cost=12); plaintext is never stored.
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["migrations/*_create_users.up.sql", "migrations/*_add_password_hash_to_users.up.sql", "internal/modules/auth/"]
+  - id: AGG-002
+    name: Profile
+    description: Permission profile; a special permission set holding base OLS/FLS.
+    invariants:
+      - id: INV-004
+        statement: api_name is unique; base_permission_set_id is required (FK RESTRICT).
+      - id: INV-005
+        statement: creating a profile auto-provisions a base grant permission set.
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["migrations/*_create_profiles.up.sql", "internal/platform/security/"]
+  - id: AGG-003
+    name: UserRole
+    description: A node in the role hierarchy (self-referential parent).
+    invariants:
+      - id: INV-006
+        statement: api_name is unique; parent_id references another role (SET NULL on delete).
+      - id: INV-007
+        statement: creating a role auto-generates its role and role_and_subordinates groups.
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["migrations/*_create_user_roles.up.sql", "migrations/*_create_groups.up.sql"]
+      gaps: ["Role-hierarchy cycle prevention is computed in the RLS closure builder; whether role create/update rejects a cycle at write time is unverified."]
+  - id: AGG-004
+    name: Group
+    description: Unified grantee for sharing; one of 5 types.
+    invariants:
+      - id: INV-008
+        statement: group_type ∈ {personal, role, role_and_subordinates, public, territory}.
+      - id: INV-009
+        statement: a group member is exactly one of a user XOR a nested group.
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["migrations/*_create_groups.up.sql", "migrations/*_add_territory_group_type.up.sql"]
+  - id: AGG-005
+    name: ObjectDefinition
+    description: Metadata for an object; backed by a real obj_* table.
+    invariants:
+      - id: INV-010
+        statement: api_name matches ^[a-z][a-z0-9_]*$ and is unique; table_name is unique.
+      - id: INV-011
+        statement: object_type ∈ {standard, custom}; visibility ∈ {private, public_read, public_read_write, controlled_by_parent}.
+      - id: INV-012
+        statement: every obj_* table has id, owner_id, created_by, created_at, updated_by, updated_at system columns.
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["migrations/*_create_object_definitions.up.sql", "internal/platform/metadata/", "migrations/*_add_owd_visibility.up.sql"]
+  - id: AGG-006
+    name: FieldDefinition
+    description: Metadata for a field; maps to a column on its object's table.
+    invariants:
+      - id: INV-013
+        statement: api_name is unique per object; field_type/field_subtype come from the fixed registry.
+      - id: INV-014
+        statement: reference fields carry referenced_object_id; polymorphic targets live in polymorphic_targets.
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["migrations/*_create_field_definitions.up.sql", "migrations/*_create_polymorphic_targets.up.sql"]
+  - id: AGG-007
+    name: PermissionSet
+    description: A grant or deny bundle of object/field permissions.
+    invariants:
+      - id: INV-015
+        statement: ps_type ∈ {grant, deny}; one permission row per (permission_set, object) and per (permission_set, field).
+      - id: INV-016
+        statement: effective permission = OR(grants) & ~OR(denies); deny wins.
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["migrations/*_create_permission_sets.up.sql", "migrations/*_create_permission_tables.up.sql", "internal/platform/security/bitmask.go"]
+  - id: AGG-008
+    name: SharingRule
+    description: Grants record access from a source group to a target group.
+    invariants:
+      - id: INV-017
+        statement: rule_type ∈ {owner_based, criteria_based}; access_level ∈ {read, read_write}.
+      - id: INV-018
+        statement: a share table row is unique per (record_id, grantee_id, reason); reason ∈ {owner, sharing_rule, territory, manual}.
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["migrations/*_create_sharing_rules.up.sql", "internal/platform/security/rls/"]
+  - id: AGG-009
+    name: Record
+    description: A row in an obj_* table, manipulated only through SOQL/DML.
+    invariants:
+      - id: INV-019
+        statement: every record has an owner_id used by RLS; reads/writes are filtered by OLS/FLS/RLS.
+      - id: INV-020
+        statement: required fields must be present and writes are checked against writable (FLS) fields.
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["internal/service/record_service.go", "internal/platform/dml/", "internal/platform/soql/executor.go"]
+  - id: AGG-010
+    name: ValidationRule
+    description: A CEL boolean checked on INSERT/UPDATE (DML stage 4b).
+    invariants:
+      - id: INV-021
+        statement: api_name is unique per object; severity ∈ {error, warning}; error blocks the DML, warning does not.
+      - id: INV-022
+        statement: applies_to ∈ {create, update, create,update}; when_expression gates evaluation.
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["migrations/*_create_validation_rules.up.sql", "internal/platform/dml/rule_validator.go"]
+  - id: AGG-011
+    name: CustomFunction
+    description: A named pure CEL expression in the fn.* namespace.
+    invariants:
+      - id: INV-023
+        statement: name matches ^[a-z][a-z0-9_]*$ and is unique; body <= 4096 chars; <= 10 params.
+      - id: INV-024
+        statement: no recursion and no circular dependencies (rejected on save); nesting depth <= 3.
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["migrations/*_create_functions.up.sql", "internal/platform/cel/functions.go", "internal/handler/function_handler.go"]
+  - id: AGG-012
+    name: Portal
+    description: A bounded-context UI adapter per profile, modeled as a gate graph.
+    invariants:
+      - id: INV-025
+        statement: api_name is unique; config holds entry_gate + gates; portal is unbound from any single object.
+      - id: INV-026
+        statement: computed fields form a DAG — cycles are rejected on save (Kahn's algorithm).
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["migrations/*_create_portals.up.sql", "migrations/*_portal_gate_graph.up.sql", "internal/handler/portal_admin_handler.go"]
+  - id: AGG-013
+    name: Layout
+    description: Presentation config per (portal, form_factor, mode); reusable shared layouts.
+    invariants:
+      - id: INV-027
+        statement: a layout is unique per (portal_id, form_factor, mode); deleting a portal cascades its layouts.
+      - id: INV-028
+        statement: a shared_layout referenced via layout_ref is protected from deletion (RESTRICT).
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["migrations/*_create_layouts.up.sql", "migrations/*_create_shared_layouts.up.sql"]
+  - id: AGG-014
+    name: ProfileNavigation
+    description: The grouped sidebar configuration for a profile.
+    invariants:
+      - id: INV-029
+        statement: one navigation config per profile (UNIQUE); resolved with OLS intersection.
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["migrations/*_create_profile_navigation.up.sql", "internal/handler/navigation_handler.go"]
+      gaps: ["Group/item count limits (<=20 groups, <=50 items) are documented; enforcement point in code unverified."]
+  - id: AGG-015
+    name: Procedure
+    description: A versioned declarative procedure (JSON DSL) with draft/published lifecycle.
+    invariants:
+      - id: INV-030
+        statement: code is unique; a version is unique per (procedure, version); status ∈ {draft, published, superseded}.
+      - id: INV-031
+        statement: only published versions execute for real; drafts run only as dry-run.
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["migrations/*_create_procedures.up.sql", "internal/platform/procedure/", "internal/handler/procedure_handler.go"]
+  - id: AGG-016
+    name: AutomationRule
+    description: A DML trigger with a CEL condition that invokes a procedure.
+    invariants:
+      - id: INV-032
+        statement: name is unique per object; event_type ∈ {before,after}×{insert,update,delete}; execution_mode ∈ {per_record, per_batch}.
+      - id: INV-033
+        statement: automation recursion depth is bounded (default 3) to prevent loops.
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["migrations/*_create_automation_rules.up.sql", "internal/platform/automation/"]
+  - id: AGG-017
+    name: Credential
+    description: A Named Credential storing AES-256-GCM encrypted auth data.
+    invariants:
+      - id: INV-034
+        statement: code is unique; type ∈ {api_key, basic, oauth2_client}; base_url is HTTPS-only.
+      - id: INV-035
+        statement: auth data is encrypted with a unique nonce per record; outbound calls pass an SSRF block-list.
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["migrations/*_create_credentials.up.sql", "internal/platform/credential/"]
+  - id: AGG-018
+    name: AppTemplate
+    description: A compiled-in object/field set applied once to bootstrap a domain.
+    invariants:
+      - id: INV-036
+        statement: a template can only be applied to an empty database (object_definitions count == 0).
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["internal/platform/templates/", "internal/handler/template_handler.go"]
+  - id: AGG-019
+    name: TerritoryModel
+    description: (ee) A territory model with a planning/active/archived lifecycle.
+    invariants:
+      - id: INV-037
+        statement: at most one model is active at any time (partial unique index on status='active').
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["ee/migrations/000001_create_territory_schema.up.sql", "ee/internal/platform/territory/model_service.go"]
+  - id: AGG-020
+    name: Territory
+    description: (ee) A node in a model's territory hierarchy with per-object access defaults.
+    invariants:
+      - id: INV-038
+        statement: api_name is unique per model; a territory grants record access only for objects with a territory_object_default.
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["ee/migrations/000001_create_territory_schema.up.sql", "ee/internal/platform/territory/territory_service.go"]

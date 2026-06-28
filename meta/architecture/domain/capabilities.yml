@@ -1,0 +1,148 @@
+# generated_by: forge:reverse
+# generated_at: 2026-06-28
+# tier: large
+capabilities:
+  - id: CAP-001
+    name: Authentication & session
+    description: JWT login/refresh/logout, password reset, rate limiting.
+    events: [EVT-001]
+    commands: [CMD-001]
+    stories: [US-001]
+    requirements: [FR-001, NFR-001, NFR-002]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/modules/auth/"] }
+  - id: CAP-002
+    name: Identity administration
+    description: CRUD for users, profiles, roles, groups and their membership.
+    events: []
+    commands: [CMD-007]
+    stories: [US-004]
+    requirements: [FR-002]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/handler/security_handler.go"] }
+  - id: CAP-003
+    name: Object & field modeling
+    description: Define objects/fields; runtime DDL creates obj_* tables (no EAV).
+    events: [EVT-002, EVT-003]
+    commands: [CMD-002, CMD-003]
+    stories: [US-002]
+    requirements: [FR-003, FR-004]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/metadata/"] }
+  - id: CAP-004
+    name: Relationship & picklist modeling
+    description: Reference subtypes (association/composition/polymorphic), picklists, translations.
+    events: []
+    commands: [CMD-003]
+    stories: [US-002]
+    requirements: [FR-005]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["migrations/*_create_polymorphic_targets.up.sql", "internal/platform/metadata/"] }
+  - id: CAP-005
+    name: Object/Field-level security
+    description: Grant/deny permission sets; OLS/FLS bitmask enforcement.
+    events: [EVT-007]
+    commands: [CMD-007]
+    stories: [US-004]
+    requirements: [FR-006, FR-007]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/security/ols/", "internal/platform/security/fls/"] }
+  - id: CAP-006
+    name: Row-level security
+    description: OWD, role hierarchy, groups, sharing rules, manual sharing, share tables.
+    events: [EVT-008]
+    commands: [CMD-008, CMD-009]
+    stories: [US-004]
+    requirements: [FR-008, FR-009]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/security/rls/"] }
+  - id: CAP-007
+    name: Effective-permission caching
+    description: Closure tables + outbox-driven recompute of effective caches.
+    events: [EVT-015]
+    commands: []
+    stories: [US-004]
+    requirements: [FR-010, NFR-003]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/security/outbox_worker.go"] }
+  - id: CAP-008
+    name: SOQL querying
+    description: Relationship-aware SOQL with automatic OLS/FLS/RLS injection.
+    events: []
+    commands: []
+    stories: [US-003]
+    requirements: [FR-011, FR-012]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/soql/"] }
+  - id: CAP-009
+    name: DML mutation
+    description: INSERT/UPDATE/DELETE/UPSERT through an 8-stage pipeline with RLS injection.
+    events: [EVT-004, EVT-005, EVT-006]
+    commands: [CMD-004, CMD-005, CMD-006]
+    stories: [US-003]
+    requirements: [FR-013, FR-014]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/dml/"] }
+  - id: CAP-010
+    name: Declarative business logic
+    description: CEL validation rules, dynamic defaults, custom functions (fn.*).
+    events: []
+    commands: []
+    stories: [US-006]
+    requirements: [FR-015, FR-016]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/cel/", "internal/platform/dml/rule_validator.go"] }
+  - id: CAP-011
+    name: Describe & form resolution
+    description: Describe API merges Portal+Layout into a computed Form with OLS/FLS filtering.
+    events: []
+    commands: []
+    stories: [US-003, US-005]
+    requirements: [FR-017]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/handler/describe_handler.go"] }
+  - id: CAP-012
+    name: Portal runtime
+    description: Gate-graph execution (SOQL/DML steps, outcomes) per profile.
+    events: [EVT-009]
+    commands: [CMD-010]
+    stories: [US-005]
+    requirements: [FR-018]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/handler/portal_handler.go"] }
+  - id: CAP-013
+    name: Navigation & layouts
+    description: Per-profile grouped navigation and per-form-factor layouts/shared layouts.
+    events: []
+    commands: []
+    stories: [US-005]
+    requirements: [FR-019]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/handler/navigation_handler.go", "internal/handler/layout_handler.go"] }
+  - id: CAP-014
+    name: Procedure automation
+    description: Versioned JSON-DSL procedures (6 command types, Saga rollback, dry-run).
+    events: [EVT-010, EVT-011]
+    commands: [CMD-011, CMD-012]
+    stories: [US-006]
+    requirements: [FR-020]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/procedure/"] }
+  - id: CAP-015
+    name: Automation rules
+    description: DML triggers with CEL conditions invoking procedures.
+    events: [EVT-012]
+    commands: [CMD-013]
+    stories: [US-006]
+    requirements: [FR-021]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/automation/"] }
+  - id: CAP-016
+    name: Named credentials & integrations
+    description: Encrypted secrets and SSRF-guarded outbound HTTP for integrations.
+    events: []
+    commands: []
+    stories: [US-006]
+    requirements: [FR-022, NFR-004]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/credential/"] }
+  - id: CAP-017
+    name: App templates
+    description: One-click provisioning of pre-built object/field sets.
+    events: [EVT-013]
+    commands: [CMD-014]
+    stories: [US-002]
+    requirements: [FR-023]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/templates/"] }
+  - id: CAP-018
+    name: Territory management
+    description: (ee) Territory models, hierarchy, assignments, territory-based sharing.
+    events: [EVT-014]
+    commands: [CMD-015]
+    stories: [US-007]
+    requirements: [FR-024]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["ee/internal/platform/territory/"] }

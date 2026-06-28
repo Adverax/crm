@@ -1,0 +1,148 @@
+# generated_by: forge:reverse
+# generated_at: 2026-06-28
+# tier: large
+terms:
+  - id: TERM-001
+    term: User
+    definition: An authenticated account with a profile and optional role; identity carried in JWT as UserContext.
+    context: CTX-001
+    source: [US-001]
+  - id: TERM-002
+    term: Profile
+    definition: A permission profile whose base permission set holds default OLS/FLS; also scopes portals and navigation.
+    context: CTX-001
+    source: [US-004]
+  - id: TERM-003
+    term: Role
+    definition: A node in the role hierarchy; managers (ancestor roles) can read subordinates' records.
+    context: CTX-001
+    source: [US-004]
+  - id: TERM-004
+    term: Group
+    definition: The unified grantee for sharing; types personal, role, role_and_subordinates, public, territory.
+    context: CTX-001
+    source: [US-004]
+  - id: TERM-005
+    term: Object
+    definition: A metadata-defined entity backed by a real obj_* PostgreSQL table.
+    context: CTX-002
+    aliases: [Custom Object, Standard Object]
+    source: [US-002]
+  - id: TERM-006
+    term: Field
+    definition: A typed attribute of an object (type + subtype + config) mapped to a column.
+    context: CTX-002
+    source: [US-002]
+  - id: TERM-007
+    term: Reference
+    definition: A relationship field; subtypes association, composition, or polymorphic.
+    context: CTX-002
+    source: [US-002]
+  - id: TERM-008
+    term: Relationship Registry
+    definition: An in-memory cache of object relationships derived from field definitions (not a separate table).
+    context: CTX-002
+    source: [US-002]
+  - id: TERM-009
+    term: OLS
+    definition: Object-Level Security — whether a profile may CRUD an object (grant/deny bitmask).
+    context: CTX-003
+    aliases: [Object-Level Security]
+    source: [US-004]
+  - id: TERM-010
+    term: FLS
+    definition: Field-Level Security — whether a profile may read/edit a field.
+    context: CTX-003
+    aliases: [Field-Level Security]
+    source: [US-004]
+  - id: TERM-011
+    term: RLS
+    definition: Row-Level Security — whether a user may see a specific record (ownership, hierarchy, sharing).
+    context: CTX-003
+    aliases: [Row-Level Security]
+    source: [US-004]
+  - id: TERM-012
+    term: Permission Set
+    definition: A grant or deny bundle of object/field permissions; effective = grants & ~denies.
+    context: CTX-003
+    source: [US-004]
+  - id: TERM-013
+    term: Sharing Rule
+    definition: A rule granting record access from a source group to a target group (owner- or criteria-based).
+    context: CTX-003
+    source: [US-004]
+  - id: TERM-014
+    term: SOQL
+    definition: The unified read query language; security is injected automatically.
+    context: CTX-004
+    source: [US-003]
+  - id: TERM-015
+    term: DML
+    definition: The unified write engine (INSERT/UPDATE/DELETE/UPSERT) with an 8-stage pipeline.
+    context: CTX-004
+    source: [US-003]
+  - id: TERM-016
+    term: CEL
+    definition: Common Expression Language used for validations, defaults, conditions, and custom functions.
+    context: CTX-004
+    source: [US-006]
+  - id: TERM-017
+    term: Record
+    definition: A row in an obj_* table, accessed only through SOQL/DML.
+    context: CTX-004
+    source: [US-003]
+  - id: TERM-018
+    term: Portal
+    definition: A bounded-context UI adapter per profile, modeled as a gate graph.
+    context: CTX-005
+    source: [US-005]
+  - id: TERM-019
+    term: Gate
+    definition: A stateless node in a portal graph with body steps (SOQL/DML), a layout, and outcomes.
+    context: CTX-005
+    source: [US-005]
+  - id: TERM-020
+    term: Layout
+    definition: Presentation config per (portal, form_factor, mode); shared layouts are reusable fragments.
+    context: CTX-005
+    source: [US-005]
+  - id: TERM-021
+    term: Form
+    definition: The computed merge of Portal + Layout returned by the Describe API; the frontend renders only the Form.
+    context: CTX-005
+    source: [US-003]
+  - id: TERM-022
+    term: Procedure
+    definition: A versioned declarative workflow (JSON DSL) with 6 command types and Saga rollback.
+    context: CTX-006
+    source: [US-006]
+  - id: TERM-023
+    term: Automation Rule
+    definition: A DML trigger with a CEL condition that invokes a published procedure.
+    context: CTX-006
+    source: [US-006]
+  - id: TERM-024
+    term: Named Credential
+    definition: An encrypted secret store (AES-256-GCM) for authenticated outbound integrations.
+    context: CTX-006
+    source: [US-006]
+  - id: TERM-025
+    term: Scenario
+    definition: A durable, long-running orchestration of procedures (designed, not yet implemented).
+    context: CTX-006
+    source: [US-006]
+  - id: TERM-026
+    term: App Template
+    definition: A compiled-in set of objects/fields applied once to bootstrap a domain.
+    context: CTX-007
+    source: [US-002]
+  - id: TERM-027
+    term: Territory Model
+    definition: (ee) A named territory configuration with a planning/active/archived lifecycle.
+    context: CTX-008
+    source: [US-007]
+  - id: TERM-028
+    term: Territory
+    definition: (ee) A node in a model's hierarchy with per-object access defaults; drives territory-based sharing.
+    context: CTX-008
+    source: [US-007]

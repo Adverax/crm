@@ -1,0 +1,38 @@
+# generated_by: forge:reverse
+# generated_at: 2026-06-28
+# tier: large
+policies:
+  - id: POL-001
+    name: RecomputeEffectiveCachesOnPermissionChange
+    when: EVT-007
+    then: CMD-016
+    rationale: >
+      The outbox worker reacts to security_outbox events (LISTEN/NOTIFY + 30s
+      sweep) and incrementally recomputes only the affected effective OLS/FLS/RLS
+      caches, keeping access checks fast and consistent (ADR-0012).
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/security/outbox_worker.go"] }
+  - id: POL-002
+    name: EvaluateAutomationRulesOnDmlEvent
+    when: EVT-004
+    then: CMD-012
+    rationale: >
+      After a DML mutation, the automation post-execute hook evaluates matching
+      Automation Rules (CEL condition) and invokes their published procedure;
+      recursion is depth-limited (ADR-0031). Also applies to EVT-005/EVT-006.
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/automation/dml_hook.go"] }
+  - id: POL-003
+    name: RegenerateShareEntriesOnSharingChange
+    when: EVT-008
+    then: CMD-016
+    rationale: >
+      Sharing-rule and manual-share changes regenerate obj_*__share rows for the
+      affected groups asynchronously via the outbox path.
+    _meta: { source: reverse-engineered, confidence: medium, as_built: true, evidence: ["internal/platform/security/rls/", "internal/platform/security/outbox_worker.go"] }
+  - id: POL-004
+    name: RebuildTerritorySharingOnModelActivation
+    when: EVT-014
+    then: CMD-016
+    rationale: >
+      (ee) Activating a territory model rebuilds territory groups, closure tables
+      and share entries in a single PL/pgSQL transaction (ADR-0015).
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["ee/migrations/000004_create_territory_functions.up.sql"] }

@@ -1,0 +1,132 @@
+# generated_by: forge:reverse
+# generated_at: 2026-06-28
+# tier: large
+commands:
+  - id: CMD-001
+    name: AuthenticateUser
+    actor: ACT-001
+    target_aggregate: AGG-001
+    preconditions: [INV-003]
+    produces: [EVT-001]
+    source: [US-001]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/modules/auth/"] }
+  - id: CMD-002
+    name: DefineObject
+    actor: ACT-002
+    target_aggregate: AGG-005
+    preconditions: [INV-010, INV-011]
+    produces: [EVT-002]
+    source: [US-002]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/handler/metadata_handler.go", "internal/platform/metadata/"] }
+  - id: CMD-003
+    name: DefineField
+    actor: ACT-002
+    target_aggregate: AGG-006
+    preconditions: [INV-013, INV-014]
+    produces: [EVT-003]
+    source: [US-002]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/handler/metadata_handler.go"] }
+  - id: CMD-004
+    name: CreateRecord
+    actor: ACT-001
+    target_aggregate: AGG-009
+    preconditions: [INV-019, INV-020, INV-021]
+    produces: [EVT-004]
+    source: [US-003]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/dml/", "internal/service/record_service.go"] }
+  - id: CMD-005
+    name: UpdateRecord
+    actor: ACT-001
+    target_aggregate: AGG-009
+    preconditions: [INV-019, INV-020, INV-021]
+    produces: [EVT-005]
+    source: [US-003]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/dml/executor.go"] }
+  - id: CMD-006
+    name: DeleteRecord
+    actor: ACT-001
+    target_aggregate: AGG-009
+    preconditions: [INV-019]
+    produces: [EVT-006]
+    source: [US-003]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/dml/executor.go"] }
+  - id: CMD-007
+    name: SetPermissions
+    actor: ACT-002
+    target_aggregate: AGG-007
+    preconditions: [INV-015, INV-016]
+    produces: [EVT-007]
+    source: [US-004]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/handler/security_handler.go", "internal/platform/security/permission_service.go"] }
+  - id: CMD-008
+    name: CreateSharingRule
+    actor: ACT-002
+    target_aggregate: AGG-008
+    preconditions: [INV-017]
+    produces: [EVT-008]
+    source: [US-004]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/security/sharing_rule_service.go"] }
+  - id: CMD-009
+    name: ShareRecord
+    actor: ACT-001
+    target_aggregate: AGG-008
+    preconditions: [INV-018]
+    produces: [EVT-008]
+    source: [US-004]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/security/manual_share_service.go"] }
+  - id: CMD-010
+    name: ConfigurePortal
+    actor: ACT-002
+    target_aggregate: AGG-012
+    preconditions: [INV-025, INV-026]
+    produces: [EVT-009]
+    source: [US-005]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/handler/portal_admin_handler.go"] }
+  - id: CMD-011
+    name: PublishProcedure
+    actor: ACT-002
+    target_aggregate: AGG-015
+    preconditions: [INV-030, INV-031]
+    produces: [EVT-010]
+    source: [US-006]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/handler/procedure_handler.go", "internal/platform/procedure/"] }
+  - id: CMD-012
+    name: ExecuteProcedure
+    actor: ACT-004
+    target_aggregate: AGG-015
+    preconditions: [INV-031]
+    produces: [EVT-011]
+    source: [US-006]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/procedure/engine.go"] }
+  - id: CMD-013
+    name: CreateAutomationRule
+    actor: ACT-002
+    target_aggregate: AGG-016
+    preconditions: [INV-032, INV-033]
+    produces: [EVT-012]
+    source: [US-006]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/handler/automation_rule_handler.go"] }
+  - id: CMD-014
+    name: ApplyTemplate
+    actor: ACT-002
+    target_aggregate: AGG-018
+    preconditions: [INV-036]
+    produces: [EVT-013]
+    source: [US-002]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/handler/template_handler.go", "internal/platform/templates/"] }
+  - id: CMD-015
+    name: ActivateTerritoryModel
+    actor: ACT-002
+    target_aggregate: AGG-019
+    preconditions: [INV-037]
+    produces: [EVT-014]
+    source: [US-007]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["ee/internal/platform/territory/model_service.go", "ee/migrations/000004_create_territory_functions.up.sql"] }
+  - id: CMD-016
+    name: RecomputeSecurityCaches
+    actor: ACT-003
+    target_aggregate: AGG-007
+    preconditions: []
+    produces: [EVT-015]
+    source: [US-004]
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/security/outbox_worker.go", "internal/platform/security/effective_computer.go", "internal/platform/security/rls_effective_computer.go"] }

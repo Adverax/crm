@@ -1,0 +1,351 @@
+# generated_by: forge:reverse
+# generated_at: 2026-06-28
+# tier: large
+# As-built requirements: FR = "the system does X". Acceptance criteria are derived
+# from observed behavior; their `test:` links are NOT yet mined from the suite
+# (pass 6b pending) — see reverse-report.md. NFR thresholds are only asserted where
+# code/config gives a concrete number.
+functional:
+  - id: FR-001
+    statement: The system authenticates a user with username/password and issues a JWT access token plus a rotating refresh token.
+    source: [US-001]
+    acceptance:
+      - id: AC-001
+        test: TestServiceImpl_Login
+        given: an active user with a valid bcrypt password hash
+        when: POST /api/v1/auth/login is called with correct credentials
+        then: a 200 response returns access_token and refresh_token
+        kind: happy
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/modules/auth/"] }
+  - id: FR-002
+    statement: The system provides admin CRUD for users, profiles, roles, permission sets, groups, and group membership.
+    source: [US-004]
+    acceptance:
+      - id: AC-002
+        test: TestUserService_Create
+        given: an administrator
+        when: a user is created with a profile and optional role
+        then: the user is persisted and a personal group is auto-generated
+        kind: happy
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/handler/security_handler.go"] }
+  - id: FR-003
+    statement: The system creates a real PostgreSQL table obj_{api_name} with system columns when an object definition is created.
+    source: [US-002]
+    acceptance:
+      - id: AC-003
+        test: TestObjectServiceCreate
+        given: a unique api_name matching ^[a-z][a-z0-9_]*$
+        when: POST /api/v1/admin/metadata/objects is called
+        then: a table obj_{api_name} exists with id/owner_id/created_*/updated_* columns and the object is registered in the cache
+        kind: happy
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/metadata/", "tests/pgtap/"] }
+  - id: FR-004
+    statement: The system supports a fixed field type/subtype registry (text, number, boolean, datetime, picklist, reference) with per-type config.
+    source: [US-002]
+    acceptance:
+      - id: AC-004
+        test: TestFieldServiceCreate
+        given: an existing object
+        when: a field is created with a valid type/subtype and config
+        then: a corresponding column is added with native constraints
+        kind: happy
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["migrations/*_create_field_definitions.up.sql"] }
+  - id: FR-005
+    statement: The system supports association, composition, and polymorphic reference fields, with relationships derived into an in-memory registry.
+    source: [US-002]
+    acceptance:
+      - id: AC-005
+        test: TestMetadataCacheLookups
+        given: a reference field
+        when: the relationship registry is built
+        then: forward/reverse relationships resolve for SOQL traversal and cascade analysis
+        kind: happy
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["migrations/*_create_relationship_registry_mv.up.sql", "internal/platform/metadata/"] }
+  - id: FR-006
+    statement: The system enforces object-level security from grant/deny permission sets using a CRUD bitmask (effective = grants & ~denies).
+    source: [US-004]
+    acceptance:
+      - id: AC-006
+        test: TestComputeEffective
+        given: a user whose effective OLS lacks Delete on an object
+        when: a delete is attempted
+        then: the operation is denied (403)
+        kind: authz
+        invariant: INV-016
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/security/ols/", "internal/platform/security/bitmask.go"] }
+  - id: FR-007
+    statement: The system enforces field-level security; non-readable fields are excluded and non-writable fields are rejected on write.
+    source: [US-004]
+    acceptance:
+      - id: AC-007
+        test: TestHasFLS
+        given: a user without read FLS on a field
+        when: a record is read
+        then: the field is omitted from the result
+        kind: authz
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/security/fls/"] }
+  - id: FR-008
+    statement: The system enforces row-level security via OWD, owner, role hierarchy, group membership, and share tables, injected into SQL.
+    source: [US-004]
+    acceptance:
+      - id: AC-008
+        test: TestRLSEffectiveComputer_RecomputeGroupMembers
+        given: a private object and a user who is neither owner, manager, nor a share grantee
+        when: records are queried
+        then: only visible rows are returned (RLS WHERE clause applied)
+        kind: authz
+        invariant: INV-019
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/soql/executor.go", "internal/platform/security/rls/"] }
+  - id: FR-009
+    statement: The system supports ownership-based and criteria-based sharing rules plus manual record sharing, all via group grantees.
+    source: [US-004]
+    acceptance:
+      - id: AC-009
+        test: TestSharingRuleService_Create
+        given: a sharing rule from a source to a target group
+        when: a record owned by the source group is created
+        then: a share entry grants the target group the configured access level
+        kind: happy
+    _meta: { source: reverse-engineered, confidence: medium, as_built: true, evidence: ["internal/platform/security/sharing_rule_service.go"] }
+  - id: FR-010
+    statement: The system recomputes effective OLS/FLS/RLS caches incrementally via an outbox worker on permission/role/group changes.
+    source: [US-004]
+    acceptance:
+      - id: AC-010
+        test: TestComputeEffective
+        given: a change to a user's profile
+        when: the security_outbox event is processed
+        then: only that user's effective caches are recomputed
+        kind: happy
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/security/outbox_worker.go"] }
+  - id: FR-011
+    statement: The system executes SOQL with relationship traversal, aggregates, subqueries, and date literals, compiled to parameterized SQL.
+    source: [US-003]
+    acceptance:
+      - id: AC-011
+        test: TestCompileLookups
+        given: a valid SOQL query with a parent dot-path
+        when: GET/POST /api/v1/query is called
+        then: a JOIN-based result set is returned with security applied
+        kind: happy
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/soql/"] }
+  - id: FR-012
+    statement: The system rejects SOQL that exceeds defined limits (e.g. LIMIT <= 2000, <= 5 relationship levels).
+    source: [US-003]
+    acceptance:
+      - id: AC-012
+        given: a SOQL query with a 6-level dot path
+        when: it is validated
+        then: validation fails with an error
+        kind: boundary
+    _meta: { source: reverse-engineered, confidence: medium, as_built: true, evidence: ["internal/platform/soql/"], gaps: ["Exact limit-enforcement test not yet mined."] }
+  - id: FR-013
+    statement: The system executes DML (INSERT/UPDATE/DELETE/UPSERT) through an 8-stage pipeline with defaults, validation, compile, execute, RLS, and post-hooks.
+    source: [US-003]
+    acceptance:
+      - id: AC-013
+        test: TestCELDefaultResolver_ResolveDefaults
+        given: an INSERT missing a field with a CEL default
+        when: the DML runs
+        then: the default is applied before validation and execution
+        kind: happy
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/dml/"] }
+  - id: FR-014
+    statement: The system injects RLS into UPDATE/DELETE so users cannot mutate records they cannot see.
+    source: [US-003, US-004]
+    acceptance:
+      - id: AC-014
+        test: TestInjectDMLRLSClause
+        given: a record not visible to the user
+        when: an UPDATE targeting it runs
+        then: zero rows are affected (RLS WHERE excludes it)
+        kind: authz
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/dml/executor.go"] }
+  - id: FR-015
+    statement: The system evaluates CEL validation rules on INSERT/UPDATE; error severity blocks, warning does not.
+    source: [US-006]
+    acceptance:
+      - id: AC-015
+        test: TestCELRuleValidator_ValidateRules
+        given: an active validation rule whose expression is false
+        when: a matching DML runs
+        then: the operation is rejected with the rule's error message
+        kind: negative
+        invariant: INV-021
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/dml/rule_validator.go"] }
+  - id: FR-016
+    statement: The system supports named pure CEL custom functions (fn.*) with safety limits, dual-stack on backend and frontend.
+    source: [US-006]
+    acceptance:
+      - id: AC-016
+        test: TestDetectCycles
+        given: a custom function body that exceeds 4096 chars or recurses
+        when: it is saved
+        then: the save is rejected
+        kind: boundary
+        invariant: INV-024
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/cel/functions.go"] }
+  - id: FR-017
+    statement: The system returns a computed Form (Portal+Layout merge) from the Describe API, filtered by OLS/FLS, with form-factor/mode fallback.
+    source: [US-003, US-005]
+    acceptance:
+      - id: AC-017
+        test: TestDescribeHandler_DescribeObject
+        given: a profile with a portal and layout for an object
+        when: GET /api/v1/describe/:objectName is called with X-Form-Factor/X-Form-Mode
+        then: a merged form with FLS-filtered fields is returned
+        kind: happy
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/handler/describe_handler.go"] }
+  - id: FR-018
+    statement: The system executes Portal gates (SOQL on GET, DML on POST) and returns datasets, layout, and outcomes.
+    source: [US-005]
+    acceptance:
+      - id: AC-018
+        test: TestPortalHandler_ExecuteGate_POST_NoBody
+        given: a form gate with SOQL+DML steps
+        when: POST /api/v1/portal/:apiName/gate/:gateName is called
+        then: the DML runs in a transaction and the configured outcome is returned
+        kind: happy
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/handler/portal_handler.go"] }
+  - id: FR-019
+    statement: The system resolves per-profile navigation with OLS intersection and serves per-form-factor layouts and shared layouts.
+    source: [US-005]
+    acceptance:
+      - id: AC-019
+        test: TestProfileNavigationService_ResolveForProfile
+        given: a profile navigation referencing an object the user cannot read
+        when: GET /api/v1/navigation is called
+        then: that item is omitted and empty groups are hidden
+        kind: authz
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/handler/navigation_handler.go"] }
+  - id: FR-020
+    statement: The system runs versioned procedures (draft/published) with 6 command types, CEL expressions, and LIFO Saga rollback on error.
+    source: [US-006]
+    acceptance:
+      - id: AC-020
+        test: TestEngine_ExecuteDefinition_RollbackOnError
+        given: a published procedure whose later command fails
+        when: it executes
+        then: previously completed compensable steps are rolled back in LIFO order
+        kind: error
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/procedure/"] }
+  - id: FR-021
+    statement: The system fires Automation Rules on DML events when their CEL condition holds, invoking a published procedure, with bounded recursion.
+    source: [US-006]
+    acceptance:
+      - id: AC-021
+        given: an after_update rule with condition new.status != old.status
+        when: a record's status changes
+        then: the referenced procedure is invoked
+        kind: happy
+        invariant: INV-033
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/automation/dml_hook.go"], gaps: ["No Go unit test for the automation engine; covered only by e2e web/e2e/admin-automation-rules.spec.ts."] }
+  - id: FR-022
+    statement: The system stores integration secrets encrypted (AES-256-GCM) and performs SSRF-guarded HTTPS-only outbound calls via Named Credentials.
+    source: [US-006]
+    acceptance:
+      - id: AC-022
+        test: TestIsInternalIP
+        given: an integration.http to an internal IP
+        when: the procedure runs
+        then: the request is blocked by the SSRF guard
+        kind: negative
+        invariant: INV-035
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/credential/"] }
+  - id: FR-023
+    statement: The system applies an app template (objects+fields) only to an empty database and grants full OLS/FLS to the admin profile.
+    source: [US-002]
+    acceptance:
+      - id: AC-023
+        test: TestApplier_Apply
+        given: a database that already contains objects
+        when: a template apply is requested
+        then: it is rejected with a conflict
+        kind: negative
+        invariant: INV-036
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/templates/"] }
+  - id: FR-024
+    statement: (ee) The system activates one territory model at a time and propagates record visibility through territory share entries via an ancestor walk.
+    source: [US-007]
+    acceptance:
+      - id: AC-024
+        test: TestModelService_Activate
+        given: a record assigned to a leaf territory whose ancestor has an object default
+        when: the model is activated
+        then: a share entry is generated for each ancestor territory group with an object default
+        kind: happy
+        invariant: INV-038
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["ee/migrations/000004_create_territory_functions.up.sql"] }
+
+non_functional:
+  - id: NFR-001
+    category: security
+    metric: password_hash_algorithm
+    threshold: bcrypt cost=12
+    condition: for all stored user passwords
+    rationale: Password hashing strength is fixed in the auth module (ADR-0017).
+    acceptance:
+      - id: AC-101
+        test: TestHashPassword
+        given: a plaintext password
+        when: it is hashed and verified
+        then: the stored value is a bcrypt hash that verifies via CheckPassword
+        kind: conformance
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/modules/auth/"] }
+  - id: NFR-002
+    category: security
+    metric: login_rate_limit
+    threshold: 5 attempts / 15 min per IP
+    condition: on /auth/login and /auth/forgot-password
+    rationale: In-memory sliding-window rate limiting (ADR-0017).
+    acceptance:
+      - id: AC-102
+        given: 5 attempts from one IP within 15 minutes
+        when: a 6th attempt is made
+        then: the attempt is rejected by the rate limiter until the window expires
+        test: TestRateLimiter_WindowExpiry
+        kind: boundary
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/modules/auth/"] }
+  - id: NFR-003
+    category: performance
+    metric: effective_cache_recompute_scope
+    threshold: incremental (only affected user/role/group)
+    condition: on a permission/role/group change event
+    rationale: Outbox-driven incremental recompute keeps access checks fast (ADR-0012).
+    _meta: { source: reverse-engineered, confidence: medium, as_built: true, evidence: ["internal/platform/security/outbox_worker.go"], gaps: ["Latency target not specified in code; only scope is enforced."] }
+  - id: NFR-004
+    category: security
+    metric: credential_encryption
+    threshold: AES-256-GCM, unique nonce per record, HTTPS-only
+    condition: for all stored Named Credentials and outbound integration calls
+    rationale: Secret-at-rest protection and SSRF mitigation (ADR-0028).
+    acceptance:
+      - id: AC-104
+        given: the same plaintext secret encrypted twice
+        when: it is stored
+        then: ciphertexts differ (unique nonce) and each decrypts to the original
+        test: TestEncryptUniqueness
+        kind: conformance
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["internal/platform/credential/"] }
+
+constraints:
+  - id: CON-001
+    type: technical
+    statement: The system runs on Go 1.25 and PostgreSQL 16 (single primary), accessed via pgx/v5.
+    source: go.mod, docker-compose.yml
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["go.mod", "docker-compose.yml"] }
+  - id: CON-002
+    type: technical
+    statement: The platform is single-tenant — one organization per instance (ADR-0016).
+    source: docs/adr/0016-single-tenant-architecture.md
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["docs/adr/0016-single-tenant-architecture.md"] }
+  - id: CON-003
+    type: organizational
+    statement: Core code is AGPL v3; the ee/ directory is under a proprietary commercial license, separated by the enterprise build tag (ADR-0014).
+    source: LICENSE, ee/LICENSE
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["LICENSE", "ee/LICENSE"] }
+  - id: CON-004
+    type: technical
+    statement: The HTTP contract is defined by api/openapi.yaml; responses are contract-tested and TS types are generated from it (ADR-0021).
+    source: api/openapi.yaml
+    _meta: { source: reverse-engineered, confidence: high, as_built: true, evidence: ["api/openapi.yaml", "internal/handler/testutil_contract_test.go"] }

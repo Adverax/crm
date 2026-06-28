@@ -1,0 +1,56 @@
+# generated_by: forge:reverse
+# generated_at: 2026-06-28
+# tier: large
+external_systems:
+  - id: EXT-001
+    name: PostgreSQL
+    direction: outbound
+    protocol: other
+    description: >
+      Primary data store (PostgreSQL 16), accessed via pgx/v5 connection pool.
+      Holds metadata, iam, security schemas and all obj_* tables; also runs
+      LISTEN/NOTIFY for the security outbox and (ee) PL/pgSQL territory functions.
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["internal/pkg/database/postgres.go", "go.mod (jackc/pgx/v5)", "docker-compose.yml"]
+  - id: EXT-002
+    name: Redis
+    direction: outbound
+    protocol: other
+    description: >
+      Provisioned in docker-compose (redis:7-alpine) and named in the stack;
+      reserved for future caching. No production code path observed yet.
+    _meta:
+      source: reverse-engineered
+      confidence: medium
+      as_built: true
+      evidence: ["docker-compose.yml"]
+      gaps: ["Redis is declared in infra but no application usage found in code — confirm whether it is wired or purely reserved."]
+  - id: EXT-003
+    name: External HTTP APIs (via Named Credentials)
+    direction: outbound
+    protocol: rest
+    description: >
+      Arbitrary third-party REST endpoints invoked by Procedure integration.http
+      commands. Authenticated via Named Credentials (api_key | basic | oauth2_client),
+      AES-256-GCM secrets, HTTPS-only with an SSRF block-list.
+    _meta:
+      source: reverse-engineered
+      confidence: high
+      as_built: true
+      evidence: ["internal/platform/credential/", "internal/platform/procedure/"]
+  - id: EXT-004
+    name: Email transport (SMTP)
+    direction: outbound
+    protocol: other
+    description: >
+      Password-reset and notification emails. Currently a ConsoleEmailSender
+      (stdout) in dev; SMTP transport is planned (roadmap Phase 12b).
+    _meta:
+      source: reverse-engineered
+      confidence: medium
+      as_built: true
+      evidence: ["internal/modules/auth/"]
+      gaps: ["Production SMTP sender not implemented; only console sender exists. Threshold/provider unknown."]

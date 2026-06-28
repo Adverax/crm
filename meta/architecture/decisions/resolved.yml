@@ -1,0 +1,191 @@
+# generated_by: forge:architect (brownfield import)
+# generated_at: 2026-06-28
+# Imports the 37 pre-existing ADRs from docs/adr/ (indexed in existing-adrs.index.yml).
+# ADR files remain in docs/adr/ (brownfield: paths.existing_adrs). resolution_label is
+# the chosen option; question is the decision the ADR settled.
+resolved:
+  - id: DEC-001
+    resolved_by: ADR-0001
+    resolved_at: 2026-06-28
+    question: What identifier type should records use as primary key?
+    resolution_label: uuid-v4
+  - id: DEC-002
+    resolved_by: ADR-0002
+    resolved_at: 2026-06-28
+    question: How should the platform handle internationalization of labels?
+    resolution_label: inline-default-plus-translations-table
+  - id: DEC-003
+    resolved_by: ADR-0003
+    resolved_at: 2026-06-28
+    question: How should object metadata be structured?
+    resolution_label: metadata-table-with-behavioral-flags
+  - id: DEC-004
+    resolved_by: ADR-0004
+    resolved_at: 2026-06-28
+    question: How should field typing be modeled?
+    resolution_label: type-subtype-hierarchy
+  - id: DEC-005
+    resolved_by: ADR-0005
+    resolved_at: 2026-06-28
+    question: What reference field types are supported?
+    resolution_label: association-composition-polymorphic
+  - id: DEC-006
+    resolved_by: ADR-0006
+    resolved_at: 2026-06-28
+    question: How should relationships be stored?
+    resolution_label: derived-in-memory-registry
+  - id: DEC-007
+    resolved_by: ADR-0007
+    resolved_at: 2026-06-28
+    question: How should object data be stored physically?
+    resolution_label: table-per-object
+  - id: DEC-008
+    resolved_by: ADR-0008
+    resolved_at: 2026-06-28
+    question: Where should the admin panel live?
+    resolution_label: inside-web-monorepo
+  - id: DEC-009
+    resolved_by: ADR-0009
+    resolved_at: 2026-06-28
+    question: What is the overall security architecture?
+    resolution_label: three-layer-ols-fls-rls
+  - id: DEC-010
+    resolved_by: ADR-0010
+    resolved_at: 2026-06-28
+    question: How are object and field permissions modeled?
+    resolution_label: grant-deny-permission-sets-bitmask
+  - id: DEC-011
+    resolved_by: ADR-0011
+    resolved_at: 2026-06-28
+    question: How is row-level security modeled?
+    resolution_label: owd-plus-sharing-plus-role-hierarchy
+  - id: DEC-012
+    resolved_by: ADR-0012
+    resolved_at: 2026-06-28
+    question: How are security permissions cached and invalidated?
+    resolution_label: closure-tables-plus-outbox
+  - id: DEC-013
+    resolved_by: ADR-0013
+    resolved_at: 2026-06-28
+    question: How are sharing grantees modeled?
+    resolution_label: four-group-types-unified-grantee
+  - id: DEC-014
+    resolved_by: ADR-0014
+    resolved_at: 2026-06-28
+    question: What is the licensing and business model?
+    resolution_label: open-core-agpl-plus-ee
+  - id: DEC-015
+    resolved_by: ADR-0015
+    resolved_at: 2026-06-28
+    question: How is territory management designed?
+    resolution_label: ee-territory-models-with-sharing
+  - id: DEC-016
+    resolved_by: ADR-0016
+    resolved_at: 2026-06-28
+    question: Single-tenant or multi-tenant?
+    resolution_label: single-tenant
+  - id: DEC-017
+    resolved_by: ADR-0017
+    resolved_at: 2026-06-28
+    question: How is authentication implemented?
+    resolution_label: jwt-access-refresh-bcrypt-rate-limit
+  - id: DEC-018
+    resolved_by: ADR-0018
+    resolved_at: 2026-06-28
+    question: How are standard objects provided?
+    resolution_label: app-templates-registry-applier
+  - id: DEC-019
+    resolved_by: ADR-0019
+    resolved_at: 2026-06-28
+    question: How is declarative business logic implemented?
+    resolution_label: cel-validations-and-defaults
+  - id: DEC-020
+    resolved_by: ADR-0020
+    resolved_at: 2026-06-28
+    question: How is the DML pipeline extended?
+    resolution_label: typed-stages-option-pattern
+  - id: DEC-021
+    resolved_by: ADR-0021
+    resolved_at: 2026-06-28
+    question: How is the API contract tested?
+    resolution_label: openapi-validation-plus-ts-typegen
+  - id: DEC-022
+    resolved_by: ADR-0022
+    resolved_at: 2026-06-28
+    question: How is role-based UI modeled?
+    resolution_label: portal-bounded-context
+  - id: DEC-023
+    resolved_by: ADR-0023
+    resolved_at: 2026-06-28
+    question: What is the terminology for executable logic?
+    resolution_label: command-procedure-scenario-function
+  - id: DEC-024
+    resolved_by: ADR-0024
+    resolved_at: 2026-06-28
+    question: How is the procedure engine designed?
+    resolution_label: json-dsl-plus-constructor-ui
+  - id: DEC-025
+    resolved_by: ADR-0025
+    resolved_at: 2026-06-28
+    question: How are long-lived processes orchestrated?
+    resolution_label: durable-scenario-engine
+  - id: DEC-026
+    resolved_by: ADR-0026
+    resolved_at: 2026-06-28
+    question: How are reusable computations modeled?
+    resolution_label: named-pure-cel-functions
+  - id: DEC-027
+    resolved_by: ADR-0027
+    resolved_at: 2026-06-28
+    question: How is presentation separated from portal logic?
+    resolution_label: portal-what-layout-how-form-computed
+  - id: DEC-028
+    resolved_by: ADR-0028
+    resolved_at: 2026-06-28
+    question: How are integration secrets stored?
+    resolution_label: aes-256-gcm-named-credentials
+  - id: DEC-029
+    resolved_by: ADR-0029
+    resolved_at: 2026-06-28
+    question: How are scripted entities versioned?
+    resolution_label: draft-published-integer-versions
+  - id: DEC-030
+    resolved_by: ADR-0030
+    resolved_at: 2026-06-28
+    question: How is the monolith structured for future extraction?
+    resolution_label: modular-monolith-metadatareader-interface
+  - id: DEC-031
+    resolved_by: ADR-0031
+    resolved_at: 2026-06-28
+    question: How are reactive triggers modeled?
+    resolution_label: automation-rules-on-dml-events
+  - id: DEC-032
+    resolved_by: ADR-0032
+    resolved_at: 2026-06-28
+    question: How is per-profile navigation modeled?
+    resolution_label: profile-navigation-plus-portal-unbinding
+  - id: DEC-033
+    resolved_by: ADR-0033
+    resolved_at: 2026-06-28
+    question: How should offline sync work for field teams?
+    resolution_label: operation-based-sync-proposed
+  - id: DEC-034
+    resolved_by: ADR-0034
+    resolved_at: 2026-06-28
+    question: How is vertical extensibility provided?
+    resolution_label: compiled-in-industry-modules
+  - id: DEC-035
+    resolved_by: ADR-0035
+    resolved_at: 2026-06-28
+    question: How are portal data sources modeled?
+    resolution_label: queries-as-first-class-data-sources
+  - id: DEC-036
+    resolved_by: ADR-0036
+    resolved_at: 2026-06-28
+    question: How are portal read and transactional actions modeled?
+    resolution_label: read-plus-transactional-actions-proposed
+  - id: DEC-037
+    resolved_by: ADR-0037
+    resolved_at: 2026-06-28
+    question: How are portal navigation and execution unified?
+    resolution_label: gate-graph-proposed

@@ -1,0 +1,297 @@
+# generated_by: forge:reverse
+# generated_at: 2026-06-28
+# tier: large
+# Reverse-engineered trace. components[].code are REAL globs (as_built: true) so the
+# trace↔code validator flags drift when a mapped component's code moves or is removed.
+# tests[] bound to real Go test functions via pass 6b (forge:reverse drift, 2026-06-28).
+# status: covered = has a bound unit test; partial = no unit test yet (see reverse-report.md):
+#   FR-008 (cache test only), FR-012 (no limit test), FR-021 (e2e only), NFR-003 (no perf test).
+links:
+  - req: FR-001
+    status: covered
+    capabilities: [CAP-001]
+    components: [COMP-001, COMP-018]
+    adrs: [ADR-0017]
+    tests: [TestServiceImpl_Login]
+  - req: FR-002
+    status: covered
+    capabilities: [CAP-002]
+    components: [COMP-002, COMP-018]
+    adrs: [ADR-0013]
+    tests: [TestUserService_Create]
+  - req: FR-003
+    status: covered
+    capabilities: [CAP-003]
+    components: [COMP-007]
+    adrs: [ADR-0003, ADR-0007]
+    tests: [TestObjectServiceCreate]
+  - req: FR-004
+    status: covered
+    capabilities: [CAP-003]
+    components: [COMP-007]
+    adrs: [ADR-0004]
+    tests: [TestFieldServiceCreate]
+  - req: FR-005
+    status: covered
+    capabilities: [CAP-004]
+    components: [COMP-007]
+    adrs: [ADR-0005, ADR-0006]
+    tests: [TestMetadataCacheLookups]
+  - req: FR-006
+    status: covered
+    capabilities: [CAP-005]
+    components: [COMP-003, COMP-002]
+    adrs: [ADR-0009, ADR-0010]
+    tests: [TestComputeEffective, TestHasOLS]
+  - req: FR-007
+    status: covered
+    capabilities: [CAP-005]
+    components: [COMP-004]
+    adrs: [ADR-0010]
+    tests: [TestHasFLS]
+  - req: FR-008
+    status: partial
+    capabilities: [CAP-006]
+    components: [COMP-005, COMP-008]
+    adrs: [ADR-0011]
+    tests: [TestRLSEffectiveComputer_RecomputeGroupMembers]
+  - req: FR-009
+    status: covered
+    capabilities: [CAP-006]
+    components: [COMP-005, COMP-002]
+    adrs: [ADR-0011, ADR-0013]
+    tests: [TestSharingRuleService_Create]
+  - req: FR-010
+    status: covered
+    capabilities: [CAP-007]
+    components: [COMP-006]
+    adrs: [ADR-0012]
+    tests: [TestComputeEffective]
+  - req: FR-011
+    status: covered
+    capabilities: [CAP-008]
+    components: [COMP-008, COMP-007]
+    adrs: []
+    tests: [TestCompileLookups, TestCompileSubqueries]
+  - req: FR-012
+    status: partial
+    capabilities: [CAP-008]
+    components: [COMP-008]
+    adrs: []
+    tests: []
+  - req: FR-013
+    status: covered
+    capabilities: [CAP-009]
+    components: [COMP-009, COMP-010]
+    adrs: [ADR-0019, ADR-0020]
+    tests: [TestCELDefaultResolver_ResolveDefaults, TestCompileInsert]
+  - req: FR-014
+    status: covered
+    capabilities: [CAP-009]
+    components: [COMP-009, COMP-005]
+    adrs: [ADR-0011, ADR-0020]
+    tests: [TestInjectDMLRLSClause]
+  - req: FR-015
+    status: covered
+    capabilities: [CAP-010]
+    components: [COMP-010, COMP-009]
+    adrs: [ADR-0019]
+    tests: [TestCELRuleValidator_ValidateRules]
+  - req: FR-016
+    status: covered
+    capabilities: [CAP-010]
+    components: [COMP-010]
+    adrs: [ADR-0026]
+    tests: [TestDetectCycles, TestDetectNestingDepth]
+  - req: FR-017
+    status: covered
+    capabilities: [CAP-011]
+    components: [COMP-012, COMP-007]
+    adrs: [ADR-0027]
+    tests: [TestDescribeHandler_DescribeObject]
+  - req: FR-018
+    status: covered
+    capabilities: [CAP-012]
+    components: [COMP-012, COMP-008, COMP-009]
+    adrs: [ADR-0022, ADR-0037]
+    tests: [TestPortalHandler_ExecuteGate_POST_NoBody, TestPortalHandler_ExecuteGate_MethodNotAllowed]
+  - req: FR-019
+    status: covered
+    capabilities: [CAP-013]
+    components: [COMP-012]
+    adrs: [ADR-0032, ADR-0027]
+    tests: [TestProfileNavigationService_ResolveForProfile]
+  - req: FR-020
+    status: covered
+    capabilities: [CAP-014]
+    components: [COMP-013]
+    adrs: [ADR-0024, ADR-0029]
+    tests: [TestEngine_ExecuteDefinition_RollbackOnError, TestExecuteRollback_LIFOOrder]
+  - req: FR-021
+    status: partial
+    capabilities: [CAP-015]
+    components: [COMP-014, COMP-009]
+    adrs: [ADR-0031]
+    tests: []
+  - req: FR-022
+    status: covered
+    capabilities: [CAP-016]
+    components: [COMP-015]
+    adrs: [ADR-0028]
+    tests: [TestIsInternalIP, TestValidateRequestURL]
+  - req: FR-023
+    status: covered
+    capabilities: [CAP-017]
+    components: [COMP-016, COMP-007]
+    adrs: [ADR-0018]
+    tests: [TestApplier_Apply]
+  - req: FR-024
+    status: covered
+    capabilities: [CAP-018]
+    components: [COMP-017, COMP-005]
+    adrs: [ADR-0015]
+    tests: [TestModelService_Activate]
+  - req: NFR-001
+    status: covered
+    capabilities: [CAP-001]
+    components: [COMP-001]
+    adrs: [ADR-0017]
+    tests: [TestHashPassword, TestCheckPassword]
+  - req: NFR-002
+    status: covered
+    capabilities: [CAP-001]
+    components: [COMP-001]
+    adrs: [ADR-0017]
+    tests: [TestRateLimiter_WindowExpiry]
+  - req: NFR-003
+    status: partial
+    capabilities: [CAP-007]
+    components: [COMP-006]
+    adrs: [ADR-0012]
+    tests: []
+  - req: NFR-004
+    status: covered
+    capabilities: [CAP-016]
+    components: [COMP-015]
+    adrs: [ADR-0028]
+    tests: [TestEncryptUniqueness, TestEncryptDecrypt]
+  - req: CON-001
+    status: covered
+    capabilities: []
+    components: [COMP-018]
+    adrs: []
+    tests: []
+    notes: Go 1.25 + PostgreSQL 16 via pgx — satisfied by the implementation.
+  - req: CON-002
+    status: covered
+    capabilities: []
+    components: [COMP-018]
+    adrs: [ADR-0016]
+    tests: []
+    notes: Single-tenant deployment.
+  - req: CON-003
+    status: covered
+    capabilities: []
+    components: [COMP-017]
+    adrs: [ADR-0014]
+    tests: []
+    notes: AGPL core + proprietary ee/ via enterprise build tag.
+  - req: CON-004
+    status: covered
+    capabilities: []
+    components: [COMP-018]
+    adrs: [ADR-0021]
+    tests: []
+    notes: OpenAPI contract is the source of truth; responses contract-tested.
+
+components:
+  - id: COMP-001
+    name: Auth Module
+    context: CTX-001
+    code: ["internal/modules/auth/**"]
+    _meta: { source: reverse-engineered, as_built: true }
+  - id: COMP-002
+    name: Identity & Permission Services
+    context: CTX-003
+    code: ["internal/platform/security/*.go"]
+    _meta: { source: reverse-engineered, as_built: true }
+  - id: COMP-003
+    name: OLS Enforcer
+    context: CTX-003
+    code: ["internal/platform/security/ols/**"]
+    _meta: { source: reverse-engineered, as_built: true }
+  - id: COMP-004
+    name: FLS Enforcer
+    context: CTX-003
+    code: ["internal/platform/security/fls/**"]
+    _meta: { source: reverse-engineered, as_built: true }
+  - id: COMP-005
+    name: RLS Enforcer
+    context: CTX-003
+    code: ["internal/platform/security/rls/**"]
+    _meta: { source: reverse-engineered, as_built: true }
+  - id: COMP-006
+    name: Outbox Worker & Effective Computers
+    context: CTX-003
+    code: ["internal/platform/security/outbox_worker.go", "internal/platform/security/effective_computer.go", "internal/platform/security/rls_effective_computer.go"]
+    _meta: { source: reverse-engineered, as_built: true }
+  - id: COMP-007
+    name: Metadata Engine & Cache
+    context: CTX-002
+    code: ["internal/platform/metadata/**"]
+    _meta: { source: reverse-engineered, as_built: true }
+  - id: COMP-008
+    name: SOQL Engine
+    context: CTX-004
+    code: ["internal/platform/soql/**"]
+    _meta: { source: reverse-engineered, as_built: true }
+  - id: COMP-009
+    name: DML Engine
+    context: CTX-004
+    code: ["internal/platform/dml/**"]
+    _meta: { source: reverse-engineered, as_built: true }
+  - id: COMP-010
+    name: CEL Engine
+    context: CTX-004
+    code: ["internal/platform/cel/**"]
+    _meta: { source: reverse-engineered, as_built: true }
+  - id: COMP-011
+    name: Record Service (generic CRUD)
+    context: CTX-004
+    code: ["internal/service/**"]
+    _meta: { source: reverse-engineered, as_built: true }
+  - id: COMP-012
+    name: Presentation Handlers (Describe/Portal/Layout/Navigation)
+    context: CTX-005
+    code: ["internal/handler/describe_handler.go", "internal/handler/portal_handler.go", "internal/handler/portal_admin_handler.go", "internal/handler/layout_handler.go", "internal/handler/shared_layout_handler.go", "internal/handler/navigation_handler.go"]
+    _meta: { source: reverse-engineered, as_built: true }
+  - id: COMP-013
+    name: Procedure Engine
+    context: CTX-006
+    code: ["internal/platform/procedure/**"]
+    _meta: { source: reverse-engineered, as_built: true }
+  - id: COMP-014
+    name: Automation Engine
+    context: CTX-006
+    code: ["internal/platform/automation/**"]
+    _meta: { source: reverse-engineered, as_built: true }
+  - id: COMP-015
+    name: Credential Service
+    context: CTX-006
+    code: ["internal/platform/credential/**"]
+    _meta: { source: reverse-engineered, as_built: true }
+  - id: COMP-016
+    name: App Templates
+    context: CTX-007
+    code: ["internal/platform/templates/**"]
+    _meta: { source: reverse-engineered, as_built: true }
+  - id: COMP-017
+    name: Territory Management (ee)
+    context: CTX-008
+    code: ["ee/internal/platform/territory/**"]
+    _meta: { source: reverse-engineered, as_built: true }
+  - id: COMP-018
+    name: HTTP API & Middleware
+    context: CTX-004
+    code: ["internal/handler/*.go", "internal/middleware/**", "internal/api/**", "cmd/api/**"]
+    _meta: { source: reverse-engineered, as_built: true }

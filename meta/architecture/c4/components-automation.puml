@@ -1,0 +1,22 @@
+@startuml components-automation
+' generated_by: forge:architect (synthesis, brownfield)
+' generated_at: 2026-06-28
+' C4 Level 3 — Components of CTX-006 Automation
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title Components — Automation (CTX-006)
+
+Container_Boundary(api, "API Server") {
+  Component(proc, "Procedure Engine", "Go / internal/platform/procedure", "Versioned JSON-DSL; 6 command types; CEL resolution; LIFO Saga rollback; dry-run (COMP-013)")
+  Component(autom, "Automation Engine", "Go / internal/platform/automation", "Evaluates Automation Rules on DML events (post-execute hook); bounded recursion (COMP-014)")
+  Component(cred, "Credential Service", "Go / internal/platform/credential", "AES-256-GCM secrets; OAuth2 token cache; SSRF-guarded outbound HTTP (COMP-015)")
+}
+Component(dml, "DML Engine", "CTX-004")
+System_Ext(http, "External HTTP APIs", "EXT-003")
+
+Rel(autom, dml, "Registered as post-execute hook")
+Rel(autom, proc, "Invokes published procedure")
+Rel(proc, dml, "record.* commands run through DML")
+Rel(proc, cred, "Resolves integration secrets")
+Rel(cred, http, "Outbound integration.http", "REST/HTTPS")
+@enduml

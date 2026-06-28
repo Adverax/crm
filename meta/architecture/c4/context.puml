@@ -1,0 +1,25 @@
+@startuml context
+' generated_by: forge:architect (synthesis, brownfield)
+' generated_at: 2026-06-28
+' C4 Level 1 — System Context
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+title System Context — Adverax CRM
+
+Person(enduser, "End User", "Works with CRM records in the /app zone (ACT-001)")
+Person(admin, "Administrator", "Configures objects, security, UI, automation (/admin) (ACT-002)")
+
+System(crm, "Adverax CRM", "Metadata-driven CRM with 3-layer security, SOQL/DML engines and declarative automation")
+
+System_Ext(pg, "PostgreSQL 16", "Primary data store; metadata, iam, security schemas and obj_* tables (EXT-001)")
+System_Ext(redis, "Redis 7", "Reserved for caching (EXT-002)")
+System_Ext(http, "External HTTP APIs", "Third-party REST endpoints called via Named Credentials (EXT-003)")
+System_Ext(smtp, "Email transport", "Password-reset / notification email; SMTP planned (EXT-004)")
+
+Rel(enduser, crm, "Reads/writes records, navigates portals", "HTTPS/JSON + JWT")
+Rel(admin, crm, "Administers metadata, security, automation", "HTTPS/JSON + JWT")
+Rel(crm, pg, "Reads/writes; LISTEN/NOTIFY outbox", "pgx/v5")
+Rel(crm, redis, "Caching (reserved)", "RESP")
+Rel(crm, http, "Outbound integration (SSRF-guarded, HTTPS)", "REST")
+Rel(crm, smtp, "Sends transactional email", "SMTP")
+@enduml

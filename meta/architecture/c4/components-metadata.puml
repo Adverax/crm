@@ -1,0 +1,19 @@
+@startuml components-metadata
+' generated_by: forge:architect (synthesis, brownfield)
+' generated_at: 2026-06-28
+' C4 Level 3 — Components of CTX-002 Metadata Engine
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title Components — Metadata Engine (CTX-002)
+
+Container_Boundary(api, "API Server") {
+  Component(meta, "Metadata Services & Cache", "Go / internal/platform/metadata", "Object/field/picklist services; in-memory MetadataCache implementing MetadataReader (COMP-007)")
+  Component(ddl, "DDL Executor", "Go / metadata/ddl", "Creates/alters obj_* tables and __share tables at runtime (part of COMP-007)")
+  Component(reg, "Relationship Registry", "Go / metadata", "Derives forward/reverse relationships from field definitions (part of COMP-007)")
+}
+ContainerDb(db, "PostgreSQL", "metadata schema + obj_* tables")
+
+Rel(meta, db, "Reads/writes metadata.* definitions")
+Rel(ddl, db, "DDL: create/alter obj_* tables")
+Rel(meta, reg, "Builds & caches relationships")
+@enduml

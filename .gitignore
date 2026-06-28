@@ -48,3 +48,9 @@ web/.env.local
 # Temporary
 tmp/
 *.log
+
+# ─── forge ─────────────────────────────── git_tracking.preset: solo ───
+# Regenerate: /forge:init gitignore
+meta/architecture/handoff.md
+meta/architecture/checkpoints/
+# ────────────────────────────────────────────────────────────────────────────

@@ -1,0 +1,9 @@
+# generated_by: forge:architect (brownfield import)
+# generated_at: 2026-06-28
+# tier: large
+# No blocking open decisions: all 37 ADRs are recorded in resolved.yml.
+# ADR-0033 (offline sync), ADR-0036 (portal action model), ADR-0037 (portal gate
+# graph) are written but marked "Proposed" — they are designs pending implementation,
+# tracked via the roadmap, not unresolved architecture questions. Prescriptive gaps
+# (AC test binding, NFR targets) are in reverse-report.md.
+open: []

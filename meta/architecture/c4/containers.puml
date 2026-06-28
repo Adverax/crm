@@ -1,0 +1,32 @@
+@startuml containers
+' generated_by: forge:architect (synthesis, brownfield)
+' generated_at: 2026-06-28
+' C4 Level 2 — Containers
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Containers — Adverax CRM
+
+Person(enduser, "End User")
+Person(admin, "Administrator")
+
+System_Boundary(crm, "Adverax CRM") {
+  Container(spa, "Web SPA", "Vue 3 + TypeScript + Pinia + Tailwind", "Metadata-driven UI: /app workspace + /admin; renders forms/tables from the Describe API")
+  Container(api, "API Server", "Go 1.25 + Gin (single binary)", "REST API; hosts metadata, security, SOQL/DML, CEL, procedure, automation, credential, template engines")
+  Container(worker, "Outbox Worker", "Go goroutine in the API process", "LISTEN/NOTIFY + 30s sweep; recomputes effective OLS/FLS/RLS caches (ACT-003)")
+  ContainerDb(db, "PostgreSQL 16", "PostgreSQL", "metadata / iam / security schemas, obj_* tables, security_outbox, ee territory functions")
+}
+
+System_Ext(redis, "Redis 7", "Reserved cache")
+System_Ext(http, "External HTTP APIs")
+System_Ext(smtp, "Email transport")
+
+Rel(enduser, spa, "Uses", "HTTPS")
+Rel(admin, spa, "Administers", "HTTPS")
+Rel(spa, api, "Calls /api/v1", "HTTPS/JSON + JWT")
+Rel(api, db, "Queries/mutates; writes outbox", "pgx/v5")
+Rel(worker, db, "Reads outbox, writes effective caches", "pgx/v5")
+Rel(db, worker, "Notifies", "pg_notify(security_outbox)")
+Rel(api, redis, "Cache (reserved)", "RESP")
+Rel(api, http, "Integration (Named Credentials)", "REST/HTTPS")
+Rel(api, smtp, "Email", "SMTP")
+@enduml
